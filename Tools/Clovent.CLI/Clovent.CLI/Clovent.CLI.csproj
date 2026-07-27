@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\src\Clovent.Core\Clovent.Core.csproj" />
     <ProjectReference Include="..\src\Clovent.Generator\Clovent.Generator.csproj" />
     <ProjectReference Include="..\src\Clovent.Documents\Clovent.Documents.csproj" />
     <ProjectReference Include="..\src\Clovent.Configuration\Clovent.Configuration.csproj" />

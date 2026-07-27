@@ -4,6 +4,7 @@
     <Project Path="src/Clovent.Core/Clovent.Core.csproj" />
     <Project Path="src/Clovent.Documents/Clovent.Documents.csproj" />
     <Project Path="src/Clovent.Generator/Clovent.Generator.csproj" />
+    <Project Path="src/Clovent.Modules.Identity/Clovent.Modules.Identity.csproj" />
     <Project Path="src/Clovent.Shared/Clovent.Shared.csproj" />
     <Project Path="src/Clovent.Templates/Clovent.Templates.csproj" />
   </Folder>
