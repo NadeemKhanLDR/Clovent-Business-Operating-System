@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Clovent.Core\Clovent.Core.csproj" />
+    <ProjectReference Include="..\Clovent.Documents\Clovent.Documents.csproj" />
+    <ProjectReference Include="..\Clovent.Templates\Clovent.Templates.csproj" />
+    <ProjectReference Include="..\Clovent.Configuration\Clovent.Configuration.csproj" />
+    <ProjectReference Include="..\Clovent.Shared\Clovent.Shared.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

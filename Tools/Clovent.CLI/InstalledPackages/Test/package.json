@@ -1,0 +1,11 @@
+{
+  "Id":"Authentication",
+  "Name":"Authentication Module",
+  "Version":"1.0.0",
+  "Author":"Clovent",
+  "Description":"Authentication Package",
+  "Dependencies":[],
+  "Files":[
+    "readme.txt"
+  ]
+}

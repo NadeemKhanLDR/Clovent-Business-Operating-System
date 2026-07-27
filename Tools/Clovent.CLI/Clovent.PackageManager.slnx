@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Clovent.PackageManager.Abstractions/Clovent.PackageManager.Abstractions.csproj" />
+  <Project Path="Clovent.PackageManager.Core/Clovent.PackageManager.Core.csproj" />
+  <Project Path="Clovent.PackageManager.Tests/Clovent.PackageManager.Tests.csproj" />
+  <Project Path="Clovent.PackageManager/Clovent.PackageManager.csproj" />
+</Solution>
