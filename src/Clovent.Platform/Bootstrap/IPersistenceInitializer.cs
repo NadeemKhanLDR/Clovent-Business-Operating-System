@@ -10,5 +10,12 @@ namespace Clovent.Platform.Bootstrap;
 /// </summary>
 public interface IPersistenceInitializer
 {
+    /// <summary>
+    /// Prepares this module's persistence for use (e.g. applying pending EF
+    /// Core migrations). Called once per registered implementation, before
+    /// any <see cref="IStartupTask"/> runs, so startup tasks can assume
+    /// schema is ready.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token propagated from <see cref="ApplicationBootstrapper.BuildAndInitializeAsync"/>.</param>
     Task InitializeAsync(CancellationToken cancellationToken = default);
 }

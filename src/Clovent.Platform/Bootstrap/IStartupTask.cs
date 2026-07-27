@@ -8,5 +8,11 @@ namespace Clovent.Platform.Bootstrap;
 /// </summary>
 public interface IStartupTask
 {
+    /// <summary>
+    /// Performs this module's startup work. Called once per registered
+    /// implementation, after every <see cref="IPersistenceInitializer"/> has
+    /// already run, so this can assume persistence is ready.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token propagated from <see cref="ApplicationBootstrapper.BuildAndInitializeAsync"/>.</param>
     Task ExecuteAsync(CancellationToken cancellationToken = default);
 }

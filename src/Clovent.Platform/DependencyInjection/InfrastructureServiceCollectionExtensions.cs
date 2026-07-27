@@ -12,6 +12,17 @@ namespace Clovent.Platform.DependencyInjection;
 /// </summary>
 public static class InfrastructureServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers Platform Foundation's Infrastructure-layer services: the
+    /// <see cref="IExecutionContextAccessor"/> singleton. <paramref name="configuration"/>
+    /// is accepted for signature consistency with the
+    /// AddInfrastructure()/AddApplication()/AddPersistence() convention and
+    /// for future infrastructure registrations that need it; it is not read
+    /// today.
+    /// </summary>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configuration">Configuration available to infrastructure registrations.</param>
+    /// <returns><paramref name="services"/>, for chaining.</returns>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddExecutionContextAccessor();

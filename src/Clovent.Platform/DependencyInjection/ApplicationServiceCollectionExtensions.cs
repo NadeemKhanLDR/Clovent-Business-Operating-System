@@ -12,6 +12,17 @@ namespace Clovent.Platform.DependencyInjection;
 /// </summary>
 public static class ApplicationServiceCollectionExtensions
 {
+    /// <summary>
+    /// Registers Platform Foundation's Application-layer services: the
+    /// validated <see cref="PlatformOptions"/> binding and the module
+    /// registry. Call before <see cref="InfrastructureServiceCollectionExtensions.AddInfrastructure"/>
+    /// and <see cref="PersistenceServiceCollectionExtensions.AddPersistence"/>,
+    /// or simply call <see cref="PlatformServiceCollectionExtensions.AddPlatform"/>
+    /// to get all three in order.
+    /// </summary>
+    /// <param name="services">The service collection to register into.</param>
+    /// <param name="configuration">The configuration <see cref="PlatformOptions"/> is bound from.</param>
+    /// <returns><paramref name="services"/>, for chaining.</returns>
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<PlatformOptions>(configuration, PlatformOptions.SectionName);

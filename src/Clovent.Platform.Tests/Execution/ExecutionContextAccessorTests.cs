@@ -75,4 +75,57 @@ public sealed class ExecutionContextAccessorTests
         Assert.Equal(userB, results[1]);
         Assert.Null(accessor.Current);
     }
+
+    [Fact]
+    public void Dispose_CalledTwice_DoesNotThrow_AndRestoresOnlyOnce()
+    {
+        var accessor = new ExecutionContextAccessor();
+        var outer = new PlatformExecutionContext { UserId = Guid.NewGuid() };
+        var inner = new PlatformExecutionContext { UserId = Guid.NewGuid() };
+
+        using (accessor.BeginScope(outer))
+        {
+            var scope = accessor.BeginScope(inner);
+            scope.Dispose();
+            Assert.Same(outer, accessor.Current);
+
+            // A second Dispose() must be a no-op, not restore "previous" a second time.
+            scope.Dispose();
+            Assert.Same(outer, accessor.Current);
+        }
+    }
+
+    [Fact]
+    public void ExecutionContextScope_NullAccessor_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => new ExecutionContextScope(null!, PlatformExecutionContext.Empty));
+    }
+
+    [Fact]
+    public void ExecutionContextScope_NullContext_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(
+            () => new ExecutionContextScope(new ExecutionContextAccessor(), null!));
+    }
+
+    [Fact]
+    public void BeginScope_OnNonDefaultAccessorImplementation_ThrowsInvalidOperationException()
+    {
+        IExecutionContextAccessor customAccessor = new CustomAccessor();
+
+        Assert.Throws<InvalidOperationException>(
+            () => customAccessor.BeginScope(PlatformExecutionContext.Empty));
+    }
+
+    /// <summary>
+    /// A minimal, deliberately non-<see cref="ExecutionContextAccessor"/>
+    /// implementation of <see cref="IExecutionContextAccessor"/>, used only
+    /// to prove that <see cref="ExecutionContextAccessorExtensions.BeginScope"/>
+    /// rejects accessors it cannot mutate.
+    /// </summary>
+    private sealed class CustomAccessor : IExecutionContextAccessor
+    {
+        public IExecutionContext? Current => null;
+    }
 }
