@@ -13,6 +13,8 @@
     <Project Path="tests/Clovent.Generator.Tests/Clovent.Generator.Tests.csproj" />
   </Folder>
   <Project Path="../../src/Clovent.Authentication/Clovent.Authentication.csproj" />
+  <Project Path="../../src/Clovent.Platform/Clovent.Platform.csproj" />
+  <Project Path="../../src/Clovent.Platform.Tests/Clovent.Platform.Tests.csproj" />
   <Project Path="Clovent.CBOS.Desktop/Clovent.CBOS.Desktop.csproj" />
   <Project Path="Clovent.CLI/Clovent.CLI.csproj" />
 </Solution>
