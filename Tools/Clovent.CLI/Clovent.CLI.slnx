@@ -13,14 +13,6 @@
     <Project Path="tests/Clovent.Generator.Tests/Clovent.Generator.Tests.csproj" />
   </Folder>
   <Project Path="../../src/Clovent.Authentication/Clovent.Authentication.csproj" />
+  <Project Path="Clovent.CBOS.Desktop/Clovent.CBOS.Desktop.csproj" />
   <Project Path="Clovent.CLI/Clovent.CLI.csproj" />
-
-  <!--
-    Clovent.CBOS.Desktop is intentionally excluded from this solution.
-    Its code depends on DevExpress WinForms controls, and no DevExpress
-    PackageReference/feed is configured in this repository, so it cannot
-    build. Re-add it once a DevExpress package source is available:
-      <Project Path="Clovent.CBOS.Desktop/Clovent.CBOS.Desktop.csproj" />
-    The project's files are untouched on disk.
-  -->
 </Solution>

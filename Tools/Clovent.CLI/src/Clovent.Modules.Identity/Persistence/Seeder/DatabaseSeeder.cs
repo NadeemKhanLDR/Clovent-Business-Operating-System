@@ -1,9 +1,11 @@
-﻿namespace Clovent.Modules.Identity.Persistence.Seeder;
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace Clovent.Modules.Identity.Persistence.Seeder;
 
 public static class DatabaseSeeder
 {
     public static async Task SeedAsync(IdentityDbContext context)
     {
-        await context.Database.EnsureCreatedAsync();
+        await context.Database.MigrateAsync();
     }
 }
