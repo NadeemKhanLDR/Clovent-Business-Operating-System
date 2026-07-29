@@ -1,4 +1,6 @@
 using Clovent.Catalog.Application.Barcodes.Queries;
+using Clovent.Catalog.Application.Categories.Dtos;
+using Clovent.Catalog.Application.Categories.Queries;
 using Clovent.Catalog.Application.Variants.Dtos;
 using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Desktop.Inventory.WarehouseStocks;
@@ -82,6 +84,8 @@ public sealed class RestaurantPosView : XtraUserControl
     private readonly TextEdit _barcodeEdit = new();
     private readonly SimpleButton _addByBarcodeButton = new() { Text = "Add", Height = 30 };
     private readonly SpinEdit _addQuantityEdit = new() { Properties = { MinValue = 0.01m, MaxValue = 1000 }, Value = 1 };
+    private readonly TextEdit _productSearchEdit = new();
+    private readonly FlowLayoutPanel _categoryButtonsPanel = new() { Dock = DockStyle.Top, Height = 32, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
     private readonly GridControl _productGrid = new() { Dock = DockStyle.Fill };
     private readonly GridView _productGridView = new();
 
@@ -96,6 +100,9 @@ public sealed class RestaurantPosView : XtraUserControl
     private OrderDto? _currentOrder;
     private readonly Dictionary<Guid, ProductVariantDto> _variantsById = [];
     private Dictionary<string, bool> _permissions = [];
+    private List<ProductVariantDto> _activeVariants = [];
+    private Guid? _selectedCategoryId;
+    private readonly SimpleButton _allCategoriesButton = new() { Text = "All", Height = 26 };
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public RestaurantPosView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -206,8 +213,15 @@ public sealed class RestaurantPosView : XtraUserControl
         leftToolbar.Controls.Add(_addQuantityEdit);
         leftToolbar.Controls.Add(_addByBarcodeButton);
 
+        var searchPanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 30, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+        _productSearchEdit.Width = 280;
+        _productSearchEdit.Properties.NullValuePrompt = "Search products...";
+        searchPanel.Controls.Add(_productSearchEdit);
+
         var leftPanel = new PanelControl { Dock = DockStyle.Left, Width = 320 };
         leftPanel.Controls.Add(_productGrid);
+        leftPanel.Controls.Add(_categoryButtonsPanel);
+        leftPanel.Controls.Add(searchPanel);
         leftPanel.Controls.Add(leftToolbar);
 
         var topPanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 44, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(4) };
@@ -247,6 +261,9 @@ public sealed class RestaurantPosView : XtraUserControl
         _addServiceChargeButton.Click += async (_, _) => await AddServiceChargeAsync();
         _removeServiceChargeButton.Click += async (_, _) => await RemoveServiceChargeAsync();
 
+        _productSearchEdit.EditValueChanged += (_, _) => ApplyProductFilter();
+        _allCategoriesButton.Click += (_, _) => SelectCategory(null);
+
         _addByBarcodeButton.Click += async (_, _) => await AddByBarcodeAsync();
         _barcodeEdit.KeyDown += async (_, e) =>
         {
@@ -275,10 +292,53 @@ public sealed class RestaurantPosView : XtraUserControl
         {
             _variantsById[variant.ProductVariantId] = variant;
         }
-        _productGrid.DataSource = variants.Where(v => v.Status == "Active").ToList();
+        _activeVariants = [.. variants.Where(v => v.Status == "Active")];
+
+        var categories = await _mediator.Send(new ListProductCategoriesQuery());
+        BuildCategoryButtons(categories.Where(c => c.Status == "Active").ToList());
+        ApplyProductFilter();
 
         await ReloadTablesAsync();
         await RefreshOrderAsync();
+    }
+
+    private void BuildCategoryButtons(IReadOnlyList<ProductCategoryDto> categories)
+    {
+        _categoryButtonsPanel.Controls.Clear();
+        _categoryButtonsPanel.Controls.Add(_allCategoriesButton);
+
+        foreach (var category in categories)
+        {
+            var button = new SimpleButton { Text = category.Name, Height = 26, Tag = category.ProductCategoryId };
+            button.Click += (_, _) => SelectCategory(category.ProductCategoryId);
+            _categoryButtonsPanel.Controls.Add(button);
+        }
+    }
+
+    private void SelectCategory(Guid? categoryId)
+    {
+        _selectedCategoryId = categoryId;
+        ApplyProductFilter();
+    }
+
+    private void ApplyProductFilter()
+    {
+        var searchText = _productSearchEdit.Text.Trim();
+
+        var filtered = _activeVariants.AsEnumerable();
+        if (_selectedCategoryId is { } categoryId)
+        {
+            filtered = filtered.Where(v => v.ProductCategoryId == categoryId);
+        }
+
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            filtered = filtered.Where(v =>
+                v.Sku.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                v.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        _productGrid.DataSource = filtered.ToList();
     }
 
     private async Task ReloadTablesAsync()

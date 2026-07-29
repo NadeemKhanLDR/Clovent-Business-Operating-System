@@ -1,3 +1,4 @@
+using Clovent.Catalog.Variants;
 using Clovent.MasterData.Warehouses;
 
 namespace Clovent.Inventory.Transactions;
@@ -10,6 +11,9 @@ public interface IInventoryTransactionRepository
 
     /// <summary>Retrieves every transaction recorded at a warehouse.</summary>
     Task<IReadOnlyCollection<InventoryTransaction>> GetByWarehouseIdAsync(WarehouseId warehouseId, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves every transaction recorded for a product variant, across every warehouse - the "Stock History" feature's per-product view.</summary>
+    Task<IReadOnlyCollection<InventoryTransaction>> GetByProductVariantIdAsync(ProductVariantId productVariantId, CancellationToken cancellationToken = default);
 
     /// <summary>Retrieves the most recent transactions across every warehouse, newest first.</summary>
     Task<IReadOnlyCollection<InventoryTransaction>> GetRecentAsync(int count, CancellationToken cancellationToken = default);

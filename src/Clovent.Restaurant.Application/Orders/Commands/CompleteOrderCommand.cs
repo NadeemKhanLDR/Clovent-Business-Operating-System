@@ -9,6 +9,7 @@ using Clovent.Restaurant.Discounts;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using MediatR;
@@ -34,6 +35,7 @@ public sealed class CompleteOrderCommandHandler(
     IServiceChargeRepository serviceChargeRepository,
     IPaymentRepository paymentRepository,
     ITableRepository tableRepository,
+    IDailySalesSequenceRepository dailySalesSequenceRepository,
     IMediator mediator) : IRequestHandler<CompleteOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -66,6 +68,15 @@ public sealed class CompleteOrderCommandHandler(
                 await mediator.Send(new IssueStockCommand(stock.WarehouseStockId, line.Quantity, $"Order {order.OrderNumber.Value}"), cancellationToken);
             }
         }
+
+        var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
+        var sequence = await dailySalesSequenceRepository.GetByWarehouseAndDateAsync(order.WarehouseId, today, cancellationToken);
+        if (sequence is null)
+        {
+            sequence = DailySalesSequence.Create(order.WarehouseId, today);
+            await dailySalesSequenceRepository.AddAsync(sequence, cancellationToken);
+        }
+        order.AssignDailySalesNumber(sequence.Next());
 
         order.Complete();
 

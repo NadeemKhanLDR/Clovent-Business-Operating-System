@@ -6,6 +6,7 @@ namespace Clovent.Restaurant.Application.Orders.Dtos;
 public sealed record OrderDto(
     Guid OrderId,
     string OrderNumber,
+    int? DailySalesNumber,
     string OrderType,
     string Status,
     Guid? TableId,
@@ -23,6 +24,7 @@ public sealed record OrderDto(
     public static OrderDto FromDomain(Order order) => new(
         order.Id.Value,
         order.OrderNumber.Value,
+        order.DailySalesNumber,
         order.OrderType.ToString(),
         order.Status.ToString(),
         order.TableId?.Value,

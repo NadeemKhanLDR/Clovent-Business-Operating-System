@@ -16,6 +16,6 @@ public sealed class ListProductVariantsByProductQueryHandler(IProductVariantRepo
     public async Task<IReadOnlyCollection<ProductVariantDto>> Handle(ListProductVariantsByProductQuery request, CancellationToken cancellationToken)
     {
         var variants = await repository.GetByProductIdAsync(new ProductId(request.ProductId), cancellationToken);
-        return [.. variants.Select(ProductVariantDto.FromDomain)];
+        return [.. variants.Select(v => ProductVariantDto.FromDomain(v))];
     }
 }

@@ -1,8 +1,11 @@
+using Clovent.Authentication.Application.Credentials.Commands;
+using Clovent.Desktop.Identity.Users;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Theming;
 using DevExpress.XtraBars;
+using MediatR;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraBars.Ribbon;
 using DevExpress.XtraEditors;
@@ -55,6 +58,8 @@ public sealed class ShellForm : RibbonForm, IWorkspaceHost
     private static readonly Dictionary<string, string> MenuLabels = new()
     {
         ["dashboard"] = "Dashboard",
+        ["users"] = "Users",
+        ["roles"] = "Roles",
         ["organizations"] = "Organizations",
         ["companies"] = "Companies",
         ["branches"] = "Branches",
@@ -81,6 +86,7 @@ public sealed class ShellForm : RibbonForm, IWorkspaceHost
         ["runningorders"] = "Running Orders",
         ["holdorders"] = "Hold Orders",
         ["kitchentickets"] = "Kitchen Tickets",
+        ["endofday"] = "End of Day",
     };
     private readonly BarStaticItem _statusLabel = new() { Caption = "Ready" };
     private readonly BarStaticItem _userStatusItem = new();
@@ -137,10 +143,14 @@ public sealed class ShellForm : RibbonForm, IWorkspaceHost
         homePage.Groups.Add(accountGroup);
 
         _profileMenu.Caption = _currentSession.DisplayName ?? "Account";
+        var changePasswordItem = new BarButtonItem { Caption = "Change Password" };
+        changePasswordItem.ItemClick += async (_, _) => await ChangePasswordAsync();
         var signOutItem = new BarButtonItem { Caption = "Sign Out" };
         signOutItem.ItemClick += (_, _) => SignOut();
         _ribbon.Items.Add(_profileMenu);
+        _ribbon.Items.Add(changePasswordItem);
         _ribbon.Items.Add(signOutItem);
+        _profileMenu.AddItem(changePasswordItem);
         _profileMenu.AddItem(signOutItem);
         accountGroup.ItemLinks.Add(_profileMenu);
 
@@ -272,6 +282,39 @@ public sealed class ShellForm : RibbonForm, IWorkspaceHost
     {
         _currentSession.SignOut();
         Close();
+    }
+
+    /// <summary>
+    /// Self-service password change, reachable from the profile menu -
+    /// distinct from the admin Reset Password action on
+    /// <see cref="UserListView"/>, which skips the current-password check
+    /// this dialog requires.
+    /// </summary>
+    private async Task ChangePasswordAsync()
+    {
+        if (_currentSession.UserId is not { } userId)
+        {
+            return;
+        }
+
+        using var form = new PasswordPromptForm("Change Password", requireCurrentPassword: true);
+        if (form.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        try
+        {
+            await mediator.Send(new ChangePasswordCommand(userId, form.CurrentPassword, form.NewPassword));
+            XtraMessageBox.Show(this, "Password changed.", "Change Password", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            XtraMessageBox.Show(this, ex.Message, "Change Password", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     /// <summary>Updates the status bar's message text.</summary>

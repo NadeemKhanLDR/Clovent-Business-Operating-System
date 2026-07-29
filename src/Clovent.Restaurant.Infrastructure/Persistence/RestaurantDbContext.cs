@@ -5,6 +5,7 @@ using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,9 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
 
     /// <summary>ServiceCharge aggregates.</summary>
     public DbSet<ServiceCharge> ServiceCharges => Set<ServiceCharge>();
+
+    /// <summary>DailySalesSequence aggregates.</summary>
+    public DbSet<DailySalesSequence> DailySalesSequences => Set<DailySalesSequence>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

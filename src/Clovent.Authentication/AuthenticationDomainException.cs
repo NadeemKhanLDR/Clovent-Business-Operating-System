@@ -35,4 +35,12 @@ public sealed class AuthenticationDomainException : DomainException
     /// <summary>RefreshSession Rotate() was attempted after its expiry instant was reached.</summary>
     public static AuthenticationDomainException RefreshSessionExpired(RefreshSessionId refreshSessionId) =>
         new($"Refresh session '{refreshSessionId}' has expired and cannot be rotated.");
+
+    /// <summary>A candidate password failed <see cref="Passwords.PasswordPolicy"/> evaluation.</summary>
+    public static AuthenticationDomainException PasswordPolicyViolated(IReadOnlyList<string> violations) =>
+        new(string.Join(" ", violations));
+
+    /// <summary>A self-service password change supplied a current password that does not match the stored hash.</summary>
+    public static AuthenticationDomainException CurrentPasswordIncorrect() =>
+        new("The current password is incorrect.");
 }

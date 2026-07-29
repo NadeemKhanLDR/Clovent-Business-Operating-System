@@ -19,4 +19,8 @@ public sealed class PermissionRepository(IdentityDbContext dbContext) : IPermiss
     /// <inheritdoc/>
     public async Task AddAsync(Permission permission, CancellationToken cancellationToken = default) =>
         await dbContext.Permissions.AddAsync(permission, cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Permissions.ToListAsync(cancellationToken);
 }

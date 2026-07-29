@@ -116,6 +116,14 @@ internal static class ValueConverters
     public static readonly ValueConverter<BranchId, Guid> BranchIdConverter =
         new(id => id.Value, value => new BranchId(value));
 
+    /// <summary><see cref="Users.User.CompanyId"/>'s nullable counterpart to <see cref="CompanyIdConverter"/>.</summary>
+    public static readonly ValueConverter<CompanyId?, Guid?> NullableCompanyIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new CompanyId(value.Value));
+
+    /// <summary><see cref="Users.User.BranchId"/>'s nullable counterpart to <see cref="BranchIdConverter"/>.</summary>
+    public static readonly ValueConverter<BranchId?, Guid?> NullableBranchIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new BranchId(value.Value));
+
     /// <summary><see cref="OrganizationName"/> &lt;-&gt; name text.</summary>
     public static readonly ValueConverter<OrganizationName, string> OrganizationNameConverter =
         new(v => v.Value, v => OrganizationName.Create(v));

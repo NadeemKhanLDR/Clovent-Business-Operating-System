@@ -20,4 +20,7 @@ internal sealed class FakePermissionRepository : IPermissionRepository
         _permissions[permission.Id] = permission;
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Permission>>([.. _permissions.Values]);
 }

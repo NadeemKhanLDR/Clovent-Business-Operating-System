@@ -14,7 +14,8 @@ namespace Clovent.Desktop.Inventory.WarehouseStocks;
 
 /// <summary>
 /// Warehouse Stock screen: search, filter, create, edit (stock levels and
-/// negative-stock policy), and Receive/Issue/Reserve/Release over the stock
+/// negative-stock policy), Receive Inventory (opening stock/atomic
+/// find-or-create receive), and Receive/Issue/Reserve/Release over the stock
 /// balances of a selected warehouse. Feature-gated per
 /// <c>warehousestocks.{create|edit|receive|issue|reserve|release}</c>.
 /// </summary>
@@ -27,7 +28,11 @@ public sealed class WarehouseStockManagementView : XtraUserControl
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
     private readonly EntityPicker _warehousePicker = new("Warehouse:");
-    private readonly MasterDataListView<WarehouseStockDto> _listView;
+    private readonly SimpleButton _receiveInventoryButton = new() { Text = "Receive Inventory" };
+    private readonly MasterDataListView<WarehouseStockRow> _listView;
+
+    private IReadOnlyList<(Guid Id, string Display)> _warehouseOptions = [];
+    private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public WarehouseStockManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -39,34 +44,44 @@ public sealed class WarehouseStockManagementView : XtraUserControl
 
         Dock = DockStyle.Fill;
 
-        _listView = new MasterDataListView<WarehouseStockDto>(
+        _listView = new MasterDataListView<WarehouseStockRow>(
         [
-            new MasterDataColumn(nameof(WarehouseStockDto.QuantityOnHand), "On Hand", 90),
-            new MasterDataColumn(nameof(WarehouseStockDto.QuantityReserved), "Reserved", 90),
-            new MasterDataColumn(nameof(WarehouseStockDto.QuantityAvailable), "Available", 90),
-            new MasterDataColumn(nameof(WarehouseStockDto.MinimumStock), "Min", 70),
-            new MasterDataColumn(nameof(WarehouseStockDto.MaximumStock), "Max", 70),
-            new MasterDataColumn(nameof(WarehouseStockDto.AllowNegativeStock), "Neg. OK", 70),
-            new MasterDataColumn(nameof(WarehouseStockDto.UpdatedAtUtc), "Updated (UTC)", 160),
+            new MasterDataColumn(nameof(WarehouseStockRow.Sku), "SKU", 100),
+            new MasterDataColumn(nameof(WarehouseStockRow.Name), "Product", 180),
+            new MasterDataColumn(nameof(WarehouseStockRow.QuantityOnHand), "On Hand", 80),
+            new MasterDataColumn(nameof(WarehouseStockRow.QuantityReserved), "Reserved", 80),
+            new MasterDataColumn(nameof(WarehouseStockRow.QuantityAvailable), "Available", 80),
+            new MasterDataColumn(nameof(WarehouseStockRow.MinimumStock), "Min", 60),
+            new MasterDataColumn(nameof(WarehouseStockRow.MaximumStock), "Max", 60),
+            new MasterDataColumn(nameof(WarehouseStockRow.AllowNegativeStock), "Neg. OK", 60),
+            new MasterDataColumn(nameof(WarehouseStockRow.UpdatedAtUtc), "Updated (UTC)", 160),
         ],
         [
-            new MasterDataListAction<WarehouseStockDto>("Receive", ReceiveAsync, FeatureOperation: "receive"),
-            new MasterDataListAction<WarehouseStockDto>("Issue", IssueAsync, FeatureOperation: "issue"),
-            new MasterDataListAction<WarehouseStockDto>("Reserve", ReserveAsync, FeatureOperation: "reserve"),
-            new MasterDataListAction<WarehouseStockDto>("Release", ReleaseAsync, FeatureOperation: "release"),
+            new MasterDataListAction<WarehouseStockRow>("Receive", ReceiveAsync, FeatureOperation: "receive"),
+            new MasterDataListAction<WarehouseStockRow>("Issue", IssueAsync, FeatureOperation: "issue"),
+            new MasterDataListAction<WarehouseStockRow>("Reserve", ReserveAsync, FeatureOperation: "reserve"),
+            new MasterDataListAction<WarehouseStockRow>("Release", ReleaseAsync, FeatureOperation: "release"),
         ])
         {
             LoadItemsAsync = LoadItemsAsync,
+            SearchTextSelector = row => $"{row.Sku} {row.Name}",
             CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
             OnNew = CreateAsync,
             OnEdit = EditAsync,
         };
 
         _warehousePicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
+        _receiveInventoryButton.Click += async (_, _) => await ReceiveInventoryAsync();
+
+        var toolbar = new PanelControl { Dock = DockStyle.Top, Height = 32 };
+        var toolbarLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+        toolbarLayout.Controls.Add(_receiveInventoryButton);
+        toolbar.Controls.Add(toolbarLayout);
 
         Controls.Add(_listView);
+        Controls.Add(toolbar);
         Controls.Add(_warehousePicker);
-        Load += async (_, _) => await LoadWarehousesAsync();
+        Load += async (_, _) => await LoadLookupsAsync();
     }
 
     /// <inheritdoc/>
@@ -80,13 +95,17 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         base.Dispose(disposing);
     }
 
-    private async Task LoadWarehousesAsync()
+    private async Task LoadLookupsAsync()
     {
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
+        _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
+        _warehousePicker.LoadItems(_warehouseOptions);
+
+        var variants = await _mediator.Send(new ListProductVariantsQuery());
+        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
     }
 
-    private async Task<IReadOnlyList<WarehouseStockDto>> LoadItemsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<WarehouseStockRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {
         if (_warehousePicker.SelectedId is not { } warehouseId)
         {
@@ -94,7 +113,15 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         }
 
         var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), cancellationToken);
-        return [.. items];
+        return
+        [
+            .. items.Select(dto =>
+            {
+                var (sku, name) = _variantsById.TryGetValue(dto.ProductVariantId, out var variant) ? variant : (string.Empty, string.Empty);
+                return new WarehouseStockRow(sku, name, dto.QuantityOnHand, dto.QuantityReserved, dto.QuantityAvailable,
+                    dto.MinimumStock, dto.MaximumStock, dto.AllowNegativeStock, dto.UpdatedAtUtc, dto);
+            }),
+        ];
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
@@ -110,8 +137,7 @@ public sealed class WarehouseStockManagementView : XtraUserControl
             return;
         }
 
-        var variants = await _mediator.Send(new ListProductVariantsQuery());
-        var variantOptions = variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}")).ToList();
+        var variantOptions = _variantsById.Select(kv => (kv.Key, $"{kv.Value.Sku} - {kv.Value.Name}")).ToList();
         if (variantOptions.Count == 0)
         {
             XtraMessageBox.Show(this, "Create a product variant first.", "No Variants Available", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -125,8 +151,9 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         }
     }
 
-    private async Task EditAsync(WarehouseStockDto dto)
+    private async Task EditAsync(WarehouseStockRow row)
     {
+        var dto = row.Source;
         using var form = new WarehouseStockEditForm("Edit Warehouse Stock", dto.MinimumStock, dto.MaximumStock, dto.AllowNegativeStock);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -135,39 +162,69 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         }
     }
 
-    private async Task ReceiveAsync(WarehouseStockDto dto)
+    private async Task ReceiveInventoryAsync()
+    {
+        var variantOptions = _variantsById.Select(kv => (kv.Key, $"{kv.Value.Sku} - {kv.Value.Name}")).ToList();
+        if (_warehouseOptions.Count == 0 || variantOptions.Count == 0)
+        {
+            XtraMessageBox.Show(this, "At least one warehouse and one product variant are required.", "Cannot Receive Inventory", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var form = new ReceiveInventoryForm(_warehouseOptions, _warehousePicker.SelectedId, variantOptions);
+        if (form.ShowDialog(this) == DialogResult.OK)
+        {
+            await _mediator.Send(new OpenOrReceiveStockCommand(form.WarehouseId!.Value, form.ProductVariantId!.Value, form.Quantity, form.Notes));
+            await _listView.RefreshAsync();
+        }
+    }
+
+    private async Task ReceiveAsync(WarehouseStockRow row)
     {
         using var form = new QuantityPromptForm("Receive Stock", "Quantity to receive:");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new ReceiveStockCommand(dto.WarehouseStockId, form.Quantity));
+            await _mediator.Send(new ReceiveStockCommand(row.Source.WarehouseStockId, form.Quantity));
         }
     }
 
-    private async Task IssueAsync(WarehouseStockDto dto)
+    private async Task IssueAsync(WarehouseStockRow row)
     {
         using var form = new QuantityPromptForm("Issue Stock", "Quantity to issue:");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new IssueStockCommand(dto.WarehouseStockId, form.Quantity));
+            await _mediator.Send(new IssueStockCommand(row.Source.WarehouseStockId, form.Quantity));
         }
     }
 
-    private async Task ReserveAsync(WarehouseStockDto dto)
+    private async Task ReserveAsync(WarehouseStockRow row)
     {
         using var form = new QuantityPromptForm("Reserve Stock", "Quantity to reserve:");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new ReserveStockCommand(dto.WarehouseStockId, form.Quantity));
+            await _mediator.Send(new ReserveStockCommand(row.Source.WarehouseStockId, form.Quantity));
         }
     }
 
-    private async Task ReleaseAsync(WarehouseStockDto dto)
+    private async Task ReleaseAsync(WarehouseStockRow row)
     {
         using var form = new QuantityPromptForm("Release Reservation", "Quantity to release:");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new ReleaseStockReservationCommand(dto.WarehouseStockId, form.Quantity));
+            await _mediator.Send(new ReleaseStockReservationCommand(row.Source.WarehouseStockId, form.Quantity));
         }
     }
+
+    /// <summary>Grid row shape: <see cref="WarehouseStockDto"/> enriched with the product's SKU/Name, resolved client-side the same way <c>RestaurantPosView</c> resolves its own product lookups - Application-layer DTOs stay cross-context-free.</summary>
+    private sealed record WarehouseStockRow(
+        string Sku,
+        string Name,
+        decimal QuantityOnHand,
+        decimal QuantityReserved,
+        decimal QuantityAvailable,
+        decimal MinimumStock,
+        decimal MaximumStock,
+        bool AllowNegativeStock,
+        DateTimeOffset UpdatedAtUtc,
+        WarehouseStockDto Source);
 }

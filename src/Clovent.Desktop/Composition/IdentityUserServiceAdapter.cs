@@ -48,4 +48,17 @@ public sealed class IdentityUserServiceAdapter(IUserRepository userRepository, I
         user.Lock();
         await identityDbContext.SaveChangesAsync(cancellationToken);
     }
+
+    /// <inheritdoc/>
+    public async Task UnlockUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var user = await userRepository.GetByIdAsync(new UserId(userId), cancellationToken);
+        if (user is null)
+        {
+            return;
+        }
+
+        user.Unlock();
+        await identityDbContext.SaveChangesAsync(cancellationToken);
+    }
 }

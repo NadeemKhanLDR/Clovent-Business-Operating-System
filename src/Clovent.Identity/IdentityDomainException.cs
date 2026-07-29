@@ -92,4 +92,16 @@ public sealed class IdentityDomainException : DomainException
     /// <summary>A branch Deactivate() was attempted while not <see cref="Branches.BranchStatus.Active"/>.</summary>
     public static IdentityDomainException BranchNotActive(BranchId branchId) =>
         new($"Branch '{branchId}' is not active.");
+
+    /// <summary>A user was created (or renamed) with an email address already in use by another user.</summary>
+    public static IdentityDomainException EmailAlreadyInUse(string email) =>
+        new($"Email '{email}' is already in use.");
+
+    /// <summary>A user was created (or renamed) with a username already in use by another user.</summary>
+    public static IdentityDomainException UserNameAlreadyInUse(string userName) =>
+        new($"Username '{userName}' is already in use.");
+
+    /// <summary>A role was created with a name already in use by another role.</summary>
+    public static IdentityDomainException RoleNameAlreadyInUse(string name) =>
+        new($"Role name '{name}' is already in use.");
 }

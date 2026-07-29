@@ -1,4 +1,6 @@
 using Clovent.Domain;
+using Clovent.Identity.Branches;
+using Clovent.Identity.Companies;
 using Clovent.Identity.Roles;
 using Clovent.Identity.Users.Events;
 using Clovent.Identity.Users.ValueObjects;
@@ -30,6 +32,17 @@ public sealed class User : AggregateRoot<UserId>
     /// <summary>The roles currently assigned to this user.</summary>
     public IReadOnlyCollection<RoleId> RoleIds => _roleIds;
 
+    /// <summary>
+    /// The single company this user primarily operates within, or
+    /// <see langword="null"/> if unassigned. A user is scoped to at most one
+    /// company/branch (unlike <see cref="RoleIds"/>, which is a genuine set) -
+    /// see <c>IdentityDomain.md</c>'s open question this resolves.
+    /// </summary>
+    public CompanyId? CompanyId { get; private set; }
+
+    /// <summary>The single branch this user primarily operates within, or <see langword="null"/> if unassigned.</summary>
+    public BranchId? BranchId { get; private set; }
+
     /// <summary>UTC instant this user was created.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
@@ -47,7 +60,7 @@ public sealed class User : AggregateRoot<UserId>
     /// constructor exactly like every other field, rather than EF setting
     /// the backing field via reflection.
     /// </summary>
-    private User(UserId id, Email email, UserName userName, DisplayName displayName, UserStatus status, DateTimeOffset createdAtUtc, IReadOnlyCollection<RoleId> roleIds)
+    private User(UserId id, Email email, UserName userName, DisplayName displayName, UserStatus status, DateTimeOffset createdAtUtc, IReadOnlyCollection<RoleId> roleIds, CompanyId? companyId, BranchId? branchId)
     {
         Id = id;
         Email = email;
@@ -56,9 +69,11 @@ public sealed class User : AggregateRoot<UserId>
         Status = status;
         CreatedAtUtc = createdAtUtc;
         _roleIds = [.. roleIds];
+        CompanyId = companyId;
+        BranchId = branchId;
     }
 
-    /// <summary>Creates a new user in <see cref="UserStatus.PendingActivation"/>, with no roles assigned.</summary>
+    /// <summary>Creates a new user in <see cref="UserStatus.PendingActivation"/>, with no roles and no company/branch assigned.</summary>
     public static User Create(Email email, UserName userName, DisplayName displayName)
     {
         ArgumentNullException.ThrowIfNull(email);
@@ -66,7 +81,7 @@ public sealed class User : AggregateRoot<UserId>
         ArgumentNullException.ThrowIfNull(displayName);
 
         var now = DateTimeOffset.UtcNow;
-        var user = new User(UserId.New(), email, userName, displayName, UserStatus.PendingActivation, now, []);
+        var user = new User(UserId.New(), email, userName, displayName, UserStatus.PendingActivation, now, [], null, null);
         user.AddDomainEvent(new UserCreated(user.Id, user.Email, user.UserName, now));
         return user;
     }
@@ -145,5 +160,28 @@ public sealed class User : AggregateRoot<UserId>
 
         DisplayName = displayName;
         AddDomainEvent(new UserDisplayNameChanged(Id, displayName, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>
+    /// Assigns (or reassigns) the single company this user operates within.
+    /// A no-op (no event raised) if unchanged - same shape as
+    /// <see cref="ChangeDisplayName"/>, not <see cref="AssignRole"/>, since
+    /// this is a single-valued field rather than a set.
+    /// </summary>
+    public void AssignCompany(CompanyId companyId)
+    {
+        if (CompanyId == companyId) return;
+
+        CompanyId = companyId;
+        AddDomainEvent(new UserCompanyAssigned(Id, companyId, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>Assigns (or reassigns) the single branch this user operates within. A no-op (no event raised) if unchanged.</summary>
+    public void AssignBranch(BranchId branchId)
+    {
+        if (BranchId == branchId) return;
+
+        BranchId = branchId;
+        AddDomainEvent(new UserBranchAssigned(Id, branchId, DateTimeOffset.UtcNow));
     }
 }

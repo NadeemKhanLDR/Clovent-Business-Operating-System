@@ -19,12 +19,22 @@ namespace Clovent.Desktop.Seed;
 /// milestone's screens check. Without this,
 /// <c>Clovent.Identity.Application.Authorization.AuthorizationService</c>'s
 /// deliberate no-bypass design (every permission check requires an actual
-/// granted permission) would leave every Milestone 13
-/// screen invisible and every button disabled for the demo user, since a
-/// freshly-seeded user starts with zero roles. Gated by the same
-/// <see cref="DesktopOptions.SeedDevelopmentUser"/> flag - this is that
-/// seed's natural completion, not a separate concern.
+/// granted permission) would leave every screen invisible and every button
+/// disabled for the demo user, since a freshly-seeded user starts with zero
+/// roles. Gated by the same <see cref="DesktopOptions.SeedDevelopmentUser"/>
+/// flag - this is that seed's natural completion, not a separate concern.
 /// </summary>
+/// <remarks>
+/// Find-or-create and additive, not run-once: on a database where
+/// "Administrator" already exists (e.g. seeded by an earlier build before a
+/// later gap-closing pass added more menu keys/feature operations), this
+/// backfills any permission codes the role is still missing rather than
+/// silently no-op'ing - discovered as a real defect during manual
+/// end-to-end verification, where the User Administration/End-of-Day
+/// screens stayed invisible to an already-seeded demo admin because the
+/// original run-once guard (<c>if user already has roles, skip</c>) skipped
+/// re-seeding entirely.
+/// </remarks>
 public sealed class DevelopmentAuthorizationSeedStartupTask(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
@@ -36,17 +46,22 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
     private static readonly string[] MenuKeys =
     [
-        "dashboard", "organizations", "companies", "branches", "departments",
+        "dashboard", "users", "roles", "organizations", "companies", "branches", "departments",
         "warehouses", "terminals", "fiscalyears", "currencies", "businesssettings",
         "categories", "brands", "units", "products", "variants", "barcodes", "prices",
         "warehousestocks", "stockadjustments", "stocktransfers", "inventorytransactions",
 
         // Milestone 15 ("Restaurant POS Core").
         "diningareas", "tables", "pos", "runningorders", "holdorders", "kitchentickets",
+
+        // End-of-Day reporting gap-closing pass.
+        "endofday",
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
     [
+        ("users", ["create", "edit", "activate", "deactivate", "resetpassword", "unlock", "assignrole", "assigncompany", "assignbranch"]),
+        ("roles", ["create", "edit", "assignpermission"]),
         ("organizations", ["create", "edit", "activate", "deactivate"]),
         ("companies", ["create", "edit", "activate", "deactivate"]),
         ("branches", ["create", "edit", "activate", "deactivate"]),
@@ -76,6 +91,9 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         ("pos", ["create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
             "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline"]),
         ("kitchentickets", ["start", "markready", "serve", "cancel"]),
+
+        // End-of-Day reporting gap-closing pass.
+        ("endofday", ["view"]),
     ];
 
     /// <inheritdoc/>
@@ -87,30 +105,49 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         }
 
         var user = await userRepository.GetByUserNameAsync(UserName.Create("admin"), cancellationToken);
-        if (user is null || user.RoleIds.Count > 0)
+        if (user is null)
         {
             return;
         }
 
-        var permissionIds = new List<PermissionId>();
+        var role = await roleRepository.GetByNameAsync(RoleName.Create(AdministratorRoleName), cancellationToken);
+        var isNewRole = role is null;
+        role ??= Role.Create(RoleName.Create(AdministratorRoleName));
+
+        var changed = isNewRole;
         foreach (var code in BuildPermissionCodes())
         {
-            var permission = Permission.Create(PermissionCode.Create(code), $"Grants {code}.");
-            await permissionRepository.AddAsync(permission, cancellationToken);
-            permissionIds.Add(permission.Id);
+            var permissionCode = PermissionCode.Create(code);
+            var permission = await permissionRepository.GetByCodeAsync(permissionCode, cancellationToken);
+            if (permission is null)
+            {
+                permission = Permission.Create(permissionCode, $"Grants {code}.");
+                await permissionRepository.AddAsync(permission, cancellationToken);
+                changed = true;
+            }
+
+            if (!role.PermissionIds.Contains(permission.Id))
+            {
+                role.AddPermission(permission.Id);
+                changed = true;
+            }
         }
 
-        var role = Role.Create(RoleName.Create(AdministratorRoleName));
-        foreach (var permissionId in permissionIds)
+        if (isNewRole)
         {
-            role.AddPermission(permissionId);
+            await roleRepository.AddAsync(role, cancellationToken);
         }
 
-        await roleRepository.AddAsync(role, cancellationToken);
+        if (!user.RoleIds.Contains(role.Id))
+        {
+            user.AssignRole(role.Id);
+            changed = true;
+        }
 
-        user.AssignRole(role.Id);
-
-        await identityDbContext.SaveChangesAsync(cancellationToken);
+        if (changed)
+        {
+            await identityDbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private static IEnumerable<string> BuildPermissionCodes()

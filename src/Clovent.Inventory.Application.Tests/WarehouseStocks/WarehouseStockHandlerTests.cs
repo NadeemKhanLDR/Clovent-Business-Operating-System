@@ -84,6 +84,41 @@ public class WarehouseStockHandlerTests
     }
 
     [Fact]
+    public async Task OpenOrReceiveStockCommandHandler_NewPairing_CreatesStockAndRecordsOpeningBalance()
+    {
+        var stockRepository = new FakeWarehouseStockRepository();
+        var transactionRepository = new FakeInventoryTransactionRepository();
+        var warehouseId = WarehouseId.New();
+        var variantId = ProductVariantId.New();
+        var handler = new OpenOrReceiveStockCommandHandler(stockRepository, transactionRepository);
+
+        var dto = await handler.Handle(new OpenOrReceiveStockCommand(warehouseId.Value, variantId.Value, 25), CancellationToken.None);
+
+        Assert.Equal(25m, dto.QuantityOnHand);
+        var recorded = await transactionRepository.GetByWarehouseIdAsync(warehouseId);
+        Assert.Single(recorded);
+        Assert.Equal(Clovent.Inventory.Transactions.InventoryTransactionType.OpeningBalance, recorded.Single().TransactionType);
+    }
+
+    [Fact]
+    public async Task OpenOrReceiveStockCommandHandler_ExistingPairing_ReceivesAndRecordsReceipt()
+    {
+        var stockRepository = new FakeWarehouseStockRepository();
+        var transactionRepository = new FakeInventoryTransactionRepository();
+        var stock = WarehouseStock.Create(WarehouseId.New(), ProductVariantId.New());
+        stock.Receive(10);
+        stockRepository.Add(stock);
+        var handler = new OpenOrReceiveStockCommandHandler(stockRepository, transactionRepository);
+
+        var dto = await handler.Handle(new OpenOrReceiveStockCommand(stock.WarehouseId.Value, stock.ProductVariantId.Value, 5), CancellationToken.None);
+
+        Assert.Equal(15m, dto.QuantityOnHand);
+        var recorded = await transactionRepository.GetByWarehouseIdAsync(stock.WarehouseId);
+        Assert.Single(recorded);
+        Assert.Equal(Clovent.Inventory.Transactions.InventoryTransactionType.Receipt, recorded.Single().TransactionType);
+    }
+
+    [Fact]
     public async Task ListWarehouseStocksByWarehouseQueryHandler_FiltersToOwningWarehouse()
     {
         var repository = new FakeWarehouseStockRepository();

@@ -43,6 +43,7 @@ public class CompleteOrderCommandHandlerTests
         var serviceChargeRepository = new FakeServiceChargeRepository();
         var paymentRepository = new FakePaymentRepository();
         var tableRepository = new FakeTableRepository();
+        var dailySalesSequenceRepository = new FakeDailySalesSequenceRepository();
 
         var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
         table.Occupy();
@@ -62,7 +63,7 @@ public class CompleteOrderCommandHandlerTests
         var issuedCalls = new List<(Guid, decimal)>();
         var mediator = CreateInventoryMediator(warehouseStockId, issuedCalls);
 
-        var handler = new CompleteOrderCommandHandler(orderRepository, orderLineRepository, discountRepository, serviceChargeRepository, paymentRepository, tableRepository, mediator);
+        var handler = new CompleteOrderCommandHandler(orderRepository, orderLineRepository, discountRepository, serviceChargeRepository, paymentRepository, tableRepository, dailySalesSequenceRepository, mediator);
 
         var result = await handler.Handle(new CompleteOrderCommand(order.Id.Value), CancellationToken.None);
 
@@ -70,6 +71,7 @@ public class CompleteOrderCommandHandlerTests
         Assert.Equal("Available", table.OccupancyStatus.ToString());
         Assert.Single(issuedCalls);
         Assert.Equal((warehouseStockId, 2m), issuedCalls[0]);
+        Assert.Equal(1, result.DailySalesNumber);
     }
 
     [Fact]
@@ -81,6 +83,7 @@ public class CompleteOrderCommandHandlerTests
         var serviceChargeRepository = new FakeServiceChargeRepository();
         var paymentRepository = new FakePaymentRepository();
         var tableRepository = new FakeTableRepository();
+        var dailySalesSequenceRepository = new FakeDailySalesSequenceRepository();
 
         var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
         var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 50m, 0, false);
@@ -89,7 +92,7 @@ public class CompleteOrderCommandHandlerTests
         orderLineRepository.Add(line);
 
         var mediator = CreateInventoryMediator(Guid.NewGuid(), []);
-        var handler = new CompleteOrderCommandHandler(orderRepository, orderLineRepository, discountRepository, serviceChargeRepository, paymentRepository, tableRepository, mediator);
+        var handler = new CompleteOrderCommandHandler(orderRepository, orderLineRepository, discountRepository, serviceChargeRepository, paymentRepository, tableRepository, dailySalesSequenceRepository, mediator);
 
         await Assert.ThrowsAsync<RestaurantDomainException>(() => handler.Handle(new CompleteOrderCommand(order.Id.Value), CancellationToken.None));
     }

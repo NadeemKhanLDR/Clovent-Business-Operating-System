@@ -17,4 +17,7 @@ public interface IRoleRepository
 
     /// <summary>Adds a newly-created role.</summary>
     Task AddAsync(Role role, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves every role.</summary>
+    Task<IReadOnlyList<Role>> ListAllAsync(CancellationToken cancellationToken = default);
 }

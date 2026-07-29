@@ -30,6 +30,16 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>The order's human-facing display number.</summary>
     public OrderNumber OrderNumber { get; }
 
+    /// <summary>
+    /// The order's per-day, per-warehouse sequential number (e.g. "#7 today
+    /// at this warehouse"), assigned once by <see cref="AssignDailySalesNumber"/>
+    /// when the order completes - <see langword="null"/> until then, since an
+    /// order in progress has no place in the day's completed-sale sequence
+    /// yet. Distinct from <see cref="OrderNumber"/>, which is globally unique
+    /// and assigned at creation.
+    /// </summary>
+    public int? DailySalesNumber { get; private set; }
+
     /// <summary>Dine-in or take-away, fixed at creation.</summary>
     public OrderType OrderType { get; }
 
@@ -70,6 +80,7 @@ public sealed class Order : AggregateRoot<OrderId>
     private Order(
         OrderId id,
         OrderNumber orderNumber,
+        int? dailySalesNumber,
         OrderType orderType,
         OrderStatus status,
         TableId? tableId,
@@ -85,6 +96,7 @@ public sealed class Order : AggregateRoot<OrderId>
     {
         Id = id;
         OrderNumber = orderNumber;
+        DailySalesNumber = dailySalesNumber;
         OrderType = orderType;
         Status = status;
         TableId = tableId;
@@ -107,10 +119,26 @@ public sealed class Order : AggregateRoot<OrderId>
 
         var now = DateTimeOffset.UtcNow;
         var order = new Order(
-            OrderId.New(), OrderNumber.Generate(now), orderType, OrderStatus.Open, tableId, warehouseId,
+            OrderId.New(), OrderNumber.Generate(now), null, orderType, OrderStatus.Open, tableId, warehouseId,
             null, null, [], [], [], [], now, now);
         order.AddDomainEvent(new OrderCreated(order.Id, order.OrderNumber, order.OrderType, order.WarehouseId, order.TableId, now));
         return order;
+    }
+
+    /// <summary>
+    /// Assigns this order's Daily Sales Number, once - called by
+    /// <c>CompleteOrderCommandHandler</c> right before <see cref="Complete"/>,
+    /// so the number is only ever given to a sale that is truly finalized.
+    /// </summary>
+    /// <exception cref="RestaurantDomainException">A Daily Sales Number has already been assigned.</exception>
+    public void AssignDailySalesNumber(int number)
+    {
+        if (DailySalesNumber is not null)
+            throw RestaurantDomainException.DailySalesNumberAlreadyAssigned(Id);
+
+        DailySalesNumber = number;
+        Touch();
+        AddDomainEvent(new OrderDailySalesNumberAssigned(Id, number, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Adds an order line. Only while <see cref="OrderStatus.Open"/>.</summary>

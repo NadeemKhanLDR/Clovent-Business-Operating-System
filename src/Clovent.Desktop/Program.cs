@@ -9,6 +9,8 @@ using Clovent.Desktop.Catalog.UnitsOfMeasure;
 using Clovent.Desktop.Catalog.Variants;
 using Clovent.Desktop.Dashboard;
 using Clovent.Desktop.DependencyInjection;
+using Clovent.Desktop.Identity.Roles;
+using Clovent.Desktop.Identity.Users;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -26,6 +28,7 @@ using Clovent.Desktop.MasterData.Warehouses;
 using Clovent.Desktop.Modules;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Restaurant.DiningAreas;
+using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Restaurant.Tables;
 using Clovent.Desktop.Shell;
@@ -134,6 +137,12 @@ internal static class Program
             var navigationService = host.Services.GetRequiredService<INavigationService>();
             navigationService.Register("dashboard", () => host.Services.GetRequiredService<DashboardView>());
 
+            // User Administration gap-closing pass - registered the same way
+            // as Dashboard, since Identity has no IModule implementation yet
+            // (see DesktopModuleCatalog's doc comment).
+            navigationService.Register("users", () => host.Services.GetRequiredService<UserListView>());
+            navigationService.Register("roles", () => host.Services.GetRequiredService<RoleEditorView>());
+
             // Milestone 13 ("Organization & Master Data Foundation") management
             // screens - registered the same way as Dashboard, since no business
             // module infrastructure exists yet for Organization/MasterData
@@ -172,6 +181,9 @@ internal static class Program
             navigationService.Register("runningorders", () => host.Services.GetRequiredService<RunningOrdersView>());
             navigationService.Register("holdorders", () => host.Services.GetRequiredService<HoldOrdersView>());
             navigationService.Register("kitchentickets", () => host.Services.GetRequiredService<KitchenTicketViewerView>());
+
+            // End-of-Day reporting gap-closing pass.
+            navigationService.Register("endofday", () => host.Services.GetRequiredService<EndOfDayReportView>());
 
             splash.SetDescription("Loading sign-in...");
             var loginForm = host.Services.GetRequiredService<LoginForm>();

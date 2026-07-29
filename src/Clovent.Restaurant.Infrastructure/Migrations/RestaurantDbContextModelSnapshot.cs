@@ -175,6 +175,9 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
+                    b.Property<int?>("DailySalesNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("DiscountIds")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -280,6 +283,28 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("Payments", "Restaurant");
+                });
+
+            modelBuilder.Entity("Clovent.Restaurant.Sales.DailySalesSequence", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LastNumber")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WarehouseId", "Date")
+                        .IsUnique();
+
+                    b.ToTable("DailySalesSequences", "Restaurant");
                 });
 
             modelBuilder.Entity("Clovent.Restaurant.ServiceCharges.ServiceCharge", b =>

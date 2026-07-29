@@ -22,6 +22,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired();
         builder.HasIndex(o => o.OrderNumber).IsUnique();
 
+        builder.Property(o => o.DailySalesNumber);
+
         builder.Property(o => o.OrderType)
             .HasConversion<string>()
             .HasMaxLength(20)

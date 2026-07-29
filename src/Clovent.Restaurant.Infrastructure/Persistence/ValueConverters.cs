@@ -13,6 +13,7 @@ using Clovent.Restaurant.Orders.ValueObjects;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.PaymentMethods.ValueObjects;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -95,6 +96,10 @@ internal static class ValueConverters
     /// <summary><see cref="OrderNumber"/> &lt;-&gt; display text.</summary>
     public static readonly ValueConverter<OrderNumber, string> OrderNumberConverter =
         new(v => v.Value, v => OrderNumber.Create(v));
+
+    /// <summary><see cref="DailySalesSequenceId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<DailySalesSequenceId, Guid> DailySalesSequenceIdConverter =
+        new(id => id.Value, value => new DailySalesSequenceId(value));
 
     /// <summary><see cref="Order.OrderLineIds"/> &lt;-&gt; a JSON array of order line id GUIDs - identical reasoning to <c>Clovent.Identity.Infrastructure.Persistence.ValueConverters.CompanyIdsConverter</c>.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<OrderLineId>, string> OrderLineIdsConverter = new(

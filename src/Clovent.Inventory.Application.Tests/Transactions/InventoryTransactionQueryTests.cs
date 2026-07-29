@@ -33,6 +33,21 @@ public class InventoryTransactionQueryTests
     }
 
     [Fact]
+    public async Task ListInventoryTransactionsByProductQueryHandler_FiltersToProductAcrossWarehouses()
+    {
+        var repository = new FakeInventoryTransactionRepository();
+        var variantId = ProductVariantId.New();
+        repository.Add(InventoryTransaction.Create(WarehouseId.New(), variantId, InventoryTransactionType.Receipt, 10));
+        repository.Add(InventoryTransaction.Create(WarehouseId.New(), variantId, InventoryTransactionType.Issue, 3));
+        repository.Add(InventoryTransaction.Create(WarehouseId.New(), ProductVariantId.New(), InventoryTransactionType.Receipt, 5));
+        var handler = new ListInventoryTransactionsByProductQueryHandler(repository);
+
+        var result = await handler.Handle(new ListInventoryTransactionsByProductQuery(variantId.Value), CancellationToken.None);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
     public async Task ListRecentInventoryTransactionsQueryHandler_RespectsCount()
     {
         var repository = new FakeInventoryTransactionRepository();

@@ -17,4 +17,13 @@ internal sealed class FakeIdentityUserService(IEnumerable<Guid> activeUserIds) :
         LockedUserIds.Add(userId);
         return Task.CompletedTask;
     }
+
+    public List<Guid> UnlockedUserIds { get; } = [];
+
+    public Task UnlockUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        _activeUserIds.Add(userId);
+        UnlockedUserIds.Add(userId);
+        return Task.CompletedTask;
+    }
 }

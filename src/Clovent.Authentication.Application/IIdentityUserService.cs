@@ -18,4 +18,7 @@ public interface IIdentityUserService
 
     /// <summary>Locks the user's account.</summary>
     Task LockUserAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Unlocks the user's account - the symmetric counterpart to <see cref="LockUserAsync"/>.</summary>
+    Task UnlockUserAsync(Guid userId, CancellationToken cancellationToken = default);
 }

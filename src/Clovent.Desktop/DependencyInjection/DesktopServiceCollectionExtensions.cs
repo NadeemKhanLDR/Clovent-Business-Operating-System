@@ -8,6 +8,8 @@ using Clovent.Desktop.Catalog.UnitsOfMeasure;
 using Clovent.Desktop.Catalog.Variants;
 using Clovent.Desktop.Composition;
 using Clovent.Desktop.Dashboard;
+using Clovent.Desktop.Identity.Roles;
+using Clovent.Desktop.Identity.Users;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -25,6 +27,7 @@ using Clovent.Desktop.MasterData.Warehouses;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Restaurant.DiningAreas;
+using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Restaurant.Tables;
 using Clovent.Desktop.Seed;
@@ -93,6 +96,11 @@ public static class DesktopServiceCollectionExtensions
 
         services.TryAddTransient<DashboardView>();
 
+        // User Administration gap-closing pass - same Transient-per-navigation
+        // convention as every other management screen below.
+        services.TryAddTransient<UserListView>();
+        services.TryAddTransient<RoleEditorView>();
+
         // Milestone 13 ("Organization & Master Data Foundation") management
         // screens - Transient, matching DashboardView's convention: each
         // navigation creates a fresh instance, which starts its own DI scope
@@ -129,6 +137,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<RunningOrdersView>();
         services.TryAddTransient<HoldOrdersView>();
         services.TryAddTransient<KitchenTicketViewerView>();
+        services.TryAddTransient<EndOfDayReportView>();
 
         return services;
     }

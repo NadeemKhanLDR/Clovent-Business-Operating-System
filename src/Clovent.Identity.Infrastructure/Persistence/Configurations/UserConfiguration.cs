@@ -51,6 +51,12 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasConversion(ValueConverters.RoleIdsConverter, ValueConverters.RoleIdsComparer)
             .IsRequired();
 
+        builder.Property(u => u.CompanyId)
+            .HasConversion(ValueConverters.NullableCompanyIdConverter);
+
+        builder.Property(u => u.BranchId)
+            .HasConversion(ValueConverters.NullableBranchIdConverter);
+
         builder.Ignore(u => u.DomainEvents);
     }
 }

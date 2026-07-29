@@ -1,3 +1,6 @@
+using Clovent.Identity.Branches;
+using Clovent.Identity.Companies;
+using Clovent.Identity.Roles;
 using Clovent.Identity.Users;
 using Clovent.Identity.Users.ValueObjects;
 
@@ -22,5 +25,32 @@ internal sealed class FakeUserRepository : IUserRepository
     {
         _users[user.Id] = user;
         return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<User>> SearchAsync(
+        string? searchText = null,
+        CompanyId? companyId = null,
+        BranchId? branchId = null,
+        RoleId? roleId = null,
+        UserStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var users = _users.Values.AsEnumerable();
+
+        if (companyId is { } company)
+            users = users.Where(u => u.CompanyId == company);
+        if (branchId is { } branch)
+            users = users.Where(u => u.BranchId == branch);
+        if (roleId is { } role)
+            users = users.Where(u => u.RoleIds.Contains(role));
+        if (status is { } userStatus)
+            users = users.Where(u => u.Status == userStatus);
+        if (!string.IsNullOrWhiteSpace(searchText))
+            users = users.Where(u =>
+                u.UserName.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                u.DisplayName.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Value.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+
+        return Task.FromResult<IReadOnlyList<User>>([.. users]);
     }
 }

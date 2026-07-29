@@ -1,3 +1,4 @@
+using Clovent.Catalog.Variants;
 using Clovent.Inventory.Infrastructure.Persistence;
 using Clovent.Inventory.Transactions;
 using Clovent.MasterData.Warehouses;
@@ -15,6 +16,10 @@ public sealed class InventoryTransactionRepository(InventoryDbContext dbContext)
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<InventoryTransaction>> GetByWarehouseIdAsync(WarehouseId warehouseId, CancellationToken cancellationToken = default) =>
         await dbContext.InventoryTransactions.Where(t => t.WarehouseId == warehouseId).ToListAsync(cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyCollection<InventoryTransaction>> GetByProductVariantIdAsync(ProductVariantId productVariantId, CancellationToken cancellationToken = default) =>
+        await dbContext.InventoryTransactions.Where(t => t.ProductVariantId == productVariantId).ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<InventoryTransaction>> GetRecentAsync(int count, CancellationToken cancellationToken = default) =>

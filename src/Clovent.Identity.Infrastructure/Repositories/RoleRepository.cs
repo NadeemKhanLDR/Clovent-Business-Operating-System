@@ -19,4 +19,8 @@ public sealed class RoleRepository(IdentityDbContext dbContext) : IRoleRepositor
     /// <inheritdoc/>
     public async Task AddAsync(Role role, CancellationToken cancellationToken = default) =>
         await dbContext.Roles.AddAsync(role, cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Role>> ListAllAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Roles.ToListAsync(cancellationToken);
 }

@@ -13,11 +13,14 @@ namespace Clovent.Identity.Application.DependencyInjection;
 /// evaluation logic, not commands/queries; Milestone 13 ("Organization &amp;
 /// Master Data Foundation") added a genuine CQRS surface for
 /// Organization/Company/Branch, so this now also registers MediatR,
-/// mirroring <c>Clovent.Authentication.Application</c>'s convention.
+/// mirroring <c>Clovent.Authentication.Application</c>'s convention. The
+/// User Administration gap-closing pass added the same CQRS surface for
+/// Users/Roles/Permissions, which had only ever gained the read-only
+/// authorization evaluation engine, not create/edit/assign commands.
 /// </summary>
 public static class ApplicationServiceCollectionExtensions
 {
-    /// <summary>Registers <see cref="IAuthorizationService"/>, <see cref="IAuthorizationPolicyProvider"/>, the module/menu/feature policy wrappers, and MediatR (scanning this assembly for every <c>IRequestHandler</c>: Organizations, Companies, Branches). <see cref="IPermissionCache"/> is registered by Infrastructure's <c>AddInfrastructure</c>.</summary>
+    /// <summary>Registers <see cref="IAuthorizationService"/>, <see cref="IAuthorizationPolicyProvider"/>, the module/menu/feature policy wrappers, and MediatR (scanning this assembly for every <c>IRequestHandler</c>: Users, Roles, Permissions, Organizations, Companies, Branches). <see cref="IPermissionCache"/> is registered by Infrastructure's <c>AddInfrastructure</c>.</summary>
     /// <param name="services">The service collection to register into.</param>
     /// <param name="configuration">Accepted for signature consistency with the AddApplication()/AddInfrastructure()/AddPersistence() convention; not read today.</param>
     /// <returns><paramref name="services"/>, for chaining.</returns>

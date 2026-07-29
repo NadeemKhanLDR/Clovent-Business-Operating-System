@@ -37,6 +37,10 @@ public static class ReceiptFormatter
         var sb = new StringBuilder();
         sb.AppendLine("Clovent Business Operating System");
         sb.AppendLine($"Order: {order.OrderNumber}");
+        if (order.DailySalesNumber is { } dailySalesNumber)
+        {
+            sb.AppendLine($"Sale #: {dailySalesNumber}");
+        }
         sb.AppendLine($"Type: {order.OrderType}");
         sb.AppendLine(new string('-', 40));
 

@@ -31,6 +31,7 @@ using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.PaymentMethods.ValueObjects;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using MediatR;
@@ -93,6 +94,7 @@ public sealed class OrderLifecycleIntegrationTests : IDisposable
         services.AddScoped<IDiscountRepository>(_ => new DiscountRepository(_restaurantDb));
         services.AddScoped<IServiceChargeRepository>(_ => new ServiceChargeRepository(_restaurantDb));
         services.AddScoped<IKitchenTicketRepository>(_ => new KitchenTicketRepository(_restaurantDb));
+        services.AddScoped<IDailySalesSequenceRepository>(_ => new DailySalesSequenceRepository(_restaurantDb));
 
         services.AddScoped<IProductRepository>(_ => new ProductRepository(_catalogDb));
         services.AddScoped<IProductVariantRepository>(_ => new ProductVariantRepository(_catalogDb));

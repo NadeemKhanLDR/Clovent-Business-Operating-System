@@ -143,4 +143,8 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>A MergeTablesCommand was attempted merging a table into itself.</summary>
     public static RestaurantDomainException CannotMergeTableIntoItself(TableId tableId) =>
         new($"Table '{tableId}' cannot be merged into itself.");
+
+    /// <summary>Order.AssignDailySalesNumber() was attempted a second time.</summary>
+    public static RestaurantDomainException DailySalesNumberAlreadyAssigned(OrderId orderId) =>
+        new($"Order '{orderId}' already has a Daily Sales Number assigned.");
 }

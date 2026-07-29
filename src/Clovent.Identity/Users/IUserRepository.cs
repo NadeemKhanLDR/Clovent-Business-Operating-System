@@ -1,11 +1,12 @@
+using Clovent.Identity.Branches;
+using Clovent.Identity.Companies;
+using Clovent.Identity.Roles;
 using Clovent.Identity.Users.ValueObjects;
 
 namespace Clovent.Identity.Users;
 
 /// <summary>
-/// Persistence contract for <see cref="User"/> aggregates. No implementation
-/// exists yet - this is the seam a future Infrastructure/Persistence
-/// milestone implements against.
+/// Persistence contract for <see cref="User"/> aggregates.
 /// </summary>
 public interface IUserRepository
 {
@@ -20,4 +21,17 @@ public interface IUserRepository
 
     /// <summary>Adds a newly-created user.</summary>
     Task AddAsync(User user, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves users matching every supplied filter (all optional/AND'ed
+    /// together) - <paramref name="searchText"/> matches against username,
+    /// display name, or email.
+    /// </summary>
+    Task<IReadOnlyList<User>> SearchAsync(
+        string? searchText = null,
+        CompanyId? companyId = null,
+        BranchId? branchId = null,
+        RoleId? roleId = null,
+        UserStatus? status = null,
+        CancellationToken cancellationToken = default);
 }

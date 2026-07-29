@@ -20,4 +20,7 @@ internal sealed class FakeRoleRepository : IRoleRepository
         _roles[role.Id] = role;
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<Role>> ListAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Role>>([.. _roles.Values]);
 }

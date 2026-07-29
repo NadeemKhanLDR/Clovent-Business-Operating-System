@@ -1,3 +1,4 @@
+using Clovent.Catalog.Variants;
 using Clovent.Inventory.Transactions;
 using Clovent.MasterData.Warehouses;
 
@@ -14,6 +15,9 @@ internal sealed class FakeInventoryTransactionRepository : IInventoryTransaction
 
     public Task<IReadOnlyCollection<InventoryTransaction>> GetByWarehouseIdAsync(WarehouseId warehouseId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<InventoryTransaction>>([.. _transactions.Values.Where(t => t.WarehouseId == warehouseId)]);
+
+    public Task<IReadOnlyCollection<InventoryTransaction>> GetByProductVariantIdAsync(ProductVariantId productVariantId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<InventoryTransaction>>([.. _transactions.Values.Where(t => t.ProductVariantId == productVariantId)]);
 
     public Task<IReadOnlyCollection<InventoryTransaction>> GetRecentAsync(int count, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<InventoryTransaction>>(

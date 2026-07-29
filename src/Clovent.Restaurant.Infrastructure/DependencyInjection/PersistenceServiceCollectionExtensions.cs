@@ -9,6 +9,7 @@ using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,7 @@ public static class PersistenceServiceCollectionExtensions
 
     /// <summary>
     /// Registers <see cref="RestaurantDbContext"/>, every repository
-    /// implementation (DiningArea/Table/Order/OrderLine/KitchenTicket/Payment/PaymentMethod/Discount/ServiceCharge),
+    /// implementation (DiningArea/Table/Order/OrderLine/KitchenTicket/Payment/PaymentMethod/Discount/ServiceCharge/DailySalesSequence),
     /// the <see cref="IUnitOfWork"/> seam, and an <see cref="IPersistenceInitializer"/>
     /// that applies migrations.
     /// </summary>
@@ -48,6 +49,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IPaymentMethodRepository, PaymentMethodRepository>();
         services.TryAddScoped<IDiscountRepository, DiscountRepository>();
         services.TryAddScoped<IServiceChargeRepository, ServiceChargeRepository>();
+        services.TryAddScoped<IDailySalesSequenceRepository, DailySalesSequenceRepository>();
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 

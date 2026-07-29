@@ -17,4 +17,7 @@ public interface IPermissionRepository
 
     /// <summary>Adds a newly-created permission.</summary>
     Task AddAsync(Permission permission, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves every permission.</summary>
+    Task<IReadOnlyList<Permission>> ListAllAsync(CancellationToken cancellationToken = default);
 }

@@ -25,7 +25,10 @@ public sealed class StockTransferManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<StockTransferDto> _listView;
+    private readonly MasterDataListView<StockTransferRow> _listView;
+
+    private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
+    private Dictionary<Guid, string> _warehouseNamesById = [];
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public StockTransferManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -37,19 +40,24 @@ public sealed class StockTransferManagementView : XtraUserControl
 
         Dock = DockStyle.Fill;
 
-        _listView = new MasterDataListView<StockTransferDto>(
+        _listView = new MasterDataListView<StockTransferRow>(
         [
-            new MasterDataColumn(nameof(StockTransferDto.Quantity), "Quantity", 90),
-            new MasterDataColumn(nameof(StockTransferDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(StockTransferDto.CreatedAtUtc), "Created (UTC)", 160),
-            new MasterDataColumn(nameof(StockTransferDto.CompletedAtUtc), "Completed (UTC)", 160),
+            new MasterDataColumn(nameof(StockTransferRow.Sku), "SKU", 100),
+            new MasterDataColumn(nameof(StockTransferRow.ProductName), "Product", 160),
+            new MasterDataColumn(nameof(StockTransferRow.SourceWarehouseName), "From", 130),
+            new MasterDataColumn(nameof(StockTransferRow.DestinationWarehouseName), "To", 130),
+            new MasterDataColumn(nameof(StockTransferRow.Quantity), "Quantity", 90),
+            new MasterDataColumn(nameof(StockTransferRow.Status), "Status", 90),
+            new MasterDataColumn(nameof(StockTransferRow.CreatedAtUtc), "Created (UTC)", 160),
+            new MasterDataColumn(nameof(StockTransferRow.CompletedAtUtc), "Completed (UTC)", 160),
         ],
         [
-            new MasterDataListAction<StockTransferDto>("Complete", dto => _mediator.Send(new CompleteStockTransferCommand(dto.StockTransferId)), dto => dto.Status == "Pending", "complete"),
-            new MasterDataListAction<StockTransferDto>("Cancel", dto => _mediator.Send(new CancelStockTransferCommand(dto.StockTransferId)), dto => dto.Status == "Pending", "cancel"),
+            new MasterDataListAction<StockTransferRow>("Complete", row => _mediator.Send(new CompleteStockTransferCommand(row.Source.StockTransferId)), row => row.Status == "Pending", "complete"),
+            new MasterDataListAction<StockTransferRow>("Cancel", row => _mediator.Send(new CancelStockTransferCommand(row.Source.StockTransferId)), row => row.Status == "Pending", "cancel"),
         ])
         {
             LoadItemsAsync = LoadItemsAsync,
+            SearchTextSelector = row => $"{row.Sku} {row.ProductName} {row.SourceWarehouseName} {row.DestinationWarehouseName}",
             CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
             OnNew = CreateAsync,
         };
@@ -69,10 +77,25 @@ public sealed class StockTransferManagementView : XtraUserControl
         base.Dispose(disposing);
     }
 
-    private async Task<IReadOnlyList<StockTransferDto>> LoadItemsAsync(CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<StockTransferRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), cancellationToken);
+        _warehouseNamesById = warehouses.ToDictionary(w => w.WarehouseId, w => w.Name);
+
+        var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
+        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
+
         var items = await _mediator.Send(new ListStockTransfersQuery(), cancellationToken);
-        return [.. items];
+        return
+        [
+            .. items.Select(dto =>
+            {
+                var (sku, name) = _variantsById.TryGetValue(dto.ProductVariantId, out var variant) ? variant : (string.Empty, string.Empty);
+                var sourceName = _warehouseNamesById.GetValueOrDefault(dto.SourceWarehouseId, string.Empty);
+                var destinationName = _warehouseNamesById.GetValueOrDefault(dto.DestinationWarehouseId, string.Empty);
+                return new StockTransferRow(sku, name, sourceName, destinationName, dto.Quantity, dto.Status, dto.CreatedAtUtc, dto.CompletedAtUtc, dto);
+            }),
+        ];
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
@@ -104,4 +127,16 @@ public sealed class StockTransferManagementView : XtraUserControl
             await _mediator.Send(new CreateStockTransferCommand(form.SourceWarehouseId!.Value, form.DestinationWarehouseId!.Value, form.VariantId!.Value, form.Quantity));
         }
     }
+
+    /// <summary>Grid row shape: <see cref="StockTransferDto"/> enriched with product SKU/Name and warehouse names, resolved client-side (same reasoning as <c>WarehouseStockManagementView.WarehouseStockRow</c>).</summary>
+    private sealed record StockTransferRow(
+        string Sku,
+        string ProductName,
+        string SourceWarehouseName,
+        string DestinationWarehouseName,
+        decimal Quantity,
+        string Status,
+        DateTimeOffset CreatedAtUtc,
+        DateTimeOffset? CompletedAtUtc,
+        StockTransferDto Source);
 }
