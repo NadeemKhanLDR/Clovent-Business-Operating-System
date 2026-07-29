@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <ApplicationIcon />
+    <!--
+      DX1000: this machine's DevExpress license is a trial/evaluation
+      license (see C:\Users\<user>\AppData\Roaming\DevExpress\DevExpress_License.txt).
+      The compiler emits DX1000 for every DevExpress.Win control used under
+      an evaluation license - expected in this environment, not a code
+      defect. A production build requires a registered DevExpress license;
+      this suppression should be removed once one is installed so a future
+      unlicensed build is caught rather than silently allowed.
+    -->
+    <NoWarn>$(NoWarn);DX1000</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Clovent.Platform\Clovent.Platform.csproj" />
+    <ProjectReference Include="..\Clovent.Authentication.Application\Clovent.Authentication.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Authentication.Infrastructure\Clovent.Authentication.Infrastructure.csproj" />
+    <ProjectReference Include="..\Clovent.Identity\Clovent.Identity.csproj" />
+    <ProjectReference Include="..\Clovent.Identity.Application\Clovent.Identity.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Identity.Infrastructure\Clovent.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\Clovent.MasterData\Clovent.MasterData.csproj" />
+    <ProjectReference Include="..\Clovent.MasterData.Application\Clovent.MasterData.Application.csproj" />
+    <ProjectReference Include="..\Clovent.MasterData.Infrastructure\Clovent.MasterData.Infrastructure.csproj" />
+    <ProjectReference Include="..\Clovent.Catalog\Clovent.Catalog.csproj" />
+    <ProjectReference Include="..\Clovent.Catalog.Application\Clovent.Catalog.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Catalog.Infrastructure\Clovent.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\Clovent.Inventory\Clovent.Inventory.csproj" />
+    <ProjectReference Include="..\Clovent.Inventory.Application\Clovent.Inventory.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Inventory.Infrastructure\Clovent.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\Clovent.Restaurant\Clovent.Restaurant.csproj" />
+    <ProjectReference Include="..\Clovent.Restaurant.Application\Clovent.Restaurant.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Restaurant.Infrastructure\Clovent.Restaurant.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DevExpress.Win" Version="26.1.4-pre-26179" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

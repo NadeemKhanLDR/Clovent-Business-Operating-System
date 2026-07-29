@@ -14,8 +14,14 @@ public static class InfrastructureServiceCollectionExtensions
 {
     /// <summary>
     /// Registers Platform Foundation's Infrastructure-layer services: the
-    /// <see cref="IExecutionContextAccessor"/> singleton. <paramref name="configuration"/>
-    /// is accepted for signature consistency with the
+    /// <see cref="IExecutionContextAccessor"/> singleton and the real system
+    /// <see cref="TimeProvider"/> (<see cref="TimeProvider.System"/>) -
+    /// every command handler across this solution that needs the current
+    /// time takes <see cref="TimeProvider"/> as a constructor dependency
+    /// rather than calling <see cref="DateTimeOffset.UtcNow"/> directly, so
+    /// one real registration here backs all of them; tests substitute their
+    /// own fake instead. <paramref name="configuration"/> is accepted for
+    /// signature consistency with the
     /// AddInfrastructure()/AddApplication()/AddPersistence() convention and
     /// for future infrastructure registrations that need it; it is not read
     /// today.
@@ -26,6 +32,7 @@ public static class InfrastructureServiceCollectionExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddExecutionContextAccessor();
+        services.AddSingleton(TimeProvider.System);
 
         return services;
     }

@@ -1,0 +1,46 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Clovent.Authentication.Application.Tests/Clovent.Authentication.Application.Tests.csproj" />
+    <Project Path="src/Clovent.Authentication.Application/Clovent.Authentication.Application.csproj" />
+    <Project Path="src/Clovent.Authentication.Infrastructure.Tests/Clovent.Authentication.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.Authentication.Infrastructure/Clovent.Authentication.Infrastructure.csproj" />
+    <Project Path="src/Clovent.Authentication.Tests/Clovent.Authentication.Tests.csproj" />
+    <Project Path="src/Clovent.Authentication/Clovent.Authentication.csproj" />
+    <Project Path="src/Clovent.Catalog.Application.Tests/Clovent.Catalog.Application.Tests.csproj" />
+    <Project Path="src/Clovent.Catalog.Application/Clovent.Catalog.Application.csproj" />
+    <Project Path="src/Clovent.Catalog.Infrastructure.Tests/Clovent.Catalog.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.Catalog.Infrastructure/Clovent.Catalog.Infrastructure.csproj" />
+    <Project Path="src/Clovent.Catalog.Tests/Clovent.Catalog.Tests.csproj" />
+    <Project Path="src/Clovent.Catalog/Clovent.Catalog.csproj" />
+    <Project Path="src/Clovent.Desktop.Tests/Clovent.Desktop.Tests.csproj" />
+    <Project Path="src/Clovent.Desktop/Clovent.Desktop.csproj" />
+    <Project Path="src/Clovent.Domain.Tests/Clovent.Domain.Tests.csproj" />
+    <Project Path="src/Clovent.Domain/Clovent.Domain.csproj" />
+    <Project Path="src/Clovent.Identity.Application.Tests/Clovent.Identity.Application.Tests.csproj" />
+    <Project Path="src/Clovent.Identity.Application/Clovent.Identity.Application.csproj" />
+    <Project Path="src/Clovent.Identity.Infrastructure.Tests/Clovent.Identity.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.Identity.Infrastructure/Clovent.Identity.Infrastructure.csproj" />
+    <Project Path="src/Clovent.Identity.Tests/Clovent.Identity.Tests.csproj" />
+    <Project Path="src/Clovent.Identity/Clovent.Identity.csproj" />
+    <Project Path="src/Clovent.Inventory.Application.Tests/Clovent.Inventory.Application.Tests.csproj" />
+    <Project Path="src/Clovent.Inventory.Application/Clovent.Inventory.Application.csproj" />
+    <Project Path="src/Clovent.Inventory.Infrastructure.Tests/Clovent.Inventory.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.Inventory.Infrastructure/Clovent.Inventory.Infrastructure.csproj" />
+    <Project Path="src/Clovent.Inventory.Tests/Clovent.Inventory.Tests.csproj" />
+    <Project Path="src/Clovent.Inventory/Clovent.Inventory.csproj" />
+    <Project Path="src/Clovent.MasterData.Application.Tests/Clovent.MasterData.Application.Tests.csproj" />
+    <Project Path="src/Clovent.MasterData.Application/Clovent.MasterData.Application.csproj" />
+    <Project Path="src/Clovent.MasterData.Infrastructure.Tests/Clovent.MasterData.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.MasterData.Infrastructure/Clovent.MasterData.Infrastructure.csproj" />
+    <Project Path="src/Clovent.MasterData.Tests/Clovent.MasterData.Tests.csproj" />
+    <Project Path="src/Clovent.MasterData/Clovent.MasterData.csproj" />
+    <Project Path="src/Clovent.Platform.Tests/Clovent.Platform.Tests.csproj" />
+    <Project Path="src/Clovent.Platform/Clovent.Platform.csproj" />
+    <Project Path="src/Clovent.Restaurant.Application.Tests/Clovent.Restaurant.Application.Tests.csproj" />
+    <Project Path="src/Clovent.Restaurant.Application/Clovent.Restaurant.Application.csproj" />
+    <Project Path="src/Clovent.Restaurant.Infrastructure.Tests/Clovent.Restaurant.Infrastructure.Tests.csproj" />
+    <Project Path="src/Clovent.Restaurant.Infrastructure/Clovent.Restaurant.Infrastructure.csproj" />
+    <Project Path="src/Clovent.Restaurant.Tests/Clovent.Restaurant.Tests.csproj" />
+    <Project Path="src/Clovent.Restaurant/Clovent.Restaurant.csproj" />
+  </Folder>
+</Solution>

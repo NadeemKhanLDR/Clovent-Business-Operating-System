@@ -1,0 +1,117 @@
+using Clovent.Desktop.Sessions;
+using Clovent.Identity.Application.Authorization;
+using Clovent.Identity.Application.Branches.Commands;
+using Clovent.Identity.Application.Branches.Dtos;
+using Clovent.Identity.Application.Branches.Queries;
+using DevExpress.XtraEditors;
+using MediatR;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Clovent.Desktop.MasterData.Branches;
+
+/// <summary>
+/// Branch Management screen: search, filter, CRUD, activate/deactivate over
+/// the branches belonging to a selected company (itself under a selected
+/// organization). Feature-gated per <c>branches.{create|edit|activate|deactivate}</c>.
+/// </summary>
+public sealed class BranchManagementView : XtraUserControl
+{
+    private const string FeatureCode = "branches";
+
+    private readonly IServiceScope _scope;
+    private readonly IMediator _mediator;
+    private readonly IFeatureAuthorizationPolicy _featurePolicy;
+    private readonly ICurrentSession _currentSession;
+    private readonly OrganizationHierarchySelector _selector;
+    private readonly MasterDataListView<BranchDto> _listView;
+
+    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
+    public BranchManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
+    {
+        _scope = scopeFactory.CreateScope();
+        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
+        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _currentSession = currentSession;
+
+        Dock = DockStyle.Fill;
+
+        _listView = new MasterDataListView<BranchDto>(
+        [
+            new MasterDataColumn(nameof(BranchDto.Name), "Name", 200),
+            new MasterDataColumn(nameof(BranchDto.City), "City", 120),
+            new MasterDataColumn(nameof(BranchDto.Country), "Country", 120),
+            new MasterDataColumn(nameof(BranchDto.Status), "Status", 90),
+            new MasterDataColumn(nameof(BranchDto.CreatedAtUtc), "Created (UTC)", 160),
+        ])
+        {
+            LoadItemsAsync = LoadItemsAsync,
+            SearchTextSelector = dto => dto.Name,
+            StatusSelector = dto => dto.Status,
+            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
+            OnNew = CreateAsync,
+            OnEdit = EditAsync,
+            OnActivate = dto => _mediator.Send(new ActivateBranchCommand(dto.BranchId)),
+            OnDeactivate = dto => _mediator.Send(new DeactivateBranchCommand(dto.BranchId)),
+        };
+
+        _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: false);
+        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
+
+        Controls.Add(_listView);
+        Controls.Add(_selector);
+        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _scope.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
+
+    private async Task<IReadOnlyList<BranchDto>> LoadItemsAsync(CancellationToken cancellationToken)
+    {
+        if (_selector.SelectedCompanyId is not { } companyId)
+        {
+            return [];
+        }
+
+        var items = await _mediator.Send(new ListBranchesByCompanyQuery(companyId), cancellationToken);
+        return [.. items];
+    }
+
+    private Task<bool> CanUseFeatureAsync(string operation) =>
+        _currentSession.UserId is { } userId
+            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
+            : Task.FromResult(false);
+
+    private async Task CreateAsync()
+    {
+        if (_selector.SelectedCompanyId is not { } companyId)
+        {
+            XtraMessageBox.Show(this, "Select a company first.", "No Company Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var form = new BranchEditForm("New Branch");
+        if (form.ShowDialog(this) == DialogResult.OK)
+        {
+            await _mediator.Send(new CreateBranchCommand(
+                companyId, form.BranchNameValue, form.Street, form.City, form.State, form.PostalCode, form.Country));
+        }
+    }
+
+    private async Task EditAsync(BranchDto dto)
+    {
+        using var form = new BranchEditForm("Edit Branch", dto.Name, dto.Street, dto.City, dto.State, dto.PostalCode, dto.Country);
+        if (form.ShowDialog(this) == DialogResult.OK)
+        {
+            await _mediator.Send(new RenameBranchCommand(dto.BranchId, form.BranchNameValue));
+            await _mediator.Send(new SetBranchAddressCommand(dto.BranchId, form.Street, form.City, form.State, form.PostalCode, form.Country));
+        }
+    }
+}
