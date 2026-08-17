@@ -1,7 +1,6 @@
-using Clovent.Desktop.MasterData;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
-using Clovent.Restaurant.Application.KitchenTickets.Commands;
 using Clovent.Restaurant.Application.KitchenTickets.Dtos;
 using Clovent.Restaurant.Application.KitchenTickets.Queries;
 using Clovent.Restaurant.Application.Orders.Queries;
@@ -17,61 +16,62 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// <see cref="RunningOrdersView"/>'s front-of-house overview.
 /// Feature-gated per <c>kitchentickets.{operation}</c>.
 /// </summary>
-public sealed class KitchenTicketViewerView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class KitchenTicketViewerView : XtraUserControl
 {
     private const string FeatureCode = "kitchentickets";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<KitchenTicketRow> _listView;
-
-    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
-    public KitchenTicketViewerView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public KitchenTicketViewerView()
     {
-        _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
-        _currentSession = currentSession;
+        _scope = null!;
+        _mediator = null!;
+        _featurePolicy = null!;
+        _currentSession = null!;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<KitchenTicketRow>(
-        [
-            new MasterDataColumn(nameof(KitchenTicketRow.OrderNumber), "Order #", 140),
-            new MasterDataColumn(nameof(KitchenTicketRow.LineCount), "Lines", 60),
-            new MasterDataColumn(nameof(KitchenTicketRow.Status), "Status", 90),
-            new MasterDataColumn(nameof(KitchenTicketRow.CreatedAtUtc), "Sent (UTC)", 160),
-            new MasterDataColumn(nameof(KitchenTicketRow.StartedAtUtc), "Started (UTC)", 160),
-            new MasterDataColumn(nameof(KitchenTicketRow.ReadyAtUtc), "Ready (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<KitchenTicketRow>("Start", row => _mediator.Send(new StartKitchenTicketCommand(row.KitchenTicketId)),
-                row => row.Status == "New", "start"),
-            new MasterDataListAction<KitchenTicketRow>("Mark Ready", row => _mediator.Send(new MarkKitchenTicketReadyCommand(row.KitchenTicketId)),
-                row => row.Status == "InProgress", "markready"),
-            new MasterDataListAction<KitchenTicketRow>("Serve", row => _mediator.Send(new ServeKitchenTicketCommand(row.KitchenTicketId)),
-                row => row.Status == "Ready", "serve"),
-            new MasterDataListAction<KitchenTicketRow>("Cancel", row => _mediator.Send(new CancelKitchenTicketCommand(row.KitchenTicketId)),
-                row => row.Status is "New" or "InProgress", "cancel"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => row.OrderNumber,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
+    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
+    public KitchenTicketViewerView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession) : base()
+    {
+        InitializeComponent();
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _scope = null!;
+            _mediator = null!;
+            _featurePolicy = null!;
+            _currentSession = null!;
+            return;
+        }
+
+        _scope = scopeFactory.CreateScope();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
+        _currentSession = currentSession;
+    }
+    private async void KitchenTicketViewerView_Load(object? sender, EventArgs e)
+    {
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+        await _listView.RefreshAsync();
+    }
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            components?.Dispose();
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);

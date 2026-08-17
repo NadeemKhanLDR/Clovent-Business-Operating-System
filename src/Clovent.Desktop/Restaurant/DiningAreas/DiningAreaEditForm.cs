@@ -1,19 +1,26 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.DiningAreas;
 
-/// <summary>Create/edit dialog for a Dining Area - name only.</summary>
-public sealed class DiningAreaEditForm : MasterDataEditFormBase
+/// <summary>Create/edit dialog for a Dining Area - name only. Control tree lives in <c>DiningAreaEditForm.Designer.cs</c>; this file holds behavior only.</summary>
+public sealed partial class DiningAreaEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-
     /// <summary>Builds the dialog.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public DiningAreaEditForm() : base("Edit Dining Area")
+    {
+        InitializeComponent();
+        }
+
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; <paramref name="name"/> pre-populates the name field when editing an existing dining area.</summary>
     public DiningAreaEditForm(string title, string? name = null) : base(title)
     {
-        _nameEdit.Text = name ?? string.Empty;
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
 
-        AddField("Name:", _nameEdit);
+        _nameEdit.Text = name ?? string.Empty;
     }
 
     /// <summary>The entered dining area name.</summary>
@@ -31,4 +38,5 @@ public sealed class DiningAreaEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

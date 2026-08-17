@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NewDineIn" xml:space="preserve">
+    <value>NEW DINE-IN</value>
+  </data>
+  <data name="NewTakeAway" xml:space="preserve">
+    <value>NEW TAKE AWAY</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>CATEGORIES</value>
+  </data>
+  <data name="AllItems" xml:space="preserve">
+    <value>▦  All Items</value>
+  </data>
+  <data name="CurrentBill" xml:space="preserve">
+    <value>Current Bill</value>
+  </data>
+  <data name="ColumnQty" xml:space="preserve">
+    <value>Qty</value>
+  </data>
+  <data name="ColumnItem" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="ColumnPrice" xml:space="preserve">
+    <value>Price</value>
+  </data>
+  <data name="ColumnTotal" xml:space="preserve">
+    <value>Total</value>
+  </data>
+  <data name="Subtotal" xml:space="preserve">
+    <value>Subtotal</value>
+  </data>
+  <data name="Discount" xml:space="preserve">
+    <value>Discount</value>
+  </data>
+  <data name="Tax" xml:space="preserve">
+    <value>Tax</value>
+  </data>
+  <data name="ServiceCharge" xml:space="preserve">
+    <value>Service Charge</value>
+  </data>
+  <data name="GrandTotal" xml:space="preserve">
+    <value>GRAND TOTAL</value>
+  </data>
+  <data name="Paid" xml:space="preserve">
+    <value>Paid</value>
+  </data>
+  <data name="Balance" xml:space="preserve">
+    <value>Balance</value>
+  </data>
+  <data name="Hold" xml:space="preserve">
+    <value>Hold</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>Print</value>
+  </data>
+  <data name="MoreActions" xml:space="preserve">
+    <value>More Actions ▾</value>
+  </data>
+  <data name="Pay" xml:space="preserve">
+    <value>PAY</value>
+  </data>
+  <data name="SendToKitchen" xml:space="preserve">
+    <value>Send to Kitchen</value>
+  </data>
+  <data name="CompleteOrder" xml:space="preserve">
+    <value>Complete Order</value>
+  </data>
+  <data name="NoOrderSelected" xml:space="preserve">
+    <value>No order selected.</value>
+  </data>
+  <data name="NoItemsAdded" xml:space="preserve">
+    <value>No items added
+Select or scan an item to begin</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>Location:</value>
+  </data>
+  <data name="Table" xml:space="preserve">
+    <value>Table:</value>
+  </data>
+</root>

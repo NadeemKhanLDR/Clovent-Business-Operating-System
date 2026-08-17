@@ -95,6 +95,9 @@ public sealed class OrderLifecycleIntegrationTests : IDisposable
         services.AddScoped<IServiceChargeRepository>(_ => new ServiceChargeRepository(_restaurantDb));
         services.AddScoped<IKitchenTicketRepository>(_ => new KitchenTicketRepository(_restaurantDb));
         services.AddScoped<IDailySalesSequenceRepository>(_ => new DailySalesSequenceRepository(_restaurantDb));
+        services.AddScoped<Clovent.Restaurant.Orders.IOrderNumberSequenceRepository>(_ => new OrderNumberSequenceRepository(_restaurantDb));
+        services.AddScoped<Clovent.Restaurant.Customers.ICustomerRepository>(_ => new CustomerRepository(_restaurantDb));
+        services.AddScoped<Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository>(_ => new CustomerLedgerEntryRepository(_restaurantDb));
 
         services.AddScoped<IProductRepository>(_ => new ProductRepository(_catalogDb));
         services.AddScoped<IProductVariantRepository>(_ => new ProductVariantRepository(_catalogDb));
@@ -152,6 +155,138 @@ public sealed class OrderLifecycleIntegrationTests : IDisposable
 
         var table = await _restaurantDb.Tables.SingleAsync(t => t.Id == new TableId(tableId));
         Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
+
+    /// <summary>
+    /// Phase 2C - partial payments, proven against real EF Core repositories
+    /// rather than fakes: 200 then 300 against a 500 bill must both persist,
+    /// leaving exactly two payment rows and a zero balance.
+    /// </summary>
+    [Fact]
+    public async Task Payments_TwoPartialPayments_BothPersistAndSettleTheBill()
+    {
+        var (tableId, warehouseId, variantId, paymentMethodId) = await SeedReferenceDataAsync(initialStockOnHand: 50);
+
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, variantId, Quantity: 10));
+
+        var totals = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        var first = Math.Round(totals.GrandTotal / 2, 2);
+        var second = totals.GrandTotal - first;
+
+        await _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, first));
+        var afterFirst = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(first, afterFirst.PaidTotal);
+        Assert.Equal(second, afterFirst.Balance);
+
+        await _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, second));
+        var afterSecond = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+
+        Assert.Equal(totals.GrandTotal, afterSecond.PaidTotal);
+        Assert.Equal(0m, afterSecond.Balance);
+
+        var rows = await _restaurantDb.Payments.Where(p => p.OrderId == new OrderId(order.OrderId)).ToListAsync();
+        Assert.Equal(2, rows.Count);
+        Assert.All(rows, p => Assert.False(p.IsVoided));
+    }
+
+    /// <summary>
+    /// Phase 2D - an overpayment is refused by the server-side ceiling and
+    /// leaves <b>no</b> payment row behind. The check must survive the real
+    /// pipeline, where <c>UnitOfWorkBehavior</c> would otherwise commit
+    /// whatever the handler staged.
+    /// </summary>
+    [Fact]
+    public async Task Payments_AmountExceedingBalance_IsRejectedAndWritesNoRow()
+    {
+        var (tableId, warehouseId, variantId, paymentMethodId) = await SeedReferenceDataAsync(initialStockOnHand: 50);
+
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, variantId, Quantity: 5));
+
+        var totals = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, totals.GrandTotal + 100m)));
+
+        Assert.Empty(await _restaurantDb.Payments.Where(p => p.OrderId == new OrderId(order.OrderId)).ToListAsync());
+
+        var after = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(0m, after.PaidTotal);
+        Assert.Equal(totals.GrandTotal, after.Balance);
+    }
+
+    /// <summary>
+    /// Phase 2B - the server-side ceiling is authoritative regardless of the
+    /// UI guard: a second full-balance payment, exactly what a duplicate
+    /// Record Payment click submits, is refused once the first has committed.
+    /// This is the ORD-35 shape ($660 recorded against a $280 bill).
+    /// </summary>
+    [Fact]
+    public async Task Payments_SecondFullPaymentAfterSettlement_IsRejectedByServer()
+    {
+        var (tableId, warehouseId, variantId, paymentMethodId) = await SeedReferenceDataAsync(initialStockOnHand: 50);
+
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, variantId, Quantity: 4));
+
+        var totals = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        await _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, totals.GrandTotal));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, totals.GrandTotal)));
+
+        var rows = await _restaurantDb.Payments.Where(p => p.OrderId == new OrderId(order.OrderId)).ToListAsync();
+        Assert.Equal(totals.GrandTotal, Assert.Single(rows).Amount);
+
+        var after = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(0m, after.Balance);
+    }
+
+    /// <summary>
+    /// Phase 5 - a manual Vacate must not free a table that still has a live
+    /// order, proven end to end. This is the T-03 / ORD-54 regression.
+    /// </summary>
+    [Fact]
+    public async Task VacateTable_WithLiveOrder_IsRejectedAndTableStaysOccupied()
+    {
+        var (tableId, warehouseId, variantId, _) = await SeedReferenceDataAsync(initialStockOnHand: 10);
+
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, variantId, Quantity: 1));
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            _mediator.Send(new Clovent.Restaurant.Application.Tables.Commands.VacateTableCommand(tableId)));
+
+        var table = await _restaurantDb.Tables.SingleAsync(t => t.Id == new TableId(tableId));
+        Assert.Equal(TableOccupancyStatus.Occupied, table.OccupancyStatus);
+
+        var stillOpen = await _restaurantDb.Orders.SingleAsync(o => o.Id == new OrderId(order.OrderId));
+        Assert.Equal(OrderStatus.Open, stillOpen.Status);
+    }
+
+    /// <summary>
+    /// Phase 5 - completing the order is what legitimately frees the table,
+    /// and the manual Vacate guard must not interfere with that path.
+    /// </summary>
+    [Fact]
+    public async Task CompleteOrder_ReleasesTable_AndVacateThenSucceedsAsANoOp()
+    {
+        var (tableId, warehouseId, variantId, paymentMethodId) = await SeedReferenceDataAsync(initialStockOnHand: 10);
+
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, variantId, Quantity: 2));
+
+        var totals = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        await _mediator.Send(new RecordPaymentCommand(order.OrderId, paymentMethodId, totals.GrandTotal));
+        await _mediator.Send(new CompleteOrderCommand(order.OrderId));
+
+        var table = await _restaurantDb.Tables.SingleAsync(t => t.Id == new TableId(tableId));
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+
+        // No live order remains, so the manual action is permitted again.
+        var vacated = await _mediator.Send(new Clovent.Restaurant.Application.Tables.Commands.VacateTableCommand(tableId));
+        Assert.Equal("Available", vacated.OccupancyStatus);
     }
 
     [Fact]

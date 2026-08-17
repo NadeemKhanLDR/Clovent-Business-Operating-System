@@ -1,5 +1,5 @@
+using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Navigation;
-using Clovent.Desktop.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -11,12 +11,16 @@ public class NavigationServiceTests
     private sealed class FakeWorkspaceHost : IWorkspaceHost
     {
         public Control? LastContent { get; private set; }
-        public int SetContentCallCount { get; private set; }
+        public int ShowDocumentCallCount { get; private set; }
 
-        public void SetContent(Control content)
+        public void ShowDocument(string key, string caption, Func<Control> contentFactory, bool allowMultipleInstances = false)
         {
-            LastContent = content;
-            SetContentCallCount++;
+            LastContent = contentFactory();
+            ShowDocumentCallCount++;
+        }
+
+        public void SetStatus(string text)
+        {
         }
     }
 
@@ -55,7 +59,7 @@ public class NavigationServiceTests
         service.NavigateTo("home");
 
         Assert.Equal(2, callCount);
-        Assert.Equal(2, host.SetContentCallCount);
+        Assert.Equal(2, host.ShowDocumentCallCount);
     }
 
     [Fact]

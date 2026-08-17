@@ -17,6 +17,10 @@ public sealed class ProductPriceRepository(CatalogDbContext dbContext) : IProduc
         await dbContext.ProductPrices.Where(p => p.ProductVariantId == productVariantId).ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyCollection<ProductPrice>> GetActiveByPriceTypeAsync(PriceType priceType, CancellationToken cancellationToken = default) =>
+        await dbContext.ProductPrices.Where(p => p.PriceType == priceType && p.Status == Clovent.Catalog.Shared.CatalogStatus.Active).ToListAsync(cancellationToken);
+
+    /// <inheritdoc/>
     public async Task AddAsync(ProductPrice price, CancellationToken cancellationToken = default) =>
         await dbContext.ProductPrices.AddAsync(price, cancellationToken);
 }

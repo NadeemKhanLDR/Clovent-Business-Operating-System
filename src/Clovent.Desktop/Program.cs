@@ -4,18 +4,23 @@ using Clovent.Desktop.Catalog.Barcodes;
 using Clovent.Desktop.Catalog.Brands;
 using Clovent.Desktop.Catalog.Categories;
 using Clovent.Desktop.Catalog.Prices;
-using Clovent.Desktop.Catalog.Products;
 using Clovent.Desktop.Catalog.UnitsOfMeasure;
 using Clovent.Desktop.Catalog.Variants;
-using Clovent.Desktop.Dashboard;
 using Clovent.Desktop.DependencyInjection;
-using Clovent.Desktop.Identity.Roles;
-using Clovent.Desktop.Identity.Users;
+using Clovent.Desktop.Forms.Catalog.Products;
+using Clovent.Desktop.Forms.Dashboard;
+using Clovent.Desktop.Forms.Identity;
+using Clovent.Desktop.Forms.Identity.Roles;
+using Clovent.Desktop.Forms.Identity.Users;
+using Clovent.Desktop.Forms.Restaurant.ActivityLog;
+using Clovent.Desktop.Forms.Restaurant.Appearance;
+using Clovent.Desktop.Forms.Restaurant.MenuItems;
+using Clovent.Desktop.Forms.Restaurant.Setup;
+using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
 using Clovent.Desktop.Inventory.WarehouseStocks;
-using Clovent.Desktop.Login;
 using Clovent.Desktop.MasterData.Branches;
 using Clovent.Desktop.MasterData.Companies;
 using Clovent.Desktop.MasterData.Currencies;
@@ -27,12 +32,13 @@ using Clovent.Desktop.MasterData.Terminals;
 using Clovent.Desktop.MasterData.Warehouses;
 using Clovent.Desktop.Modules;
 using Clovent.Desktop.Navigation;
+using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Restaurant.Tables;
-using Clovent.Desktop.Shell;
 using Clovent.Desktop.Startup;
+using Clovent.Platform;
 using Clovent.Platform.Bootstrap;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -55,6 +61,14 @@ internal static class Program
                 .Create(basePath: AppContext.BaseDirectory)
                 .WithLogging()
                 .WithPlatform();
+
+            // Persistent file logging: WithLogging() above applies the
+            // standard Logging:LogLevel configuration filters and the console
+            // provider; this adds a per-user rolling file provider on top
+            // (see FileLoggerProvider) so unhandled errors and startup
+            // failures leave a diagnostic record that survives restarts -
+            // without it, a crash shows a dialog and vanishes.
+            bootstrapper.WithLogging(logging => logging.AddFileLogger(bootstrapper.Configuration));
 
             // Authentication and Identity have no IModule implementation yet
             // (see DesktopModuleCatalog's doc comment), so their own
@@ -140,8 +154,8 @@ internal static class Program
             // User Administration gap-closing pass - registered the same way
             // as Dashboard, since Identity has no IModule implementation yet
             // (see DesktopModuleCatalog's doc comment).
-            navigationService.Register("users", () => host.Services.GetRequiredService<UserListView>());
-            navigationService.Register("roles", () => host.Services.GetRequiredService<RoleEditorView>());
+            navigationService.Register("users", () => host.Services.GetRequiredService<UsersForm>());
+            navigationService.Register("roles", () => host.Services.GetRequiredService<RolesForm>());
 
             // Milestone 13 ("Organization & Master Data Foundation") management
             // screens - registered the same way as Dashboard, since no business
@@ -164,7 +178,7 @@ internal static class Program
             navigationService.Register("categories", () => host.Services.GetRequiredService<ProductCategoryManagementView>());
             navigationService.Register("brands", () => host.Services.GetRequiredService<BrandManagementView>());
             navigationService.Register("units", () => host.Services.GetRequiredService<UnitOfMeasureManagementView>());
-            navigationService.Register("products", () => host.Services.GetRequiredService<ProductManagementView>());
+            navigationService.Register("products", () => host.Services.GetRequiredService<ProductsForm>());
             navigationService.Register("variants", () => host.Services.GetRequiredService<ProductVariantManagementView>());
             navigationService.Register("barcodes", () => host.Services.GetRequiredService<BarcodeManagementView>());
             navigationService.Register("prices", () => host.Services.GetRequiredService<ProductPriceManagementView>());
@@ -177,28 +191,58 @@ internal static class Program
             // registered the same way as Milestones 13/14's.
             navigationService.Register("diningareas", () => host.Services.GetRequiredService<DiningAreaManagementView>());
             navigationService.Register("tables", () => host.Services.GetRequiredService<TableManagementView>());
-            navigationService.Register("pos", () => host.Services.GetRequiredService<RestaurantPosView>());
+            navigationService.Register("menuitems", () => host.Services.GetRequiredService<MenuItemsForm>());
+            navigationService.Register("pos", () => host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Orders.RestaurantPosForm>());
             navigationService.Register("runningorders", () => host.Services.GetRequiredService<RunningOrdersView>());
             navigationService.Register("holdorders", () => host.Services.GetRequiredService<HoldOrdersView>());
+            navigationService.Register("orderhistory", () => host.Services.GetRequiredService<OrderHistoryView>());
             navigationService.Register("kitchentickets", () => host.Services.GetRequiredService<KitchenTicketViewerView>());
+            navigationService.Register("customers", () => host.Services.GetRequiredService<CustomersView>());
 
             // End-of-Day reporting gap-closing pass.
             navigationService.Register("endofday", () => host.Services.GetRequiredService<EndOfDayReportView>());
 
+            navigationService.Register("restaurantsetup", () => host.Services.GetRequiredService<RestaurantSetupView>());
+            navigationService.Register("paymentmethods", () => host.Services.GetRequiredService<PaymentMethodsView>());
+            navigationService.Register("activitylog", () => host.Services.GetRequiredService<ActivityLogView>());
+            navigationService.Register("appearance", () => host.Services.GetRequiredService<AppearanceSettingsView>());
+
             splash.SetDescription("Loading sign-in...");
             var loginForm = host.Services.GetRequiredService<LoginForm>();
-
-            var signedIn = false;
-            loginForm.LoginSucceeded += (_, _) => signedIn = true;
 
             splash.Close();
             Application.Run(loginForm);
 
-            if (signedIn)
+            // The module choice lives on the sign-in screen itself now (its
+            // POS/Back Office buttons authenticate *and* pick the module in
+            // one action - see LoginForm.cs's AuthenticateAndSelectModuleAsync) -
+            // there is no separate "choose a module" window. SelectedModuleKey
+            // is null if the window closed without a permitted sign-in
+            // (Cancel, failed authentication, or a permission denial), in
+            // which case nothing opens and the application simply exits.
+            switch (loginForm.SelectedModuleKey)
             {
-                var shell = host.Services.GetRequiredService<ShellForm>();
-                navigationService.NavigateTo("dashboard");
-                Application.Run(shell);
+                case "pos":
+                    // Bypasses MainForm/IWorkspaceHost entirely for a
+                    // POS-only session - resolving MainForm here would create
+                    // (and have to keep alive, invisible, for the rest of the
+                    // process) a Back Office shell nobody asked for, just so
+                    // Application.Run has something to track. A cashier
+                    // signing in as "POS" only ever sees the POS window.
+                    var posForm = host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Orders.RestaurantPosForm>();
+                    Application.Run(posForm);
+                    break;
+
+                case "backoffice":
+                    var shell = host.Services.GetRequiredService<MainForm>();
+                    navigationService.NavigateTo("dashboard", "Dashboard");
+                    Application.Run(shell);
+                    break;
+
+                default:
+                    // Exit was clicked, or the window was closed without a
+                    // selection - nothing left to run.
+                    break;
             }
         }
         catch (Exception ex)

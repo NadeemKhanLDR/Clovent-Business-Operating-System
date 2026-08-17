@@ -3,6 +3,8 @@ using Clovent.Catalog.Variants;
 using Clovent.Identity.Branches;
 using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.MasterData.Warehouses;
+using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.DiningAreas.ValueObjects;
 using Clovent.Restaurant.Discounts;
@@ -101,6 +103,14 @@ internal static class ValueConverters
     public static readonly ValueConverter<DailySalesSequenceId, Guid> DailySalesSequenceIdConverter =
         new(id => id.Value, value => new DailySalesSequenceId(value));
 
+    /// <summary><see cref="OrderNumberSequenceId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<OrderNumberSequenceId, Guid> OrderNumberSequenceIdConverter =
+        new(id => id.Value, value => new OrderNumberSequenceId(value));
+
+    /// <summary><see cref="ActivityLogEntryId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<ActivityLogEntryId, Guid> ActivityLogEntryIdConverter =
+        new(id => id.Value, value => new ActivityLogEntryId(value));
+
     /// <summary><see cref="Order.OrderLineIds"/> &lt;-&gt; a JSON array of order line id GUIDs - identical reasoning to <c>Clovent.Identity.Infrastructure.Persistence.ValueConverters.CompanyIdsConverter</c>.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<OrderLineId>, string> OrderLineIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
@@ -155,4 +165,16 @@ internal static class ValueConverters
         (a, b) => (a ?? new List<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<OrderLineId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToList());
+
+    /// <summary><see cref="CustomerId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<CustomerId, Guid> CustomerIdConverter =
+        new(id => id.Value, value => new CustomerId(value));
+
+    /// <summary>Nullable <see cref="CustomerId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<CustomerId?, Guid?> NullableCustomerIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new CustomerId(value.Value));
+
+    /// <summary><see cref="CustomerLedgerEntryId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<CustomerLedgerEntryId, Guid> CustomerLedgerEntryIdConverter =
+        new(id => id.Value, value => new CustomerLedgerEntryId(value));
 }

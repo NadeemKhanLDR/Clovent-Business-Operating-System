@@ -29,6 +29,9 @@ internal sealed class ProductCategoryConfiguration : IEntityTypeConfiguration<Pr
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(c => c.ColorHex).HasMaxLength(7);
+        builder.Property(c => c.SortOrder).IsRequired();
+
         builder.Property(c => c.CreatedAtUtc).IsRequired();
 
         builder.Ignore(c => c.DomainEvents);

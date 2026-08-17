@@ -1,6 +1,5 @@
 using Clovent.Catalog.Prices;
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Catalog.Prices;
 
@@ -8,16 +7,33 @@ namespace Clovent.Desktop.Catalog.Prices;
 /// Create/edit dialog for a Product Price. Price type and currency are
 /// fixed at creation (<see cref="ProductPrice"/> exposes no method to
 /// change either), so those two fields are disabled when editing an
-/// existing price - only the amount can change.
+/// existing price - only the amount can change. Control tree (fields,
+/// <c>AddField</c> calls) lives in <c>ProductPriceEditForm.Designer.cs</c>;
+/// this file holds behavior only.
 /// </summary>
-public sealed class ProductPriceEditForm : MasterDataEditFormBase
+public sealed partial class ProductPriceEditForm : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _priceTypeCombo = new();
-    private readonly ComboBoxEdit _currencyCombo = new();
-    private readonly SpinEdit _amountEdit = new() { Properties = { MinValue = 0, MaxValue = 1_000_000, Increment = 0.01m } };
     private readonly Dictionary<string, Guid?> _currenciesByDisplay;
 
-    /// <summary>Builds the dialog. <paramref name="currencyOptions"/> must be non-empty when creating.</summary>
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public ProductPriceEditForm() : base("Edit Price")
+    {
+        _currenciesByDisplay = null!;
+
+        InitializeComponent();
+        }
+
+    /// <summary>
+    /// Builds the dialog. <paramref name="title"/> is the dialog's caption.
+    /// <paramref name="currencyOptions"/> must be non-empty when creating.
+    /// <paramref name="priceType"/>, <paramref name="currencyId"/>, and
+    /// <paramref name="amount"/> pre-populate the fields; both price type and
+    /// currency are disabled unless <paramref name="isNew"/> is
+    /// <see langword="true"/>, since <see cref="ProductPrice"/> exposes no
+    /// method to change either after creation.
+    /// </summary>
     public ProductPriceEditForm(
         string title,
         IReadOnlyList<(Guid Id, string Display)> currencyOptions,
@@ -26,7 +42,13 @@ public sealed class ProductPriceEditForm : MasterDataEditFormBase
         decimal amount = 0,
         bool isNew = true) : base(title)
     {
-        _priceTypeCombo.Properties.Items.AddRange([nameof(PriceType.Cost), nameof(PriceType.Selling)]);
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _currenciesByDisplay = null!;
+            return;
+        }
+
         _priceTypeCombo.SelectedItem = priceType.ToString();
         _priceTypeCombo.Enabled = isNew;
 
@@ -35,10 +57,6 @@ public sealed class ProductPriceEditForm : MasterDataEditFormBase
         _currencyCombo.Enabled = isNew;
 
         _amountEdit.Value = amount;
-
-        AddField("Price Type:", _priceTypeCombo);
-        AddField("Currency:", _currencyCombo);
-        AddField("Amount:", _amountEdit);
     }
 
     /// <summary>The selected price type.</summary>
@@ -62,4 +80,5 @@ public sealed class ProductPriceEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

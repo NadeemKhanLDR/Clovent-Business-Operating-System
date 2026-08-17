@@ -1,4 +1,4 @@
-using Clovent.Desktop.Sessions;
+﻿using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.MasterData.Application;
 using Clovent.MasterData.Application.Currencies.Dtos;
@@ -28,7 +28,8 @@ namespace Clovent.Desktop.MasterData.Settings;
 /// scope), so their catalogs are surfaced here only as read-only lookups.
 /// Feature-gated per <c>businesssettings.edit</c>.
 /// </summary>
-public sealed class BusinessSettingsManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class BusinessSettingsManagementView : XtraUserControl
 {
     private const string FeatureCode = "businesssettings";
 
@@ -36,15 +37,6 @@ public sealed class BusinessSettingsManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly ComboBoxEdit _currencyCombo = new();
-    private readonly ComboBoxEdit _languageCombo = new();
-    private readonly ComboBoxEdit _timeZoneCombo = new();
-    private readonly ComboBoxEdit _fiscalYearCombo = new();
-    private readonly TextEdit _dateFormatEdit = new();
-    private readonly SimpleButton _saveButton = new() { Text = "Save" };
-    private readonly LabelControl _statusLabel = new();
 
     private readonly Dictionary<string, Guid> _currenciesByDisplay = [];
     private readonly Dictionary<string, Guid> _languagesByDisplay = [];
@@ -62,20 +54,7 @@ public sealed class BusinessSettingsManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: false, showBranch: false);
-        _selector.SelectionChanged += async (_, _) => await LoadForSelectedOrganizationAsync();
-
-        _saveButton.Click += async (_, _) => await SaveAsync();
-
-        BuildLayout();
-
-        Load += async (_, _) =>
-        {
-            await LoadLookupsAsync();
-            await _selector.LoadOrganizationsAsync();
-        };
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -84,46 +63,10 @@ public sealed class BusinessSettingsManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
-    }
-
-    private void BuildLayout()
-    {
-        var form = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Padding = new Padding(12) };
-        form.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-
-        AddRow(form, "Default Currency:", _currencyCombo);
-        AddRow(form, "Default Language:", _languageCombo);
-        AddRow(form, "Default Time Zone:", _timeZoneCombo);
-        AddRow(form, "Default Fiscal Year:", _fiscalYearCombo);
-        AddRow(form, "Date Format:", _dateFormatEdit);
-
-        var buttonRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40 };
-        buttonRow.Controls.Add(_saveButton);
-        buttonRow.Controls.Add(_statusLabel);
-
-        foreach (var combo in new[] { _currencyCombo, _languageCombo, _timeZoneCombo, _fiscalYearCombo })
-        {
-            combo.Width = 260;
-            combo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-        }
-        _dateFormatEdit.Width = 260;
-
-        Controls.Add(form);
-        Controls.Add(buttonRow);
-        Controls.Add(_selector);
-    }
-
-    private static void AddRow(TableLayoutPanel panel, string label, Control editor)
-    {
-        var rowIndex = panel.RowCount;
-        panel.RowCount = rowIndex + 1;
-        panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.Controls.Add(new LabelControl { Text = label, Padding = new Padding(0, 6, 8, 0) }, 0, rowIndex);
-        panel.Controls.Add(editor, 1, rowIndex);
     }
 
     private async Task LoadLookupsAsync()
@@ -260,5 +203,15 @@ public sealed class BusinessSettingsManagementView : XtraUserControl
         }
 
         _statusLabel.Text = "Saved.";
+    }
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await LoadForSelectedOrganizationAsync();
+
+    private async void SaveButton_Click(object? sender, EventArgs e) => await SaveAsync();
+
+    private async void BusinessSettingsManagementView_Load(object? sender, EventArgs e)
+    {
+        await LoadLookupsAsync();
+        await _selector.LoadOrganizationsAsync();
     }
 }

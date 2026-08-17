@@ -15,7 +15,8 @@ namespace Clovent.Desktop.Catalog.Categories;
 /// over the Product Category hierarchy. Feature-gated per
 /// <c>categories.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class ProductCategoryManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class ProductCategoryManagementView : XtraUserControl
 {
     private const string FeatureCode = "categories";
 
@@ -23,7 +24,6 @@ public sealed class ProductCategoryManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<ProductCategoryDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public ProductCategoryManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,39 +33,10 @@ public sealed class ProductCategoryManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<ProductCategoryDto>(
-        [
-            new MasterDataColumn(nameof(ProductCategoryDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(ProductCategoryDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(ProductCategoryDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateProductCategoryCommand(dto.ProductCategoryId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateProductCategoryCommand(dto.ProductCategoryId)),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
-
-        base.Dispose(disposing);
-    }
+    private async void ProductCategoryManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async Task<IReadOnlyList<ProductCategoryDto>> LoadItemsAsync(CancellationToken cancellationToken)
     {

@@ -23,8 +23,22 @@ public sealed class ResetPasswordCommandHandler(IUserCredentialsRepository crede
     public async Task Handle(ResetPasswordCommand request, CancellationToken cancellationToken)
     {
         var userId = new UserId(request.UserId);
-        var credentials = await credentialsRepository.GetByUserIdAsync(userId, cancellationToken)
-            ?? throw new NotFoundException(nameof(UserCredentials), userId);
+        var credentials = await credentialsRepository.GetByUserIdAsync(userId, cancellationToken);
+        if (credentials is null)
+        {
+            // A user created via Clovent.Identity.Application's
+            // CreateUserCommand has no UserCredentials row yet - that
+            // bounded context has no dependency on Authentication and so
+            // cannot create one itself (mirrors how
+            // DevelopmentUserSeedStartupTask must create both separately).
+            // Treating "no credentials yet" as "create them now" rather
+            // than a NotFoundException means Reset Password also serves as
+            // the first-password-set step for a brand-new user - confirmed
+            // via manual verification this was otherwise an unhandled
+            // exception on every newly created user.
+            credentials = UserCredentials.Create(userId, DateTimeOffset.UtcNow);
+            await credentialsRepository.AddAsync(credentials, cancellationToken);
+        }
 
         var policyResult = PasswordPolicy.Default.Evaluate(request.NewPassword);
         if (!policyResult.IsSatisfied)

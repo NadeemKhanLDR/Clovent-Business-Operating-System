@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Catalog.UnitsOfMeasure;
 
@@ -7,22 +6,36 @@ namespace Clovent.Desktop.Catalog.UnitsOfMeasure;
 /// Create/edit dialog for a Unit of Measure - code and name. The code is
 /// immutable after creation (mirrors <c>WarehouseEditForm</c>'s identical
 /// "code fixed at creation" reasoning), so the field is disabled when
-/// editing an existing unit.
+/// editing an existing unit. Control tree (fields, <c>AddField</c> calls)
+/// lives in <c>UnitOfMeasureEditForm.Designer.cs</c>; this file holds
+/// behavior only.
 /// </summary>
-public sealed class UnitOfMeasureEditForm : MasterDataEditFormBase
+public sealed partial class UnitOfMeasureEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _codeEdit = new();
-    private readonly TextEdit _nameEdit = new();
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public UnitOfMeasureEditForm() : base("Edit UOM")
+    {
+        InitializeComponent();
+        }
 
-    /// <summary>Builds the dialog. Pass <paramref name="code"/> when editing so the (disabled) field still shows it.</summary>
+    /// <summary>
+    /// Builds the dialog. <paramref name="title"/> is the dialog's caption.
+    /// Pass <paramref name="code"/> when editing so the (disabled) field
+    /// still shows it - the code field is only enabled when
+    /// <paramref name="isNew"/> is <see langword="true"/>.
+    /// <paramref name="name"/> pre-populates the display name.
+    /// </summary>
     public UnitOfMeasureEditForm(string title, string? code = null, string? name = null, bool isNew = true) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _codeEdit.Text = code ?? string.Empty;
         _codeEdit.Enabled = isNew;
         _nameEdit.Text = name ?? string.Empty;
-
-        AddField("Code (e.g. KG):", _codeEdit);
-        AddField("Name:", _nameEdit);
     }
 
     /// <summary>The entered code (only meaningful when creating).</summary>
@@ -49,4 +62,5 @@ public sealed class UnitOfMeasureEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

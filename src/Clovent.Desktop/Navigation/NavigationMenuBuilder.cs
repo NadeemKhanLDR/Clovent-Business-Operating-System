@@ -4,7 +4,7 @@ namespace Clovent.Desktop.Navigation;
 
 /// <summary>
 /// The "permission-aware navigation" deliverable's actual logic, kept
-/// separate from <see cref="Shell.ShellForm"/>'s DevExpress UI construction
+/// separate from <see cref="Forms.Shell.MainForm"/>'s DevExpress UI construction
 /// so it can be unit tested without a Windows Forms message loop: filters
 /// <see cref="INavigationService.RegisteredKeys"/> down to the ones the
 /// given user is allowed to see, via <see cref="IMenuAuthorizationPolicy"/>.

@@ -1,24 +1,24 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Shared;
 
 /// <summary>
 /// Single-combo selection prompt shared by every Restaurant POS action that
 /// needs to pick one existing record from a short list - which discount or
-/// service charge to remove from an order, for instance.
+/// service charge to remove from an order, for instance. Control tree lives
+/// in <c>SelectionPromptForm.Designer.cs</c>; this file holds behavior only.
 /// </summary>
-public sealed class SelectionPromptForm : MasterDataEditFormBase
+public sealed partial class SelectionPromptForm : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _combo = new();
     private readonly Dictionary<string, Guid?> _itemsByDisplay;
 
     /// <summary>Builds the dialog.</summary>
     public SelectionPromptForm(string title, string label, IReadOnlyList<(Guid Id, string Display)> options) : base(title)
     {
-        _itemsByDisplay = ComboBoxBinder.Bind(_combo, options, includeEmpty: false);
+        InitializeComponent();
+        label1.Text = label;
 
-        AddField(label, _combo);
+        _itemsByDisplay = ComboBoxBinder.Bind(_combo, options, includeEmpty: false);
     }
 
     /// <summary>The selected item's id.</summary>

@@ -1,15 +1,19 @@
 using Clovent.Authentication.Application;
+using Clovent.Desktop.Authorization;
 using Clovent.Desktop.Catalog.Barcodes;
 using Clovent.Desktop.Catalog.Brands;
 using Clovent.Desktop.Catalog.Categories;
 using Clovent.Desktop.Catalog.Prices;
-using Clovent.Desktop.Catalog.Products;
 using Clovent.Desktop.Catalog.UnitsOfMeasure;
 using Clovent.Desktop.Catalog.Variants;
 using Clovent.Desktop.Composition;
-using Clovent.Desktop.Dashboard;
-using Clovent.Desktop.Identity.Roles;
-using Clovent.Desktop.Identity.Users;
+using Clovent.Desktop.Forms.Base.Localization;
+using Clovent.Desktop.Forms.Catalog.Products;
+using Clovent.Desktop.Forms.Dashboard;
+using Clovent.Desktop.Forms.Identity;
+using Clovent.Desktop.Forms.Identity.Roles;
+using Clovent.Desktop.Forms.Identity.Users;
+using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -26,6 +30,11 @@ using Clovent.Desktop.MasterData.Terminals;
 using Clovent.Desktop.MasterData.Warehouses;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Notifications;
+using Clovent.Desktop.Forms.Restaurant.ActivityLog;
+using Clovent.Desktop.Forms.Restaurant.Appearance;
+using Clovent.Desktop.Forms.Restaurant.MenuItems;
+using Clovent.Desktop.Forms.Restaurant.Setup;
+using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
@@ -70,15 +79,17 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<ISplashScreenService, SplashScreenService>();
         services.TryAddSingleton<IErrorDialogService, ErrorDialogService>();
 
-        services.TryAddSingleton<ShellForm>();
-        services.TryAddSingleton<IWorkspaceHost>(sp => sp.GetRequiredService<ShellForm>());
+        services.TryAddSingleton<MainForm>();
+        services.TryAddSingleton<IWorkspaceHost>(sp => sp.GetRequiredService<MainForm>());
         services.TryAddSingleton<INavigationService, NavigationService>();
         services.TryAddScoped<NavigationMenuBuilder>();
 
         services.TryAddSingleton<INotificationService, NotificationService>();
         services.TryAddSingleton<IRecentItemsService, RecentItemsService>();
+        services.TryAddSingleton<IMenuItemsChangeNotifier, MenuItemsChangeNotifier>();
 
         services.AddSingleton<IStartupTask, ThemeInitializationStartupTask>();
+        services.AddSingleton<IStartupTask, LanguageInitializationStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentUserSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentAuthorizationSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentMasterDataSeedStartupTask>();
@@ -94,12 +105,17 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<ILoginService, LoginService>();
         services.TryAddTransient<LoginForm>();
 
+        // Manager authorization for privileged POS actions (credit-limit
+        // override, order void). Singleton for the same reason LoginService
+        // is: it owns no state and opens its own DI scope per call.
+        services.TryAddSingleton<IManagerAuthorizationService, ManagerAuthorizationService>();
+
         services.TryAddTransient<DashboardView>();
 
         // User Administration gap-closing pass - same Transient-per-navigation
         // convention as every other management screen below.
-        services.TryAddTransient<UserListView>();
-        services.TryAddTransient<RoleEditorView>();
+        services.TryAddTransient<UsersForm>();
+        services.TryAddTransient<RolesForm>();
 
         // Milestone 13 ("Organization & Master Data Foundation") management
         // screens - Transient, matching DashboardView's convention: each
@@ -120,7 +136,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<ProductCategoryManagementView>();
         services.TryAddTransient<BrandManagementView>();
         services.TryAddTransient<UnitOfMeasureManagementView>();
-        services.TryAddTransient<ProductManagementView>();
+        services.TryAddTransient<ProductsForm>();
         services.TryAddTransient<ProductVariantManagementView>();
         services.TryAddTransient<BarcodeManagementView>();
         services.TryAddTransient<ProductPriceManagementView>();
@@ -133,11 +149,18 @@ public static class DesktopServiceCollectionExtensions
         // Transient-per-navigation convention as Milestones 13/14's.
         services.TryAddTransient<DiningAreaManagementView>();
         services.TryAddTransient<TableManagementView>();
-        services.TryAddTransient<RestaurantPosView>();
+        services.TryAddTransient<MenuItemsForm>();
+        services.TryAddTransient<RestaurantPosForm>();
         services.TryAddTransient<RunningOrdersView>();
         services.TryAddTransient<HoldOrdersView>();
+        services.TryAddTransient<OrderHistoryView>();
         services.TryAddTransient<KitchenTicketViewerView>();
         services.TryAddTransient<EndOfDayReportView>();
+        services.TryAddTransient<CustomersView>();
+        services.TryAddTransient<RestaurantSetupView>();
+        services.TryAddTransient<PaymentMethodsView>();
+        services.TryAddTransient<ActivityLogView>();
+        services.TryAddTransient<AppearanceSettingsView>();
 
         return services;
     }

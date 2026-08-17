@@ -1,5 +1,4 @@
-using DevExpress.XtraEditors;
-using DevExpress.XtraEditors.Controls;
+﻿using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData;
 
@@ -12,11 +11,12 @@ namespace Clovent.Desktop.MasterData;
 /// Product, Barcode/Price/WarehouseStock/StockAdjustment/InventoryTransactions
 /// scoped by ProductVariant or Warehouse). The caller supplies the
 /// (id, display) pairs directly - this control has no query knowledge of
-/// its own, keeping it reusable across every entity kind.
+/// its own, keeping it reusable across every entity kind. Control tree
+/// lives in <c>EntityPicker.Designer.cs</c>; this file holds behavior only.
 /// </summary>
-public sealed class EntityPicker : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserControl
 {
-    private readonly ComboBoxEdit _combo = new();
     private readonly Dictionary<string, Guid> _idsByDisplay = [];
 
     /// <summary>Raised whenever <see cref="SelectedId"/> settles on a new value (including becoming <see langword="null"/>).</summary>
@@ -25,21 +25,44 @@ public sealed class EntityPicker : XtraUserControl
     /// <summary>The selected entity's id, or <see langword="null"/> if none is selected.</summary>
     public Guid? SelectedId { get; private set; }
 
-    /// <summary>Builds the picker with the given label text.</summary>
-    public EntityPicker(string labelText, int comboWidth = 260)
+    /// <summary>
+    /// Builds the picker with the given label text.
+    /// </summary>
+    /// <param name="labelText">The caption shown to the left of the dropdown.</param>
+    /// <param name="comboWidth">The dropdown's width in pixels.</param>
+    /// <param name="fontSizePoints">
+    /// Overrides the label/dropdown font size (points) - <see langword="null"/>
+    /// keeps this skin's default, used by every one of this control's ~30
+    /// callers. <c>RestaurantPosView</c>'s Table picker passes a larger value
+    /// (see its own field declaration) so the currently selected table stays
+    /// legible at arm's length, the same "read at a glance under time
+    /// pressure" reasoning already applied to the Current Bill grid's larger
+    /// row height/font.
+    /// </param>
+    /// <param name="labelControlName">
+    /// Sets the inner caption's <see cref="Control.Name"/> - <see langword="null"/>
+    /// (the default) leaves it unset, used by every caller that doesn't need
+    /// to target this specific label from <c>Forms.Base.Appearance.AppearanceManager</c>'s
+    /// Control-scope rules (e.g. "RestaurantPosView.TableLabel").
+    /// </param>
+    public EntityPicker(string labelText, int comboWidth = 260, float? fontSizePoints = null, string? labelControlName = null)
     {
-        Dock = DockStyle.Top;
-        Height = 32;
+        InitializeComponent();
 
         _combo.Width = comboWidth;
-        _combo.Properties.TextEditStyle = TextEditStyles.DisableTextEditor;
+        _label.Text = labelText;
+        _label.Name = labelControlName ?? string.Empty;
 
-        var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-        layout.Controls.Add(new LabelControl { Text = labelText, Padding = new Padding(0, 6, 4, 0) });
-        layout.Controls.Add(_combo);
-        Controls.Add(layout);
+        if (fontSizePoints is { } size)
+        {
+            var font = new Font(_combo.Font.FontFamily, size, FontStyle.Bold);
+            _combo.Properties.Appearance.Font = font;
+            _combo.Properties.Appearance.Options.UseFont = true;
+            _label.Appearance.Font = font;
+            _label.Appearance.Options.UseFont = true;
+        }
 
-        _combo.SelectedIndexChanged += (_, _) => OnSelected();
+        Size = _layout.Size;
     }
 
     /// <summary>Replaces the picker's options. Selects the first item, if any, or clears the selection otherwise.</summary>
@@ -89,6 +112,10 @@ public sealed class EntityPicker : XtraUserControl
         }
     }
 
+    private void Combo_SelectedIndexChanged(object? sender, EventArgs e) => OnSelected();
+
+    private void Layout_SizeChanged(object? sender, EventArgs e) => Size = _layout.Size;
+
     private void OnSelected()
     {
         SelectedId = _combo.SelectedItem is string display && _idsByDisplay.TryGetValue(display, out var id)
@@ -97,4 +124,7 @@ public sealed class EntityPicker : XtraUserControl
 
         SelectionChanged?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <summary>Exposes the inner <see cref="ComboBoxEdit"/> so callers can configure auto-complete and text-edit style without requiring <c>EntityPicker</c> to duplicate every <see cref="ComboBoxEdit.Properties"/> member.</summary>
+    public ComboBoxEdit ComboBox => _combo;
 }

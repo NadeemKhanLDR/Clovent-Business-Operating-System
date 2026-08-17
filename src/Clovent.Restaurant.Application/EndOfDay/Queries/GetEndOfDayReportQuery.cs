@@ -9,10 +9,12 @@ using MediatR;
 namespace Clovent.Restaurant.Application.EndOfDay.Queries;
 
 /// <summary>
-/// Computes the Day-End / Z-report for one warehouse on one calendar day
-/// (UTC) - Today's Sales, Cash Collected, Items Sold (ordered by quantity,
-/// doubling as Top Selling Items), Cash Summary (by payment method),
-/// Receipt Count, Transaction Summary (via <see cref="EndOfDayReportDto.VoidedOrderCount"/>),
+/// Computes the Day-End / Z-report (a.k.a. Daily Sales Report) for one
+/// warehouse over a calendar-day range (UTC, inclusive both ends - a single
+/// day is simply <c>FromDate == ToDate</c>) - Today's Sales, Cash Collected,
+/// Items Sold (ordered by quantity, doubling as Top Selling Items), Cash
+/// Summary (by payment method), Bills (one row per completed order), Receipt
+/// Count, Transaction Summary (via <see cref="EndOfDayReportDto.VoidedOrderCount"/>),
 /// and Average Sale. Inventory Movement and Stock Remaining are not part of
 /// this DTO - the Desktop report screen composes those directly from
 /// <c>Clovent.Inventory.Application</c>'s existing
@@ -30,9 +32,14 @@ namespace Clovent.Restaurant.Application.EndOfDay.Queries;
 /// Cash/Card distinction - a fragile string match, documented here rather
 /// than silently assumed; a future milestone should add a
 /// <c>PaymentMethodKind</c> enum if cash-drawer reconciliation needs to be
-/// exact.
+/// exact. <see cref="EndOfDayReportDto.CardCollected"/> is the same kind of
+/// fragile match, this time on the substring "card" (so "Credit Card",
+/// "Debit Card", or a plain "Card" method all count) - it exists purely so
+/// the Restaurant "Sales Summary" screen can show a Cash/Card pair of
+/// figures without asking a restaurant owner to open the underlying Cash
+/// Summary breakdown by payment method.
 /// </remarks>
-public sealed record GetEndOfDayReportQuery(Guid WarehouseId, DateOnly Date) : IRequest<EndOfDayReportDto>;
+public sealed record GetEndOfDayReportQuery(Guid WarehouseId, DateOnly FromDate, DateOnly ToDate) : IRequest<EndOfDayReportDto>;
 
 /// <summary>Handles <see cref="GetEndOfDayReportQuery"/>.</summary>
 public sealed class GetEndOfDayReportQueryHandler(
@@ -42,6 +49,7 @@ public sealed class GetEndOfDayReportQueryHandler(
     IPaymentMethodRepository paymentMethodRepository) : IRequestHandler<GetEndOfDayReportQuery, EndOfDayReportDto>
 {
     private const string CashMethodName = "Cash";
+    private const string CardMethodNameFragment = "card";
 
     /// <inheritdoc/>
     public async Task<EndOfDayReportDto> Handle(GetEndOfDayReportQuery request, CancellationToken cancellationToken)
@@ -49,21 +57,31 @@ public sealed class GetEndOfDayReportQueryHandler(
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 
-        bool MatchesDay(Order order) =>
-            order.WarehouseId == warehouseId && DateOnly.FromDateTime(order.UpdatedAtUtc.UtcDateTime) == request.Date;
+        bool MatchesRange(Order order)
+        {
+            if (order.WarehouseId != warehouseId)
+            {
+                return false;
+            }
 
-        var completedToday = allOrders.Where(o => o.Status == OrderStatus.Completed && MatchesDay(o)).ToList();
-        var voidedTodayCount = allOrders.Count(o => o.Status == OrderStatus.Voided && MatchesDay(o));
+            var orderDate = DateOnly.FromDateTime(order.UpdatedAtUtc.UtcDateTime);
+            return orderDate >= request.FromDate && orderDate <= request.ToDate;
+        }
+
+        var completedInRange = allOrders.Where(o => o.Status == OrderStatus.Completed && MatchesRange(o)).ToList();
+        var voidedInRangeCount = allOrders.Count(o => o.Status == OrderStatus.Voided && MatchesRange(o));
 
         var paymentMethodNames = (await paymentMethodRepository.GetAllAsync(cancellationToken))
             .ToDictionary(m => m.Id, m => m.Name.Value);
 
         decimal totalSales = 0m;
         decimal cashCollected = 0m;
+        decimal cardCollected = 0m;
         var itemTotals = new Dictionary<Clovent.Catalog.Variants.ProductVariantId, (decimal Quantity, decimal Total)>();
         var methodTotals = new Dictionary<string, decimal>();
+        var bills = new List<EndOfDayBillDto>();
 
-        foreach (var order in completedToday)
+        foreach (var order in completedInRange)
         {
             var lines = await orderLineRepository.GetByOrderIdAsync(order.Id, cancellationToken);
             foreach (var line in lines.Where(l => !l.IsVoided))
@@ -73,18 +91,35 @@ public sealed class GetEndOfDayReportQueryHandler(
             }
 
             var payments = await paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-            foreach (var payment in payments.Where(p => !p.IsVoided))
+            var activePayments = payments.Where(p => !p.IsVoided).ToList();
+            decimal orderTotal = 0m;
+            var methodNamesForOrder = new List<string>();
+
+            foreach (var payment in activePayments)
             {
                 totalSales += payment.Amount;
+                orderTotal += payment.Amount;
 
                 var methodName = paymentMethodNames.GetValueOrDefault(payment.PaymentMethodId, "(unknown)");
                 methodTotals[methodName] = methodTotals.GetValueOrDefault(methodName) + payment.Amount;
+                methodNamesForOrder.Add(methodName);
 
                 if (string.Equals(methodName, CashMethodName, StringComparison.OrdinalIgnoreCase))
                 {
                     cashCollected += payment.Amount;
                 }
+                else if (methodName.Contains(CardMethodNameFragment, StringComparison.OrdinalIgnoreCase))
+                {
+                    cardCollected += payment.Amount;
+                }
             }
+
+            bills.Add(new EndOfDayBillDto(
+                order.Id.Value,
+                order.OrderNumber.Value,
+                order.UpdatedAtUtc,
+                orderTotal,
+                methodNamesForOrder.Count > 0 ? string.Join(", ", methodNamesForOrder.Distinct()) : "(none)"));
         }
 
         var itemsSold = itemTotals
@@ -97,17 +132,20 @@ public sealed class GetEndOfDayReportQueryHandler(
             .OrderByDescending(m => m.Total)
             .ToList();
 
-        var receiptCount = completedToday.Count;
+        var receiptCount = completedInRange.Count;
 
         return new EndOfDayReportDto(
             request.WarehouseId,
-            request.Date,
+            request.FromDate,
+            request.ToDate,
             totalSales,
             cashCollected,
+            cardCollected,
             itemsSold,
             cashSummary,
+            [.. bills.OrderByDescending(b => b.CompletedAtUtc)],
             receiptCount,
-            voidedTodayCount,
+            voidedInRangeCount,
             receiptCount > 0 ? totalSales / receiptCount : 0m);
     }
 }

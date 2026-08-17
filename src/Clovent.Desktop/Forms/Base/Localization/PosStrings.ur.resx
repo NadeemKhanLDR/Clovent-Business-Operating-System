@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms</value>
+  </resheader>
+  <data name="NewDineIn" xml:space="preserve">
+    <value>نیا ڈائن ان</value>
+  </data>
+  <data name="NewTakeAway" xml:space="preserve">
+    <value>نیا ٹیک اوے</value>
+  </data>
+  <data name="Categories" xml:space="preserve">
+    <value>زمرہ جات</value>
+  </data>
+  <data name="AllItems" xml:space="preserve">
+    <value>▦  تمام اشیاء</value>
+  </data>
+  <data name="CurrentBill" xml:space="preserve">
+    <value>موجودہ بل</value>
+  </data>
+  <data name="ColumnQty" xml:space="preserve">
+    <value>مقدار</value>
+  </data>
+  <data name="ColumnItem" xml:space="preserve">
+    <value>شے</value>
+  </data>
+  <data name="ColumnPrice" xml:space="preserve">
+    <value>قیمت</value>
+  </data>
+  <data name="ColumnTotal" xml:space="preserve">
+    <value>مجموعی</value>
+  </data>
+  <data name="Subtotal" xml:space="preserve">
+    <value>ذیلی مجموعہ</value>
+  </data>
+  <data name="Discount" xml:space="preserve">
+    <value>رعایت</value>
+  </data>
+  <data name="Tax" xml:space="preserve">
+    <value>ٹیکس</value>
+  </data>
+  <data name="ServiceCharge" xml:space="preserve">
+    <value>سروس چارج</value>
+  </data>
+  <data name="GrandTotal" xml:space="preserve">
+    <value>کل رقم</value>
+  </data>
+  <data name="Paid" xml:space="preserve">
+    <value>ادا شدہ</value>
+  </data>
+  <data name="Balance" xml:space="preserve">
+    <value>باقی رقم</value>
+  </data>
+  <data name="Hold" xml:space="preserve">
+    <value>روکیں</value>
+  </data>
+  <data name="Clear" xml:space="preserve">
+    <value>صاف کریں</value>
+  </data>
+  <data name="Print" xml:space="preserve">
+    <value>پرنٹ</value>
+  </data>
+  <data name="MoreActions" xml:space="preserve">
+    <value>مزید اختیارات ▾</value>
+  </data>
+  <data name="Pay" xml:space="preserve">
+    <value>ادائیگی</value>
+  </data>
+  <data name="SendToKitchen" xml:space="preserve">
+    <value>باورچی خانے بھیجیں</value>
+  </data>
+  <data name="CompleteOrder" xml:space="preserve">
+    <value>آرڈر مکمل کریں</value>
+  </data>
+  <data name="NoOrderSelected" xml:space="preserve">
+    <value>کوئی آرڈر منتخب نہیں۔</value>
+  </data>
+  <data name="NoItemsAdded" xml:space="preserve">
+    <value>کوئی شے شامل نہیں
+شروع کرنے کے لیے شے منتخب یا اسکین کریں</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>مقام:</value>
+  </data>
+  <data name="Table" xml:space="preserve">
+    <value>میز:</value>
+  </data>
+</root>

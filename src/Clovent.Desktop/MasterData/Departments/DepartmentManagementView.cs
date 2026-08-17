@@ -14,7 +14,8 @@ namespace Clovent.Desktop.MasterData.Departments;
 /// over the departments belonging to a selected branch (under a selected
 /// organization and company). Feature-gated per <c>departments.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class DepartmentManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class DepartmentManagementView : XtraUserControl
 {
     private const string FeatureCode = "departments";
 
@@ -22,8 +23,6 @@ public sealed class DepartmentManagementView : XtraUserControl
     private readonly MediatR.IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly MasterDataListView<DepartmentDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public DepartmentManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,31 +32,7 @@ public sealed class DepartmentManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<DepartmentDto>(
-        [
-            new MasterDataColumn(nameof(DepartmentDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(DepartmentDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(DepartmentDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateDepartmentCommand(dto.DepartmentId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateDepartmentCommand(dto.DepartmentId)),
-        };
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: true);
-        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_selector);
-        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -66,6 +41,7 @@ public sealed class DepartmentManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -110,4 +86,8 @@ public sealed class DepartmentManagementView : XtraUserControl
             await _mediator.Send(new RenameDepartmentCommand(dto.DepartmentId, form.DepartmentNameValue));
         }
     }
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void DepartmentManagementView_Load(object? sender, EventArgs e) => await _selector.LoadOrganizationsAsync();
 }

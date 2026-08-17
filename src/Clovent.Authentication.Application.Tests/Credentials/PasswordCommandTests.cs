@@ -70,6 +70,21 @@ public class PasswordCommandTests
     }
 
     [Fact]
+    public async Task ResetPasswordCommandHandler_NoExistingCredentials_CreatesThemAndSetsPassword()
+    {
+        var hasher = new FakePasswordHasher();
+        var userId = UserId.New();
+        var repository = new FakeUserCredentialsRepository();
+        var handler = new ResetPasswordCommandHandler(repository, hasher);
+
+        await handler.Handle(new ResetPasswordCommand(userId.Value, ValidNewPassword), CancellationToken.None);
+
+        var credentials = await repository.GetByUserIdAsync(userId);
+        Assert.NotNull(credentials);
+        Assert.True(hasher.Verify(ValidNewPassword, credentials!.PasswordHash!.Value));
+    }
+
+    [Fact]
     public async Task ResetPasswordCommandHandler_WeakNewPassword_Throws()
     {
         var hasher = new FakePasswordHasher();

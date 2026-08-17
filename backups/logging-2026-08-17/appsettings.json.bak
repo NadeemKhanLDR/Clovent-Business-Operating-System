@@ -1,0 +1,30 @@
+{
+  "Platform": {
+    "EnvironmentName": "Production",
+    "DefaultCulture": "en-US",
+    "DefaultTimeZone": "UTC",
+    "DefaultCurrency": "USD"
+  },
+  "Desktop": {
+    "DefaultSkin": "WXI",
+    "DefaultLanguage": "en-US",
+    "SeedDevelopmentUser": false,
+    "SeedDevelopmentMasterData": false,
+    "SeedDevelopmentCatalogData": false,
+    "SeedDevelopmentRestaurantData": false
+  },
+  "ConnectionStrings": {
+    "Authentication": "Server=.;Database=Clovent_Authentication;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Identity": "Server=.;Database=Clovent_Identity;Trusted_Connection=True;TrustServerCertificate=True;",
+    "MasterData": "Server=.;Database=Clovent_MasterData;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Catalog": "Server=.;Database=Clovent_Catalog;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Inventory": "Server=.;Database=Clovent_Inventory;Trusted_Connection=True;TrustServerCertificate=True;",
+    "Restaurant": "Server=.;Database=Clovent_Restaurant;Trusted_Connection=True;TrustServerCertificate=True;"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning"
+    }
+  }
+}

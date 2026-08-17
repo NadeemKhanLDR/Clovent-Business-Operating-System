@@ -2,25 +2,68 @@ using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.Application.Payments.Commands;
 using Clovent.Restaurant.Application.Payments.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
+using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
+using Clovent.Restaurant.PaymentMethods.ValueObjects;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Customers;
+using Clovent.Restaurant.Application.ActivityLogs.Commands;
 using Xunit;
 
 namespace Clovent.Restaurant.Application.Tests.Payments;
 
 public class PaymentHandlerTests
 {
+    /// <summary>
+    /// Builds a <see cref="RecordPaymentCommandHandler"/> and gives <paramref name="order"/> a
+    /// single line worth <paramref name="billTotal"/>, so the handler's server-side
+    /// outstanding-balance ceiling has a real bill to measure a payment against - an order with no
+    /// lines has a grand total of zero, against which every payment is by definition an
+    /// over-payment.
+    /// </summary>
+    private static RecordPaymentCommandHandler CreateRecordHandler(
+        FakeOrderRepository orderRepository,
+        FakePaymentRepository paymentRepository,
+        FakeCustomerRepository customerRepository,
+        FakeCustomerLedgerEntryRepository ledgerRepository,
+        FakePaymentMethodRepository paymentMethodRepository,
+        Order order,
+        decimal billTotal)
+    {
+        var orderLineRepository = new FakeOrderLineRepository();
+        var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, billTotal, 0, false);
+        order.AddOrderLine(line.Id);
+        orderLineRepository.Add(line);
+
+        return new RecordPaymentCommandHandler(
+            orderRepository,
+            paymentRepository,
+            customerRepository,
+            ledgerRepository,
+            paymentMethodRepository,
+            orderLineRepository,
+            new FakeDiscountRepository(),
+            new FakeServiceChargeRepository());
+    }
+
     [Fact]
     public async Task RecordPaymentCommandHandler_Valid_RecordsAgainstOrder()
     {
         var orderRepository = new FakeOrderRepository();
         var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        
+        var paymentMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(paymentMethod);
+
         var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
         orderRepository.Add(order);
 
-        var handler = new RecordPaymentCommandHandler(orderRepository, paymentRepository);
-        var result = await handler.Handle(new RecordPaymentCommand(order.Id.Value, PaymentMethodId.New().Value, 25m), CancellationToken.None);
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 25m);
+        var result = await handler.Handle(new RecordPaymentCommand(order.Id.Value, paymentMethod.Id.Value, 25m), CancellationToken.None);
 
         Assert.Contains(new PaymentId(result.PaymentId), order.PaymentIds);
         Assert.Equal(25m, result.Amount);
@@ -29,11 +72,19 @@ public class PaymentHandlerTests
     [Fact]
     public async Task VoidPaymentCommandHandler_Valid_Voids()
     {
+        var paymentMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        
         var repository = new FakePaymentRepository();
-        var payment = Payment.Create(OrderId.New(), PaymentMethodId.New(), 25m);
+        var payment = Payment.Create(OrderId.New(), paymentMethod.Id, 25m);
         repository.Add(payment);
 
-        var result = await new VoidPaymentCommandHandler(repository).Handle(new VoidPaymentCommand(payment.Id.Value), CancellationToken.None);
+        var orderRepository = new FakeOrderRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        paymentMethodRepository.Add(paymentMethod);
+
+        var result = await new VoidPaymentCommandHandler(repository, orderRepository, customerRepository, ledgerRepository, paymentMethodRepository).Handle(new VoidPaymentCommand(payment.Id.Value), CancellationToken.None);
 
         Assert.True(result.IsVoided);
     }
@@ -57,5 +108,684 @@ public class PaymentHandlerTests
         var handler = new GetPaymentByIdQueryHandler(new FakePaymentRepository());
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new GetPaymentByIdQuery(Guid.NewGuid()), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_CreditSale_UpdatesCustomerBalanceAndLedger()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            1000m,
+            null);
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 250m);
+        var result = await handler.Handle(new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 250m), CancellationToken.None);
+
+        Assert.Equal(250m, customer.OutstandingBalance);
+
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        var entry = Assert.Single(ledgerEntries);
+        Assert.Equal(250m, entry.Debit);
+        Assert.Equal(0m, entry.Credit);
+        Assert.Equal(250m, entry.RunningBalance);
+        Assert.Equal("Credit Sale", entry.Description);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_WalkInCreditRejected_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        // Walk-in customer: order.CustomerId remains null
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 50m);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 50m), CancellationToken.None));
+
+        Assert.Equal("A customer must be selected for Credit / Pay Later sales.", ex.Message);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_CreditSale_InactiveCustomer_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            1000m,
+            null);
+        customer.SetStatus(false); // Inactive
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 50m);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 50m), CancellationToken.None));
+
+        Assert.Equal($"The customer '{customer.Name}' is inactive.", ex.Message);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_CreditLimitExceeded_NoOverride_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+
+        // Adding 150 credit payment brings outstanding to 550, which exceeds 500 limit.
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m, ExceedCreditLimitApproved: false);
+        
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(cmd, CancellationToken.None));
+
+        Assert.Contains("Credit limit exceeded.", ex.Message);
+        
+        // Outstanding balance must remain unchanged
+        Assert.Equal(400m, customer.OutstandingBalance);
+        
+        // Ledger entry must NOT have been written
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        Assert.Empty(ledgerEntries);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_CreditLimitExceeded_WithOverride_Succeeds()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+
+        // Adding 150 credit payment brings outstanding to 550, but we pass ExceedCreditLimitApproved = true
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m, ExceedCreditLimitApproved: true);
+        
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.NotNull(result);
+        
+        // Outstanding balance must update correctly
+        Assert.Equal(550m, customer.OutstandingBalance);
+        
+        // Ledger entry must have been written
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        var entry = Assert.Single(ledgerEntries);
+        Assert.Equal(150m, entry.Debit);
+        Assert.Equal(0m, entry.Credit);
+        Assert.Equal(550m, entry.RunningBalance);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_CreditLimitExactlyReached_Succeeds()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 100m);
+
+        // Adding 100 credit payment brings outstanding to 500 (exactly limit).
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 100m, ExceedCreditLimitApproved: false);
+        
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(500m, customer.OutstandingBalance);
+    }
+
+    [Fact]
+    public async Task VoidPaymentCommandHandler_CreditSale_AdjustsBalanceAndLedger()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            1000m,
+            null);
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        // Record a credit sale payment of 150m first
+        var recordHandler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+        var recordResult = await recordHandler.Handle(new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m), CancellationToken.None);
+        
+        Assert.Equal(150m, customer.OutstandingBalance);
+
+        // Now void the payment
+        var voidHandler = new VoidPaymentCommandHandler(paymentRepository, orderRepository, customerRepository, ledgerRepository, paymentMethodRepository);
+        var voidResult = await voidHandler.Handle(new VoidPaymentCommand(recordResult.PaymentId), CancellationToken.None);
+
+        Assert.True(voidResult.IsVoided);
+
+        // Customer outstanding balance should go back to 0
+        Assert.Equal(0m, customer.OutstandingBalance);
+
+        // Verify the void ledger entry
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        
+        // Should have 2 entries: 1 for the original Credit Sale, 1 for the Void Credit Sale
+        Assert.Equal(2, ledgerEntries.Count);
+        
+        var voidEntry = ledgerEntries.Last();
+        Assert.Equal($"VOID-{recordResult.PaymentId}", voidEntry.Reference);
+        Assert.Equal($"Void Credit Sale ({order.OrderNumber.Value})", voidEntry.Description);
+        Assert.Equal(0m, voidEntry.Debit);
+        Assert.Equal(150m, voidEntry.Credit);
+        Assert.Equal(0m, voidEntry.RunningBalance);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_UnauthorizedManagerOverride_ThrowsAndLogsNothing()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var activityLogRepository = new FakeActivityLogEntryRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+
+        // ExceedCreditLimitApproved = false simulates user who does NOT have pos.exceedcreditlimit
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m, ExceedCreditLimitApproved: false);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(cmd, CancellationToken.None));
+
+        Assert.Contains("Credit limit exceeded.", ex.Message);
+
+        // Verify customer outstanding balance is unchanged
+        Assert.Equal(400m, customer.OutstandingBalance);
+
+        // Verify no credit-sale ledger entry is created
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        Assert.Empty(ledgerEntries);
+
+        // Verify no successful override activity log is created
+        var activityLogs = activityLogRepository.GetAll();
+        Assert.Empty(activityLogs);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_AuthorizedOverrideAuditLogging_SucceedsAndLogs()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var activityLogRepository = new FakeActivityLogEntryRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        // Execute as a user who HAS pos.exceedcreditlimit and approves manager override:
+        // 1. Log the activity record (Override)
+        var activityHandler = new RecordActivityCommandHandler(activityLogRepository);
+        var logCmd = new RecordActivityCommand("Override", $"Authorized credit limit override for customer '{customer.Name}' ({customer.Code})", "ManagerUser", "Workstation01");
+        await activityHandler.Handle(logCmd, CancellationToken.None);
+
+        // 2. Record payment with ExceedCreditLimitApproved = true
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m, ExceedCreditLimitApproved: true);
+
+        var result = await handler.Handle(cmd, CancellationToken.None);
+
+        Assert.NotNull(result);
+
+        // Verify customer balance and ledger are updated exactly once
+        Assert.Equal(550m, customer.OutstandingBalance);
+        var ledgerEntries = await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None);
+        var ledgerEntry = Assert.Single(ledgerEntries); // Exactly one ledger entry
+        Assert.Equal(150m, ledgerEntry.Debit);
+        Assert.Equal(550m, ledgerEntry.RunningBalance);
+
+        // Verify the expected override/activity-log record is created with correct success/approval details
+        var activityLogs = activityLogRepository.GetAll();
+        var log = Assert.Single(activityLogs);
+        Assert.Equal("Override", log.Action);
+        Assert.Contains("Authorized credit limit override for customer 'John Doe'", log.Details);
+        Assert.Equal("ManagerUser", log.PerformedBy);
+        Assert.Equal("Workstation01", log.MachineName);
+    }
+
+    [Fact]
+    public async Task RecordPaymentCommandHandler_DeniedOverrideAuditSafety_FailsAndDoesNotLog()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var activityLogRepository = new FakeActivityLogEntryRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe",
+            "123456",
+            "Address",
+            "john@example.com",
+            0m,
+            500m, // limit is 500
+            null);
+        customer.AdjustBalance(400m); // outstanding is 400
+        customerRepository.Add(customer);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        paymentMethodRepository.Add(creditMethod);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 150m);
+
+        // ExceedCreditLimitApproved = false simulates manager override is denied/cancelled
+        var cmd = new RecordPaymentCommand(order.Id.Value, creditMethod.Id.Value, 150m, ExceedCreditLimitApproved: false);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(cmd, CancellationToken.None));
+
+        Assert.Contains("Credit limit exceeded.", ex.Message);
+
+        // Verify credit sale does not proceed (no payment recorded)
+        var payments = await paymentRepository.GetByOrderIdAsync(order.Id, CancellationToken.None);
+        Assert.Empty(payments);
+
+        // Verify customer balance remains unchanged
+        Assert.Equal(400m, customer.OutstandingBalance);
+
+        // Verify no successful override audit entry is created
+        var activityLogs = activityLogRepository.GetAll();
+        Assert.Empty(activityLogs);
+    }
+
+    /// <summary>
+    /// Partial payments must keep working: each one only shrinks the balance the next is measured
+    /// against, so the server-side ceiling must not mistake a second legitimate instalment for an
+    /// over-payment.
+    /// </summary>
+    [Fact]
+    public async Task RecordPaymentCommandHandler_PartialPayments_BothSucceed()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var cash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(cash);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 500m);
+
+        var first = await handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 200m), CancellationToken.None);
+        var second = await handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 300m), CancellationToken.None);
+
+        Assert.Equal(200m, first.Amount);
+        Assert.Equal(300m, second.Amount);
+
+        var payments = await paymentRepository.GetByOrderIdAsync(order.Id, CancellationToken.None);
+        Assert.Equal(2, payments.Count);
+        Assert.Equal(500m, payments.Sum(p => p.Amount));
+    }
+
+    /// <summary>
+    /// The duplicate-click case: a second full-balance payment against an already-settled bill must
+    /// be refused by the server, not silently recorded as a second row (a $500 bill paid twice as
+    /// $1,000).
+    /// </summary>
+    [Fact]
+    public async Task RecordPaymentCommandHandler_SecondFullPaymentOnSettledBill_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var cash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(cash);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 500m);
+
+        await handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 500m), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 500m), CancellationToken.None));
+
+        Assert.Contains("more than the 0.00 still outstanding", ex.Message);
+
+        // The bill must still show exactly one payment of 500.
+        var payments = await paymentRepository.GetByOrderIdAsync(order.Id, CancellationToken.None);
+        Assert.Equal(500m, Assert.Single(payments).Amount);
+    }
+
+    /// <summary>A payment larger than what is left - 200 against a remaining 100 - must be refused.</summary>
+    [Fact]
+    public async Task RecordPaymentCommandHandler_PaymentExceedsRemainingBalance_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var cash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(cash);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        orderRepository.Add(order);
+
+        var handler = CreateRecordHandler(orderRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository, order, 500m);
+
+        await handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 400m), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 200m), CancellationToken.None));
+
+        Assert.Contains("more than the 100.00 still outstanding", ex.Message);
+
+        // Settling the actual remaining 100 must still be accepted.
+        var final = await handler.Handle(new RecordPaymentCommand(order.Id.Value, cash.Id.Value, 100m), CancellationToken.None);
+        Assert.Equal(100m, final.Amount);
+    }
+
+    /// <summary>
+    /// The correction path the Order History screen exists to enable: a surplus
+    /// payment on an already-<b>Completed</b> order is voided, and the order is
+    /// left exactly as it was. This is the ORD-35 shape - 4 x 165.00 against a
+    /// 280.00 bill - and the cleanup must never reopen or re-complete the
+    /// order, because re-completing it would issue its stock a second time.
+    /// </summary>
+    [Fact]
+    public async Task VoidPaymentCommandHandler_OnCompletedOrder_VoidsPaymentAndLeavesOrderUntouched()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var method = PaymentMethod.Create(PaymentMethodName.Create("Easy Paisa"));
+        paymentMethodRepository.Add(method);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 280m, 0, false);
+        order.AddOrderLine(line.Id);
+
+        var surplus = new List<Payment>();
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            var payment = Payment.Create(order.Id, method.Id, 165m);
+            order.RecordPayment(payment.Id);
+            paymentRepository.Add(payment);
+            surplus.Add(payment);
+        }
+
+        order.Complete();
+        orderRepository.Add(order);
+
+        var statusBefore = order.Status;
+        var updatedBefore = order.UpdatedAtUtc;
+        var paymentIdsBefore = order.PaymentIds.Count;
+
+        var handler = new VoidPaymentCommandHandler(paymentRepository, orderRepository, customerRepository, ledgerRepository, paymentMethodRepository);
+
+        var result = await handler.Handle(new VoidPaymentCommand(surplus[3].Id.Value), CancellationToken.None);
+
+        Assert.True(result.IsVoided);
+
+        // Order status must be untouched - no reopen, no re-complete.
+        Assert.Equal(statusBefore, order.Status);
+        Assert.Equal("Completed", order.Status.ToString());
+
+        // Voiding a payment does not touch the order aggregate at all, so its
+        // timestamp and payment-id set are unchanged. (VoidPaymentCommandHandler
+        // takes no IMediator, so it structurally cannot issue or reverse stock -
+        // there is no inventory operation for this path to perform.)
+        Assert.Equal(updatedBefore, order.UpdatedAtUtc);
+        Assert.Equal(paymentIdsBefore, order.PaymentIds.Count);
+
+        // Only the targeted payment is voided; the rest are left for a
+        // deliberate, per-payment decision.
+        var payments = await paymentRepository.GetByOrderIdAsync(order.Id, CancellationToken.None);
+        Assert.Equal(1, payments.Count(p => p.IsVoided));
+        Assert.Equal(495m, payments.Where(p => !p.IsVoided).Sum(p => p.Amount));
+    }
+
+    /// <summary>
+    /// The H-4 shape - ORD-2/ORD-4, cancelled while still holding money. The
+    /// payment is voided and the order stays <b>Cancelled</b>: it is never
+    /// reopened and never re-cancelled.
+    /// </summary>
+    [Fact]
+    public async Task VoidPaymentCommandHandler_OnCancelledOrder_VoidsPaymentAndOrderStaysCancelled()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var method = PaymentMethod.Create(PaymentMethodName.Create("Credit Card"));
+        paymentMethodRepository.Add(method);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.Cancel("Started by mistake");
+        orderRepository.Add(order);
+
+        // The payment predates the guard that now refuses this state, so it is
+        // attached directly rather than through RecordPaymentCommand.
+        var payment = Payment.Create(order.Id, method.Id, 57.50m);
+        paymentRepository.Add(payment);
+
+        var handler = new VoidPaymentCommandHandler(paymentRepository, orderRepository, customerRepository, ledgerRepository, paymentMethodRepository);
+
+        var result = await handler.Handle(new VoidPaymentCommand(payment.Id.Value), CancellationToken.None);
+
+        Assert.True(result.IsVoided);
+        Assert.Equal("Cancelled", order.Status.ToString());
+
+        var payments = await paymentRepository.GetByOrderIdAsync(order.Id, CancellationToken.None);
+        Assert.Equal(0m, payments.Where(p => !p.IsVoided).Sum(p => p.Amount));
+    }
+
+    /// <summary>A non-credit payment must not touch any customer ledger - ORD-35's Easy Paisa and ORD-2/ORD-4's Credit Card payments all take this path.</summary>
+    [Fact]
+    public async Task VoidPaymentCommandHandler_NonCreditMethod_LeavesCustomerLedgerAlone()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var customer = Customer.Create(
+            Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"),
+            "John Doe", "123456", "Address", "john@example.com", 0m, 1000m, null);
+        customerRepository.Add(customer);
+
+        var method = PaymentMethod.Create(PaymentMethodName.Create("Credit Card"));
+        paymentMethodRepository.Add(method);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.SetCustomer(customer.Id);
+        orderRepository.Add(order);
+
+        var payment = Payment.Create(order.Id, method.Id, 100m);
+        paymentRepository.Add(payment);
+
+        var handler = new VoidPaymentCommandHandler(paymentRepository, orderRepository, customerRepository, ledgerRepository, paymentMethodRepository);
+        await handler.Handle(new VoidPaymentCommand(payment.Id.Value), CancellationToken.None);
+
+        Assert.Equal(0m, customer.OutstandingBalance);
+        Assert.Empty(await ledgerRepository.GetByCustomerIdAsync(customer.Id, CancellationToken.None));
     }
 }

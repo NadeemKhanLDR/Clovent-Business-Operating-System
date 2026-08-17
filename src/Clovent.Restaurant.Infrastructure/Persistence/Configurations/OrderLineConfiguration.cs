@@ -27,6 +27,11 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
 
         builder.Property(l => l.Quantity).HasPrecision(18, 4).IsRequired();
         builder.Property(l => l.UnitPrice).HasPrecision(18, 4).IsRequired();
+        builder.Property(l => l.OriginalUnitPrice).HasPrecision(18, 4).IsRequired();
+        builder.Property(l => l.IsPriceOverridden).IsRequired();
+        builder.Property(l => l.PriceOverrideReason).HasMaxLength(500);
+        builder.Property(l => l.PriceOverriddenBy).HasMaxLength(200);
+        builder.Property(l => l.PriceOverriddenAtUtc);
         builder.Property(l => l.TaxRatePercentage).HasPrecision(5, 2).IsRequired();
         builder.Property(l => l.TaxIsInclusive).IsRequired();
 

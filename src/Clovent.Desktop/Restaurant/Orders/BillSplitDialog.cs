@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
@@ -7,18 +6,33 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// Prompt for splitting a subset of an order's lines off to a new order at a
 /// different table - the Bill Split Dialog. There is no dedicated "split
 /// bill" domain command; picking which lines move plus a destination table
-/// is exactly <c>SplitOrderCommand</c>'s shape (see its doc comment).
+/// is exactly <c>SplitOrderCommand</c>'s shape (see its doc comment). Control
+/// tree lives in <c>BillSplitDialog.Designer.cs</c>; this file holds
+/// behavior only.
 /// </summary>
-public sealed class BillSplitDialog : MasterDataEditFormBase
+public sealed partial class BillSplitDialog : MasterDataEditFormBase
 {
-    private readonly CheckedListBoxControl _linesList = new();
-    private readonly ComboBoxEdit _targetTableCombo = new();
     private readonly Dictionary<string, Guid?> _tablesByDisplay;
+
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public BillSplitDialog() : base("Split Bill")
+    {
+        _tablesByDisplay = null!;
+
+        InitializeComponent();
+        }
 
     /// <summary>Builds the dialog. <paramref name="lineOptions"/> should list only active (non-voided) lines.</summary>
     public BillSplitDialog(IReadOnlyList<(Guid Id, string Display)> lineOptions, IReadOnlyList<(Guid Id, string Display)> tableOptions) : base("Split Bill")
     {
-        Height = 440;
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _tablesByDisplay = null!;
+            return;
+        }
 
         foreach (var (id, display) in lineOptions)
         {
@@ -26,12 +40,6 @@ public sealed class BillSplitDialog : MasterDataEditFormBase
         }
 
         _tablesByDisplay = ComboBoxBinder.Bind(_targetTableCombo, tableOptions, includeEmpty: false);
-
-        AddField("Lines to Move:", _linesList);
-        _linesList.Width = 320;
-        _linesList.Height = 200;
-
-        AddField("Target Table:", _targetTableCombo);
     }
 
     /// <summary>The order line ids the user checked.</summary>
@@ -66,4 +74,5 @@ public sealed class BillSplitDialog : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

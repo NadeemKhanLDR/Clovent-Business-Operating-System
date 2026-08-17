@@ -1,24 +1,39 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
-/// <summary>Prompt for merging one table's order into another's (two tables pushed together for one party).</summary>
-public sealed class MergeTablesDialog : MasterDataEditFormBase
+/// <summary>
+/// Prompt for merging one table's order into another's (two tables pushed
+/// together for one party). Control tree lives in
+/// <c>MergeTablesDialog.Designer.cs</c>; this file holds behavior only.
+/// </summary>
+public sealed partial class MergeTablesDialog : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _sourceCombo = new();
-    private readonly ComboBoxEdit _targetCombo = new();
     private readonly Dictionary<string, Guid?> _tablesByDisplay;
+
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public MergeTablesDialog() : base("Merge Tables")
+    {
+        _tablesByDisplay = null!;
+
+        InitializeComponent();
+        }
 
     /// <summary>Builds the dialog, preselecting <paramref name="defaultSourceTableId"/> as the source when given.</summary>
     public MergeTablesDialog(IReadOnlyList<(Guid Id, string Display)> tableOptions, Guid? defaultSourceTableId = null) : base("Merge Tables")
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _tablesByDisplay = null!;
+            return;
+        }
+
         _tablesByDisplay = ComboBoxBinder.Bind(_sourceCombo, tableOptions, includeEmpty: false);
         ComboBoxBinder.Bind(_targetCombo, tableOptions, includeEmpty: false);
         ComboBoxBinder.SelectById(_sourceCombo, _tablesByDisplay, defaultSourceTableId);
-
-        AddField("Source Table:", _sourceCombo);
-        AddField("Target Table:", _targetCombo);
     }
 
     /// <summary>The table whose order will be merged away.</summary>
@@ -45,4 +60,5 @@ public sealed class MergeTablesDialog : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

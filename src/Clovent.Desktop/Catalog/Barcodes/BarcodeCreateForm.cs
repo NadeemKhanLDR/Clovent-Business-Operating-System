@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Catalog.Barcodes;
 
@@ -9,19 +8,17 @@ namespace Clovent.Desktop.Catalog.Barcodes;
 /// and Activate/Deactivate (see <c>Clovent.Catalog.Barcodes.Barcode</c>'s doc
 /// comment), so <see cref="MasterDataListView{TDto}.OnEdit"/> is
 /// deliberately left unset for the Barcode screen, mirroring
-/// <c>CurrencyCreateForm</c>'s identical "no edit" reasoning.
+/// <c>CurrencyCreateForm</c>'s identical "no edit" reasoning. Control tree
+/// (fields, <c>AddField</c> calls) lives in
+/// <c>BarcodeCreateForm.Designer.cs</c>; this file holds behavior only.
 /// </summary>
-public sealed class BarcodeCreateForm : MasterDataEditFormBase
+public sealed partial class BarcodeCreateForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _valueEdit = new();
-    private readonly CheckEdit _isPrimaryEdit = new() { Text = "Set as primary barcode" };
-
     /// <summary>Builds the dialog.</summary>
     public BarcodeCreateForm() : base("New Barcode")
     {
-        AddField("Value (8-14 digits):", _valueEdit);
-        AddField(string.Empty, _isPrimaryEdit);
-    }
+        InitializeComponent();
+        }
 
     /// <summary>The entered barcode value.</summary>
     public string Value => _valueEdit.Text.Trim();
@@ -41,4 +38,5 @@ public sealed class BarcodeCreateForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

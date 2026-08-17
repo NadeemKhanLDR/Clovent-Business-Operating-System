@@ -10,6 +10,7 @@ public sealed record ProductVariantDto(
     string Sku,
     Guid UnitOfMeasureId,
     string Status,
+    int SortOrder,
     DateTimeOffset CreatedAtUtc,
     Guid? ProductCategoryId = null)
 {
@@ -28,6 +29,7 @@ public sealed record ProductVariantDto(
         variant.Sku.Value,
         variant.UnitOfMeasureId.Value,
         variant.Status.ToString(),
+        variant.SortOrder,
         variant.CreatedAtUtc,
         productCategoryId);
 }

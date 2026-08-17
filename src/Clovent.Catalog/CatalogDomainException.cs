@@ -33,6 +33,10 @@ public sealed class CatalogDomainException : DomainException
     public static CatalogDomainException CategoryCannotBeOwnParent(ProductCategoryId categoryId) =>
         new($"Product category '{categoryId}' cannot be its own parent.");
 
+    /// <summary>A category's SetColor() was attempted with a value that isn't a valid "#RRGGBB" hex color.</summary>
+    public static CatalogDomainException InvalidCategoryColor(ProductCategoryId categoryId) =>
+        new($"Product category '{categoryId}' color must be a 6-digit hex value like \"#RRGGBB\".");
+
     /// <summary>A group Activate() was attempted while already active.</summary>
     public static CatalogDomainException GroupAlreadyActive(ProductGroupId groupId) =>
         new($"Product group '{groupId}' is already active.");

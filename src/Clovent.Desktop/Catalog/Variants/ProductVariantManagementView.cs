@@ -19,7 +19,8 @@ namespace Clovent.Desktop.Catalog.Variants;
 /// and warehouse stock all attach to. Feature-gated per
 /// <c>variants.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class ProductVariantManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class ProductVariantManagementView : XtraUserControl
 {
     private const string FeatureCode = "variants";
 
@@ -27,8 +28,6 @@ public sealed class ProductVariantManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _productPicker = new("Product:");
-    private readonly MasterDataListView<ProductVariantDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public ProductVariantManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -38,43 +37,12 @@ public sealed class ProductVariantManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<ProductVariantDto>(
-        [
-            new MasterDataColumn(nameof(ProductVariantDto.Sku), "SKU", 120),
-            new MasterDataColumn(nameof(ProductVariantDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(ProductVariantDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(ProductVariantDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => $"{dto.Sku} {dto.Name}",
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateProductVariantCommand(dto.ProductVariantId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateProductVariantCommand(dto.ProductVariantId)),
-        };
-
-        _productPicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_productPicker);
-        Load += async (_, _) => await LoadProductsAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
+    private async void ProductPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
-        base.Dispose(disposing);
-    }
+    private async void ProductVariantManagementView_Load(object? sender, EventArgs e) => await LoadProductsAsync();
 
     private async Task LoadProductsAsync()
     {

@@ -20,7 +20,8 @@ namespace Clovent.Desktop.Catalog.Prices;
 /// <c>CatalogArchitecture.md</c>). Feature-gated per
 /// <c>prices.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class ProductPriceManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class ProductPriceManagementView : XtraUserControl
 {
     private const string FeatureCode = "prices";
 
@@ -28,8 +29,6 @@ public sealed class ProductPriceManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _variantPicker = new("Variant:", comboWidth: 320);
-    private readonly MasterDataListView<ProductPriceDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public ProductPriceManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -39,43 +38,12 @@ public sealed class ProductPriceManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<ProductPriceDto>(
-        [
-            new MasterDataColumn(nameof(ProductPriceDto.PriceType), "Type", 80),
-            new MasterDataColumn(nameof(ProductPriceDto.Amount), "Amount", 100),
-            new MasterDataColumn(nameof(ProductPriceDto.EffectiveFromUtc), "Effective From (UTC)", 160),
-            new MasterDataColumn(nameof(ProductPriceDto.Status), "Status", 90),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.PriceType,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateProductPriceCommand(dto.ProductPriceId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateProductPriceCommand(dto.ProductPriceId)),
-        };
-
-        _variantPicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_variantPicker);
-        Load += async (_, _) => await LoadVariantsAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
+    private async void VariantPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
-        base.Dispose(disposing);
-    }
+    private async void ProductPriceManagementView_Load(object? sender, EventArgs e) => await LoadVariantsAsync();
 
     private async Task LoadVariantsAsync()
     {

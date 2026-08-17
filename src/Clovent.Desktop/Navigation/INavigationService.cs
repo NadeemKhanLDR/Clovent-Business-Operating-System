@@ -26,9 +26,15 @@ public interface INavigationService
     /// <summary>Removes a previously-registered view. No-ops if <paramref name="key"/> was never registered.</summary>
     void Unregister(string key);
 
-    /// <summary>Creates the view registered under <paramref name="key"/> and displays it in the workspace.</summary>
+    /// <summary>
+    /// Shows the view registered under <paramref name="key"/> as a document
+    /// tab - activating it if already open, otherwise creating it via its
+    /// factory. <paramref name="caption"/> is only used the first time a key
+    /// is opened (the tab's caption); pass <see langword="null"/> to fall
+    /// back to <paramref name="key"/> itself.
+    /// </summary>
     /// <exception cref="KeyNotFoundException"><paramref name="key"/> is not registered.</exception>
-    void NavigateTo(string key);
+    void NavigateTo(string key, string? caption = null);
 
     /// <summary>Raised after <see cref="NavigateTo"/> successfully displays a view.</summary>
     event EventHandler<string>? Navigated;

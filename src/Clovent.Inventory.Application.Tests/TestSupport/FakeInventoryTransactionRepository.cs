@@ -23,6 +23,10 @@ internal sealed class FakeInventoryTransactionRepository : IInventoryTransaction
         Task.FromResult<IReadOnlyCollection<InventoryTransaction>>(
             [.. _transactions.Values.OrderByDescending(t => t.OccurredAtUtc).Take(count)]);
 
+    public Task<IReadOnlyCollection<InventoryTransaction>> GetByReferenceAsync(string referenceType, Guid referenceId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<InventoryTransaction>>(
+            [.. _transactions.Values.Where(t => t.ReferenceType == referenceType && t.ReferenceId == referenceId)]);
+
     public Task AddAsync(InventoryTransaction transaction, CancellationToken cancellationToken = default)
     {
         _transactions[transaction.Id] = transaction;

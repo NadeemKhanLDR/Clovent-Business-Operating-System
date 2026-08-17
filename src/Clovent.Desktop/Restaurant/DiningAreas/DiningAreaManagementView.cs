@@ -1,4 +1,4 @@
-using Clovent.Desktop.MasterData;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Restaurant.Application.DiningAreas.Commands;
@@ -17,50 +17,30 @@ namespace Clovent.Desktop.Restaurant.DiningAreas;
 /// "Main Hall", "Patio", "Bar"). Feature-gated per
 /// <c>diningareas.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class DiningAreaManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class DiningAreaManagementView : XtraUserControl
 {
     private const string FeatureCode = "diningareas";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly MasterDataListView<DiningAreaDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public DiningAreaManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        // Serialized so this screen's own event handlers/notifications can
+        // never race a button click on this scope's DbContext - see
+        // SerializedMediator's own doc comment for the exact failure mode
+        // this prevents.
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<DiningAreaDto>(
-        [
-            new MasterDataColumn(nameof(DiningAreaDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(DiningAreaDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(DiningAreaDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateDiningAreaCommand(dto.DiningAreaId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateDiningAreaCommand(dto.DiningAreaId)),
-        };
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: true);
-        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_selector);
-        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -68,11 +48,17 @@ public sealed class DiningAreaManagementView : XtraUserControl
     {
         if (disposing)
         {
+            components?.Dispose();
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void DiningAreaManagementView_Load(object? sender, EventArgs e) => await _selector.LoadOrganizationsAsync();
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async Task<IReadOnlyList<DiningAreaDto>> LoadItemsAsync(CancellationToken cancellationToken)
     {

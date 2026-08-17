@@ -12,10 +12,10 @@ public class RestaurantDashboardCalculationsTests
         Guid.NewGuid(), Guid.NewGuid(), "T-01", 4, "Active", occupancyStatus, DateTimeOffset.UtcNow);
 
     private static OrderDto CreateOrder(string status, DateTimeOffset updatedAtUtc) => new(
-        Guid.NewGuid(), "ORD-1", null, "DineIn", status, Guid.NewGuid(), Guid.NewGuid(), null, null, [], [], [], [], DateTimeOffset.UtcNow, updatedAtUtc);
+        Guid.NewGuid(), "ORD-1", null, "DineIn", status, Guid.NewGuid(), Guid.NewGuid(), null, null, [], [], [], [], DateTimeOffset.UtcNow, updatedAtUtc, null);
 
     private static OrderLineDto CreateLine(Guid variantId, decimal quantity, bool isVoided = false) => new(
-        Guid.NewGuid(), Guid.NewGuid(), variantId, quantity, 9.99m, 0m, false, null, isVoided, quantity * 9.99m, DateTimeOffset.UtcNow);
+        Guid.NewGuid(), Guid.NewGuid(), variantId, quantity, 9.99m, 9.99m, false, null, null, null, 0m, false, null, isVoided, quantity * 9.99m, DateTimeOffset.UtcNow);
 
     [Fact]
     public void CountOccupiedTables_CountsOnlyOccupied()

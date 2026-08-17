@@ -12,6 +12,18 @@
     <ProjectReference Include="..\Clovent.Desktop\Clovent.Desktop.csproj" />
   </ItemGroup>
 
+  <!--
+    Copies the desktop host's real shipped configuration files into a
+    Config\ subfolder of the test output so SeedConfigurationTests can
+    assert against the exact files a client installation would resolve
+    (placed in a subfolder to not collide with the transitively copied
+    appsettings.json in the output root).
+  -->
+  <ItemGroup>
+    <None Include="..\Clovent.Desktop\appsettings.json" Link="Config\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\Clovent.Desktop\appsettings.Development.json" Link="Config\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />

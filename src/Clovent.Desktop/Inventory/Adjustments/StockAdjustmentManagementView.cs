@@ -1,5 +1,4 @@
 using Clovent.Catalog.Application.Variants.Queries;
-using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.Adjustments.Commands;
@@ -15,9 +14,12 @@ namespace Clovent.Desktop.Inventory.Adjustments;
 /// <summary>
 /// Stock Adjustment screen: search, filter, create, and Apply/Cancel over
 /// the stock corrections proposed for a selected warehouse. Feature-gated
-/// per <c>stockadjustments.{create|apply|cancel}</c>.
+/// per <c>stockadjustments.{create|apply|cancel}</c>. Control tree (list
+/// view, warehouse filter) lives in <c>StockAdjustmentManagementView.Designer.cs</c>;
+/// this file holds behavior only.
 /// </summary>
-public sealed class StockAdjustmentManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class StockAdjustmentManagementView : XtraUserControl
 {
     private const string FeatureCode = "stockadjustments";
 
@@ -25,8 +27,6 @@ public sealed class StockAdjustmentManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _warehousePicker = new("Warehouse:");
-    private readonly MasterDataListView<StockAdjustmentDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public StockAdjustmentManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -36,32 +36,7 @@ public sealed class StockAdjustmentManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<StockAdjustmentDto>(
-        [
-            new MasterDataColumn(nameof(StockAdjustmentDto.AdjustmentType), "Type", 80),
-            new MasterDataColumn(nameof(StockAdjustmentDto.Quantity), "Quantity", 90),
-            new MasterDataColumn(nameof(StockAdjustmentDto.Reason), "Reason", 220),
-            new MasterDataColumn(nameof(StockAdjustmentDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(StockAdjustmentDto.CreatedAtUtc), "Created (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<StockAdjustmentDto>("Apply", dto => _mediator.Send(new ApplyStockAdjustmentCommand(dto.StockAdjustmentId)), dto => dto.Status == "Pending", "apply"),
-            new MasterDataListAction<StockAdjustmentDto>("Cancel", dto => _mediator.Send(new CancelStockAdjustmentCommand(dto.StockAdjustmentId)), dto => dto.Status == "Pending", "cancel"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Reason,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-        };
-
-        _warehousePicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_warehousePicker);
-        Load += async (_, _) => await LoadWarehousesAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -70,10 +45,15 @@ public sealed class StockAdjustmentManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void StockAdjustmentManagementView_Load(object? sender, EventArgs e) => await LoadWarehousesAsync();
 
     private async Task LoadWarehousesAsync()
     {

@@ -1,5 +1,4 @@
 using Clovent.Catalog.Application.Variants.Queries;
-using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
@@ -18,8 +17,12 @@ namespace Clovent.Desktop.Inventory.WarehouseStocks;
 /// find-or-create receive), and Receive/Issue/Reserve/Release over the stock
 /// balances of a selected warehouse. Feature-gated per
 /// <c>warehousestocks.{create|edit|receive|issue|reserve|release}</c>.
+/// Control tree (list view, warehouse filter, Receive Inventory toolbar)
+/// lives in <c>WarehouseStockManagementView.Designer.cs</c>; this file holds
+/// behavior only.
 /// </summary>
-public sealed class WarehouseStockManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class WarehouseStockManagementView : XtraUserControl
 {
     private const string FeatureCode = "warehousestocks";
 
@@ -27,9 +30,6 @@ public sealed class WarehouseStockManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _warehousePicker = new("Warehouse:");
-    private readonly SimpleButton _receiveInventoryButton = new() { Text = "Receive Inventory" };
-    private readonly MasterDataListView<WarehouseStockRow> _listView;
 
     private IReadOnlyList<(Guid Id, string Display)> _warehouseOptions = [];
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
@@ -42,46 +42,7 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<WarehouseStockRow>(
-        [
-            new MasterDataColumn(nameof(WarehouseStockRow.Sku), "SKU", 100),
-            new MasterDataColumn(nameof(WarehouseStockRow.Name), "Product", 180),
-            new MasterDataColumn(nameof(WarehouseStockRow.QuantityOnHand), "On Hand", 80),
-            new MasterDataColumn(nameof(WarehouseStockRow.QuantityReserved), "Reserved", 80),
-            new MasterDataColumn(nameof(WarehouseStockRow.QuantityAvailable), "Available", 80),
-            new MasterDataColumn(nameof(WarehouseStockRow.MinimumStock), "Min", 60),
-            new MasterDataColumn(nameof(WarehouseStockRow.MaximumStock), "Max", 60),
-            new MasterDataColumn(nameof(WarehouseStockRow.AllowNegativeStock), "Neg. OK", 60),
-            new MasterDataColumn(nameof(WarehouseStockRow.UpdatedAtUtc), "Updated (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<WarehouseStockRow>("Receive", ReceiveAsync, FeatureOperation: "receive"),
-            new MasterDataListAction<WarehouseStockRow>("Issue", IssueAsync, FeatureOperation: "issue"),
-            new MasterDataListAction<WarehouseStockRow>("Reserve", ReserveAsync, FeatureOperation: "reserve"),
-            new MasterDataListAction<WarehouseStockRow>("Release", ReleaseAsync, FeatureOperation: "release"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => $"{row.Sku} {row.Name}",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-        };
-
-        _warehousePicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-        _receiveInventoryButton.Click += async (_, _) => await ReceiveInventoryAsync();
-
-        var toolbar = new PanelControl { Dock = DockStyle.Top, Height = 32 };
-        var toolbarLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-        toolbarLayout.Controls.Add(_receiveInventoryButton);
-        toolbar.Controls.Add(toolbarLayout);
-
-        Controls.Add(_listView);
-        Controls.Add(toolbar);
-        Controls.Add(_warehousePicker);
-        Load += async (_, _) => await LoadLookupsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -90,10 +51,17 @@ public sealed class WarehouseStockManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void ReceiveInventoryButton_Click(object? sender, EventArgs e) => await ReceiveInventoryAsync();
+
+    private async void WarehouseStockManagementView_Load(object? sender, EventArgs e) => await LoadLookupsAsync();
 
     private async Task LoadLookupsAsync()
     {

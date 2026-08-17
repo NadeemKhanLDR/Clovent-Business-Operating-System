@@ -1,0 +1,2213 @@
+using System.Drawing;
+using System.Windows.Forms;
+using DevExpress.XtraEditors;
+using DevExpress.XtraGrid;
+using DevExpress.XtraGrid.Columns;
+using DevExpress.XtraGrid.Views.Grid;
+using Clovent.Desktop.MasterData;
+
+namespace Clovent.Desktop.Restaurant.Orders;
+
+partial class RestaurantPosForm
+{
+    /// <summary>Required designer variable.</summary>
+    private System.ComponentModel.IContainer components = null;
+
+    /// <summary>Clean up any resources being used.</summary>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            DisposeManagedResources();
+            components?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
+    #region Windows Form Designer generated code
+
+    private void InitializeComponent()
+    {
+        components = new System.ComponentModel.Container();
+        pnlHeader = new PanelControl();
+        tlpHeader = new TableLayoutPanel();
+        _logoLabel = new LabelControl();
+        _cashierLabel = new LabelControl();
+        _orderTypeButtonsFlow = new FlowLayoutPanel();
+        _newDineInButton = new SimpleButton();
+        _newTakeAwayButton = new SimpleButton();
+        _orderStatusLabel = new LabelControl();
+        _actionsButtonsFlow = new FlowLayoutPanel();
+        _refreshButton = new SimpleButton();
+        _printBillButton = new SimpleButton();
+        _paymentHistoryButton = new SimpleButton();
+        _moreActionsButton = new SimpleButton();
+        _logoutButton = new SimpleButton();
+        pnlPayment = new PanelControl();
+        tlpPayment = new TableLayoutPanel();
+        pnlPaymentMethods = new TableLayoutPanel();
+        _paymentBalanceLabel = new LabelControl();
+        _methodsHeaderLabel = new LabelControl();
+        _methodButtonsFlow = new FlowLayoutPanel();
+        pnlAmountTendered = new TableLayoutPanel();
+        _amountTitleLabel = new LabelControl();
+        _changeTitleLabel = new LabelControl();
+        _amountContainerLayout = new TableLayoutPanel();
+        _amountEdit = new TextEdit();
+        _exactAmountButton = new SimpleButton();
+        _changeValueLabel = new LabelControl();
+        pnlKeypad = new TableLayoutPanel();
+        _keypad7Button = new SimpleButton();
+        _keypad8Button = new SimpleButton();
+        _keypad9Button = new SimpleButton();
+        _keypad4Button = new SimpleButton();
+        _keypad5Button = new SimpleButton();
+        _keypad6Button = new SimpleButton();
+        _keypad1Button = new SimpleButton();
+        _keypad2Button = new SimpleButton();
+        _keypad3Button = new SimpleButton();
+        _keypadDecimalButton = new SimpleButton();
+        _keypad0Button = new SimpleButton();
+        _keypadBackspaceButton = new SimpleButton();
+        _keypadClearButton = new SimpleButton();
+        pnlQuickCash = new TableLayoutPanel();
+        _quickCash100Button = new SimpleButton();
+        _quickCash200Button = new SimpleButton();
+        _quickCash500Button = new SimpleButton();
+        _quickCash1000Button = new SimpleButton();
+        _quickCash2000Button = new SimpleButton();
+        _quickCash5000Button = new SimpleButton();
+        _recordButton = new SimpleButton();
+        splitMain = new SplitContainerControl();
+        pnlCurrentOrder = new PanelControl();
+        pnlCart = new Panel();
+        _lineGrid = new GridControl();
+        _lineContextMenu = new ContextMenuStrip(components);
+        _lineMenuEditQuantity = new ToolStripMenuItem();
+        _lineMenuEditNotes = new ToolStripMenuItem();
+        _lineMenuOverridePrice = new ToolStripMenuItem();
+        _lineMenuSeparator = new ToolStripSeparator();
+        _lineMenuVoidLine = new ToolStripMenuItem();
+        _lineMenuRemoveLine = new ToolStripMenuItem();
+        _lineGridView = new GridView();
+        _lineGridColumnName = new GridColumn();
+        _lineGridColumnQuantity = new GridColumn();
+        _lineGridColumnUnitPrice = new GridColumn();
+        _lineGridColumnDiscount = new GridColumn();
+        _lineGridColumnLineTotal = new GridColumn();
+        _lineGridColumnNotes = new GridColumn();
+        _billEmptyLabel = new LabelControl();
+        pnlCartActions = new Panel();
+        flowCartActions = new FlowLayoutPanel();
+        _decreaseQuantityButton = new SimpleButton();
+        _increaseQuantityButton = new SimpleButton();
+        _editQuantityButton = new SimpleButton();
+        _editLineNotesButton = new SimpleButton();
+        _overridePriceButton = new SimpleButton();
+        _voidLineButton = new SimpleButton();
+        _removeLineButton = new SimpleButton();
+        pnlTotals = new Panel();
+        tlpTotals = new TableLayoutPanel();
+        pnlTotalsRow1 = new TableLayoutPanel();
+        _subtotalLabel = new LabelControl();
+        _discountLabel = new LabelControl();
+        _taxLabel = new LabelControl();
+        _serviceChargeLabel = new LabelControl();
+        _grandTotalLabel = new LabelControl();
+        _totalsDividerPanel = new Panel();
+        _lifecycleFlow = new FlowLayoutPanel();
+        _cancelOrderButton = new SimpleButton();
+        _holdButton = new SimpleButton();
+        _resumeButton = new SimpleButton();
+        _sendToKitchenButton = new SimpleButton();
+        _completeButton = new SimpleButton();
+        _voidOrderButton = new SimpleButton();
+        _reopenButton = new SimpleButton();
+        pnlOrderContext = new Panel();
+        tlpOrderContext = new TableLayoutPanel();
+        _customerContainer = new TableLayoutPanel();
+        _customerPicker = new SearchLookUpEdit();
+        _newCustomerButton = new SimpleButton();
+        _customerDetailsLabel = new LabelControl();
+        pnlProducts = new PanelControl();
+        _productTilesFlow = new FlowLayoutPanel();
+        _tilesEmptyLabel = new LabelControl();
+        pnlSearch = new Panel();
+        tlpSearch = new TableLayoutPanel();
+        _addQuantityEdit = new SpinEdit();
+        _barcodeEdit = new TextEdit();
+        _addByBarcodeButton = new SimpleButton();
+        _productSearchEdit = new TextEdit();
+        _categoryButtonsPanel = new FlowLayoutPanel();
+        _allCategoriesButton = new SimpleButton();
+        tlpMain = new TableLayoutPanel();
+        pnlTotalsRow2 = new TableLayoutPanel();
+        _paidLabel = new LabelControl();
+        _balanceLabel = new LabelControl();
+        _customerPickerColumnName = new GridColumn();
+        _customerPickerColumnPhone = new GridColumn();
+        _customerPickerColumnBalance = new GridColumn();
+        _categorySortFlow = new FlowLayoutPanel();
+        _sortByNameButton = new SimpleButton();
+        _sortByColorButton = new SimpleButton();
+        _moreActionsMenu = new ContextMenuStrip(components);
+        _transferTableButton = new ToolStripMenuItem();
+        _mergeTablesButton = new ToolStripMenuItem();
+        _splitBillButton = new ToolStripMenuItem();
+        _orderNotesButton = new ToolStripMenuItem();
+        _customerNotesButton = new ToolStripMenuItem();
+        _addDiscountButton = new ToolStripMenuItem();
+        _removeDiscountButton = new ToolStripMenuItem();
+        _addServiceChargeButton = new ToolStripMenuItem();
+        _removeServiceChargeButton = new ToolStripMenuItem();
+        ((System.ComponentModel.ISupportInitialize)pnlHeader).BeginInit();
+        pnlHeader.SuspendLayout();
+        tlpHeader.SuspendLayout();
+        _orderTypeButtonsFlow.SuspendLayout();
+        _actionsButtonsFlow.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlPayment).BeginInit();
+        pnlPayment.SuspendLayout();
+        tlpPayment.SuspendLayout();
+        pnlPaymentMethods.SuspendLayout();
+        pnlAmountTendered.SuspendLayout();
+        _amountContainerLayout.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)_amountEdit.Properties).BeginInit();
+        pnlKeypad.SuspendLayout();
+        pnlQuickCash.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)splitMain).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)splitMain.Panel1).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)splitMain.Panel2).BeginInit();
+        splitMain.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlCurrentOrder).BeginInit();
+        pnlCurrentOrder.SuspendLayout();
+        pnlCart.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)_lineGrid).BeginInit();
+        _lineContextMenu.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)_lineGridView).BeginInit();
+        pnlCartActions.SuspendLayout();
+        flowCartActions.SuspendLayout();
+        pnlTotals.SuspendLayout();
+        tlpTotals.SuspendLayout();
+        pnlTotalsRow1.SuspendLayout();
+        _lifecycleFlow.SuspendLayout();
+        pnlOrderContext.SuspendLayout();
+        tlpOrderContext.SuspendLayout();
+        _customerContainer.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)_customerPicker.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)pnlProducts).BeginInit();
+        pnlProducts.SuspendLayout();
+        _productTilesFlow.SuspendLayout();
+        pnlSearch.SuspendLayout();
+        tlpSearch.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)_addQuantityEdit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_barcodeEdit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_productSearchEdit.Properties).BeginInit();
+        _categoryButtonsPanel.SuspendLayout();
+        tlpMain.SuspendLayout();
+        pnlTotalsRow2.SuspendLayout();
+        _categorySortFlow.SuspendLayout();
+        _moreActionsMenu.SuspendLayout();
+        SuspendLayout();
+        // 
+        // pnlHeader
+        // 
+        pnlHeader.Appearance.Options.UseBackColor = true;
+        pnlHeader.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        pnlHeader.Controls.Add(tlpHeader);
+        pnlHeader.Dock = DockStyle.Top;
+        pnlHeader.Location = new Point(0, 0);
+        pnlHeader.AutoSize = true;
+        pnlHeader.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlHeader.Margin = new Padding(0);
+        pnlHeader.Name = "pnlHeader";
+        pnlHeader.Size = new Size(1366, 52);
+        pnlHeader.TabIndex = 4;
+        // 
+        // tlpHeader
+        // 
+        tlpHeader.ColumnCount = 5;
+        tlpHeader.ColumnStyles.Add(new ColumnStyle());
+        tlpHeader.ColumnStyles.Add(new ColumnStyle());
+        tlpHeader.ColumnStyles.Add(new ColumnStyle());
+        tlpHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpHeader.ColumnStyles.Add(new ColumnStyle());
+        tlpHeader.Controls.Add(_logoLabel, 0, 0);
+        tlpHeader.Controls.Add(_cashierLabel, 1, 0);
+        tlpHeader.Controls.Add(_orderTypeButtonsFlow, 2, 0);
+        tlpHeader.Controls.Add(_orderStatusLabel, 3, 0);
+        tlpHeader.Controls.Add(_actionsButtonsFlow, 4, 0);
+        tlpHeader.Dock = DockStyle.Top;
+        tlpHeader.Location = new Point(0, 0);
+        tlpHeader.Margin = new Padding(0);
+        tlpHeader.Name = "tlpHeader";
+        tlpHeader.Padding = new Padding(10, 6, 10, 6);
+        tlpHeader.AutoSize = true;
+        tlpHeader.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        tlpHeader.RowCount = 1;
+        // AutoSize, NOT Percent. A Percent row inside an AutoSize
+        // TableLayoutPanel is self-referential (the row wants a share of a
+        // height that is itself derived from the row) - that contradiction is
+        // what produced the earlier Designer layout loop. With an AutoSize row
+        // the header height derives from its tallest child, so it scales with
+        // the DevExpress controls at 250% instead of staying pinned at 52px.
+        tlpHeader.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpHeader.Size = new Size(1366, 52);
+        tlpHeader.TabIndex = 0;
+        // 
+        // _logoLabel
+        // 
+        _logoLabel.Appearance.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+        _logoLabel.Appearance.Options.UseFont = true;
+        _logoLabel.Appearance.Options.UseForeColor = true;
+        _logoLabel.Appearance.Options.UseTextOptions = true;
+        _logoLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _logoLabel.Dock = DockStyle.Fill;
+        _logoLabel.Location = new Point(10, 6);
+        _logoLabel.Margin = new Padding(0, 0, 12, 0);
+        _logoLabel.MinimumSize = new Size(0, 28);
+        _logoLabel.Name = "_logoLabel";
+        _logoLabel.Size = new Size(94, 40);
+        _logoLabel.TabIndex = 0;
+        _logoLabel.Text = "Clovent POS";
+        // 
+        // _cashierLabel
+        // 
+        _cashierLabel.Appearance.Font = new Font("Segoe UI", 9F);
+        _cashierLabel.Appearance.Options.UseFont = true;
+        _cashierLabel.Appearance.Options.UseTextOptions = true;
+        _cashierLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _cashierLabel.Dock = DockStyle.Fill;
+        _cashierLabel.Location = new Point(116, 6);
+        _cashierLabel.Margin = new Padding(0, 0, 16, 0);
+        _cashierLabel.MinimumSize = new Size(0, 28);
+        _cashierLabel.Name = "_cashierLabel";
+        _cashierLabel.Size = new Size(1, 40);
+        _cashierLabel.TabIndex = 1;
+        // 
+        // _orderTypeButtonsFlow
+        // 
+        _orderTypeButtonsFlow.Anchor = AnchorStyles.Left;
+        _orderTypeButtonsFlow.AutoSize = true;
+        _orderTypeButtonsFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _orderTypeButtonsFlow.Controls.Add(_newDineInButton);
+        _orderTypeButtonsFlow.Controls.Add(_newTakeAwayButton);
+        _orderTypeButtonsFlow.Location = new Point(132, 6);
+        _orderTypeButtonsFlow.Margin = new Padding(0, 0, 16, 0);
+        _orderTypeButtonsFlow.Name = "_orderTypeButtonsFlow";
+        _orderTypeButtonsFlow.Size = new Size(208, 40);
+        _orderTypeButtonsFlow.TabIndex = 2;
+        _orderTypeButtonsFlow.WrapContents = false;
+        // 
+        // _newDineInButton
+        // 
+        _newDineInButton.Anchor = AnchorStyles.Left;
+        _newDineInButton.Location = new Point(0, 0);
+        _newDineInButton.Margin = new Padding(0, 0, 8, 0);
+        _newDineInButton.Name = "_newDineInButton";
+        _newDineInButton.Size = new Size(100, 40);
+        _newDineInButton.TabIndex = 2;
+        _newDineInButton.Text = "Dine In";
+        _newDineInButton.Click += NewDineInButton_Click;
+        // 
+        // _newTakeAwayButton
+        // 
+        _newTakeAwayButton.Anchor = AnchorStyles.Left;
+        _newTakeAwayButton.Location = new Point(108, 0);
+        _newTakeAwayButton.Margin = new Padding(0);
+        _newTakeAwayButton.Name = "_newTakeAwayButton";
+        _newTakeAwayButton.Size = new Size(100, 40);
+        _newTakeAwayButton.TabIndex = 3;
+        _newTakeAwayButton.Text = "Take Away";
+        _newTakeAwayButton.Click += NewTakeAwayButton_Click;
+        // 
+        // _orderStatusLabel
+        // 
+        _orderStatusLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _orderStatusLabel.Appearance.Options.UseFont = true;
+        _orderStatusLabel.Appearance.Options.UseTextOptions = true;
+        _orderStatusLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _orderStatusLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _orderStatusLabel.Dock = DockStyle.Fill;
+        _orderStatusLabel.Location = new Point(364, 6);
+        _orderStatusLabel.Margin = new Padding(8, 0, 12, 0);
+        _orderStatusLabel.MinimumSize = new Size(0, 28);
+        _orderStatusLabel.Name = "_orderStatusLabel";
+        _orderStatusLabel.Size = new Size(548, 40);
+        _orderStatusLabel.TabIndex = 2;
+        _orderStatusLabel.Text = "No order selected.";
+        // 
+        // _actionsButtonsFlow
+        // 
+        _actionsButtonsFlow.Anchor = AnchorStyles.Right;
+        _actionsButtonsFlow.AutoSize = true;
+        _actionsButtonsFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _actionsButtonsFlow.Controls.Add(_refreshButton);
+        _actionsButtonsFlow.Controls.Add(_printBillButton);
+        _actionsButtonsFlow.Controls.Add(_paymentHistoryButton);
+        _actionsButtonsFlow.Controls.Add(_moreActionsButton);
+        _actionsButtonsFlow.Controls.Add(_logoutButton);
+        _actionsButtonsFlow.Location = new Point(924, 9);
+        _actionsButtonsFlow.Margin = new Padding(0);
+        _actionsButtonsFlow.Name = "_actionsButtonsFlow";
+        _actionsButtonsFlow.Size = new Size(432, 34);
+        _actionsButtonsFlow.TabIndex = 3;
+        _actionsButtonsFlow.WrapContents = false;
+        // 
+        // _refreshButton
+        // 
+        _refreshButton.Location = new Point(0, 0);
+        _refreshButton.Margin = new Padding(0, 0, 6, 0);
+        _refreshButton.Name = "_refreshButton";
+        _refreshButton.Size = new Size(40, 34);
+        _refreshButton.TabIndex = 0;
+        _refreshButton.Text = "⟳";
+        _refreshButton.Click += RefreshButton_Click;
+        // 
+        // _printBillButton
+        // 
+        _printBillButton.Location = new Point(46, 0);
+        _printBillButton.Margin = new Padding(0, 0, 6, 0);
+        _printBillButton.Name = "_printBillButton";
+        _printBillButton.Size = new Size(80, 34);
+        _printBillButton.TabIndex = 1;
+        _printBillButton.Text = "🖶  Print";
+        _printBillButton.Click += PrintBillButton_Click;
+        // 
+        // _paymentHistoryButton
+        // 
+        _paymentHistoryButton.Location = new Point(132, 0);
+        _paymentHistoryButton.Margin = new Padding(0, 0, 6, 0);
+        _paymentHistoryButton.Name = "_paymentHistoryButton";
+        _paymentHistoryButton.Size = new Size(88, 34);
+        _paymentHistoryButton.TabIndex = 2;
+        _paymentHistoryButton.Text = "\U0001f9fe  History";
+        _paymentHistoryButton.Click += PaymentHistoryButton_Click;
+        // 
+        // _moreActionsButton
+        // 
+        _moreActionsButton.Location = new Point(226, 0);
+        _moreActionsButton.Margin = new Padding(0, 0, 6, 0);
+        _moreActionsButton.Name = "_moreActionsButton";
+        _moreActionsButton.Size = new Size(110, 34);
+        _moreActionsButton.TabIndex = 3;
+        _moreActionsButton.Text = "More Actions ▾";
+        _moreActionsButton.Click += MoreActionsButton_Click;
+        // 
+        // _logoutButton
+        // 
+        _logoutButton.Appearance.Options.UseForeColor = true;
+        _logoutButton.Location = new Point(342, 0);
+        _logoutButton.Margin = new Padding(0);
+        _logoutButton.Name = "_logoutButton";
+        _logoutButton.Size = new Size(90, 34);
+        _logoutButton.TabIndex = 4;
+        _logoutButton.Text = "\u23fb  Logout";
+        _logoutButton.Click += LogoutButton_Click;
+        // 
+        // pnlPayment
+        // 
+        pnlPayment.Appearance.Options.UseBackColor = true;
+        pnlPayment.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
+        pnlPayment.Controls.Add(tlpPayment);
+        pnlPayment.Dock = DockStyle.Fill;
+        pnlPayment.Location = new Point(1024, 0);
+        pnlPayment.Margin = new Padding(0);
+        pnlPayment.Name = "pnlPayment";
+        pnlPayment.Padding = new Padding(8);
+        pnlPayment.Size = new Size(342, 716);
+        pnlPayment.TabIndex = 3;
+        // 
+        // tlpPayment
+        // 
+        tlpPayment.ColumnCount = 1;
+        tlpPayment.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpPayment.Controls.Add(pnlPaymentMethods, 0, 0);
+        tlpPayment.Controls.Add(pnlAmountTendered, 0, 1);
+        tlpPayment.Controls.Add(pnlKeypad, 0, 2);
+        tlpPayment.Controls.Add(pnlQuickCash, 0, 3);
+        tlpPayment.Controls.Add(_recordButton, 0, 4);
+        tlpPayment.Dock = DockStyle.Fill;
+        tlpPayment.Location = new Point(10, 10);
+        tlpPayment.Margin = new Padding(0);
+        tlpPayment.Name = "tlpPayment";
+        tlpPayment.RowCount = 5;
+        tlpPayment.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpPayment.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpPayment.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        tlpPayment.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpPayment.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpPayment.Size = new Size(322, 696);
+        tlpPayment.TabIndex = 0;
+        // 
+        // pnlPaymentMethods
+        // 
+        pnlPaymentMethods.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlPaymentMethods.ColumnCount = 1;
+        pnlPaymentMethods.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        pnlPaymentMethods.Controls.Add(_paymentBalanceLabel, 0, 0);
+        pnlPaymentMethods.Controls.Add(_methodsHeaderLabel, 0, 1);
+        pnlPaymentMethods.Controls.Add(_methodButtonsFlow, 0, 2);
+        pnlPaymentMethods.Dock = DockStyle.Fill;
+        pnlPaymentMethods.Location = new Point(0, 0);
+        pnlPaymentMethods.Margin = new Padding(0, 0, 0, 6);
+        pnlPaymentMethods.Name = "pnlPaymentMethods";
+        pnlPaymentMethods.AutoSize = true;
+        pnlPaymentMethods.RowCount = 3;
+        pnlPaymentMethods.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlPaymentMethods.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlPaymentMethods.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlPaymentMethods.Size = new Size(322, 110);
+        pnlPaymentMethods.TabIndex = 0;
+        // 
+        // _paymentBalanceLabel
+        // 
+        _paymentBalanceLabel.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+        _paymentBalanceLabel.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
+        _paymentBalanceLabel.Appearance.Options.UseFont = true;
+        _paymentBalanceLabel.Appearance.Options.UseForeColor = true;
+        _paymentBalanceLabel.AutoSizeMode = LabelAutoSizeMode.Vertical;
+        _paymentBalanceLabel.Dock = DockStyle.Top;
+        _paymentBalanceLabel.Location = new Point(0, 0);
+        _paymentBalanceLabel.Margin = new Padding(0, 0, 0, 4);
+        _paymentBalanceLabel.MinimumSize = new Size(0, 24);
+        _paymentBalanceLabel.Name = "_paymentBalanceLabel";
+        _paymentBalanceLabel.Size = new Size(322, 24);
+        _paymentBalanceLabel.TabIndex = 0;
+        // 
+        // _methodsHeaderLabel
+        // 
+        _methodsHeaderLabel.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _methodsHeaderLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _methodsHeaderLabel.Appearance.Options.UseFont = true;
+        _methodsHeaderLabel.Appearance.Options.UseForeColor = true;
+        _methodsHeaderLabel.AutoSizeMode = LabelAutoSizeMode.Vertical;
+        _methodsHeaderLabel.Dock = DockStyle.Top;
+        _methodsHeaderLabel.Location = new Point(0, 28);
+        _methodsHeaderLabel.Margin = new Padding(0, 0, 0, 4);
+        _methodsHeaderLabel.MinimumSize = new Size(0, 14);
+        _methodsHeaderLabel.Name = "_methodsHeaderLabel";
+        _methodsHeaderLabel.Size = new Size(322, 14);
+        _methodsHeaderLabel.TabIndex = 1;
+        _methodsHeaderLabel.Text = "PAYMENT METHODS";
+        // 
+        // _methodButtonsFlow
+        // 
+        _methodButtonsFlow.AutoSize = true;
+        _methodButtonsFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _methodButtonsFlow.Dock = DockStyle.Top;
+        _methodButtonsFlow.Location = new Point(0, 46);
+        _methodButtonsFlow.Margin = new Padding(0);
+        _methodButtonsFlow.Name = "_methodButtonsFlow";
+        _methodButtonsFlow.WrapContents = true;
+        _methodButtonsFlow.Size = new Size(322, 64);
+        _methodButtonsFlow.TabIndex = 2;
+        // 
+        // pnlAmountTendered
+        // 
+        pnlAmountTendered.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlAmountTendered.ColumnCount = 2;
+        pnlAmountTendered.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
+        pnlAmountTendered.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+        pnlAmountTendered.Controls.Add(_amountTitleLabel, 0, 0);
+        pnlAmountTendered.Controls.Add(_changeTitleLabel, 1, 0);
+        pnlAmountTendered.Controls.Add(_amountContainerLayout, 0, 1);
+        pnlAmountTendered.Controls.Add(_changeValueLabel, 1, 1);
+        pnlAmountTendered.Dock = DockStyle.Fill;
+        pnlAmountTendered.Location = new Point(0, 116);
+        pnlAmountTendered.Margin = new Padding(0, 0, 0, 6);
+        pnlAmountTendered.Name = "pnlAmountTendered";
+        pnlAmountTendered.AutoSize = true;
+        pnlAmountTendered.RowCount = 2;
+        pnlAmountTendered.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlAmountTendered.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlAmountTendered.Size = new Size(322, 56);
+        pnlAmountTendered.TabIndex = 1;
+        // 
+        // _amountTitleLabel
+        // 
+        _amountTitleLabel.Appearance.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+        _amountTitleLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _amountTitleLabel.Appearance.Options.UseFont = true;
+        _amountTitleLabel.Appearance.Options.UseForeColor = true;
+        _amountTitleLabel.Dock = DockStyle.Top;
+        _amountTitleLabel.Location = new Point(0, 0);
+        _amountTitleLabel.Margin = new Padding(0, 0, 0, 2);
+        _amountTitleLabel.MinimumSize = new Size(0, 14);
+        _amountTitleLabel.Name = "_amountTitleLabel";
+        _amountTitleLabel.Size = new Size(109, 14);
+        _amountTitleLabel.TabIndex = 0;
+        _amountTitleLabel.Text = "AMOUNT TENDERED";
+        // 
+        // _changeTitleLabel
+        // 
+        _changeTitleLabel.Appearance.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+        _changeTitleLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _changeTitleLabel.Appearance.Options.UseFont = true;
+        _changeTitleLabel.Appearance.Options.UseForeColor = true;
+        _changeTitleLabel.Appearance.Options.UseTextOptions = true;
+        _changeTitleLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _changeTitleLabel.Dock = DockStyle.Top;
+        _changeTitleLabel.Location = new Point(193, 0);
+        _changeTitleLabel.Margin = new Padding(0, 0, 0, 2);
+        _changeTitleLabel.MinimumSize = new Size(0, 14);
+        _changeTitleLabel.Name = "_changeTitleLabel";
+        _changeTitleLabel.Size = new Size(46, 14);
+        _changeTitleLabel.TabIndex = 1;
+        _changeTitleLabel.Text = "CHANGE";
+        // 
+        // _amountContainerLayout
+        // 
+        _amountContainerLayout.ColumnCount = 2;
+        _amountContainerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58F));
+        _amountContainerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42F));
+        _amountContainerLayout.Controls.Add(_amountEdit, 0, 0);
+        _amountContainerLayout.Controls.Add(_exactAmountButton, 1, 0);
+        _amountContainerLayout.Dock = DockStyle.Fill;
+        _amountContainerLayout.Location = new Point(0, 16);
+        _amountContainerLayout.Margin = new Padding(0, 0, 6, 0);
+        _amountContainerLayout.Name = "_amountContainerLayout";
+        _amountContainerLayout.RowCount = 1;
+        _amountContainerLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        _amountContainerLayout.Size = new Size(187, 40);
+        _amountContainerLayout.TabIndex = 2;
+        // 
+        // _amountEdit
+        // 
+        _amountEdit.Dock = DockStyle.Fill;
+        _amountEdit.Location = new Point(0, 0);
+        _amountEdit.Margin = new Padding(0, 0, 4, 0);
+        _amountEdit.Name = "_amountEdit";
+        _amountEdit.Properties.Appearance.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
+        _amountEdit.Properties.Appearance.Options.UseFont = true;
+        _amountEdit.Properties.Appearance.Options.UseTextOptions = true;
+        _amountEdit.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _amountEdit.Size = new Size(104, 26);
+        _amountEdit.TabIndex = 0;
+        _amountEdit.EditValueChanged += AmountEdit_EditValueChanged;
+        // 
+        // _exactAmountButton
+        // 
+        _exactAmountButton.Appearance.BackColor = Color.FromArgb(37, 99, 235);
+        _exactAmountButton.Appearance.Font = new Font("Segoe UI", 8F, FontStyle.Bold);
+        _exactAmountButton.Appearance.ForeColor = Color.White;
+        _exactAmountButton.Appearance.Options.UseBackColor = true;
+        _exactAmountButton.Appearance.Options.UseFont = true;
+        _exactAmountButton.Appearance.Options.UseForeColor = true;
+        _exactAmountButton.Dock = DockStyle.Fill;
+        _exactAmountButton.Location = new Point(108, 0);
+        _exactAmountButton.Margin = new Padding(0);
+        _exactAmountButton.Name = "_exactAmountButton";
+        _exactAmountButton.Size = new Size(79, 40);
+        _exactAmountButton.TabIndex = 1;
+        _exactAmountButton.Text = "Exact";
+        _exactAmountButton.Click += ExactAmountButton_Click;
+        // 
+        // _changeValueLabel
+        // 
+        _changeValueLabel.Appearance.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+        _changeValueLabel.Appearance.Options.UseFont = true;
+        _changeValueLabel.Appearance.Options.UseForeColor = true;
+        _changeValueLabel.Appearance.Options.UseTextOptions = true;
+        _changeValueLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _changeValueLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _changeValueLabel.Dock = DockStyle.Fill;
+        _changeValueLabel.Location = new Point(193, 16);
+        _changeValueLabel.Margin = new Padding(0);
+        _changeValueLabel.MinimumSize = new Size(0, 26);
+        _changeValueLabel.Name = "_changeValueLabel";
+        _changeValueLabel.Size = new Size(129, 40);
+        _changeValueLabel.TabIndex = 3;
+        _changeValueLabel.Text = "$0.00";
+        // 
+        // pnlKeypad
+        // 
+        pnlKeypad.ColumnCount = 3;
+        pnlKeypad.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
+        pnlKeypad.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        pnlKeypad.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        pnlKeypad.Controls.Add(_keypad7Button, 0, 0);
+        pnlKeypad.Controls.Add(_keypad8Button, 1, 0);
+        pnlKeypad.Controls.Add(_keypad9Button, 2, 0);
+        pnlKeypad.Controls.Add(_keypad4Button, 0, 1);
+        pnlKeypad.Controls.Add(_keypad5Button, 1, 1);
+        pnlKeypad.Controls.Add(_keypad6Button, 2, 1);
+        pnlKeypad.Controls.Add(_keypad1Button, 0, 2);
+        pnlKeypad.Controls.Add(_keypad2Button, 1, 2);
+        pnlKeypad.Controls.Add(_keypad3Button, 2, 2);
+        pnlKeypad.Controls.Add(_keypadDecimalButton, 0, 3);
+        pnlKeypad.Controls.Add(_keypad0Button, 1, 3);
+        pnlKeypad.Controls.Add(_keypadBackspaceButton, 2, 3);
+        pnlKeypad.Controls.Add(_keypadClearButton, 0, 4);
+        pnlKeypad.Dock = DockStyle.Fill;
+        pnlKeypad.Location = new Point(0, 178);
+        pnlKeypad.Margin = new Padding(0, 0, 0, 6);
+        pnlKeypad.Name = "pnlKeypad";
+        pnlKeypad.RowCount = 5;
+        pnlKeypad.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        pnlKeypad.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        pnlKeypad.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        pnlKeypad.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        pnlKeypad.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
+        pnlKeypad.Size = new Size(322, 374);
+        pnlKeypad.TabIndex = 2;
+        // 
+        // _keypad7Button
+        // 
+        _keypad7Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad7Button.Appearance.Options.UseFont = true;
+        _keypad7Button.Dock = DockStyle.Fill;
+        _keypad7Button.Location = new Point(2, 2);
+        _keypad7Button.Margin = new Padding(2);
+        _keypad7Button.Name = "_keypad7Button";
+        _keypad7Button.Size = new Size(103, 70);
+        _keypad7Button.TabIndex = 0;
+        _keypad7Button.Text = "7";
+        _keypad7Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad8Button
+        // 
+        _keypad8Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad8Button.Appearance.Options.UseFont = true;
+        _keypad8Button.Dock = DockStyle.Fill;
+        _keypad8Button.Location = new Point(109, 2);
+        _keypad8Button.Margin = new Padding(2);
+        _keypad8Button.Name = "_keypad8Button";
+        _keypad8Button.Size = new Size(103, 70);
+        _keypad8Button.TabIndex = 1;
+        _keypad8Button.Text = "8";
+        _keypad8Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad9Button
+        // 
+        _keypad9Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad9Button.Appearance.Options.UseFont = true;
+        _keypad9Button.Dock = DockStyle.Fill;
+        _keypad9Button.Location = new Point(216, 2);
+        _keypad9Button.Margin = new Padding(2);
+        _keypad9Button.Name = "_keypad9Button";
+        _keypad9Button.Size = new Size(104, 70);
+        _keypad9Button.TabIndex = 2;
+        _keypad9Button.Text = "9";
+        _keypad9Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad4Button
+        // 
+        _keypad4Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad4Button.Appearance.Options.UseFont = true;
+        _keypad4Button.Dock = DockStyle.Fill;
+        _keypad4Button.Location = new Point(2, 76);
+        _keypad4Button.Margin = new Padding(2);
+        _keypad4Button.Name = "_keypad4Button";
+        _keypad4Button.Size = new Size(103, 70);
+        _keypad4Button.TabIndex = 3;
+        _keypad4Button.Text = "4";
+        _keypad4Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad5Button
+        // 
+        _keypad5Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad5Button.Appearance.Options.UseFont = true;
+        _keypad5Button.Dock = DockStyle.Fill;
+        _keypad5Button.Location = new Point(109, 76);
+        _keypad5Button.Margin = new Padding(2);
+        _keypad5Button.Name = "_keypad5Button";
+        _keypad5Button.Size = new Size(103, 70);
+        _keypad5Button.TabIndex = 4;
+        _keypad5Button.Text = "5";
+        _keypad5Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad6Button
+        // 
+        _keypad6Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad6Button.Appearance.Options.UseFont = true;
+        _keypad6Button.Dock = DockStyle.Fill;
+        _keypad6Button.Location = new Point(216, 76);
+        _keypad6Button.Margin = new Padding(2);
+        _keypad6Button.Name = "_keypad6Button";
+        _keypad6Button.Size = new Size(104, 70);
+        _keypad6Button.TabIndex = 5;
+        _keypad6Button.Text = "6";
+        _keypad6Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad1Button
+        // 
+        _keypad1Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad1Button.Appearance.Options.UseFont = true;
+        _keypad1Button.Dock = DockStyle.Fill;
+        _keypad1Button.Location = new Point(2, 150);
+        _keypad1Button.Margin = new Padding(2);
+        _keypad1Button.Name = "_keypad1Button";
+        _keypad1Button.Size = new Size(103, 70);
+        _keypad1Button.TabIndex = 6;
+        _keypad1Button.Text = "1";
+        _keypad1Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad2Button
+        // 
+        _keypad2Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad2Button.Appearance.Options.UseFont = true;
+        _keypad2Button.Dock = DockStyle.Fill;
+        _keypad2Button.Location = new Point(109, 150);
+        _keypad2Button.Margin = new Padding(2);
+        _keypad2Button.Name = "_keypad2Button";
+        _keypad2Button.Size = new Size(103, 70);
+        _keypad2Button.TabIndex = 7;
+        _keypad2Button.Text = "2";
+        _keypad2Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypad3Button
+        // 
+        _keypad3Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad3Button.Appearance.Options.UseFont = true;
+        _keypad3Button.Dock = DockStyle.Fill;
+        _keypad3Button.Location = new Point(216, 150);
+        _keypad3Button.Margin = new Padding(2);
+        _keypad3Button.Name = "_keypad3Button";
+        _keypad3Button.Size = new Size(104, 70);
+        _keypad3Button.TabIndex = 8;
+        _keypad3Button.Text = "3";
+        _keypad3Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypadDecimalButton
+        // 
+        _keypadDecimalButton.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypadDecimalButton.Appearance.Options.UseFont = true;
+        _keypadDecimalButton.Dock = DockStyle.Fill;
+        _keypadDecimalButton.Location = new Point(2, 224);
+        _keypadDecimalButton.Margin = new Padding(2);
+        _keypadDecimalButton.Name = "_keypadDecimalButton";
+        _keypadDecimalButton.Size = new Size(103, 70);
+        _keypadDecimalButton.TabIndex = 9;
+        _keypadDecimalButton.Text = ".";
+        _keypadDecimalButton.Click += KeypadDecimalButton_Click;
+        // 
+        // _keypad0Button
+        // 
+        _keypad0Button.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypad0Button.Appearance.Options.UseFont = true;
+        _keypad0Button.Dock = DockStyle.Fill;
+        _keypad0Button.Location = new Point(109, 224);
+        _keypad0Button.Margin = new Padding(2);
+        _keypad0Button.Name = "_keypad0Button";
+        _keypad0Button.Size = new Size(103, 70);
+        _keypad0Button.TabIndex = 10;
+        _keypad0Button.Text = "0";
+        _keypad0Button.Click += KeypadDigitButton_Click;
+        // 
+        // _keypadBackspaceButton
+        // 
+        _keypadBackspaceButton.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _keypadBackspaceButton.Appearance.Options.UseFont = true;
+        _keypadBackspaceButton.Dock = DockStyle.Fill;
+        _keypadBackspaceButton.Location = new Point(216, 224);
+        _keypadBackspaceButton.Margin = new Padding(2);
+        _keypadBackspaceButton.Name = "_keypadBackspaceButton";
+        _keypadBackspaceButton.Size = new Size(104, 70);
+        _keypadBackspaceButton.TabIndex = 11;
+        _keypadBackspaceButton.Text = "⌫";
+        _keypadBackspaceButton.Click += KeypadBackspaceButton_Click;
+        // 
+        // _keypadClearButton
+        // 
+        _keypadClearButton.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _keypadClearButton.Appearance.Options.UseFont = true;
+        pnlKeypad.SetColumnSpan(_keypadClearButton, 3);
+        _keypadClearButton.Dock = DockStyle.Fill;
+        _keypadClearButton.Location = new Point(2, 298);
+        _keypadClearButton.Margin = new Padding(2);
+        _keypadClearButton.Name = "_keypadClearButton";
+        _keypadClearButton.Size = new Size(318, 74);
+        _keypadClearButton.TabIndex = 12;
+        _keypadClearButton.Text = "Clear";
+        _keypadClearButton.Click += KeypadClearButton_Click;
+        // 
+        // pnlQuickCash
+        // 
+        pnlQuickCash.ColumnCount = 3;
+        pnlQuickCash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        pnlQuickCash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        pnlQuickCash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        pnlQuickCash.Controls.Add(_quickCash100Button, 0, 0);
+        pnlQuickCash.Controls.Add(_quickCash200Button, 1, 0);
+        pnlQuickCash.Controls.Add(_quickCash500Button, 2, 0);
+        pnlQuickCash.Controls.Add(_quickCash1000Button, 0, 1);
+        pnlQuickCash.Controls.Add(_quickCash2000Button, 1, 1);
+        pnlQuickCash.Controls.Add(_quickCash5000Button, 2, 1);
+        pnlQuickCash.Dock = DockStyle.Fill;
+        pnlQuickCash.Location = new Point(0, 558);
+        pnlQuickCash.Margin = new Padding(0, 0, 0, 6);
+        pnlQuickCash.Name = "pnlQuickCash";
+        pnlQuickCash.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlQuickCash.AutoSize = true;
+        pnlQuickCash.RowCount = 2;
+        pnlQuickCash.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlQuickCash.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        pnlQuickCash.Size = new Size(322, 84);
+        pnlQuickCash.TabIndex = 3;
+        // 
+        // _quickCash100Button
+        // 
+        _quickCash100Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash100Button.Appearance.Options.UseFont = true;
+        _quickCash100Button.Dock = DockStyle.Fill;
+        _quickCash100Button.Location = new Point(2, 2);
+        _quickCash100Button.Margin = new Padding(2);
+        _quickCash100Button.Name = "_quickCash100Button";
+        _quickCash100Button.Size = new Size(103, 38);
+        _quickCash100Button.TabIndex = 0;
+        _quickCash100Button.Text = "100";
+        _quickCash100Button.Click += QuickCashButton_Click;
+        // 
+        // _quickCash200Button
+        // 
+        _quickCash200Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash200Button.Appearance.Options.UseFont = true;
+        _quickCash200Button.Dock = DockStyle.Fill;
+        _quickCash200Button.Location = new Point(109, 2);
+        _quickCash200Button.Margin = new Padding(2);
+        _quickCash200Button.Name = "_quickCash200Button";
+        _quickCash200Button.Size = new Size(103, 38);
+        _quickCash200Button.TabIndex = 1;
+        _quickCash200Button.Text = "200";
+        _quickCash200Button.Click += QuickCashButton_Click;
+        // 
+        // _quickCash500Button
+        // 
+        _quickCash500Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash500Button.Appearance.Options.UseFont = true;
+        _quickCash500Button.Dock = DockStyle.Fill;
+        _quickCash500Button.Location = new Point(216, 2);
+        _quickCash500Button.Margin = new Padding(2);
+        _quickCash500Button.Name = "_quickCash500Button";
+        _quickCash500Button.Size = new Size(104, 38);
+        _quickCash500Button.TabIndex = 2;
+        _quickCash500Button.Text = "500";
+        _quickCash500Button.Click += QuickCashButton_Click;
+        // 
+        // _quickCash1000Button
+        // 
+        _quickCash1000Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash1000Button.Appearance.Options.UseFont = true;
+        _quickCash1000Button.Dock = DockStyle.Fill;
+        _quickCash1000Button.Location = new Point(2, 44);
+        _quickCash1000Button.Margin = new Padding(2);
+        _quickCash1000Button.Name = "_quickCash1000Button";
+        _quickCash1000Button.Size = new Size(103, 38);
+        _quickCash1000Button.TabIndex = 3;
+        _quickCash1000Button.Text = "1000";
+        _quickCash1000Button.Click += QuickCashButton_Click;
+        // 
+        // _quickCash2000Button
+        // 
+        _quickCash2000Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash2000Button.Appearance.Options.UseFont = true;
+        _quickCash2000Button.Dock = DockStyle.Fill;
+        _quickCash2000Button.Location = new Point(109, 44);
+        _quickCash2000Button.Margin = new Padding(2);
+        _quickCash2000Button.Name = "_quickCash2000Button";
+        _quickCash2000Button.Size = new Size(103, 38);
+        _quickCash2000Button.TabIndex = 4;
+        _quickCash2000Button.Text = "2000";
+        _quickCash2000Button.Click += QuickCashButton_Click;
+        // 
+        // _quickCash5000Button
+        // 
+        _quickCash5000Button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickCash5000Button.Appearance.Options.UseFont = true;
+        _quickCash5000Button.Dock = DockStyle.Fill;
+        _quickCash5000Button.Location = new Point(216, 44);
+        _quickCash5000Button.Margin = new Padding(2);
+        _quickCash5000Button.Name = "_quickCash5000Button";
+        _quickCash5000Button.Size = new Size(104, 38);
+        _quickCash5000Button.TabIndex = 5;
+        _quickCash5000Button.Text = "5000";
+        _quickCash5000Button.Click += QuickCashButton_Click;
+        // 
+        // _recordButton
+        // 
+        _recordButton.Appearance.BackColor = Color.FromArgb(22, 163, 74);
+        _recordButton.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+        _recordButton.Appearance.ForeColor = Color.White;
+        _recordButton.Appearance.Options.UseBackColor = true;
+        _recordButton.Appearance.Options.UseFont = true;
+        _recordButton.Appearance.Options.UseForeColor = true;
+        _recordButton.Dock = DockStyle.Fill;
+        _recordButton.Location = new Point(0, 648);
+        _recordButton.Margin = new Padding(0);
+        _recordButton.Name = "_recordButton";
+        _recordButton.Size = new Size(322, 48);
+        _recordButton.TabIndex = 4;
+        _recordButton.Text = "Record Payment";
+        _recordButton.Click += RecordButton_Click;
+        // 
+        // splitMain
+        // 
+        splitMain.Dock = DockStyle.Fill;
+        splitMain.Location = new Point(0, 65);
+        splitMain.Margin = new Padding(0);
+        splitMain.Name = "splitMain";
+        splitMain.Size = new Size(1024, 703);
+        splitMain.SplitterPosition = 341;
+        splitMain.TabIndex = 2;
+        // 
+        // pnlCurrentOrder
+        // 
+        pnlCurrentOrder.Controls.Add(pnlCart);
+        pnlCurrentOrder.Controls.Add(pnlCartActions);
+        pnlCurrentOrder.Controls.Add(pnlTotals);
+        pnlCurrentOrder.Controls.Add(pnlOrderContext);
+        pnlCurrentOrder.Dock = DockStyle.Fill;
+        pnlCurrentOrder.Location = new Point(0, 0);
+        pnlCurrentOrder.Margin = new Padding(0);
+        pnlCurrentOrder.Name = "pnlCurrentOrder";
+        pnlCurrentOrder.Size = new Size(341, 716);
+        pnlCurrentOrder.TabIndex = 0;
+        // 
+        // pnlCart
+        // 
+        pnlCart.Controls.Add(_lineGrid);
+        pnlCart.Controls.Add(_billEmptyLabel);
+        pnlCart.Dock = DockStyle.Fill;
+        pnlCart.Location = new Point(2, 152);
+        pnlCart.Margin = new Padding(0);
+        pnlCart.Name = "pnlCart";
+        pnlCart.Padding = new Padding(6, 0, 6, 0);
+        pnlCart.Size = new Size(337, 372);
+        pnlCart.TabIndex = 0;
+        // 
+        // _lineGrid
+        // 
+        _lineGrid.ContextMenuStrip = _lineContextMenu;
+        _lineGrid.Dock = DockStyle.Fill;
+        _lineGrid.EmbeddedNavigator.Margin = new Padding(0);
+        _lineGrid.Location = new Point(6, 0);
+        _lineGrid.MainView = _lineGridView;
+        _lineGrid.Margin = new Padding(0);
+        _lineGrid.Name = "_lineGrid";
+        _lineGrid.Size = new Size(325, 372);
+        _lineGrid.TabIndex = 0;
+        _lineGrid.ViewCollection.AddRange(new DevExpress.XtraGrid.Views.Base.BaseView[] { _lineGridView });
+        // 
+        // _lineContextMenu
+        // 
+        _lineContextMenu.ImageScalingSize = new Size(40, 40);
+        _lineContextMenu.Items.AddRange(new ToolStripItem[] { _lineMenuEditQuantity, _lineMenuEditNotes, _lineMenuOverridePrice, _lineMenuSeparator, _lineMenuVoidLine, _lineMenuRemoveLine });
+        _lineContextMenu.Name = "_lineContextMenu";
+        _lineContextMenu.Size = new Size(149, 120);
+        // 
+        // _lineMenuEditQuantity
+        // 
+        _lineMenuEditQuantity.Name = "_lineMenuEditQuantity";
+        _lineMenuEditQuantity.Size = new Size(148, 22);
+        _lineMenuEditQuantity.Text = "Edit Quantity";
+        _lineMenuEditQuantity.Click += EditQuantityButton_Click;
+        // 
+        // _lineMenuEditNotes
+        // 
+        _lineMenuEditNotes.Name = "_lineMenuEditNotes";
+        _lineMenuEditNotes.Size = new Size(148, 22);
+        _lineMenuEditNotes.Text = "Edit Notes";
+        _lineMenuEditNotes.Click += EditLineNotesButton_Click;
+        // 
+        // _lineMenuOverridePrice
+        // 
+        _lineMenuOverridePrice.Name = "_lineMenuOverridePrice";
+        _lineMenuOverridePrice.Size = new Size(148, 22);
+        _lineMenuOverridePrice.Text = "Override Price";
+        _lineMenuOverridePrice.Click += OverridePriceButton_Click;
+        // 
+        // _lineMenuSeparator
+        // 
+        _lineMenuSeparator.Name = "_lineMenuSeparator";
+        _lineMenuSeparator.Size = new Size(145, 6);
+        // 
+        // _lineMenuVoidLine
+        // 
+        _lineMenuVoidLine.Name = "_lineMenuVoidLine";
+        _lineMenuVoidLine.Size = new Size(148, 22);
+        _lineMenuVoidLine.Text = "Void Line";
+        _lineMenuVoidLine.Click += VoidLineButton_Click;
+        // 
+        // _lineMenuRemoveLine
+        // 
+        _lineMenuRemoveLine.Name = "_lineMenuRemoveLine";
+        _lineMenuRemoveLine.Size = new Size(148, 22);
+        _lineMenuRemoveLine.Text = "Remove Line";
+        _lineMenuRemoveLine.Click += RemoveLineButton_Click;
+        // 
+        // _lineGridView
+        // 
+        _lineGridView.Columns.AddRange(new GridColumn[] { _lineGridColumnName, _lineGridColumnQuantity, _lineGridColumnUnitPrice, _lineGridColumnDiscount, _lineGridColumnLineTotal, _lineGridColumnNotes });
+        _lineGridView.DetailHeight = 284;
+        _lineGridView.GridControl = _lineGrid;
+        _lineGridView.Name = "_lineGridView";
+        _lineGridView.OptionsBehavior.AutoPopulateColumns = false;
+        _lineGridView.OptionsBehavior.Editable = false;
+        _lineGridView.OptionsEditForm.PopupEditFormWidth = 46875;
+        _lineGridView.OptionsView.EnableAppearanceEvenRow = true;
+        _lineGridView.OptionsView.ShowGroupPanel = false;
+        _lineGridView.OptionsView.ShowIndicator = false;
+        _lineGridView.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
+        _lineGridView.RowHeight = 26;
+        _lineGridView.RowStyle += LineGridView_RowStyle;
+        // 
+        // _lineGridColumnName
+        // 
+        _lineGridColumnName.AppearanceCell.Options.UseTextOptions = true;
+        _lineGridColumnName.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
+        _lineGridColumnName.AppearanceHeader.Options.UseTextOptions = true;
+        _lineGridColumnName.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
+        _lineGridColumnName.Caption = "Item";
+        _lineGridColumnName.FieldName = "Name";
+        _lineGridColumnName.MinWidth = 30;
+        _lineGridColumnName.Name = "_lineGridColumnName";
+        _lineGridColumnName.Visible = true;
+        _lineGridColumnName.VisibleIndex = 0;
+        _lineGridColumnName.Width = 118;
+        // 
+        // _lineGridColumnQuantity
+        // 
+        _lineGridColumnQuantity.AppearanceCell.Options.UseTextOptions = true;
+        _lineGridColumnQuantity.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _lineGridColumnQuantity.AppearanceHeader.Options.UseTextOptions = true;
+        _lineGridColumnQuantity.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _lineGridColumnQuantity.Caption = "Qty";
+        _lineGridColumnQuantity.FieldName = "Quantity";
+        _lineGridColumnQuantity.MinWidth = 26;
+        _lineGridColumnQuantity.Name = "_lineGridColumnQuantity";
+        _lineGridColumnQuantity.Visible = true;
+        _lineGridColumnQuantity.VisibleIndex = 1;
+        _lineGridColumnQuantity.Width = 38;
+        // 
+        // _lineGridColumnUnitPrice
+        // 
+        _lineGridColumnUnitPrice.AppearanceCell.Options.UseTextOptions = true;
+        _lineGridColumnUnitPrice.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _lineGridColumnUnitPrice.AppearanceHeader.Options.UseTextOptions = true;
+        _lineGridColumnUnitPrice.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _lineGridColumnUnitPrice.Caption = "Price";
+        _lineGridColumnUnitPrice.FieldName = "UnitPrice";
+        _lineGridColumnUnitPrice.MinWidth = 30;
+        _lineGridColumnUnitPrice.Name = "_lineGridColumnUnitPrice";
+        _lineGridColumnUnitPrice.Visible = true;
+        _lineGridColumnUnitPrice.VisibleIndex = 2;
+        _lineGridColumnUnitPrice.Width = 56;
+        // 
+        // _lineGridColumnDiscount
+        // 
+        _lineGridColumnDiscount.AppearanceCell.Options.UseTextOptions = true;
+        _lineGridColumnDiscount.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _lineGridColumnDiscount.AppearanceHeader.Options.UseTextOptions = true;
+        _lineGridColumnDiscount.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _lineGridColumnDiscount.Caption = "Discount";
+        _lineGridColumnDiscount.FieldName = "Discount";
+        _lineGridColumnDiscount.MinWidth = 30;
+        _lineGridColumnDiscount.Name = "_lineGridColumnDiscount";
+        _lineGridColumnDiscount.Visible = true;
+        _lineGridColumnDiscount.VisibleIndex = 3;
+        _lineGridColumnDiscount.Width = 50;
+        // 
+        // _lineGridColumnLineTotal
+        // 
+        _lineGridColumnLineTotal.AppearanceCell.Options.UseTextOptions = true;
+        _lineGridColumnLineTotal.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _lineGridColumnLineTotal.AppearanceHeader.Options.UseTextOptions = true;
+        _lineGridColumnLineTotal.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        _lineGridColumnLineTotal.Caption = "Total";
+        _lineGridColumnLineTotal.FieldName = "LineTotal";
+        _lineGridColumnLineTotal.MinWidth = 30;
+        _lineGridColumnLineTotal.Name = "_lineGridColumnLineTotal";
+        _lineGridColumnLineTotal.Visible = true;
+        _lineGridColumnLineTotal.VisibleIndex = 4;
+        _lineGridColumnLineTotal.Width = 60;
+        // 
+        // _lineGridColumnNotes
+        // 
+        _lineGridColumnNotes.Caption = "Notes";
+        _lineGridColumnNotes.FieldName = "Notes";
+        _lineGridColumnNotes.MinWidth = 30;
+        _lineGridColumnNotes.Name = "_lineGridColumnNotes";
+        _lineGridColumnNotes.Width = 80;
+        // 
+        // _billEmptyLabel
+        // 
+        _billEmptyLabel.Appearance.Font = new Font("Segoe UI", 11F);
+        _billEmptyLabel.Appearance.ForeColor = Color.Gray;
+        _billEmptyLabel.Appearance.Options.UseFont = true;
+        _billEmptyLabel.Appearance.Options.UseForeColor = true;
+        _billEmptyLabel.Appearance.Options.UseTextOptions = true;
+        _billEmptyLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _billEmptyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _billEmptyLabel.Dock = DockStyle.Fill;
+        _billEmptyLabel.Location = new Point(6, 0);
+        _billEmptyLabel.Margin = new Padding(0);
+        _billEmptyLabel.Name = "_billEmptyLabel";
+        _billEmptyLabel.Size = new Size(140, 20);
+        _billEmptyLabel.TabIndex = 1;
+        _billEmptyLabel.Text = "No active order lines.";
+        // 
+        // pnlCartActions
+        // 
+        pnlCartActions.Controls.Add(flowCartActions);
+        pnlCartActions.Dock = DockStyle.Bottom;
+        pnlCartActions.Location = new Point(2, 524);
+        pnlCartActions.Margin = new Padding(0);
+        pnlCartActions.Name = "pnlCartActions";
+        pnlCartActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlCartActions.AutoSize = true;
+        pnlCartActions.Padding = new Padding(6, 3, 6, 3);
+        pnlCartActions.Size = new Size(337, 40);
+        pnlCartActions.TabIndex = 1;
+        // 
+        // flowCartActions
+        // 
+        flowCartActions.Controls.Add(_decreaseQuantityButton);
+        flowCartActions.Controls.Add(_increaseQuantityButton);
+        flowCartActions.Controls.Add(_editQuantityButton);
+        flowCartActions.Controls.Add(_editLineNotesButton);
+        flowCartActions.Controls.Add(_overridePriceButton);
+        flowCartActions.Controls.Add(_voidLineButton);
+        flowCartActions.Controls.Add(_removeLineButton);
+        flowCartActions.Dock = DockStyle.Top;
+        flowCartActions.Location = new Point(6, 3);
+        flowCartActions.Margin = new Padding(0);
+        flowCartActions.Name = "flowCartActions";
+        flowCartActions.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        flowCartActions.AutoSize = true;
+        flowCartActions.Size = new Size(325, 34);
+        flowCartActions.TabIndex = 0;
+        flowCartActions.WrapContents = true;
+        // 
+        // _decreaseQuantityButton
+        // 
+        _decreaseQuantityButton.Location = new Point(0, 0);
+        _decreaseQuantityButton.Margin = new Padding(0, 0, 3, 0);
+        _decreaseQuantityButton.Name = "_decreaseQuantityButton";
+        _decreaseQuantityButton.Size = new Size(42, 30);
+        _decreaseQuantityButton.TabIndex = 0;
+        _decreaseQuantityButton.Text = "-";
+        _decreaseQuantityButton.Click += DecreaseQuantityButton_Click;
+        // 
+        // _increaseQuantityButton
+        // 
+        _increaseQuantityButton.Location = new Point(45, 0);
+        _increaseQuantityButton.Margin = new Padding(0, 0, 3, 0);
+        _increaseQuantityButton.Name = "_increaseQuantityButton";
+        _increaseQuantityButton.Size = new Size(42, 30);
+        _increaseQuantityButton.TabIndex = 1;
+        _increaseQuantityButton.Text = "+";
+        _increaseQuantityButton.Click += IncreaseQuantityButton_Click;
+        // 
+        // _editQuantityButton
+        // 
+        _editQuantityButton.Location = new Point(90, 0);
+        _editQuantityButton.Margin = new Padding(0, 0, 3, 0);
+        _editQuantityButton.Name = "_editQuantityButton";
+        _editQuantityButton.Size = new Size(44, 30);
+        _editQuantityButton.TabIndex = 2;
+        _editQuantityButton.Text = "Qty";
+        _editQuantityButton.Click += EditQuantityButton_Click;
+        // 
+        // _editLineNotesButton
+        // 
+        _editLineNotesButton.Location = new Point(137, 0);
+        _editLineNotesButton.Margin = new Padding(0, 0, 3, 0);
+        _editLineNotesButton.Name = "_editLineNotesButton";
+        _editLineNotesButton.Size = new Size(52, 30);
+        _editLineNotesButton.TabIndex = 3;
+        _editLineNotesButton.Text = "Notes";
+        _editLineNotesButton.Click += EditLineNotesButton_Click;
+        // 
+        // _overridePriceButton
+        // 
+        _overridePriceButton.Location = new Point(192, 0);
+        _overridePriceButton.Margin = new Padding(0, 0, 3, 0);
+        _overridePriceButton.Name = "_overridePriceButton";
+        _overridePriceButton.Size = new Size(48, 30);
+        _overridePriceButton.TabIndex = 4;
+        _overridePriceButton.Text = "Price";
+        _overridePriceButton.Click += OverridePriceButton_Click;
+        // 
+        // _voidLineButton
+        // 
+        _voidLineButton.Location = new Point(243, 0);
+        _voidLineButton.Margin = new Padding(0, 0, 3, 0);
+        _voidLineButton.Name = "_voidLineButton";
+        _voidLineButton.Size = new Size(44, 30);
+        _voidLineButton.TabIndex = 5;
+        _voidLineButton.Text = "Void";
+        _voidLineButton.Click += VoidLineButton_Click;
+        // 
+        // _removeLineButton
+        // 
+        _removeLineButton.Location = new Point(290, 0);
+        _removeLineButton.Margin = new Padding(0);
+        _removeLineButton.Name = "_removeLineButton";
+        _removeLineButton.Size = new Size(44, 30);
+        _removeLineButton.TabIndex = 6;
+        _removeLineButton.Text = "Clear";
+        _removeLineButton.Click += RemoveLineButton_Click;
+        // 
+        // pnlTotals
+        // 
+        pnlTotals.Controls.Add(tlpTotals);
+        pnlTotals.Dock = DockStyle.Bottom;
+        pnlTotals.Location = new Point(2, 564);
+        pnlTotals.Margin = new Padding(0);
+        pnlTotals.Name = "pnlTotals";
+        pnlTotals.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlTotals.AutoSize = true;
+        pnlTotals.Padding = new Padding(6, 4, 6, 4);
+        pnlTotals.Size = new Size(337, 150);
+        pnlTotals.TabIndex = 2;
+        // 
+        // tlpTotals
+        // 
+        tlpTotals.ColumnCount = 1;
+        tlpTotals.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpTotals.Controls.Add(pnlTotalsRow1, 0, 0);
+        tlpTotals.Controls.Add(_grandTotalLabel, 0, 1);
+        tlpTotals.Controls.Add(_totalsDividerPanel, 0, 2);
+        tlpTotals.Controls.Add(_lifecycleFlow, 0, 4);
+        tlpTotals.Dock = DockStyle.Top;
+        tlpTotals.Location = new Point(6, 4);
+        tlpTotals.Margin = new Padding(0);
+        tlpTotals.Name = "tlpTotals";
+        tlpTotals.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        tlpTotals.AutoSize = true;
+        tlpTotals.RowCount = 5;
+        tlpTotals.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpTotals.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpTotals.RowStyles.Add(new RowStyle(SizeType.Absolute, 2F));
+        tlpTotals.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpTotals.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpTotals.Size = new Size(325, 142);
+        tlpTotals.TabIndex = 0;
+        // 
+        // pnlTotalsRow1
+        // 
+        pnlTotalsRow1.ColumnCount = 4;
+        pnlTotalsRow1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        pnlTotalsRow1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        pnlTotalsRow1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        pnlTotalsRow1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        pnlTotalsRow1.Controls.Add(_subtotalLabel, 0, 0);
+        pnlTotalsRow1.Controls.Add(_discountLabel, 1, 0);
+        pnlTotalsRow1.Controls.Add(_taxLabel, 2, 0);
+        pnlTotalsRow1.Controls.Add(_serviceChargeLabel, 3, 0);
+        pnlTotalsRow1.Dock = DockStyle.Fill;
+        pnlTotalsRow1.Location = new Point(0, 0);
+        pnlTotalsRow1.Margin = new Padding(0);
+        pnlTotalsRow1.Name = "pnlTotalsRow1";
+        pnlTotalsRow1.RowCount = 1;
+        pnlTotalsRow1.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        pnlTotalsRow1.Size = new Size(325, 18);
+        pnlTotalsRow1.TabIndex = 0;
+        // 
+        // _subtotalLabel
+        // 
+        _subtotalLabel.Appearance.Font = new Font("Segoe UI", 8.5F);
+        _subtotalLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _subtotalLabel.Appearance.Options.UseFont = true;
+        _subtotalLabel.Appearance.Options.UseForeColor = true;
+        _subtotalLabel.Appearance.Options.UseTextOptions = true;
+        _subtotalLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _subtotalLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _subtotalLabel.Dock = DockStyle.Fill;
+        _subtotalLabel.Location = new Point(0, 0);
+        _subtotalLabel.Margin = new Padding(0);
+        _subtotalLabel.MinimumSize = new Size(0, 14);
+        _subtotalLabel.Name = "_subtotalLabel";
+        _subtotalLabel.Size = new Size(81, 18);
+        _subtotalLabel.TabIndex = 0;
+        // 
+        // _discountLabel
+        // 
+        _discountLabel.Appearance.Font = new Font("Segoe UI", 8.5F);
+        _discountLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _discountLabel.Appearance.Options.UseFont = true;
+        _discountLabel.Appearance.Options.UseForeColor = true;
+        _discountLabel.Appearance.Options.UseTextOptions = true;
+        _discountLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _discountLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _discountLabel.Dock = DockStyle.Fill;
+        _discountLabel.Location = new Point(81, 0);
+        _discountLabel.Margin = new Padding(0);
+        _discountLabel.MinimumSize = new Size(0, 14);
+        _discountLabel.Name = "_discountLabel";
+        _discountLabel.Size = new Size(81, 18);
+        _discountLabel.TabIndex = 1;
+        // 
+        // _taxLabel
+        // 
+        _taxLabel.Appearance.Font = new Font("Segoe UI", 8.5F);
+        _taxLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _taxLabel.Appearance.Options.UseFont = true;
+        _taxLabel.Appearance.Options.UseForeColor = true;
+        _taxLabel.Appearance.Options.UseTextOptions = true;
+        _taxLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _taxLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _taxLabel.Dock = DockStyle.Fill;
+        _taxLabel.Location = new Point(162, 0);
+        _taxLabel.Margin = new Padding(0);
+        _taxLabel.MinimumSize = new Size(0, 14);
+        _taxLabel.Name = "_taxLabel";
+        _taxLabel.Size = new Size(81, 18);
+        _taxLabel.TabIndex = 2;
+        // 
+        // _serviceChargeLabel
+        // 
+        _serviceChargeLabel.Appearance.Font = new Font("Segoe UI", 8.5F);
+        _serviceChargeLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _serviceChargeLabel.Appearance.Options.UseFont = true;
+        _serviceChargeLabel.Appearance.Options.UseForeColor = true;
+        _serviceChargeLabel.Appearance.Options.UseTextOptions = true;
+        _serviceChargeLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _serviceChargeLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _serviceChargeLabel.Dock = DockStyle.Fill;
+        _serviceChargeLabel.Location = new Point(243, 0);
+        _serviceChargeLabel.Margin = new Padding(0);
+        _serviceChargeLabel.MinimumSize = new Size(0, 14);
+        _serviceChargeLabel.Name = "_serviceChargeLabel";
+        _serviceChargeLabel.Size = new Size(82, 18);
+        _serviceChargeLabel.TabIndex = 3;
+        // 
+        // _grandTotalLabel
+        // 
+        _grandTotalLabel.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _grandTotalLabel.Appearance.Options.UseFont = true;
+        _grandTotalLabel.Appearance.Options.UseForeColor = true;
+        _grandTotalLabel.Appearance.Options.UseTextOptions = true;
+        _grandTotalLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _grandTotalLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _grandTotalLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _grandTotalLabel.Dock = DockStyle.Fill;
+        _grandTotalLabel.Location = new Point(0, 20);
+        _grandTotalLabel.Margin = new Padding(0, 2, 0, 2);
+        _grandTotalLabel.MinimumSize = new Size(0, 22);
+        _grandTotalLabel.Name = "_grandTotalLabel";
+        _grandTotalLabel.Size = new Size(325, 938);
+        _grandTotalLabel.TabIndex = 2;
+        // 
+        // _totalsDividerPanel
+        // 
+        _totalsDividerPanel.Dock = DockStyle.Fill;
+        _totalsDividerPanel.Location = new Point(0, 962);
+        _totalsDividerPanel.Margin = new Padding(0, 2, 0, 2);
+        _totalsDividerPanel.Name = "_totalsDividerPanel";
+        _totalsDividerPanel.Size = new Size(325, 1);
+        _totalsDividerPanel.TabIndex = 3;
+        // 
+        // _lifecycleFlow
+        // 
+        _lifecycleFlow.AutoScroll = true;
+        _lifecycleFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _lifecycleFlow.Controls.Add(_cancelOrderButton);
+        _lifecycleFlow.Controls.Add(_holdButton);
+        _lifecycleFlow.Controls.Add(_resumeButton);
+        _lifecycleFlow.Controls.Add(_sendToKitchenButton);
+        _lifecycleFlow.Controls.Add(_completeButton);
+        _lifecycleFlow.Controls.Add(_voidOrderButton);
+        _lifecycleFlow.Controls.Add(_reopenButton);
+        _lifecycleFlow.Dock = DockStyle.Top;
+        _lifecycleFlow.Location = new Point(0, 962);
+        _lifecycleFlow.Margin = new Padding(0);
+        _lifecycleFlow.Name = "_lifecycleFlow";
+        _lifecycleFlow.WrapContents = true;
+        _lifecycleFlow.AutoSize = true;
+        _lifecycleFlow.Size = new Size(325, 1);
+        _lifecycleFlow.TabIndex = 4;
+        // 
+        // _cancelOrderButton
+        // 
+        _cancelOrderButton.Location = new Point(0, 0);
+        _cancelOrderButton.Margin = new Padding(0, 0, 4, 4);
+        _cancelOrderButton.Name = "_cancelOrderButton";
+        _cancelOrderButton.Size = new Size(76, 30);
+        _cancelOrderButton.TabIndex = 0;
+        _cancelOrderButton.Text = "🗑  Clear";
+        _cancelOrderButton.Click += CancelOrderButton_Click;
+        // 
+        // _holdButton
+        // 
+        _holdButton.Location = new Point(80, 0);
+        _holdButton.Margin = new Padding(0, 0, 4, 4);
+        _holdButton.Name = "_holdButton";
+        _holdButton.Size = new Size(66, 30);
+        _holdButton.TabIndex = 1;
+        _holdButton.Text = "⏸  Hold";
+        _holdButton.Click += HoldButton_Click;
+        // 
+        // _resumeButton
+        // 
+        _resumeButton.Location = new Point(150, 0);
+        _resumeButton.Margin = new Padding(0, 0, 4, 4);
+        _resumeButton.Name = "_resumeButton";
+        _resumeButton.Size = new Size(76, 30);
+        _resumeButton.TabIndex = 2;
+        _resumeButton.Text = "▶  Resume";
+        _resumeButton.Click += ResumeButton_Click;
+        // 
+        // _sendToKitchenButton
+        // 
+        _sendToKitchenButton.Location = new Point(230, 0);
+        _sendToKitchenButton.Margin = new Padding(0, 0, 4, 4);
+        _sendToKitchenButton.Name = "_sendToKitchenButton";
+        _sendToKitchenButton.Size = new Size(84, 30);
+        _sendToKitchenButton.TabIndex = 3;
+        _sendToKitchenButton.Text = "🍳  Kitchen";
+        _sendToKitchenButton.Click += SendToKitchenButton_Click;
+        // 
+        // _completeButton
+        // 
+        _completeButton.Appearance.BackColor = Color.FromArgb(22, 163, 74);
+        _completeButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _completeButton.Appearance.ForeColor = Color.White;
+        _completeButton.Appearance.Options.UseBackColor = true;
+        _completeButton.Appearance.Options.UseFont = true;
+        _completeButton.Appearance.Options.UseForeColor = true;
+        _completeButton.Location = new Point(0, 34);
+        _completeButton.Margin = new Padding(0, 0, 4, 0);
+        _completeButton.Name = "_completeButton";
+        _completeButton.Size = new Size(104, 32);
+        _completeButton.TabIndex = 4;
+        _completeButton.Text = "✓  Complete";
+        _completeButton.Click += CompleteButton_Click;
+        // 
+        // _voidOrderButton
+        // 
+        _voidOrderButton.Location = new Point(108, 34);
+        _voidOrderButton.Margin = new Padding(0, 0, 4, 0);
+        _voidOrderButton.Name = "_voidOrderButton";
+        _voidOrderButton.Size = new Size(66, 30);
+        _voidOrderButton.TabIndex = 5;
+        _voidOrderButton.Text = "⊘  Void";
+        _voidOrderButton.Click += VoidOrderButton_Click;
+        // 
+        // _reopenButton
+        // 
+        _reopenButton.Location = new Point(178, 34);
+        _reopenButton.Margin = new Padding(0);
+        _reopenButton.Name = "_reopenButton";
+        _reopenButton.Size = new Size(76, 30);
+        _reopenButton.TabIndex = 6;
+        _reopenButton.Text = "↺  Reopen";
+        _reopenButton.Click += ReopenButton_Click;
+        // 
+        // pnlOrderContext
+        // 
+        pnlOrderContext.Controls.Add(tlpOrderContext);
+        pnlOrderContext.Dock = DockStyle.Top;
+        pnlOrderContext.Location = new Point(2, 2);
+        pnlOrderContext.Margin = new Padding(0);
+        pnlOrderContext.Name = "pnlOrderContext";
+        pnlOrderContext.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlOrderContext.AutoSize = true;
+        pnlOrderContext.Padding = new Padding(6, 4, 6, 4);
+        pnlOrderContext.Size = new Size(337, 150);
+        pnlOrderContext.TabIndex = 3;
+        // 
+        // tlpOrderContext
+        // 
+        tlpOrderContext.ColumnCount = 1;
+        tlpOrderContext.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpOrderContext.Controls.Add(_customerContainer, 0, 0);
+        tlpOrderContext.Controls.Add(_customerDetailsLabel, 0, 1);
+        tlpOrderContext.Dock = DockStyle.Top;
+        tlpOrderContext.Location = new Point(6, 4);
+        tlpOrderContext.Margin = new Padding(0);
+        tlpOrderContext.Name = "tlpOrderContext";
+        tlpOrderContext.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        tlpOrderContext.AutoSize = true;
+        tlpOrderContext.RowCount = 4;
+        tlpOrderContext.RowStyles.Add(new RowStyle());
+        tlpOrderContext.RowStyles.Add(new RowStyle());
+        tlpOrderContext.RowStyles.Add(new RowStyle());
+        tlpOrderContext.RowStyles.Add(new RowStyle());
+        tlpOrderContext.Size = new Size(325, 142);
+        tlpOrderContext.TabIndex = 0;
+        // 
+        // _customerContainer
+        // 
+        _customerContainer.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _customerContainer.ColumnCount = 2;
+        _customerContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        _customerContainer.ColumnStyles.Add(new ColumnStyle());
+        _customerContainer.Controls.Add(_customerPicker, 0, 0);
+        _customerContainer.Controls.Add(_newCustomerButton, 1, 0);
+        _customerContainer.Dock = DockStyle.Fill;
+        _customerContainer.Location = new Point(0, 0);
+        _customerContainer.Margin = new Padding(0, 0, 0, 4);
+        _customerContainer.Name = "_customerContainer";
+        _customerContainer.RowCount = 1;
+        _customerContainer.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        _customerContainer.Size = new Size(325, 30);
+        _customerContainer.TabIndex = 0;
+        // 
+        // _customerPicker
+        // 
+        _customerPicker.Dock = DockStyle.Fill;
+        _customerPicker.Location = new Point(0, 0);
+        _customerPicker.Margin = new Padding(0, 0, 6, 0);
+        _customerPicker.Name = "_customerPicker";
+        _customerPicker.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] { new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo) });
+        _customerPicker.Properties.DisplayMember = "Name";
+        _customerPicker.Properties.NullText = "Search customer...";
+        _customerPicker.Properties.ValueMember = "CustomerId";
+        _customerPicker.Size = new Size(247, 20);
+        _customerPicker.TabIndex = 0;
+        _customerPicker.EditValueChanged += CustomerPicker_SelectionChanged;
+        // 
+        // _newCustomerButton
+        // 
+        _newCustomerButton.Location = new Point(253, 0);
+        _newCustomerButton.Margin = new Padding(0);
+        _newCustomerButton.Name = "_newCustomerButton";
+        _newCustomerButton.Size = new Size(72, 26);
+        _newCustomerButton.TabIndex = 1;
+        _newCustomerButton.Text = "+ New";
+        _newCustomerButton.Click += NewCustomerButton_Click;
+        // 
+        // _customerDetailsLabel
+        // 
+        _customerDetailsLabel.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _customerDetailsLabel.Appearance.Options.UseFont = true;
+        _customerDetailsLabel.AutoSizeMode = LabelAutoSizeMode.Vertical;
+        _customerDetailsLabel.Dock = DockStyle.Fill;
+        _customerDetailsLabel.Location = new Point(0, 34);
+        _customerDetailsLabel.Margin = new Padding(0, 0, 0, 4);
+        _customerDetailsLabel.MinimumSize = new Size(0, 16);
+        _customerDetailsLabel.Name = "_customerDetailsLabel";
+        _customerDetailsLabel.Size = new Size(325, 16);
+        _customerDetailsLabel.TabIndex = 1;
+        // 
+        // pnlProducts
+        // 
+        pnlProducts.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        pnlProducts.Controls.Add(_productTilesFlow);
+        pnlProducts.Controls.Add(pnlSearch);
+        pnlProducts.Controls.Add(_categoryButtonsPanel);
+        pnlProducts.Dock = DockStyle.Fill;
+        pnlProducts.Location = new Point(341, 0);
+        pnlProducts.Margin = new Padding(0);
+        pnlProducts.Name = "pnlProducts";
+        pnlProducts.Size = new Size(683, 716);
+        pnlProducts.TabIndex = 0;
+        // 
+        // _productTilesFlow
+        // 
+        _productTilesFlow.AutoScroll = true;
+        _productTilesFlow.Controls.Add(_tilesEmptyLabel);
+        _productTilesFlow.Dock = DockStyle.Fill;
+        _productTilesFlow.Location = new Point(0, 82);
+        _productTilesFlow.Margin = new Padding(0);
+        _productTilesFlow.Name = "_productTilesFlow";
+        _productTilesFlow.Padding = new Padding(6, 4, 6, 6);
+        _productTilesFlow.Size = new Size(683, 634);
+        _productTilesFlow.TabIndex = 0;
+        // 
+        // _tilesEmptyLabel
+        // 
+        _tilesEmptyLabel.Appearance.Font = new Font("Segoe UI", 11F);
+        _tilesEmptyLabel.Appearance.ForeColor = Color.Gray;
+        _tilesEmptyLabel.Appearance.Options.UseFont = true;
+        _tilesEmptyLabel.Appearance.Options.UseForeColor = true;
+        _tilesEmptyLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _tilesEmptyLabel.Location = new Point(6, 4);
+        _tilesEmptyLabel.Margin = new Padding(0);
+        _tilesEmptyLabel.Name = "_tilesEmptyLabel";
+        _tilesEmptyLabel.Size = new Size(220, 24);
+        _tilesEmptyLabel.TabIndex = 0;
+        _tilesEmptyLabel.Text = "No items matching filter.";
+        _tilesEmptyLabel.Visible = false;
+        // 
+        // pnlSearch
+        // 
+        pnlSearch.Controls.Add(tlpSearch);
+        pnlSearch.Dock = DockStyle.Top;
+        pnlSearch.Location = new Point(0, 44);
+        pnlSearch.Margin = new Padding(0);
+        pnlSearch.Name = "pnlSearch";
+        pnlSearch.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        pnlSearch.AutoSize = true;
+        pnlSearch.Padding = new Padding(6, 3, 6, 4);
+        pnlSearch.Size = new Size(683, 38);
+        pnlSearch.TabIndex = 1;
+        // 
+        // tlpSearch
+        // 
+        tlpSearch.ColumnCount = 4;
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58F));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150F));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70F));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpSearch.Controls.Add(_addQuantityEdit, 0, 0);
+        tlpSearch.Controls.Add(_barcodeEdit, 1, 0);
+        tlpSearch.Controls.Add(_addByBarcodeButton, 2, 0);
+        tlpSearch.Controls.Add(_productSearchEdit, 3, 0);
+        tlpSearch.Dock = DockStyle.Top;
+        tlpSearch.Location = new Point(6, 3);
+        tlpSearch.Margin = new Padding(0);
+        tlpSearch.Name = "tlpSearch";
+        tlpSearch.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        tlpSearch.AutoSize = true;
+        tlpSearch.RowCount = 1;
+        tlpSearch.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpSearch.Size = new Size(671, 31);
+        tlpSearch.TabIndex = 0;
+        // 
+        // _addQuantityEdit
+        // 
+        _addQuantityEdit.Dock = DockStyle.Fill;
+        _addQuantityEdit.EditValue = new decimal(new int[] { 1, 0, 0, 0 });
+        _addQuantityEdit.Location = new Point(0, 0);
+        _addQuantityEdit.Margin = new Padding(0, 0, 6, 0);
+        _addQuantityEdit.Name = "_addQuantityEdit";
+        _addQuantityEdit.Properties.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _addQuantityEdit.Properties.Appearance.Options.UseFont = true;
+        _addQuantityEdit.Properties.MaxValue = new decimal(new int[] { 999, 0, 0, 0 });
+        _addQuantityEdit.Properties.MinValue = new decimal(new int[] { 1, 0, 0, 0 });
+        _addQuantityEdit.Size = new Size(52, 24);
+        _addQuantityEdit.TabIndex = 0;
+        // 
+        // _barcodeEdit
+        // 
+        _barcodeEdit.Dock = DockStyle.Fill;
+        _barcodeEdit.Location = new Point(58, 0);
+        _barcodeEdit.Margin = new Padding(0, 0, 6, 0);
+        _barcodeEdit.Name = "_barcodeEdit";
+        _barcodeEdit.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _barcodeEdit.Properties.Appearance.Options.UseFont = true;
+        _barcodeEdit.Properties.NullValuePrompt = "Scan barcode...";
+        _barcodeEdit.Size = new Size(144, 24);
+        _barcodeEdit.TabIndex = 1;
+        _barcodeEdit.KeyDown += BarcodeEdit_KeyDown;
+        // 
+        // _addByBarcodeButton
+        // 
+        _addByBarcodeButton.Dock = DockStyle.Fill;
+        _addByBarcodeButton.Location = new Point(208, 0);
+        _addByBarcodeButton.Margin = new Padding(0, 0, 6, 0);
+        _addByBarcodeButton.Name = "_addByBarcodeButton";
+        _addByBarcodeButton.Size = new Size(64, 31);
+        _addByBarcodeButton.TabIndex = 2;
+        _addByBarcodeButton.Text = "➕ Add";
+        _addByBarcodeButton.Click += AddByBarcodeButton_Click;
+        // 
+        // _productSearchEdit
+        // 
+        _productSearchEdit.Dock = DockStyle.Fill;
+        _productSearchEdit.Location = new Point(278, 0);
+        _productSearchEdit.Margin = new Padding(0);
+        _productSearchEdit.Name = "_productSearchEdit";
+        _productSearchEdit.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _productSearchEdit.Properties.Appearance.Options.UseFont = true;
+        _productSearchEdit.Properties.NullValuePrompt = "Search menu items by name...";
+        _productSearchEdit.Size = new Size(393, 24);
+        _productSearchEdit.TabIndex = 3;
+        _productSearchEdit.EditValueChanged += ProductSearchEdit_EditValueChanged;
+        // 
+        // _categoryButtonsPanel
+        // 
+        _categoryButtonsPanel.AutoScroll = true;
+        _categoryButtonsPanel.Controls.Add(_allCategoriesButton);
+        _categoryButtonsPanel.Dock = DockStyle.Top;
+        _categoryButtonsPanel.Location = new Point(0, 0);
+        _categoryButtonsPanel.Margin = new Padding(0);
+        _categoryButtonsPanel.Name = "_categoryButtonsPanel";
+        _categoryButtonsPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _categoryButtonsPanel.AutoSize = true;
+        _categoryButtonsPanel.Padding = new Padding(6, 5, 6, 2);
+        _categoryButtonsPanel.Size = new Size(683, 44);
+        _categoryButtonsPanel.TabIndex = 2;
+        // 
+        // _allCategoriesButton
+        // 
+        _allCategoriesButton.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _allCategoriesButton.Appearance.Options.UseBackColor = true;
+        _allCategoriesButton.Appearance.Options.UseFont = true;
+        _allCategoriesButton.Appearance.Options.UseForeColor = true;
+        _allCategoriesButton.Appearance.Options.UseTextOptions = true;
+        _allCategoriesButton.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
+        _allCategoriesButton.Location = new Point(6, 5);
+        _allCategoriesButton.Margin = new Padding(0, 0, 6, 4);
+        _allCategoriesButton.Name = "_allCategoriesButton";
+        _allCategoriesButton.Size = new Size(84, 32);
+        _allCategoriesButton.TabIndex = 0;
+        _allCategoriesButton.Text = "▦  All Items";
+        _allCategoriesButton.Click += AllCategoriesButton_Click;
+        // 
+        // tlpMain
+        // 
+        tlpMain.ColumnCount = 3;
+        tlpMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        tlpMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        tlpMain.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        tlpMain.Controls.Add(pnlCurrentOrder, 0, 0);
+        tlpMain.Controls.Add(pnlProducts, 1, 0);
+        tlpMain.Controls.Add(pnlPayment, 2, 0);
+        tlpMain.Dock = DockStyle.Fill;
+        tlpMain.Location = new Point(0, 52);
+        tlpMain.Margin = new Padding(0);
+        tlpMain.Name = "tlpMain";
+        tlpMain.RowCount = 1;
+        tlpMain.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        tlpMain.Size = new Size(1366, 716);
+        tlpMain.TabIndex = 2;
+        // 
+        // pnlTotalsRow2
+        // 
+        pnlTotalsRow2.ColumnCount = 2;
+        pnlTotalsRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        pnlTotalsRow2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        pnlTotalsRow2.Controls.Add(_paidLabel, 0, 0);
+        pnlTotalsRow2.Controls.Add(_balanceLabel, 1, 0);
+        pnlTotalsRow2.Dock = DockStyle.Fill;
+        pnlTotalsRow2.Location = new Point(0, 0);
+        pnlTotalsRow2.Margin = new Padding(0);
+        pnlTotalsRow2.Name = "pnlTotalsRow2";
+        pnlTotalsRow2.RowCount = 1;
+        pnlTotalsRow2.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        pnlTotalsRow2.Size = new Size(329, 18);
+        pnlTotalsRow2.TabIndex = 1;
+        // 
+        // _paidLabel
+        // 
+        _paidLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _paidLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _paidLabel.Appearance.Options.UseFont = true;
+        _paidLabel.Appearance.Options.UseForeColor = true;
+        _paidLabel.Appearance.Options.UseTextOptions = true;
+        _paidLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _paidLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _paidLabel.Dock = DockStyle.Fill;
+        _paidLabel.Location = new Point(0, 0);
+        _paidLabel.Margin = new Padding(0);
+        _paidLabel.MinimumSize = new Size(0, 14);
+        _paidLabel.Name = "_paidLabel";
+        _paidLabel.Size = new Size(164, 18);
+        _paidLabel.TabIndex = 0;
+        // 
+        // _balanceLabel
+        // 
+        _balanceLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _balanceLabel.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _balanceLabel.Appearance.Options.UseFont = true;
+        _balanceLabel.Appearance.Options.UseForeColor = true;
+        _balanceLabel.Appearance.Options.UseTextOptions = true;
+        _balanceLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _balanceLabel.AutoSizeMode = LabelAutoSizeMode.None;
+        _balanceLabel.Dock = DockStyle.Fill;
+        _balanceLabel.Location = new Point(164, 0);
+        _balanceLabel.Margin = new Padding(0);
+        _balanceLabel.MinimumSize = new Size(0, 14);
+        _balanceLabel.Name = "_balanceLabel";
+        _balanceLabel.Size = new Size(165, 18);
+        _balanceLabel.TabIndex = 1;
+        // 
+        // _customerPickerColumnName
+        // 
+        _customerPickerColumnName.Caption = "Customer";
+        _customerPickerColumnName.FieldName = "Name";
+        _customerPickerColumnName.MinWidth = 50;
+        _customerPickerColumnName.Name = "_customerPickerColumnName";
+        _customerPickerColumnName.Visible = true;
+        _customerPickerColumnName.VisibleIndex = 0;
+        _customerPickerColumnName.Width = 375;
+        // 
+        // _customerPickerColumnPhone
+        // 
+        _customerPickerColumnPhone.Caption = "Phone";
+        _customerPickerColumnPhone.FieldName = "Phone";
+        _customerPickerColumnPhone.MinWidth = 50;
+        _customerPickerColumnPhone.Name = "_customerPickerColumnPhone";
+        _customerPickerColumnPhone.Visible = true;
+        _customerPickerColumnPhone.VisibleIndex = 1;
+        _customerPickerColumnPhone.Width = 250;
+        // 
+        // _customerPickerColumnBalance
+        // 
+        _customerPickerColumnBalance.Caption = "Balance";
+        _customerPickerColumnBalance.FieldName = "BalanceDisplay";
+        _customerPickerColumnBalance.MinWidth = 50;
+        _customerPickerColumnBalance.Name = "_customerPickerColumnBalance";
+        _customerPickerColumnBalance.Visible = true;
+        _customerPickerColumnBalance.VisibleIndex = 2;
+        _customerPickerColumnBalance.Width = 225;
+        // 
+        // _categorySortFlow
+        // 
+        _categorySortFlow.AutoSize = true;
+        _categorySortFlow.Controls.Add(_sortByNameButton);
+        _categorySortFlow.Controls.Add(_sortByColorButton);
+        _categorySortFlow.Location = new Point(0, 0);
+        _categorySortFlow.Name = "_categorySortFlow";
+        _categorySortFlow.Size = new Size(200, 100);
+        _categorySortFlow.TabIndex = 0;
+        // 
+        // _sortByNameButton
+        // 
+        _sortByNameButton.Location = new Point(3, 3);
+        _sortByNameButton.Name = "_sortByNameButton";
+        _sortByNameButton.Size = new Size(84, 28);
+        _sortByNameButton.TabIndex = 0;
+        _sortByNameButton.Click += SortByNameButton_Click;
+        // 
+        // _sortByColorButton
+        // 
+        _sortByColorButton.Location = new Point(93, 3);
+        _sortByColorButton.Name = "_sortByColorButton";
+        _sortByColorButton.Size = new Size(84, 28);
+        _sortByColorButton.TabIndex = 1;
+        _sortByColorButton.Click += SortByColorButton_Click;
+        // 
+        // _moreActionsMenu
+        // 
+        _moreActionsMenu.ImageScalingSize = new Size(40, 40);
+        _moreActionsMenu.Items.AddRange(new ToolStripItem[] { _transferTableButton, _mergeTablesButton, _splitBillButton, _orderNotesButton, _customerNotesButton, _addDiscountButton, _removeDiscountButton, _addServiceChargeButton, _removeServiceChargeButton });
+        _moreActionsMenu.Name = "_moreActionsMenu";
+        _moreActionsMenu.Size = new Size(217, 202);
+        // 
+        // _transferTableButton
+        // 
+        _transferTableButton.Name = "_transferTableButton";
+        _transferTableButton.Size = new Size(216, 22);
+        _transferTableButton.Text = "🔀  Transfer Table";
+        _transferTableButton.Click += TransferTableButton_Click;
+        // 
+        // _mergeTablesButton
+        // 
+        _mergeTablesButton.Name = "_mergeTablesButton";
+        _mergeTablesButton.Size = new Size(216, 22);
+        _mergeTablesButton.Text = "🔗  Merge Tables";
+        _mergeTablesButton.Click += MergeTablesButton_Click;
+        // 
+        // _splitBillButton
+        // 
+        _splitBillButton.Name = "_splitBillButton";
+        _splitBillButton.Size = new Size(216, 22);
+        _splitBillButton.Text = "➗  Split Bill";
+        _splitBillButton.Click += SplitBillButton_Click;
+        // 
+        // _orderNotesButton
+        // 
+        _orderNotesButton.Name = "_orderNotesButton";
+        _orderNotesButton.Size = new Size(216, 22);
+        _orderNotesButton.Text = "📝  Order Notes";
+        _orderNotesButton.Click += OrderNotesButton_Click;
+        // 
+        // _customerNotesButton
+        // 
+        _customerNotesButton.Name = "_customerNotesButton";
+        _customerNotesButton.Size = new Size(216, 22);
+        _customerNotesButton.Text = "👤  Customer Notes";
+        _customerNotesButton.Click += CustomerNotesButton_Click;
+        // 
+        // _addDiscountButton
+        // 
+        _addDiscountButton.Name = "_addDiscountButton";
+        _addDiscountButton.Size = new Size(216, 22);
+        _addDiscountButton.Text = "🏷  Add Discount";
+        _addDiscountButton.Click += AddDiscountButton_Click;
+        // 
+        // _removeDiscountButton
+        // 
+        _removeDiscountButton.Name = "_removeDiscountButton";
+        _removeDiscountButton.Size = new Size(216, 22);
+        _removeDiscountButton.Text = "🏷  Remove Discount";
+        _removeDiscountButton.Click += RemoveDiscountButton_Click;
+        // 
+        // _addServiceChargeButton
+        // 
+        _addServiceChargeButton.Name = "_addServiceChargeButton";
+        _addServiceChargeButton.Size = new Size(216, 22);
+        _addServiceChargeButton.Text = "➕  Add Service Charge";
+        _addServiceChargeButton.Click += AddServiceChargeButton_Click;
+        // 
+        // _removeServiceChargeButton
+        // 
+        _removeServiceChargeButton.Name = "_removeServiceChargeButton";
+        _removeServiceChargeButton.Size = new Size(216, 22);
+        _removeServiceChargeButton.Text = "➖  Remove Service Charge";
+        _removeServiceChargeButton.Click += RemoveServiceChargeButton_Click;
+        // 
+        // RestaurantPosForm
+        // 
+        ClientSize = new Size(1366, 768);
+        Controls.Add(tlpMain);
+        Controls.Add(pnlHeader);
+        IconOptions.ShowIcon = false;
+        MinimumSize = new Size(1040, 700);
+        Name = "RestaurantPosForm";
+        Text = "Restaurant POS";
+        WindowState = FormWindowState.Maximized;
+        Load += RestaurantPosForm_Load;
+        Resize += RestaurantPosForm_Resize;
+        ((System.ComponentModel.ISupportInitialize)pnlHeader).EndInit();
+        pnlHeader.ResumeLayout(false);
+        tlpHeader.ResumeLayout(false);
+        tlpHeader.PerformLayout();
+        _orderTypeButtonsFlow.ResumeLayout(false);
+        _actionsButtonsFlow.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)pnlPayment).EndInit();
+        pnlPayment.ResumeLayout(false);
+        tlpPayment.ResumeLayout(false);
+        pnlPaymentMethods.ResumeLayout(false);
+        pnlPaymentMethods.PerformLayout();
+        pnlAmountTendered.ResumeLayout(false);
+        pnlAmountTendered.PerformLayout();
+        _amountContainerLayout.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)_amountEdit.Properties).EndInit();
+        pnlKeypad.ResumeLayout(false);
+        pnlQuickCash.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)splitMain.Panel1).EndInit();
+        ((System.ComponentModel.ISupportInitialize)splitMain.Panel2).EndInit();
+        ((System.ComponentModel.ISupportInitialize)splitMain).EndInit();
+        splitMain.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)pnlCurrentOrder).EndInit();
+        pnlCurrentOrder.ResumeLayout(false);
+        pnlCart.ResumeLayout(false);
+        pnlCart.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)_lineGrid).EndInit();
+        _lineContextMenu.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)_lineGridView).EndInit();
+        pnlCartActions.ResumeLayout(false);
+        flowCartActions.ResumeLayout(false);
+        pnlTotals.ResumeLayout(false);
+        tlpTotals.ResumeLayout(false);
+        tlpTotals.PerformLayout();
+        pnlTotalsRow1.ResumeLayout(false);
+        pnlTotalsRow1.PerformLayout();
+        _lifecycleFlow.ResumeLayout(false);
+        pnlOrderContext.ResumeLayout(false);
+        tlpOrderContext.ResumeLayout(false);
+        tlpOrderContext.PerformLayout();
+        _customerContainer.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)_customerPicker.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)pnlProducts).EndInit();
+        pnlProducts.ResumeLayout(false);
+        _productTilesFlow.ResumeLayout(false);
+        pnlSearch.ResumeLayout(false);
+        tlpSearch.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)_addQuantityEdit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_barcodeEdit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_productSearchEdit.Properties).EndInit();
+        _categoryButtonsPanel.ResumeLayout(false);
+        tlpMain.ResumeLayout(false);
+        pnlTotalsRow2.ResumeLayout(false);
+        pnlTotalsRow2.PerformLayout();
+        _categorySortFlow.ResumeLayout(false);
+        _moreActionsMenu.ResumeLayout(false);
+        ResumeLayout(false);
+    }
+
+    #endregion
+
+    // The styling helpers this file used to call from InitializeComponent are
+    // gone: ADR-007 forbids them there, because the Designer's CodeDom parser
+    // abandons the whole method at the first one. Every call site above is now
+    // written out in full. StyleCategoryButton survives - moved to
+    // RestaurantPosForm.cs, where it belongs - because the category buttons
+    // built from the menu at runtime still need it; the rest had no runtime
+    // caller and were deleted rather than left as dead code.
+
+    private void LineGridView_RowStyle(object sender, RowStyleEventArgs e)
+    {
+        if (_lineGridView.GetRow(e.RowHandle) is not OrderLineRow row)
+        {
+            return;
+        }
+
+        if (row.IsVoided)
+        {
+            e.Appearance.FontStyleDelta = FontStyle.Strikeout;
+            e.Appearance.ForeColor = NeutralColor;
+            e.Appearance.Options.UseFont = true;
+            e.Appearance.Options.UseForeColor = true;
+        }
+        else if (row.IsPriceOverridden)
+        {
+            e.Appearance.ForeColor = WarningColor;
+            e.Appearance.Options.UseForeColor = true;
+        }
+    }
+
+    private void UpdateBillEmptyState(bool isEmpty)
+    {
+        _billEmptyLabel.Visible = isEmpty;
+        if (isEmpty)
+        {
+            _billEmptyLabel.BringToFront();
+        }
+    }
+
+    private void ApplyColumnWidths()
+    {
+        // Re-size dynamic categories if necessary, or let FlowLayoutPanel AutoSize them
+    }
+
+    // Major panel and layout controls declared as fields
+    private PanelControl pnlHeader;
+    private PanelControl pnlPayment;
+    private SplitContainerControl splitMain;
+
+    /// <summary>
+    /// Percentage-based main container: the three POS zones must hold 25/50/25
+    /// at any window size and any display scaling. Previously the zones were
+    /// sized by absolute pixels (pnlPayment.Width and splitMain.SplitterPosition).
+    /// This form intentionally has no AutoScaleMode (BaseForm convention) and the
+    /// app is PerMonitorV2, so those pixel values were never scaled - maximized on
+    /// a 250% display they collapsed the left and right zones to roughly 9-10%
+    /// each and gave the centre ~80%. Percent ColumnStyles are resolution- and
+    /// DPI-independent, so the proportions hold everywhere.
+    /// </summary>
+    private TableLayoutPanel tlpMain;
+
+    private TableLayoutPanel tlpHeader;
+    private LabelControl _logoLabel;
+    private LabelControl _cashierLabel;
+    // _warehousePicker and _tablePicker are deliberately NOT declared or
+    // constructed here. EntityPicker has no public parameterless constructor
+    // (it requires a label caption), so the WinForms Designer cannot
+    // serialize it: every time it regenerates InitializeComponent it silently
+    // drops the construction, the Controls.Add and the event wiring, leaving
+    // a null field that throws NullReferenceException on the first load.
+    // Both controls therefore live in RestaurantPosForm.cs, which the
+    // Designer never rewrites. See AttachPickers().
+    private LabelControl _orderStatusLabel;
+    private FlowLayoutPanel _actionsButtonsFlow;
+    private SimpleButton _refreshButton;
+    private SimpleButton _printBillButton;
+    private SimpleButton _paymentHistoryButton;
+    private SimpleButton _moreActionsButton;
+    private SimpleButton _logoutButton;
+
+    private PanelControl pnlProducts;
+    private FlowLayoutPanel _categoryButtonsPanel;
+    private SimpleButton _allCategoriesButton;
+    private Panel pnlSearch;
+    private TableLayoutPanel tlpSearch;
+    private SpinEdit _addQuantityEdit;
+    private TextEdit _barcodeEdit;
+    private SimpleButton _addByBarcodeButton;
+    private TextEdit _productSearchEdit;
+    private FlowLayoutPanel _productTilesFlow;
+    private LabelControl _tilesEmptyLabel;
+    private FlowLayoutPanel _categorySortFlow;
+    private SimpleButton _sortByNameButton;
+    private SimpleButton _sortByColorButton;
+
+    private PanelControl pnlCurrentOrder;
+    private Panel pnlOrderContext;
+    private TableLayoutPanel tlpOrderContext;
+    private TableLayoutPanel _customerContainer;
+    private DevExpress.XtraEditors.SearchLookUpEdit _customerPicker;
+    private GridColumn _customerPickerColumnName;
+    private GridColumn _customerPickerColumnPhone;
+    private GridColumn _customerPickerColumnBalance;
+    private SimpleButton _newCustomerButton;
+    private LabelControl _customerDetailsLabel;
+    private FlowLayoutPanel _orderTypeButtonsFlow;
+    private SimpleButton _newDineInButton;
+    private SimpleButton _newTakeAwayButton;
+
+    private Panel pnlCart;
+    private GridControl _lineGrid;
+    private GridView _lineGridView;
+    private GridColumn _lineGridColumnName;
+    private GridColumn _lineGridColumnQuantity;
+    private GridColumn _lineGridColumnUnitPrice;
+    private GridColumn _lineGridColumnDiscount;
+    private GridColumn _lineGridColumnLineTotal;
+    private GridColumn _lineGridColumnNotes;
+    private LabelControl _billEmptyLabel;
+
+    private Panel pnlCartActions;
+    private FlowLayoutPanel flowCartActions;
+    private SimpleButton _decreaseQuantityButton;
+    private SimpleButton _increaseQuantityButton;
+    private SimpleButton _editQuantityButton;
+    private SimpleButton _editLineNotesButton;
+    private SimpleButton _overridePriceButton;
+    private SimpleButton _voidLineButton;
+    private SimpleButton _removeLineButton;
+
+    private Panel pnlTotals;
+    private TableLayoutPanel tlpTotals;
+    private TableLayoutPanel pnlTotalsRow1;
+    private TableLayoutPanel pnlTotalsRow2;
+    private LabelControl _subtotalLabel;
+    private LabelControl _discountLabel;
+    private LabelControl _taxLabel;
+    private LabelControl _serviceChargeLabel;
+    private Panel _totalsDividerPanel;
+    private LabelControl _grandTotalLabel;
+    private LabelControl _paidLabel;
+    private LabelControl _balanceLabel;
+
+    private FlowLayoutPanel _lifecycleFlow;
+    private SimpleButton _cancelOrderButton;
+    private SimpleButton _holdButton;
+    private SimpleButton _resumeButton;
+    private SimpleButton _sendToKitchenButton;
+    private SimpleButton _completeButton;
+    private SimpleButton _voidOrderButton;
+    private SimpleButton _reopenButton;
+
+    private TableLayoutPanel tlpPayment;
+    private TableLayoutPanel pnlPaymentMethods;
+    private LabelControl _paymentBalanceLabel;
+    private LabelControl _methodsHeaderLabel;
+    private FlowLayoutPanel _methodButtonsFlow;
+
+    private TableLayoutPanel pnlAmountTendered;
+    private LabelControl _amountTitleLabel;
+    private LabelControl _changeTitleLabel;
+    private TableLayoutPanel _amountContainerLayout;
+    private TextEdit _amountEdit;
+    private SimpleButton _exactAmountButton;
+    private LabelControl _changeValueLabel;
+
+    private TableLayoutPanel pnlKeypad;
+    private SimpleButton _keypad7Button;
+    private SimpleButton _keypad8Button;
+    private SimpleButton _keypad9Button;
+    private SimpleButton _keypad4Button;
+    private SimpleButton _keypad5Button;
+    private SimpleButton _keypad6Button;
+    private SimpleButton _keypad1Button;
+    private SimpleButton _keypad2Button;
+    private SimpleButton _keypad3Button;
+    private SimpleButton _keypadDecimalButton;
+    private SimpleButton _keypad0Button;
+    private SimpleButton _keypadBackspaceButton;
+    private SimpleButton _keypadClearButton;
+
+    private TableLayoutPanel pnlQuickCash;
+    private SimpleButton _quickCash100Button;
+    private SimpleButton _quickCash200Button;
+    private SimpleButton _quickCash500Button;
+    private SimpleButton _quickCash1000Button;
+    private SimpleButton _quickCash2000Button;
+    private SimpleButton _quickCash5000Button;
+    private SimpleButton _recordButton;
+
+    private ContextMenuStrip _moreActionsMenu;
+    private ToolStripMenuItem _transferTableButton;
+    private ToolStripMenuItem _mergeTablesButton;
+    private ToolStripMenuItem _splitBillButton;
+    private ToolStripMenuItem _orderNotesButton;
+    private ToolStripMenuItem _customerNotesButton;
+    private ToolStripMenuItem _addDiscountButton;
+    private ToolStripMenuItem _removeDiscountButton;
+    private ToolStripMenuItem _addServiceChargeButton;
+    private ToolStripMenuItem _removeServiceChargeButton;
+
+    private ContextMenuStrip _lineContextMenu;
+    private ToolStripMenuItem _lineMenuEditQuantity;
+    private ToolStripMenuItem _lineMenuEditNotes;
+    private ToolStripMenuItem _lineMenuOverridePrice;
+    private ToolStripSeparator _lineMenuSeparator;
+    private ToolStripMenuItem _lineMenuVoidLine;
+    private ToolStripMenuItem _lineMenuRemoveLine;
+}

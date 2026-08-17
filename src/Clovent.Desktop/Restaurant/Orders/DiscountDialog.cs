@@ -1,26 +1,20 @@
 using Clovent.Desktop.MasterData;
 using Clovent.Restaurant.Discounts;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
-/// <summary>Prompt for applying a discount to an order - type, value, and reason.</summary>
-public sealed class DiscountDialog : MasterDataEditFormBase
+/// <summary>
+/// Prompt for applying a discount to an order - type, value, and reason.
+/// Control tree lives in <c>DiscountDialog.Designer.cs</c>; this file holds
+/// behavior only.
+/// </summary>
+public sealed partial class DiscountDialog : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _typeCombo = new();
-    private readonly SpinEdit _valueEdit = new() { Properties = { MinValue = 0, MaxValue = 1_000_000, Increment = 0.01m } };
-    private readonly MemoEdit _reasonEdit = new() { Height = 60 };
-
     /// <summary>Builds the dialog.</summary>
     public DiscountDialog() : base("Apply Discount")
     {
-        _typeCombo.Properties.Items.AddRange([nameof(DiscountType.Percentage), nameof(DiscountType.FixedAmount)]);
-        _typeCombo.SelectedIndex = 0;
-
-        AddField("Type:", _typeCombo);
-        AddField("Value:", _valueEdit);
-        AddField("Reason:", _reasonEdit);
-    }
+        InitializeComponent();
+        }
 
     /// <summary>The selected discount type.</summary>
     public DiscountType DiscountType => Enum.Parse<DiscountType>((string)_typeCombo.SelectedItem);
@@ -55,4 +49,5 @@ public sealed class DiscountDialog : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

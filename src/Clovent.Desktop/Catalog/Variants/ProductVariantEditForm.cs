@@ -1,17 +1,35 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Catalog.Variants;
 
-/// <summary>Create/edit dialog for a Product Variant - name, SKU (immutable after creation), and unit of measure.</summary>
-public sealed class ProductVariantEditForm : MasterDataEditFormBase
+/// <summary>
+/// Create/edit dialog for a Product Variant - name, SKU (immutable after
+/// creation), and unit of measure. Control tree (fields, <c>AddField</c>
+/// calls) lives in <c>ProductVariantEditForm.Designer.cs</c>; this file
+/// holds behavior only.
+/// </summary>
+public sealed partial class ProductVariantEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _skuEdit = new();
-    private readonly ComboBoxEdit _unitCombo = new();
     private readonly Dictionary<string, Guid?> _unitsByDisplay;
 
-    /// <summary>Builds the dialog. <paramref name="unitOptions"/> must be non-empty.</summary>
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public ProductVariantEditForm() : base("Edit Variant")
+    {
+        _unitsByDisplay = null!;
+
+        InitializeComponent();
+        }
+
+    /// <summary>
+    /// Builds the dialog. <paramref name="title"/> is the dialog's caption.
+    /// <paramref name="unitOptions"/> must be non-empty. <paramref name="name"/>
+    /// and <paramref name="sku"/> pre-populate the fields; the SKU field is
+    /// only enabled when <paramref name="isNew"/> is <see langword="true"/>,
+    /// since the SKU is immutable after creation. <paramref name="unitOfMeasureId"/>
+    /// selects the initial unit.
+    /// </summary>
     public ProductVariantEditForm(
         string title,
         IReadOnlyList<(Guid Id, string Display)> unitOptions,
@@ -20,16 +38,19 @@ public sealed class ProductVariantEditForm : MasterDataEditFormBase
         Guid? unitOfMeasureId = null,
         bool isNew = true) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _unitsByDisplay = null!;
+            return;
+        }
+
         _nameEdit.Text = name ?? string.Empty;
         _skuEdit.Text = sku ?? string.Empty;
         _skuEdit.Enabled = isNew;
 
         _unitsByDisplay = ComboBoxBinder.Bind(_unitCombo, unitOptions, includeEmpty: false);
         ComboBoxBinder.SelectById(_unitCombo, _unitsByDisplay, unitOfMeasureId);
-
-        AddField("Name:", _nameEdit);
-        AddField("SKU:", _skuEdit);
-        AddField("Unit:", _unitCombo);
     }
 
     /// <summary>The entered variant name/attribute summary.</summary>
@@ -65,4 +86,5 @@ public sealed class ProductVariantEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

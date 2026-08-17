@@ -5,8 +5,24 @@ using MediatR;
 
 namespace Clovent.Inventory.Application.WarehouseStocks.Commands;
 
-/// <summary>Issues stock out of a warehouse balance and records the corresponding <see cref="InventoryTransaction"/> ledger entry.</summary>
-public sealed record IssueStockCommand(Guid WarehouseStockId, decimal Quantity, string? Notes = null) : IRequest<WarehouseStockDto>;
+/// <summary>
+/// Issues stock out of a warehouse balance and records the corresponding
+/// <see cref="InventoryTransaction"/> ledger entry.
+/// </summary>
+/// <remarks>
+/// <paramref name="ReferenceType"/>/<paramref name="ReferenceId"/> identify the
+/// document this movement belongs to (e.g. <c>("Order", orderId)</c>), stamping
+/// the ledger row so a caller can later ask whether that document has already
+/// moved stock - the basis of an idempotent retry. Both are optional and
+/// default to <see langword="null"/>, so a plain manual issue from the stock
+/// screen is unchanged.
+/// </remarks>
+public sealed record IssueStockCommand(
+    Guid WarehouseStockId,
+    decimal Quantity,
+    string? Notes = null,
+    string? ReferenceType = null,
+    Guid? ReferenceId = null) : IRequest<WarehouseStockDto>;
 
 /// <summary>Handles <see cref="IssueStockCommand"/>.</summary>
 public sealed class IssueStockCommandHandler(IWarehouseStockRepository stockRepository, IInventoryTransactionRepository transactionRepository)
@@ -21,7 +37,13 @@ public sealed class IssueStockCommandHandler(IWarehouseStockRepository stockRepo
         stock.Issue(request.Quantity);
 
         var transaction = InventoryTransaction.Create(
-            stock.WarehouseId, stock.ProductVariantId, InventoryTransactionType.Issue, request.Quantity, notes: request.Notes);
+            stock.WarehouseId,
+            stock.ProductVariantId,
+            InventoryTransactionType.Issue,
+            request.Quantity,
+            referenceType: request.ReferenceType,
+            referenceId: request.ReferenceId,
+            notes: request.Notes);
         await transactionRepository.AddAsync(transaction, cancellationToken);
 
         return WarehouseStockDto.FromDomain(stock);

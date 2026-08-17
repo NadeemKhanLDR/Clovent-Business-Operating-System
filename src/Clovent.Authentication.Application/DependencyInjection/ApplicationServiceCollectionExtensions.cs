@@ -22,6 +22,15 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
 
+        // SessionTerminationCascade is a plain Application-layer domain service
+        // shared by ExpireSessionCommandHandler, LogOutSessionCommandHandler, and
+        // RevokeSessionCommandHandler to enforce the cross-aggregate rule "when a
+        // Session ends, its active RefreshSession must be invalidated". It is not
+        // a MediatR interface implementor, so AddMediatR's assembly scan does not
+        // register it automatically. Scoped lifetime is required because it depends
+        // on IRefreshSessionRepository, which is registered Scoped.
+        services.AddScoped<Sessions.SessionTerminationCascade>();
+
         return services;
     }
 }

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Clovent.Desktop.Forms.Base;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
@@ -33,9 +34,15 @@ public sealed record MasterDataListAction<TDto>(string Caption, Func<TDto, Task>
 /// never itself constructs a dialog, since the fields differ per entity.
 /// </summary>
 /// <typeparam name="TDto">The Application-layer DTO record this screen lists (e.g. <c>OrganizationDto</c>).</typeparam>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class MasterDataListView<TDto> : XtraUserControl
     where TDto : class
 {
+    /// <summary>Designer-only constructor - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public MasterDataListView() : this(System.Array.Empty<MasterDataColumn>(), null)
+    {
+    }
     private readonly GridControl _gridControl = new() { Dock = DockStyle.Fill };
     private readonly GridView _gridView = new();
     private readonly TextEdit _searchBox = new();
@@ -334,30 +341,166 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         Cursor = isBusy ? Cursors.WaitCursor : Cursors.Default;
     }
 
+    /// <summary>
+    /// Left command-panel width. Fixed on container resize (see
+    /// <see cref="BuildLayout"/>'s <c>FixedPanel</c> setting) so the grid -
+    /// never the command panel - absorbs all extra width when the window
+    /// grows; wide enough for this DevExpress skin's real button chrome
+    /// (see <see cref="AddCommandButton"/>'s own headroom comment) even at
+    /// the smallest supported resolution (1280x720), where it still leaves
+    /// the grid a large majority of the width.
+    /// </summary>
+    private const int CommandPanelWidth = 240;
+
     private void BuildLayout()
     {
-        var toolbar = new PanelControl { Dock = DockStyle.Top, Height = 40 };
-        var toolbarLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-        _searchBox.Width = 220;
-        toolbarLayout.Controls.Add(_searchBox);
-        toolbarLayout.Controls.Add(_newButton);
-        toolbarLayout.Controls.Add(_editButton);
-        toolbarLayout.Controls.Add(_activateButton);
-        toolbarLayout.Controls.Add(_deactivateButton);
-        toolbarLayout.Controls.Add(_refreshButton);
-        toolbarLayout.Controls.Add(_exportButton);
-        toolbarLayout.Controls.Add(_importButton);
+        // SplitContainer, not a Dock=Top toolbar band: a left command panel
+        // (search, actions, context info) plus the grid filling the rest,
+        // matching the professional-ERP "navigation pane + content" shape
+        // (Outlook, SSMS, DevExpress's own XAF demos) instead of a web-style
+        // toolbar-above-grid strip. FixedPanel=Panel1 means only Panel2 (the
+        // grid) grows when the window/screen resizes, so the grid always
+        // gets the majority of the space at every supported resolution -
+        // Panel1MinSize/Panel2MinSize below are a hard floor under that.
+        var split = new SplitContainer
+        {
+            Dock = DockStyle.Fill,
+            Orientation = Orientation.Vertical,
+            FixedPanel = FixedPanel.Panel1,
+            // Deliberately small, not the actual desired command-panel
+            // width (that's CommandPanelWidth, applied via SplitterDistance
+            // below) - SplitContainer enforces "Panel1MinSize <=
+            // SplitterDistance <= Width - Panel2MinSize" from its own
+            // internal layout code on every resize, not just when this
+            // class sets SplitterDistance, and a live crash confirmed that
+            // internal call is not something a try/catch around this
+            // class's own assignment can intercept. A width transiently
+            // narrower than 200+320px during DevExpress's own document
+            // layout (before this control reaches its final, much wider
+            // steady-state size) was enough to violate that constraint and
+            // crash the whole app. Small minimums here can't realistically
+            // be violated even by a mid-layout transient width.
+            Panel1MinSize = 40,
+            Panel2MinSize = 40,
+            SplitterWidth = 6,
+        };
+
+        var commandPanel = new PanelControl { Dock = DockStyle.Fill, Padding = new Padding(12, 8, 12, 8) };
+        // AutoScroll as a safety net, not the expected path: at the smallest
+        // supported resolution (1280x720) with several extra action buttons
+        // (e.g. WarehouseStock's Receive/Issue/Reserve/Release), the stacked
+        // command list could in principle exceed the visible height - a
+        // scrollbar keeps every action reachable instead of the old
+        // horizontal toolbar's failure mode (buttons overflowing off the
+        // right edge with no way to reach them at all).
+        var commandFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+        };
+
+        commandFlow.Controls.Add(BuildSectionHeading("Search"));
+        _searchBox.Properties.NullValuePrompt = "Search...";
+        _searchBox.AutoSize = false;
+        _searchBox.Width = CommandPanelWidth - commandPanel.Padding.Horizontal - 4;
+        _searchBox.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
+        commandFlow.Controls.Add(_searchBox);
+
+        commandFlow.Controls.Add(BuildSectionHeading("Actions"));
+        AddCommandButton(commandFlow, _newButton);
+        AddCommandButton(commandFlow, _editButton);
+        AddCommandButton(commandFlow, _activateButton);
+        AddCommandButton(commandFlow, _deactivateButton);
+        AddCommandButton(commandFlow, _refreshButton);
+        AddCommandButton(commandFlow, _exportButton);
+        AddCommandButton(commandFlow, _importButton);
         foreach (var button in _extraActionButtons)
         {
-            toolbarLayout.Controls.Add(button);
+            AddCommandButton(commandFlow, button);
         }
-        toolbar.Controls.Add(toolbarLayout);
 
-        var statusBar = new PanelControl { Dock = DockStyle.Bottom, Height = 24 };
-        statusBar.Controls.Add(_statusLabel);
+        var infoHeading = BuildSectionHeading("Info");
+        infoHeading.Margin = new Padding(0, DesktopStyle.PanelPadding, 0, 4);
+        commandFlow.Controls.Add(infoHeading);
+        _statusLabel.Appearance.Font = DesktopStyle.CaptionFont;
+        _statusLabel.Appearance.ForeColor = DesktopStyle.CaptionForeColor;
+        _statusLabel.Appearance.Options.UseFont = true;
+        _statusLabel.Appearance.Options.UseForeColor = true;
+        _statusLabel.Margin = new Padding(0, 2, 0, 0);
+        commandFlow.Controls.Add(_statusLabel);
 
-        Controls.Add(_gridControl);
-        Controls.Add(statusBar);
-        Controls.Add(toolbar);
+        commandPanel.Controls.Add(commandFlow);
+
+        split.Panel1.Controls.Add(commandPanel);
+        split.Panel2.Controls.Add(_gridControl);
+
+        Controls.Add(split);
+        // SplitterDistance can't be set here (or anywhere else during
+        // construction): this control itself is still width-0 at this
+        // point - nothing has sized it yet, since whatever ultimately hosts
+        // it (a document tab, a screen's ContentPanel) hasn't laid it out -
+        // so SplitContainer's own "Panel1MinSize <= SplitterDistance <=
+        // Width - Panel2MinSize" invariant is violated against that zero
+        // width, throwing ArgumentOutOfRangeException. Confirmed via a live
+        // crash dialog on first navigating to a MasterData screen - and
+        // confirmed a second time that Load alone isn't a reliable enough
+        // signal either (it can still fire before DevExpress's TabbedView
+        // finishes sizing a freshly-created document, reproducing the same
+        // crash). Retrying from split.Resize as well, guarded to run only
+        // once real width is available, catches whichever event actually
+        // ends up carrying the real size first.
+        var splitterDistanceSet = false;
+        void EnsureSplitterDistance()
+        {
+            if (splitterDistanceSet || split.Width < split.Panel1MinSize + split.Panel2MinSize)
+            {
+                return;
+            }
+
+            try
+            {
+                split.SplitterDistance = CommandPanelWidth;
+                splitterDistanceSet = true;
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Last-resort safety net: SplitContainer's own internal
+                // layout can still call its SplitterDistance setter with a
+                // stale width from paths this class doesn't control (e.g.
+                // mid-resize during DevExpress's own document layout).
+                // Leaving splitterDistanceSet false lets a later, valid
+                // resize retry this - worst case the splitter briefly sits
+                // at its framework default instead of CommandPanelWidth,
+                // which is a cosmetic gap, not the crash this replaces.
+            }
+        }
+
+        Load += (_, _) => EnsureSplitterDistance();
+        split.Resize += (_, _) => EnsureSplitterDistance();
+    }
+
+    /// <summary>A left-command-panel section label ("Search"/"Actions"/"Info"), styled like Dashboard's list-column captions for a consistent look across the app.</summary>
+    private static LabelControl BuildSectionHeading(string text) => new()
+    {
+        Text = text,
+        Appearance = { Font = DesktopStyle.SectionHeadingFont, Options = { UseFont = true } },
+        Margin = new Padding(0, 4, 0, 4),
+    };
+
+    /// <summary>
+    /// Adds one command button to the vertical left-panel stack. AutoSize +
+    /// MinimumSize (not a fixed Size) so the button's real caption always
+    /// fits regardless of DevExpress skin/DPI - a fixed width was
+    /// confirmed, via live screenshots in an earlier pass, to clip captions
+    /// like "Reset Password" under this app's active skin.
+    /// </summary>
+    private void AddCommandButton(FlowLayoutPanel commandFlow, SimpleButton button)
+    {
+        button.AutoSize = true;
+        button.MinimumSize = new Size(CommandPanelWidth - 24, DesktopStyle.ToolbarControlHeight);
+        button.Margin = new Padding(0, 0, 0, DesktopStyle.ControlGap / 2);
+        commandFlow.Controls.Add(button);
     }
 }

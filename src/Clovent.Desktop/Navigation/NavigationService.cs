@@ -1,4 +1,4 @@
-using Clovent.Desktop.Shell;
+using Clovent.Desktop.Forms.Shell;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -12,14 +12,14 @@ namespace Clovent.Desktop.Navigation;
 /// Resolves <see cref="IWorkspaceHost"/> lazily, from <paramref name="serviceProvider"/>,
 /// on first <see cref="NavigateTo"/> call rather than taking it as a direct
 /// constructor dependency. <c>IWorkspaceHost</c> is registered as a factory
-/// that resolves <c>ShellForm</c>, and <c>ShellForm</c>'s own constructor
+/// that resolves <c>MainForm</c>, and <c>MainForm</c>'s own constructor
 /// depends on <see cref="INavigationService"/> - a real circular dependency
-/// (NavigationService → IWorkspaceHost → ShellForm → NavigationService) that
+/// (NavigationService → IWorkspaceHost → MainForm → NavigationService) that
 /// the container's static cycle detector cannot see through the factory
 /// delegate, so it recurses until the stack is exhausted instead of throwing
 /// a clean error. Deferring the lookup to first use breaks the cycle: by the
 /// time any code actually calls <see cref="NavigateTo"/>, this service's own
-/// construction has already completed and is cached, so <c>ShellForm</c>'s
+/// construction has already completed and is cached, so <c>MainForm</c>'s
 /// constructor resolves the already-built singleton instead of re-entering
 /// this constructor.
 /// </remarks>
@@ -63,15 +63,14 @@ public sealed class NavigationService(IServiceProvider serviceProvider, ILogger<
     }
 
     /// <inheritdoc/>
-    public void NavigateTo(string key)
+    public void NavigateTo(string key, string? caption = null)
     {
         if (!_factories.TryGetValue(key, out var factory))
         {
             throw new KeyNotFoundException($"No view is registered under key '{key}'.");
         }
 
-        var content = factory();
-        serviceProvider.GetRequiredService<IWorkspaceHost>().SetContent(content);
+        serviceProvider.GetRequiredService<IWorkspaceHost>().ShowDocument(key, caption ?? key, factory);
         CurrentKey = key;
         logger.LogInformation("Navigated to '{Key}'.", key);
         Navigated?.Invoke(this, key);

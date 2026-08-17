@@ -16,7 +16,8 @@ namespace Clovent.Desktop.Catalog.Barcodes;
 /// and Mark/Unmark Primary over the barcodes of a selected variant.
 /// Feature-gated per <c>barcodes.{create|activate|deactivate|markprimary}</c>.
 /// </summary>
-public sealed class BarcodeManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class BarcodeManagementView : XtraUserControl
 {
     private const string FeatureCode = "barcodes";
 
@@ -24,8 +25,6 @@ public sealed class BarcodeManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _variantPicker = new("Variant:", comboWidth: 320);
-    private readonly MasterDataListView<BarcodeDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public BarcodeManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -35,46 +34,12 @@ public sealed class BarcodeManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<BarcodeDto>(
-        [
-            new MasterDataColumn(nameof(BarcodeDto.Value), "Value", 140),
-            new MasterDataColumn(nameof(BarcodeDto.IsPrimary), "Primary", 70),
-            new MasterDataColumn(nameof(BarcodeDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(BarcodeDto.CreatedAtUtc), "Created (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<BarcodeDto>("Mark Primary", dto => _mediator.Send(new MarkBarcodeAsPrimaryCommand(dto.BarcodeId)), dto => !dto.IsPrimary, "markprimary"),
-            new MasterDataListAction<BarcodeDto>("Unmark Primary", dto => _mediator.Send(new UnmarkBarcodeAsPrimaryCommand(dto.BarcodeId)), dto => dto.IsPrimary, "markprimary"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Value,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnActivate = dto => _mediator.Send(new ActivateBarcodeCommand(dto.BarcodeId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateBarcodeCommand(dto.BarcodeId)),
-        };
-
-        _variantPicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_variantPicker);
-        Load += async (_, _) => await LoadVariantsAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
+    private async void VariantPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
-        base.Dispose(disposing);
-    }
+    private async void BarcodeManagementView_Load(object? sender, EventArgs e) => await LoadVariantsAsync();
 
     private async Task LoadVariantsAsync()
     {

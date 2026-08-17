@@ -10,7 +10,7 @@ namespace Clovent.Restaurant.Application.Tests.Orders;
 public class OrderTotalsCalculatorTests
 {
     private static OrderLineDto CreateLine(decimal quantity, decimal unitPrice, decimal taxRate = 0, bool taxInclusive = false, bool isVoided = false) => new(
-        Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), quantity, unitPrice, taxRate, taxInclusive, null, isVoided, quantity * unitPrice, DateTimeOffset.UtcNow);
+        Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), quantity, unitPrice, unitPrice, false, null, null, null, taxRate, taxInclusive, null, isVoided, quantity * unitPrice, DateTimeOffset.UtcNow);
 
     private static DiscountDto CreateDiscount(string type, decimal value) => new(Guid.NewGuid(), Guid.NewGuid(), type, value, "Reason", DateTimeOffset.UtcNow);
 

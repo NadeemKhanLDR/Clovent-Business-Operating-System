@@ -1,5 +1,7 @@
 using Clovent.Platform.Bootstrap;
+using Clovent.Restaurant.ActivityLogs;
 using Clovent.Restaurant.Application;
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Discounts;
 using Clovent.Restaurant.Infrastructure.Persistence;
@@ -50,6 +52,10 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IDiscountRepository, DiscountRepository>();
         services.TryAddScoped<IServiceChargeRepository, ServiceChargeRepository>();
         services.TryAddScoped<IDailySalesSequenceRepository, DailySalesSequenceRepository>();
+        services.TryAddScoped<IOrderNumberSequenceRepository, OrderNumberSequenceRepository>();
+        services.TryAddScoped<IActivityLogEntryRepository, ActivityLogEntryRepository>();
+        services.TryAddScoped<ICustomerRepository, CustomerRepository>();
+        services.TryAddScoped<ICustomerLedgerEntryRepository, CustomerLedgerEntryRepository>();
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 

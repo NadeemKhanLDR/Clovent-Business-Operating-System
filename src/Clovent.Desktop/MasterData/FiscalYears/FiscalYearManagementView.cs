@@ -17,7 +17,8 @@ namespace Clovent.Desktop.MasterData.FiscalYears;
 /// (relabelled "Close") and leaves <c>OnActivate</c> unset. Feature-gated
 /// per <c>fiscalyears.{create|edit|deactivate}</c>.
 /// </summary>
-public sealed class FiscalYearManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class FiscalYearManagementView : XtraUserControl
 {
     private const string FeatureCode = "fiscalyears";
 
@@ -25,8 +26,6 @@ public sealed class FiscalYearManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly MasterDataListView<FiscalYearDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public FiscalYearManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -36,32 +35,7 @@ public sealed class FiscalYearManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<FiscalYearDto>(
-        [
-            new MasterDataColumn(nameof(FiscalYearDto.Name), "Name", 160),
-            new MasterDataColumn(nameof(FiscalYearDto.StartDate), "Start Date", 110),
-            new MasterDataColumn(nameof(FiscalYearDto.EndDate), "End Date", 110),
-            new MasterDataColumn(nameof(FiscalYearDto.Status), "Status", 90),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status == "Open" ? "Active" : "Inactive",
-            DeactivateButtonText = "Close",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnDeactivate = dto => _mediator.Send(new CloseFiscalYearCommand(dto.FiscalYearId)),
-        };
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: false, showBranch: false);
-        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_selector);
-        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -70,6 +44,7 @@ public sealed class FiscalYearManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -114,4 +89,8 @@ public sealed class FiscalYearManagementView : XtraUserControl
             await _mediator.Send(new RenameFiscalYearCommand(dto.FiscalYearId, form.FiscalYearNameValue));
         }
     }
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void FiscalYearManagementView_Load(object? sender, EventArgs e) => await _selector.LoadOrganizationsAsync();
 }

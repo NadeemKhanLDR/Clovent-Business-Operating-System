@@ -1,5 +1,4 @@
 using Clovent.Catalog.Application.Variants.Queries;
-using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.Transfers.Commands;
@@ -15,9 +14,12 @@ namespace Clovent.Desktop.Inventory.Transfers;
 /// <summary>
 /// Stock Transfer screen: search, filter, create, and Complete/Cancel over
 /// warehouse-to-warehouse stock movements. Feature-gated per
-/// <c>stocktransfers.{create|complete|cancel}</c>.
+/// <c>stocktransfers.{create|complete|cancel}</c>. Control tree (list view)
+/// lives in <c>StockTransferManagementView.Designer.cs</c>; this file holds
+/// behavior only.
 /// </summary>
-public sealed class StockTransferManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class StockTransferManagementView : XtraUserControl
 {
     private const string FeatureCode = "stocktransfers";
 
@@ -25,7 +27,6 @@ public sealed class StockTransferManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<StockTransferRow> _listView;
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
     private Dictionary<Guid, string> _warehouseNamesById = [];
@@ -38,32 +39,7 @@ public sealed class StockTransferManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<StockTransferRow>(
-        [
-            new MasterDataColumn(nameof(StockTransferRow.Sku), "SKU", 100),
-            new MasterDataColumn(nameof(StockTransferRow.ProductName), "Product", 160),
-            new MasterDataColumn(nameof(StockTransferRow.SourceWarehouseName), "From", 130),
-            new MasterDataColumn(nameof(StockTransferRow.DestinationWarehouseName), "To", 130),
-            new MasterDataColumn(nameof(StockTransferRow.Quantity), "Quantity", 90),
-            new MasterDataColumn(nameof(StockTransferRow.Status), "Status", 90),
-            new MasterDataColumn(nameof(StockTransferRow.CreatedAtUtc), "Created (UTC)", 160),
-            new MasterDataColumn(nameof(StockTransferRow.CompletedAtUtc), "Completed (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<StockTransferRow>("Complete", row => _mediator.Send(new CompleteStockTransferCommand(row.Source.StockTransferId)), row => row.Status == "Pending", "complete"),
-            new MasterDataListAction<StockTransferRow>("Cancel", row => _mediator.Send(new CancelStockTransferCommand(row.Source.StockTransferId)), row => row.Status == "Pending", "cancel"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => $"{row.Sku} {row.ProductName} {row.SourceWarehouseName} {row.DestinationWarehouseName}",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -72,10 +48,13 @@ public sealed class StockTransferManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void StockTransferManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async Task<IReadOnlyList<StockTransferRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {

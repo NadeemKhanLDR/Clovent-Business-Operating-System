@@ -1,5 +1,6 @@
-using Clovent.Catalog.Application.Variants.Queries;
-using Clovent.Desktop.MasterData;
+﻿using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
+using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -7,58 +8,42 @@ using Clovent.Inventory.Application.Transactions.Dtos;
 using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Dtos;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
+using Clovent.MasterData.Application.Currencies.Queries;
 using Clovent.MasterData.Application.Warehouses.Queries;
 using Clovent.Restaurant.Application.EndOfDay.Dtos;
 using Clovent.Restaurant.Application.EndOfDay.Queries;
 using DevExpress.XtraEditors;
-using DevExpress.XtraGrid;
-using DevExpress.XtraGrid.Views.Grid;
-using DevExpress.XtraPrinting;
-using DevExpress.XtraTab;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Clovent.Desktop.Restaurant.EndOfDay;
 
 /// <summary>
-/// End-of-Day (Day-End / Z-report) screen: Today's Sales, Cash Collected,
-/// Items Sold (doubling as Top Selling Items - see
-/// <c>GetEndOfDayReportQuery</c>), Cash Summary, Receipt Count, Transaction
-/// Summary (voided count), Average Sale, plus Inventory Movement and Stock
-/// Remaining composed from <c>Clovent.Inventory.Application</c>'s existing
-/// queries. One tab per section so each grid keeps its own native DevExpress
-/// Preview/Print/Export PDF/Export Excel actions - see this screen's own
-/// commit/architecture note for why a single combined print document was not
-/// attempted. Feature-gated per <c>endofday.view</c>.
+/// Sales Summary - the Restaurant owner's name for what the domain/Application
+/// layer still calls the Day-End / Z-report (<c>GetEndOfDayReportQuery</c>,
+/// unchanged): Total Bills, Total Sales, Cash, Card, Top Selling Items,
+/// Bills, plus Inventory Movement and Stock Remaining composed from
+/// <c>Clovent.Inventory.Application</c>'s existing queries. Only this
+/// presentation layer's captions changed for the Restaurant UX refinement -
+/// every figure, query, and command underneath is exactly what
+/// <c>RestaurantPOSArchitecture.md</c> already documents. One tab per
+/// section so each grid keeps its own native DevExpress Preview/Print/Export
+/// PDF/Export Excel actions - see this screen's own commit/architecture note
+/// for why a single combined print document was not attempted. Feature-gated
+/// per <c>endofday.view</c> (the feature code itself was left unchanged -
+/// renaming it would have no user-visible effect and would only add churn to
+/// every seeded permission referencing it).
 /// </summary>
-public sealed class EndOfDayReportView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class EndOfDayReportView : XtraUserControl
 {
     private const string FeatureCode = "endofday";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-
-    private readonly EntityPicker _warehousePicker = new("Warehouse:");
-    private readonly DateEdit _dateEdit = new() { EditValue = DateTime.UtcNow.Date };
-    private readonly SimpleButton _generateButton = new() { Text = "Generate" };
-
-    private readonly LabelControl _totalSalesLabel = new();
-    private readonly LabelControl _cashCollectedLabel = new();
-    private readonly LabelControl _receiptCountLabel = new();
-    private readonly LabelControl _voidedCountLabel = new();
-    private readonly LabelControl _averageSaleLabel = new();
-    private readonly SimpleButton _printSummaryButton = new() { Text = "Print Summary" };
-
-    private readonly GridControl _itemsSoldGrid = new() { Dock = DockStyle.Fill };
-    private readonly GridView _itemsSoldGridView = new();
-    private readonly GridControl _cashSummaryGrid = new() { Dock = DockStyle.Fill };
-    private readonly GridView _cashSummaryGridView = new();
-    private readonly GridControl _inventoryMovementGrid = new() { Dock = DockStyle.Fill };
-    private readonly GridView _inventoryMovementGridView = new();
-    private readonly GridControl _stockRemainingGrid = new() { Dock = DockStyle.Fill };
-    private readonly GridView _stockRemainingGridView = new();
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
     private string _summaryText = string.Empty;
@@ -67,64 +52,57 @@ public sealed class EndOfDayReportView : XtraUserControl
     public EndOfDayReportView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
+        AppearanceManager.Changed += AppearanceManager_Changed;
 
-        BuildGrid(_itemsSoldGrid, _itemsSoldGridView,
-        [
-            (nameof(ItemSoldRow.Sku), "SKU", 100),
-            (nameof(ItemSoldRow.Name), "Product", 200),
-            (nameof(ItemSoldRow.Quantity), "Quantity", 90),
-            (nameof(ItemSoldRow.Total), "Total", 100),
-        ]);
+        InitializeComponent();
+    }
 
-        BuildGrid(_cashSummaryGrid, _cashSummaryGridView,
-        [
-            (nameof(EndOfDayPaymentMethodTotalDto.PaymentMethodName), "Payment Method", 180),
-            (nameof(EndOfDayPaymentMethodTotalDto.Total), "Total", 120),
-        ]);
+    private void AppearanceManager_Changed(object? sender, EventArgs e) => AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
 
-        BuildGrid(_inventoryMovementGrid, _inventoryMovementGridView,
-        [
-            (nameof(MovementRow.Sku), "SKU", 100),
-            (nameof(MovementRow.Name), "Product", 160),
-            (nameof(MovementRow.TransactionType), "Type", 100),
-            (nameof(MovementRow.Quantity), "Quantity", 90),
-            (nameof(MovementRow.OccurredAtUtc), "Occurred (UTC)", 160),
-        ]);
+    private async void TodayButton_Click(object? sender, EventArgs e) => await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date, DateTime.UtcNow.Date);
 
-        BuildGrid(_stockRemainingGrid, _stockRemainingGridView,
-        [
-            (nameof(StockRow.Sku), "SKU", 100),
-            (nameof(StockRow.Name), "Product", 160),
-            (nameof(StockRow.QuantityOnHand), "On Hand", 90),
-            (nameof(StockRow.QuantityAvailable), "Available", 90),
-        ]);
+    private async void YesterdayButton_Click(object? sender, EventArgs e) => await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date.AddDays(-1), DateTime.UtcNow.Date.AddDays(-1));
 
-        var tabControl = new XtraTabControl { Dock = DockStyle.Fill };
-        tabControl.TabPages.Add(BuildSummaryPage());
-        tabControl.TabPages.Add(BuildGridPage("Items Sold / Top Selling", _itemsSoldGrid, "itemssold"));
-        tabControl.TabPages.Add(BuildGridPage("Cash Summary", _cashSummaryGrid, "cashsummary"));
-        tabControl.TabPages.Add(BuildGridPage("Inventory Movement", _inventoryMovementGrid, "inventorymovement"));
-        tabControl.TabPages.Add(BuildGridPage("Stock Remaining", _stockRemainingGrid, "stockremaining"));
+    private async void GenerateButton_Click(object? sender, EventArgs e) => await GenerateAsync();
 
-        var topPanel = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(4) };
-        _dateEdit.Width = 120;
-        topPanel.Controls.Add(_warehousePicker);
-        topPanel.Controls.Add(new LabelControl { Text = "Date:", Padding = new Padding(8, 6, 4, 0) });
-        topPanel.Controls.Add(_dateEdit);
-        topPanel.Controls.Add(_generateButton);
+    private void PrintSummaryButton_Click(object? sender, EventArgs e) => PrintSummary();
 
-        Controls.Add(tabControl);
-        Controls.Add(topPanel);
+    private async void EndOfDayReportView_Load(object? sender, EventArgs e)
+    {
+        AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
+        await LoadAndShowTodayAsync();
+    }
 
-        _generateButton.Click += async (_, _) => await GenerateAsync();
-        _printSummaryButton.Click += (_, _) => PrintSummary();
+    /// <summary>
+    /// Loads locations and immediately shows Today's figures - a restaurant
+    /// owner opening this screen for the first time should see today's
+    /// sales right away, not a blank "0.00" dashboard waiting for a click
+    /// they don't know to make.
+    /// </summary>
+    private async Task LoadAndShowTodayAsync()
+    {
+        await LoadWarehousesAsync();
 
-        Load += async (_, _) => await LoadWarehousesAsync();
+        // Only auto-generate once there is actually a location to report
+        // on - silently doing nothing here (rather than GenerateAsync's own
+        // "Select a location first" warning) avoids popping a dialog the
+        // instant this screen opens, before the owner has done anything.
+        if (_warehousePicker.SelectedId is not null)
+        {
+            await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date, DateTime.UtcNow.Date);
+        }
+    }
+
+    /// <summary>Sets both date edits and regenerates - backs the Today/Yesterday one-click quick filters.</summary>
+    private async Task SetDateRangeAndGenerateAsync(DateTime from, DateTime to)
+    {
+        _fromDateEdit.EditValue = from;
+        _toDateEdit.EditValue = to;
+        await GenerateAsync();
     }
 
     /// <inheritdoc/>
@@ -132,105 +110,70 @@ public sealed class EndOfDayReportView : XtraUserControl
     {
         if (disposing)
         {
+            components?.Dispose();
+            AppearanceManager.Changed -= AppearanceManager_Changed;
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);
-    }
-
-    private static void BuildGrid(GridControl grid, GridView view, (string FieldName, string Caption, int Width)[] columns)
-    {
-        grid.MainView = view;
-        grid.ViewCollection.Add(view);
-        view.OptionsBehavior.Editable = false;
-        view.OptionsSelection.MultiSelect = false;
-        view.OptionsView.ShowGroupPanel = false;
-
-        foreach (var (fieldName, caption, width) in columns)
-        {
-            view.Columns.AddVisible(fieldName, caption).Width = width;
-        }
-    }
-
-    private XtraTabPage BuildSummaryPage()
-    {
-        var page = new XtraTabPage { Text = "Summary" };
-        var panel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(12) };
-
-        foreach (var label in new[] { _totalSalesLabel, _cashCollectedLabel, _receiptCountLabel, _voidedCountLabel, _averageSaleLabel })
-        {
-            label.Font = new Font(Font.FontFamily, 11f);
-            panel.Controls.Add(label);
-        }
-
-        panel.Controls.Add(new SeparatorControl { Width = 260 });
-        panel.Controls.Add(_printSummaryButton);
-
-        page.Controls.Add(panel);
-        return page;
-    }
-
-    private XtraTabPage BuildGridPage(string title, GridControl grid, string featureOperation)
-    {
-        var page = new XtraTabPage { Text = title };
-
-        var previewButton = new SimpleButton { Text = "Preview" };
-        var printButton = new SimpleButton { Text = "Print" };
-        var exportPdfButton = new SimpleButton { Text = "Export PDF" };
-        var exportExcelButton = new SimpleButton { Text = "Export Excel" };
-
-        previewButton.Click += (_, _) => grid.ShowPrintPreview();
-        printButton.Click += (_, _) => grid.ShowRibbonPrintPreview();
-        exportPdfButton.Click += (_, _) => ExportGrid(grid, "PDF files (*.pdf)|*.pdf", $"{featureOperation}.pdf", (g, path) => g.ExportToPdf(path));
-        exportExcelButton.Click += (_, _) => ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{featureOperation}.xlsx", (g, path) => g.ExportToXlsx(path));
-
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 32, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-        toolbar.Controls.Add(previewButton);
-        toolbar.Controls.Add(printButton);
-        toolbar.Controls.Add(exportPdfButton);
-        toolbar.Controls.Add(exportExcelButton);
-
-        page.Controls.Add(grid);
-        page.Controls.Add(toolbar);
-        return page;
-    }
-
-    private void ExportGrid(GridControl grid, string filter, string fileName, Action<GridControl, string> export)
-    {
-        using var dialog = new SaveFileDialog { Filter = filter, FileName = fileName };
-        if (dialog.ShowDialog(this) == DialogResult.OK)
-        {
-            export(grid, dialog.FileName);
-        }
     }
 
     private async Task LoadWarehousesAsync()
     {
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
         _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
+        _warehousePicker.Visible = warehouses.Count > 1;
     }
 
     private async Task GenerateAsync()
     {
         if (_warehousePicker.SelectedId is not { } warehouseId)
         {
-            XtraMessageBox.Show(this, "Select a warehouse first.", "No Warehouse Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        var date = DateOnly.FromDateTime((DateTime)_dateEdit.EditValue);
+        var fromDate = DateOnly.FromDateTime((DateTime)_fromDateEdit.EditValue);
+        var toDate = DateOnly.FromDateTime((DateTime)_toDateEdit.EditValue);
+        if (toDate < fromDate)
+        {
+            XtraMessageBox.Show(this, "'To' date cannot be before 'From' date.", "Invalid Date Range", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        UseWaitCursor = true;
+        try
+        {
+            await GenerateCoreAsync(warehouseId, fromDate, toDate);
+        }
+        finally
+        {
+            UseWaitCursor = false;
+        }
+    }
+
+    /// <summary>The half-dozen sequential reads behind one Generate (report, every variant, every transaction, every stock line) are the slowest single action in this screen - worth a wait cursor, unlike the quick per-tab Preview/Print/Export actions.</summary>
+    private async Task GenerateCoreAsync(Guid warehouseId, DateOnly fromDate, DateOnly toDate)
+    {
+        var currencies = await _mediator.Send(new ListCurrenciesQuery());
+        if (currencies.FirstOrDefault() is { } currency)
+        {
+            CurrencyDisplay.Configure(currency.Symbol, currency.DecimalPlaces);
+        }
 
         var variants = await _mediator.Send(new ListProductVariantsQuery());
         _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
 
-        var report = await _mediator.Send(new GetEndOfDayReportQuery(warehouseId, date));
+        var report = await _mediator.Send(new GetEndOfDayReportQuery(warehouseId, fromDate, toDate));
 
-        _totalSalesLabel.Text = $"Today's Sales: {report.TotalSales:N2}";
-        _cashCollectedLabel.Text = $"Cash Collected: {report.CashCollected:N2}";
-        _receiptCountLabel.Text = $"Receipt Count: {report.ReceiptCount}";
+        _totalBillsValueLabel.Text = report.ReceiptCount.ToString();
+        _totalSalesValueLabel.Text = CurrencyDisplay.Format(report.TotalSales);
+        _cashValueLabel.Text = CurrencyDisplay.Format(report.CashCollected);
+        _cardValueLabel.Text = CurrencyDisplay.Format(report.CardCollected);
         _voidedCountLabel.Text = $"Voided Orders: {report.VoidedOrderCount}";
-        _averageSaleLabel.Text = $"Average Sale: {report.AverageSale:N2}";
-        _summaryText = BuildSummaryText(report, date);
+        _averageSaleLabel.Text = $"Average Sale: {CurrencyDisplay.Format(report.AverageSale)}";
+        _summaryText = BuildSummaryText(report, fromDate, toDate);
 
         _itemsSoldGrid.DataSource = report.ItemsSold
             .Select(i => new ItemSoldRow(ResolveSku(i.ProductVariantId), ResolveName(i.ProductVariantId), i.Quantity, i.Total))
@@ -238,9 +181,17 @@ public sealed class EndOfDayReportView : XtraUserControl
 
         _cashSummaryGrid.DataSource = report.CashSummary.ToList();
 
+        _billsGrid.DataSource = report.Bills
+            .Select(b => new BillRow(b.OrderNumber, b.CompletedAtUtc, b.Total, b.PaymentMethodSummary))
+            .ToList();
+
         var transactions = await _mediator.Send(new ListInventoryTransactionsByWarehouseQuery(warehouseId));
         _inventoryMovementGrid.DataSource = transactions
-            .Where(t => DateOnly.FromDateTime(t.OccurredAtUtc.UtcDateTime) == date)
+            .Where(t =>
+            {
+                var occurredDate = DateOnly.FromDateTime(t.OccurredAtUtc.UtcDateTime);
+                return occurredDate >= fromDate && occurredDate <= toDate;
+            })
             .OrderByDescending(t => t.OccurredAtUtc)
             .Select(t => new MovementRow(ResolveSku(t.ProductVariantId), ResolveName(t.ProductVariantId), t.TransactionType, t.Quantity, t.OccurredAtUtc))
             .ToList();
@@ -263,22 +214,25 @@ public sealed class EndOfDayReportView : XtraUserControl
         preview.ShowDialog(this);
     }
 
-    private static string BuildSummaryText(EndOfDayReportDto report, DateOnly date)
+    private static string BuildSummaryText(EndOfDayReportDto report, DateOnly fromDate, DateOnly toDate)
     {
+        var rangeText = fromDate == toDate ? $"{fromDate:yyyy-MM-dd}" : $"{fromDate:yyyy-MM-dd} to {toDate:yyyy-MM-dd}";
+
         var sb = new System.Text.StringBuilder();
         sb.AppendLine("Clovent Business Operating System");
-        sb.AppendLine($"End-of-Day Report - {date:yyyy-MM-dd}");
+        sb.AppendLine($"Sales Summary - {rangeText}");
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Today's Sales:   {report.TotalSales:N2}");
-        sb.AppendLine($"Cash Collected:  {report.CashCollected:N2}");
-        sb.AppendLine($"Receipt Count:   {report.ReceiptCount}");
+        sb.AppendLine($"Total Bills:     {report.ReceiptCount}");
+        sb.AppendLine($"Total Sales:     {CurrencyDisplay.Format(report.TotalSales)}");
+        sb.AppendLine($"Cash:            {CurrencyDisplay.Format(report.CashCollected)}");
+        sb.AppendLine($"Card:            {CurrencyDisplay.Format(report.CardCollected)}");
         sb.AppendLine($"Voided Orders:   {report.VoidedOrderCount}");
-        sb.AppendLine($"Average Sale:    {report.AverageSale:N2}");
+        sb.AppendLine($"Average Sale:    {CurrencyDisplay.Format(report.AverageSale)}");
         sb.AppendLine(new string('-', 40));
         sb.AppendLine("Cash Summary:");
         foreach (var method in report.CashSummary)
         {
-            sb.AppendLine($"  {method.PaymentMethodName}: {method.Total:N2}");
+            sb.AppendLine($"  {method.PaymentMethodName}: {CurrencyDisplay.Format(method.Total)}");
         }
 
         return sb.ToString();
@@ -293,4 +247,6 @@ public sealed class EndOfDayReportView : XtraUserControl
     private sealed record MovementRow(string Sku, string Name, string TransactionType, decimal Quantity, DateTimeOffset OccurredAtUtc);
 
     private sealed record StockRow(string Sku, string Name, decimal QuantityOnHand, decimal QuantityAvailable);
+
+    private sealed record BillRow(string OrderNumber, DateTimeOffset CompletedAtUtc, decimal Total, string PaymentMethodSummary);
 }

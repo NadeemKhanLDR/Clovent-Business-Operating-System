@@ -13,8 +13,11 @@ namespace Clovent.Desktop.MasterData.Branches;
 /// Branch Management screen: search, filter, CRUD, activate/deactivate over
 /// the branches belonging to a selected company (itself under a selected
 /// organization). Feature-gated per <c>branches.{create|edit|activate|deactivate}</c>.
+/// Control tree lives in <c>BranchManagementView.Designer.cs</c>; this file
+/// holds behavior only.
 /// </summary>
-public sealed class BranchManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class BranchManagementView : XtraUserControl
 {
     private const string FeatureCode = "branches";
 
@@ -22,8 +25,6 @@ public sealed class BranchManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly MasterDataListView<BranchDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public BranchManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,33 +34,7 @@ public sealed class BranchManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<BranchDto>(
-        [
-            new MasterDataColumn(nameof(BranchDto.Name), "Name", 200),
-            new MasterDataColumn(nameof(BranchDto.City), "City", 120),
-            new MasterDataColumn(nameof(BranchDto.Country), "Country", 120),
-            new MasterDataColumn(nameof(BranchDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(BranchDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateBranchCommand(dto.BranchId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateBranchCommand(dto.BranchId)),
-        };
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: false);
-        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_selector);
-        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -68,10 +43,15 @@ public sealed class BranchManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void BranchManagementView_Load(object? sender, EventArgs e) => await _selector.LoadOrganizationsAsync();
 
     private async Task<IReadOnlyList<BranchDto>> LoadItemsAsync(CancellationToken cancellationToken)
     {

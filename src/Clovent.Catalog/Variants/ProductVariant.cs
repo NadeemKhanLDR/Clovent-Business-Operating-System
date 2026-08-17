@@ -33,11 +33,14 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
     /// <summary>The variant's current lifecycle state.</summary>
     public CatalogStatus Status { get; private set; }
 
+    /// <summary>Manual display position for owner-driven drag-drop reordering (lower sorts first) - e.g. Menu Items/the POS tile wall. Defaults to 0 - every variant starts equally-ordered until an owner reorders them.</summary>
+    public int SortOrder { get; private set; }
+
     /// <summary>UTC instant this variant was created.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private ProductVariant(ProductVariantId id, ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId, CatalogStatus status, DateTimeOffset createdAtUtc)
+    private ProductVariant(ProductVariantId id, ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId, CatalogStatus status, int sortOrder, DateTimeOffset createdAtUtc)
     {
         Id = id;
         ProductId = productId;
@@ -45,6 +48,7 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
         Sku = sku;
         UnitOfMeasureId = unitOfMeasureId;
         Status = status;
+        SortOrder = sortOrder;
         CreatedAtUtc = createdAtUtc;
     }
 
@@ -55,7 +59,7 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
         ArgumentNullException.ThrowIfNull(sku);
 
         var now = DateTimeOffset.UtcNow;
-        var variant = new ProductVariant(ProductVariantId.New(), productId, name, sku, unitOfMeasureId, CatalogStatus.Active, now);
+        var variant = new ProductVariant(ProductVariantId.New(), productId, name, sku, unitOfMeasureId, CatalogStatus.Active, 0, now);
         variant.AddDomainEvent(new ProductVariantCreated(variant.Id, variant.ProductId, variant.Name, variant.Sku, now));
         return variant;
     }
@@ -77,6 +81,15 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
 
         UnitOfMeasureId = unitOfMeasureId;
         AddDomainEvent(new ProductVariantUnitOfMeasureChanged(Id, unitOfMeasureId, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>Sets this variant's manual display position (owner-driven drag-drop reordering). A no-op (no event raised) if unchanged.</summary>
+    public void SetSortOrder(int sortOrder)
+    {
+        if (SortOrder == sortOrder) return;
+
+        SortOrder = sortOrder;
+        AddDomainEvent(new ProductVariantSortOrderChanged(Id, sortOrder, DateTimeOffset.UtcNow));
     }
 
     /// <summary>Activates the variant.</summary>

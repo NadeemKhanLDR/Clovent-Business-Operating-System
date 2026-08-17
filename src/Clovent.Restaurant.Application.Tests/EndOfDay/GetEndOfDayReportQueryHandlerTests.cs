@@ -56,7 +56,7 @@ public class GetEndOfDayReportQueryHandlerTests
         var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today), CancellationToken.None);
+        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
 
         Assert.Equal(30m, report.TotalSales);
         Assert.Equal(30m, report.CashCollected);
@@ -81,7 +81,7 @@ public class GetEndOfDayReportQueryHandlerTests
         var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var report = await handler.Handle(new GetEndOfDayReportQuery(WarehouseId.New().Value, today), CancellationToken.None);
+        var report = await handler.Handle(new GetEndOfDayReportQuery(WarehouseId.New().Value, today, today), CancellationToken.None);
 
         Assert.Equal(0m, report.TotalSales);
         Assert.Equal(0, report.ReceiptCount);
@@ -104,7 +104,7 @@ public class GetEndOfDayReportQueryHandlerTests
         var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today), CancellationToken.None);
+        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
 
         Assert.Equal(0, report.ReceiptCount);
         Assert.Equal(1, report.VoidedOrderCount);
@@ -125,10 +125,82 @@ public class GetEndOfDayReportQueryHandlerTests
         var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today), CancellationToken.None);
+        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
 
         Assert.Equal(20m, report.TotalSales);
         Assert.Equal(0m, report.CashCollected);
+        Assert.Equal(20m, report.CardCollected);
         Assert.Equal("Credit Card", report.CashSummary[0].PaymentMethodName);
+    }
+
+    [Fact]
+    public async Task Handle_CashAndCardPayments_SplitsIntoBothTotalsCorrectly()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var warehouseId = WarehouseId.New();
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var debitCardMethod = PaymentMethod.Create(PaymentMethodName.Create("Debit Card"));
+
+        CreateCompletedOrder(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository, warehouseId, ProductVariantId.New(), 1, 30m, cashMethod);
+        CreateCompletedOrder(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository, warehouseId, ProductVariantId.New(), 1, 45m, debitCardMethod);
+
+        var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
+
+        Assert.Equal(75m, report.TotalSales);
+        Assert.Equal(30m, report.CashCollected);
+        Assert.Equal(45m, report.CardCollected);
+    }
+
+    [Fact]
+    public async Task Handle_DateRangeSpanningMultipleDays_SumsAllDaysInRange()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var warehouseId = WarehouseId.New();
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+
+        CreateCompletedOrder(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository, warehouseId, ProductVariantId.New(), 1, 10m, cashMethod);
+        CreateCompletedOrder(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository, warehouseId, ProductVariantId.New(), 1, 15m, cashMethod);
+
+        var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var singleDayReport = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
+        var rangeReport = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today.AddDays(-1), today), CancellationToken.None);
+
+        Assert.Equal(25m, singleDayReport.TotalSales);
+        Assert.Equal(25m, rangeReport.TotalSales);
+        Assert.Equal(2, rangeReport.ReceiptCount);
+    }
+
+    [Fact]
+    public async Task Handle_CompletedOrder_PopulatesOneBillRow()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var warehouseId = WarehouseId.New();
+
+        var (order, method) = CreateCompletedOrder(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository, warehouseId, ProductVariantId.New(), 2, 12.5m);
+
+        var handler = new GetEndOfDayReportQueryHandler(orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var report = await handler.Handle(new GetEndOfDayReportQuery(warehouseId.Value, today, today), CancellationToken.None);
+
+        var bill = Assert.Single(report.Bills);
+        Assert.Equal(order.Id.Value, bill.OrderId);
+        Assert.Equal(order.OrderNumber.Value, bill.OrderNumber);
+        Assert.Equal(25m, bill.Total);
+        Assert.Equal(method.Name.Value, bill.PaymentMethodSummary);
     }
 }

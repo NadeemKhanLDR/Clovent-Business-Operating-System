@@ -4,13 +4,13 @@ namespace Clovent.Desktop.Login;
 /// The one capability the Login form depends on. Owned by the UI layer
 /// (the same Dependency Inversion pattern already used for
 /// <c>Clovent.Authentication.Application.IIdentityUserService</c>/<c>IUnitOfWork</c>):
-/// <see cref="LoginForm"/> calls only this interface and never contains
+/// <see cref="Clovent.Desktop.Forms.Identity.LoginForm"/> calls only this interface and never contains
 /// credential-checking logic itself. Milestone 8 registered a placeholder
 /// implementation against it (deliberately no credential-checking logic,
 /// per that milestone's brief); Milestone 9 ("Authentication Integration")
 /// replaced only the DI registration with <see cref="LoginService"/>, the
 /// real implementation that calls into <c>Clovent.Authentication.Application</c>
-/// and <c>Clovent.Identity</c> - <see cref="LoginForm"/> itself did not change.
+/// and <c>Clovent.Identity</c> - <see cref="Clovent.Desktop.Forms.Identity.LoginForm"/> itself did not change.
 /// </summary>
 public interface ILoginService
 {

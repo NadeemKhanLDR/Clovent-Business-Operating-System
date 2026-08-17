@@ -1,23 +1,30 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Organizations;
 
 /// <summary>Create/edit dialog for an Organization - name and an optional tax id.</summary>
-public sealed class OrganizationEditForm : MasterDataEditFormBase
+public sealed partial class OrganizationEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _taxIdEdit = new();
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public OrganizationEditForm() : base("Edit Organization")
+    {
+        InitializeComponent();
+        }
 
-    /// <summary>Builds the dialog, pre-filled with <paramref name="name"/>/<paramref name="taxId"/> when editing an existing organization.</summary>
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; pre-filled with <paramref name="name"/>/<paramref name="taxId"/> when editing an existing organization.</summary>
     public OrganizationEditForm(string title, string? name = null, string? taxId = null) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
         _taxIdEdit.Text = taxId ?? string.Empty;
-
-        AddField("Name:", _nameEdit);
-        AddField("Tax Id:", _taxIdEdit);
     }
+
+
 
     /// <summary>The entered organization name.</summary>
     public string OrganizationName => _nameEdit.Text.Trim();
@@ -37,4 +44,5 @@ public sealed class OrganizationEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

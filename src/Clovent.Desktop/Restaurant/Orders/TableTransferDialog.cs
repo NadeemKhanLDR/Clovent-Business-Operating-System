@@ -1,20 +1,34 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
-/// <summary>Prompt for moving a dine-in order to a different table.</summary>
-public sealed class TableTransferDialog : MasterDataEditFormBase
+/// <summary>Prompt for moving a dine-in order to a different table. Control tree lives in <c>TableTransferDialog.Designer.cs</c>; this file holds behavior only.</summary>
+public sealed partial class TableTransferDialog : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _tableCombo = new();
     private readonly Dictionary<string, Guid?> _tablesByDisplay;
+
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public TableTransferDialog() : base("Transfer Table")
+    {
+        _tablesByDisplay = null!;
+
+        InitializeComponent();
+    }
 
     /// <summary>Builds the dialog. <paramref name="tableOptions"/> should already exclude the order's current table.</summary>
     public TableTransferDialog(IReadOnlyList<(Guid Id, string Display)> tableOptions) : base("Transfer Table")
     {
-        _tablesByDisplay = ComboBoxBinder.Bind(_tableCombo, tableOptions, includeEmpty: false);
+        InitializeComponent();
 
-        AddField("New Table:", _tableCombo);
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _tablesByDisplay = null!;
+            return;
+        }
+
+        _tablesByDisplay = ComboBoxBinder.Bind(_tableCombo, tableOptions, includeEmpty: false);
     }
 
     /// <summary>The selected destination table.</summary>

@@ -1,19 +1,19 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Branches;
 
 /// <summary>Create/edit dialog for a Branch - name plus an optional address.</summary>
-public sealed class BranchEditForm : MasterDataEditFormBase
+public sealed partial class BranchEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _streetEdit = new();
-    private readonly TextEdit _cityEdit = new();
-    private readonly TextEdit _stateEdit = new();
-    private readonly TextEdit _postalCodeEdit = new();
-    private readonly TextEdit _countryEdit = new();
-
     /// <summary>Builds the dialog, pre-filled when editing an existing branch.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public BranchEditForm() : base("Edit Branch")
+    {
+        InitializeComponent();
+    }
+
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; <paramref name="name"/> and the address fields (<paramref name="street"/>, <paramref name="city"/>, <paramref name="state"/>, <paramref name="postalCode"/>, <paramref name="country"/>) pre-populate the fields when editing an existing branch.</summary>
     public BranchEditForm(
         string title,
         string? name = null,
@@ -23,19 +23,17 @@ public sealed class BranchEditForm : MasterDataEditFormBase
         string? postalCode = null,
         string? country = null) : base(title)
     {
+        InitializeComponent();
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
         _streetEdit.Text = street ?? string.Empty;
         _cityEdit.Text = city ?? string.Empty;
         _stateEdit.Text = state ?? string.Empty;
         _postalCodeEdit.Text = postalCode ?? string.Empty;
         _countryEdit.Text = country ?? string.Empty;
-
-        AddField("Name:", _nameEdit);
-        AddField("Street:", _streetEdit);
-        AddField("City:", _cityEdit);
-        AddField("State:", _stateEdit);
-        AddField("Postal Code:", _postalCodeEdit);
-        AddField("Country:", _countryEdit);
     }
 
     /// <summary>The entered branch name.</summary>

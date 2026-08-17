@@ -1,8 +1,7 @@
-using Clovent.Desktop.MasterData;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Restaurant.Shared;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
-using Clovent.Restaurant.Application.KitchenTickets.Commands;
 using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Application.Orders.Queries;
@@ -17,63 +16,69 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// Running Orders screen: monitors every currently open order across every
 /// table and take-away, with quick Hold/Send to Kitchen/Void/Cancel actions.
 /// Item-level work (adding lines, discounts, payment) stays in
-/// <see cref="RestaurantPosView"/> - this screen is a floor-wide overview,
+/// <see cref="RestaurantPosForm"/> - this screen is a floor-wide overview,
 /// not a second place to edit an order's contents. Feature-gated per
 /// <c>pos.{operation}</c>, the same codes the POS screen itself uses since
 /// these are the same order-lifecycle actions.
 /// </summary>
-public sealed class RunningOrdersView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class RunningOrdersView : XtraUserControl
 {
     private const string FeatureCode = "pos";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<OrderRow> _listView;
     private Dictionary<Guid, string> _tableCodesById = [];
-
-    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
-    public RunningOrdersView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public RunningOrdersView()
     {
-        _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
-        _currentSession = currentSession;
+        _scope = null!;
+        _mediator = null!;
+        _featurePolicy = null!;
+        _currentSession = null!;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<OrderRow>(
-        [
-            new MasterDataColumn(nameof(OrderRow.OrderNumber), "Order #", 140),
-            new MasterDataColumn(nameof(OrderRow.OrderType), "Type", 90),
-            new MasterDataColumn(nameof(OrderRow.TableCode), "Table", 90),
-            new MasterDataColumn(nameof(OrderRow.LineCount), "Lines", 60),
-            new MasterDataColumn(nameof(OrderRow.Notes), "Notes", 200),
-            new MasterDataColumn(nameof(OrderRow.CreatedAtUtc), "Opened (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<OrderRow>("Hold", row => _mediator.Send(new HoldOrderCommand(row.OrderId)), FeatureOperation: "hold"),
-            new MasterDataListAction<OrderRow>("Send to Kitchen", row => _mediator.Send(new SendOrderToKitchenCommand(row.OrderId)), FeatureOperation: "sendtokitchen"),
-            new MasterDataListAction<OrderRow>("Void", VoidAsync, FeatureOperation: "void"),
-            new MasterDataListAction<OrderRow>("Cancel", CancelAsync, FeatureOperation: "cancel"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => $"{row.OrderNumber} {row.TableCode}",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
+    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
+    public RunningOrdersView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession) : base()
+    {
+        InitializeComponent();
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _scope = null!;
+            _mediator = null!;
+            _featurePolicy = null!;
+            _currentSession = null!;
+            return;
+        }
+
+        _scope = scopeFactory.CreateScope();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
+        _currentSession = currentSession;
+    }
+
+    private async void RunningOrdersView_Load(object? sender, EventArgs e)
+    {
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+        await _listView.RefreshAsync();
+    }
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            components?.Dispose();
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);

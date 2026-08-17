@@ -15,7 +15,8 @@ namespace Clovent.Desktop.Catalog.UnitsOfMeasure;
 /// the shared unit-of-measure catalog. Feature-gated per
 /// <c>units.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class UnitOfMeasureManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class UnitOfMeasureManagementView : XtraUserControl
 {
     private const string FeatureCode = "units";
 
@@ -23,7 +24,6 @@ public sealed class UnitOfMeasureManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<UnitOfMeasureDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public UnitOfMeasureManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,40 +33,10 @@ public sealed class UnitOfMeasureManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<UnitOfMeasureDto>(
-        [
-            new MasterDataColumn(nameof(UnitOfMeasureDto.Code), "Code", 80),
-            new MasterDataColumn(nameof(UnitOfMeasureDto.Name), "Name", 200),
-            new MasterDataColumn(nameof(UnitOfMeasureDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(UnitOfMeasureDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => $"{dto.Code} {dto.Name}",
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateUnitOfMeasureCommand(dto.UnitOfMeasureId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateUnitOfMeasureCommand(dto.UnitOfMeasureId)),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
-
-        base.Dispose(disposing);
-    }
+    private async void UnitOfMeasureManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async Task<IReadOnlyList<UnitOfMeasureDto>> LoadItemsAsync(CancellationToken cancellationToken)
     {

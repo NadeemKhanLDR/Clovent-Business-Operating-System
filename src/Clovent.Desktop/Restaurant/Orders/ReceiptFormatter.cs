@@ -1,5 +1,6 @@
 using System.Text;
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.Discounts.Queries;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
@@ -47,7 +48,7 @@ public static class ReceiptFormatter
         foreach (var line in activeLines)
         {
             var name = await ResolveVariantNameAsync(mediator, line.ProductVariantId);
-            sb.AppendLine($"{name} x{line.Quantity:N2} @ {line.UnitPrice:N2} = {line.LineTotal:N2}");
+            sb.AppendLine($"{name} x{line.Quantity:N2} @ {CurrencyDisplay.Format(line.UnitPrice)} = {CurrencyDisplay.Format(line.LineTotal)}");
             if (line.Notes is { } notes)
             {
                 sb.AppendLine($"  Note: {notes}");
@@ -55,19 +56,19 @@ public static class ReceiptFormatter
         }
 
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Subtotal: {totals.Subtotal:N2}");
-        sb.AppendLine($"Tax: {totals.TaxTotal:N2}");
+        sb.AppendLine($"Subtotal: {CurrencyDisplay.Format(totals.Subtotal)}");
+        sb.AppendLine($"Tax: {CurrencyDisplay.Format(totals.TaxTotal)}");
         AppendIfNonZero(sb, "Discount", -totals.DiscountTotal);
         AppendIfNonZero(sb, "Service Charge", totals.ServiceChargeTotal);
-        sb.AppendLine($"Grand Total: {totals.GrandTotal:N2}");
+        sb.AppendLine($"Grand Total: {CurrencyDisplay.Format(totals.GrandTotal)}");
         sb.AppendLine(new string('-', 40));
 
         foreach (var payment in payments.Where(p => !p.IsVoided))
         {
-            sb.AppendLine($"Payment: {payment.Amount:N2}");
+            sb.AppendLine($"Payment: {CurrencyDisplay.Format(payment.Amount)}");
         }
 
-        sb.AppendLine($"Balance: {totals.Balance:N2}");
+        sb.AppendLine($"Balance: {CurrencyDisplay.Format(totals.Balance)}");
 
         if (order.CustomerNotes is { } customerNotes)
         {
@@ -82,13 +83,13 @@ public static class ReceiptFormatter
     {
         if (amount != 0m)
         {
-            sb.AppendLine($"{label}: {amount:N2}");
+            sb.AppendLine($"{label}: {CurrencyDisplay.Format(amount)}");
         }
     }
 
     private static async Task<string> ResolveVariantNameAsync(IMediator mediator, Guid productVariantId)
     {
         var variant = await mediator.Send(new GetProductVariantByIdQuery(productVariantId));
-        return $"{variant.Sku} {variant.Name}";
+        return variant.Name;
     }
 }

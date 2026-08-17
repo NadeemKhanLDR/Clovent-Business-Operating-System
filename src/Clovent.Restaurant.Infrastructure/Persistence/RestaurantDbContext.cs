@@ -1,3 +1,5 @@
+using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Discounts;
 using Clovent.Restaurant.KitchenTickets;
@@ -49,6 +51,18 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
 
     /// <summary>DailySalesSequence aggregates.</summary>
     public DbSet<DailySalesSequence> DailySalesSequences => Set<DailySalesSequence>();
+
+    /// <summary>The single OrderNumberSequence row.</summary>
+    public DbSet<OrderNumberSequence> OrderNumberSequences => Set<OrderNumberSequence>();
+
+    /// <summary>ActivityLogEntry aggregates.</summary>
+    public DbSet<ActivityLogEntry> ActivityLogEntries => Set<ActivityLogEntry>();
+
+    /// <summary>Customer aggregates.</summary>
+    public DbSet<Customer> Customers => Set<Customer>();
+
+    /// <summary>CustomerLedgerEntry aggregates.</summary>
+    public DbSet<CustomerLedgerEntry> CustomerLedgerEntries => Set<CustomerLedgerEntry>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

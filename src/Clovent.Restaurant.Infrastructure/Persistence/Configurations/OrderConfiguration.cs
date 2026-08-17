@@ -39,6 +39,10 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasConversion(ValueConverters.NullableTableIdConverter);
         builder.HasIndex(o => o.TableId);
 
+        builder.Property(o => o.CustomerId)
+            .HasConversion(ValueConverters.NullableCustomerIdConverter);
+        builder.HasIndex(o => o.CustomerId);
+
         builder.Property(o => o.WarehouseId)
             .HasConversion(ValueConverters.WarehouseIdConverter)
             .IsRequired();

@@ -1,10 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <!--
+      Designer-only DPI setting - deliberately NOT a runtime one. The app keeps
+      PerMonitorV2 above; this property is read solely by the Visual Studio
+      WinForms designer host (it lives in VS's own
+      Microsoft.WinForms.Utilities.VisualStudio.dll and appears nowhere in the
+      .NET SDK targets, so MSBuild and the compiler ignore it).
+
+      Without it, opening this project's forms in the designer on a 250%-scaled
+      display makes the designer serialize control geometry at that scale.
+      Repeated open/save cycles then compound it: Size, Location, Margin,
+      Padding, RowStyles/ColumnStyles and even GridView RowHeight/MinWidth grew
+      into the thousands of pixels, which is what repeatedly destroyed
+      RestaurantPosForm's layout. Running the designer DPI-unaware keeps stored
+      values at the 96-DPI baseline the forms are authored against.
+    -->
+    <ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -43,12 +59,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="DevExpress.Reporting.Core" Version="26.1.4-pre-26179" />
     <PackageReference Include="DevExpress.Win" Version="26.1.4-pre-26179" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

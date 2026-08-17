@@ -1,0 +1,207 @@
+using Clovent.Desktop.Theming;
+using Clovent.Identity.Infrastructure.Persistence;
+using Clovent.Identity.Permissions;
+using Clovent.Identity.Permissions.ValueObjects;
+using Clovent.Identity.Roles;
+using Clovent.Identity.Roles.ValueObjects;
+using Clovent.Identity.Users;
+using Clovent.Identity.Users.ValueObjects;
+using Clovent.Platform.Bootstrap;
+using Microsoft.Extensions.Options;
+
+namespace Clovent.Desktop.Seed;
+
+/// <summary>
+/// Development-only convenience: grants the demo admin user (seeded by
+/// <see cref="DevelopmentUserSeedStartupTask"/>, which must run first - see
+/// its registration order in <c>DesktopServiceCollectionExtensions</c>) an
+/// "Administrator" role holding every menu/feature permission this
+/// milestone's screens check. Without this,
+/// <c>Clovent.Identity.Application.Authorization.AuthorizationService</c>'s
+/// deliberate no-bypass design (every permission check requires an actual
+/// granted permission) would leave every screen invisible and every button
+/// disabled for the demo user, since a freshly-seeded user starts with zero
+/// roles. Gated by the same <see cref="DesktopOptions.SeedDevelopmentUser"/>
+/// flag - this is that seed's natural completion, not a separate concern.
+/// </summary>
+/// <remarks>
+/// Find-or-create and additive, not run-once: on a database where
+/// "Administrator" already exists (e.g. seeded by an earlier build before a
+/// later gap-closing pass added more menu keys/feature operations), this
+/// backfills any permission codes the role is still missing rather than
+/// silently no-op'ing - discovered as a real defect during manual
+/// end-to-end verification, where the User Administration/End-of-Day
+/// screens stayed invisible to an already-seeded demo admin because the
+/// original run-once guard (<c>if user already has roles, skip</c>) skipped
+/// re-seeding entirely.
+/// </remarks>
+public sealed class DevelopmentAuthorizationSeedStartupTask(
+    IUserRepository userRepository,
+    IRoleRepository roleRepository,
+    IPermissionRepository permissionRepository,
+    IdentityDbContext identityDbContext,
+    IOptions<DesktopOptions> options) : IStartupTask
+{
+    private const string AdministratorRoleName = "Administrator";
+
+    private static readonly string[] MenuKeys =
+    [
+        "dashboard", "users", "roles", "organizations", "companies", "branches", "departments",
+        "warehouses", "terminals", "fiscalyears", "currencies", "businesssettings",
+        "categories", "brands", "units", "products", "variants", "barcodes", "prices",
+        "warehousestocks", "stockadjustments", "stocktransfers", "inventorytransactions",
+
+        // Milestone 15 ("Restaurant POS Core").
+        "diningareas", "tables", "pos", "runningorders", "holdorders", "kitchentickets",
+
+        // End-of-Day reporting gap-closing pass.
+        "endofday",
+
+        // Restaurant UX refinement: Menu Items (a presentation layer over Catalog).
+        "menuitems",
+
+        // Restaurant Setup: configurable sequential order numbers.
+        "restaurantsetup",
+
+        // Commercial POS overhaul: owner-managed payment methods.
+        "paymentmethods",
+
+        // Commercial POS overhaul: activity log viewer.
+        "activitylog",
+
+        // Restaurant POS refinement pass: owner-configurable font/color
+        // appearance engine.
+        "appearance",
+
+        // Customers management screen
+        "customers",
+    ];
+
+    private static readonly (string Feature, string[] Operations)[] FeatureOperations =
+    [
+        ("users", ["create", "edit", "activate", "deactivate", "resetpassword", "unlock", "assignrole", "assigncompany", "assignbranch"]),
+        ("roles", ["create", "edit", "assignpermission"]),
+        ("organizations", ["create", "edit", "activate", "deactivate"]),
+        ("companies", ["create", "edit", "activate", "deactivate"]),
+        ("branches", ["create", "edit", "activate", "deactivate"]),
+        ("departments", ["create", "edit", "activate", "deactivate"]),
+        ("warehouses", ["create", "edit", "activate", "deactivate"]),
+        ("terminals", ["create", "edit", "activate", "deactivate"]),
+        ("fiscalyears", ["create", "edit", "deactivate"]),
+        ("currencies", ["create", "activate", "deactivate"]),
+        ("businesssettings", ["edit"]),
+
+        // Milestone 14 ("Product Catalog & Inventory Foundation").
+        ("categories", ["create", "edit", "activate", "deactivate"]),
+        ("brands", ["create", "edit", "activate", "deactivate"]),
+        ("units", ["create", "edit", "activate", "deactivate"]),
+        ("products", ["create", "edit", "activate", "deactivate"]),
+        ("variants", ["create", "edit", "activate", "deactivate"]),
+        ("barcodes", ["create", "activate", "deactivate", "markprimary"]),
+        ("prices", ["create", "edit", "activate", "deactivate"]),
+        ("warehousestocks", ["create", "edit", "receive", "issue", "reserve", "release"]),
+        ("stockadjustments", ["create", "apply", "cancel"]),
+        ("stocktransfers", ["create", "complete", "cancel"]),
+        ("inventorytransactions", ["view"]),
+
+        // Milestone 15 ("Restaurant POS Core").
+        ("diningareas", ["create", "edit", "activate", "deactivate"]),
+        ("tables", ["create", "edit", "activate", "deactivate", "occupy", "vacate", "reserve", "outofservice", "returntoservice"]),
+        ("pos", ["create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
+            "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
+            "priceoverride", "creditsale", "exceedcreditlimit"]),
+        ("kitchentickets", ["start", "markready", "serve", "cancel"]),
+
+        // End-of-Day reporting gap-closing pass.
+        ("endofday", ["view"]),
+
+        // Restaurant UX refinement: Menu Items (a presentation layer over Catalog).
+        ("menuitems", ["create", "edit", "activate", "deactivate", "createcategory"]),
+
+        // Restaurant Setup: configurable sequential order numbers.
+        ("restaurantsetup", ["edit"]),
+
+        // Commercial POS overhaul: owner-managed payment methods.
+        ("paymentmethods", ["create", "edit", "activate", "deactivate"]),
+
+        // Commercial POS overhaul: activity log viewer.
+        ("activitylog", ["view"]),
+
+        // Restaurant POS refinement pass: owner-configurable font/color
+        // appearance engine.
+        ("appearance", ["create", "edit", "delete"]),
+
+        // Customer management
+        ("customers", ["create", "edit", "activate", "deactivate", "viewledger", "payment"]),
+    ];
+
+    /// <inheritdoc/>
+    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    {
+        if (!options.Value.SeedDevelopmentUser)
+        {
+            return;
+        }
+
+        var user = await userRepository.GetByUserNameAsync(UserName.Create("admin"), cancellationToken);
+        if (user is null)
+        {
+            return;
+        }
+
+        var role = await roleRepository.GetByNameAsync(RoleName.Create(AdministratorRoleName), cancellationToken);
+        var isNewRole = role is null;
+        role ??= Role.Create(RoleName.Create(AdministratorRoleName));
+
+        var changed = isNewRole;
+        foreach (var code in BuildPermissionCodes())
+        {
+            var permissionCode = PermissionCode.Create(code);
+            var permission = await permissionRepository.GetByCodeAsync(permissionCode, cancellationToken);
+            if (permission is null)
+            {
+                permission = Permission.Create(permissionCode, $"Grants {code}.");
+                await permissionRepository.AddAsync(permission, cancellationToken);
+                changed = true;
+            }
+
+            if (!role.PermissionIds.Contains(permission.Id))
+            {
+                role.AddPermission(permission.Id);
+                changed = true;
+            }
+        }
+
+        if (isNewRole)
+        {
+            await roleRepository.AddAsync(role, cancellationToken);
+        }
+
+        if (!user.RoleIds.Contains(role.Id))
+        {
+            user.AssignRole(role.Id);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await identityDbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private static IEnumerable<string> BuildPermissionCodes()
+    {
+        foreach (var key in MenuKeys)
+        {
+            yield return $"menu.{key}";
+        }
+
+        foreach (var (feature, operations) in FeatureOperations)
+        {
+            foreach (var operation in operations)
+            {
+                yield return $"feature.{feature}.{operation}";
+            }
+        }
+    }
+}

@@ -23,16 +23,30 @@ public sealed class ProductCategory : AggregateRoot<ProductCategoryId>
     /// <summary>The category's current lifecycle state.</summary>
     public CatalogStatus Status { get; private set; }
 
+    /// <summary>
+    /// Optional display color as a 6-digit hex string ("#RRGGBB"), e.g. for
+    /// the Restaurant POS category rail's owner-configurable color-coding -
+    /// purely presentational, never used for filtering/matching.
+    /// <see langword="null"/> means "no color chosen, use the screen's
+    /// default".
+    /// </summary>
+    public string? ColorHex { get; private set; }
+
+    /// <summary>Manual display position for owner-driven drag-drop reordering (lower sorts first). Defaults to 0 - every category starts equally-ordered until an owner reorders them.</summary>
+    public int SortOrder { get; private set; }
+
     /// <summary>UTC instant this category was created.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private ProductCategory(ProductCategoryId id, ProductCategoryName name, ProductCategoryId? parentCategoryId, CatalogStatus status, DateTimeOffset createdAtUtc)
+    private ProductCategory(ProductCategoryId id, ProductCategoryName name, ProductCategoryId? parentCategoryId, CatalogStatus status, string? colorHex, int sortOrder, DateTimeOffset createdAtUtc)
     {
         Id = id;
         Name = name;
         ParentCategoryId = parentCategoryId;
         Status = status;
+        ColorHex = colorHex;
+        SortOrder = sortOrder;
         CreatedAtUtc = createdAtUtc;
     }
 
@@ -43,7 +57,7 @@ public sealed class ProductCategory : AggregateRoot<ProductCategoryId>
         ArgumentNullException.ThrowIfNull(name);
 
         var now = DateTimeOffset.UtcNow;
-        var category = new ProductCategory(ProductCategoryId.New(), name, parentCategoryId, CatalogStatus.Active, now);
+        var category = new ProductCategory(ProductCategoryId.New(), name, parentCategoryId, CatalogStatus.Active, null, 0, now);
         category.AddDomainEvent(new ProductCategoryCreated(category.Id, category.Name, now));
         return category;
     }
@@ -70,6 +84,31 @@ public sealed class ProductCategory : AggregateRoot<ProductCategoryId>
         ParentCategoryId = parentCategoryId;
         AddDomainEvent(new ProductCategoryParentChanged(Id, parentCategoryId, DateTimeOffset.UtcNow));
     }
+
+    /// <summary>Sets or clears this category's display color. A no-op (no event raised) if unchanged.</summary>
+    /// <exception cref="CatalogDomainException"><paramref name="colorHex"/> is not <see langword="null"/> and not a valid "#RRGGBB" hex color.</exception>
+    public void SetColor(string? colorHex)
+    {
+        if (colorHex is not null && !IsValidHexColor(colorHex))
+            throw CatalogDomainException.InvalidCategoryColor(Id);
+
+        if (ColorHex == colorHex) return;
+
+        ColorHex = colorHex;
+        AddDomainEvent(new ProductCategoryColorChanged(Id, colorHex, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>Sets this category's manual display position (owner-driven drag-drop reordering). A no-op (no event raised) if unchanged.</summary>
+    public void SetSortOrder(int sortOrder)
+    {
+        if (SortOrder == sortOrder) return;
+
+        SortOrder = sortOrder;
+        AddDomainEvent(new ProductCategorySortOrderChanged(Id, sortOrder, DateTimeOffset.UtcNow));
+    }
+
+    private static bool IsValidHexColor(string value) =>
+        value.Length == 7 && value[0] == '#' && value[1..].All(Uri.IsHexDigit);
 
     /// <summary>Activates the category.</summary>
     /// <exception cref="CatalogDomainException">The category is already active.</exception>

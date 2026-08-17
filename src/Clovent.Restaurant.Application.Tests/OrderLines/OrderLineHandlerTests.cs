@@ -19,7 +19,7 @@ public class OrderLineHandlerTests
     {
         object? response = request switch
         {
-            GetProductVariantByIdQuery => new ProductVariantDto(productVariantId, productId, "Standard", "SKU-1", Guid.NewGuid(), "Active", DateTimeOffset.UtcNow),
+            GetProductVariantByIdQuery => new ProductVariantDto(productVariantId, productId, "Standard", "SKU-1", Guid.NewGuid(), "Active", 0, DateTimeOffset.UtcNow),
             GetProductByIdQuery => new ProductDto(productId, "Cola", "COLA-1", null, null, null, Guid.NewGuid(), taxRate, taxInclusive, "Active", DateTimeOffset.UtcNow),
             ListProductPricesByVariantQuery => (IReadOnlyCollection<ProductPriceDto>)
                 [new ProductPriceDto(Guid.NewGuid(), productVariantId, "Selling", price, Guid.NewGuid(), DateTimeOffset.UtcNow, "Active", DateTimeOffset.UtcNow)],

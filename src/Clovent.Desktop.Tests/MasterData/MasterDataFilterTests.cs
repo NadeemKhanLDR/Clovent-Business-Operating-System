@@ -70,7 +70,9 @@ public class MasterDataFilterTests
 
     [Theory]
     [InlineData(true, null, "Inactive", true, true)]
+    [InlineData(true, null, "PendingActivation", true, true)]
     [InlineData(true, null, "Active", true, false)]
+    [InlineData(true, null, "Locked", true, false)]
     [InlineData(true, false, "Inactive", true, false)]
     [InlineData(true, null, "Inactive", false, false)]
     [InlineData(false, null, "Inactive", true, false)]

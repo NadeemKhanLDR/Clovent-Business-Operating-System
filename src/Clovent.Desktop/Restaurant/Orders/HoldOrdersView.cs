@@ -1,4 +1,4 @@
-using Clovent.Desktop.MasterData;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Restaurant.Shared;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -18,48 +18,56 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// a floor-wide overview, not a second place to edit an order's contents.
 /// Feature-gated per <c>pos.{operation}</c>.
 /// </summary>
-public sealed class HoldOrdersView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class HoldOrdersView : XtraUserControl
 {
     private const string FeatureCode = "pos";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<HeldOrderRow> _listView;
     private Dictionary<Guid, string> _tableCodesById = [];
 
-    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
-    public HoldOrdersView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public HoldOrdersView()
     {
-        _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
-        _currentSession = currentSession;
+        _scope = null!;
+        _mediator = null!;
+        _featurePolicy = null!;
+        _currentSession = null!;
 
-        Dock = DockStyle.Fill;
+        InitializeComponent();
+    }
 
-        _listView = new MasterDataListView<HeldOrderRow>(
-        [
-            new MasterDataColumn(nameof(HeldOrderRow.OrderNumber), "Order #", 140),
-            new MasterDataColumn(nameof(HeldOrderRow.OrderType), "Type", 90),
-            new MasterDataColumn(nameof(HeldOrderRow.TableCode), "Table", 90),
-            new MasterDataColumn(nameof(HeldOrderRow.LineCount), "Lines", 60),
-            new MasterDataColumn(nameof(HeldOrderRow.Notes), "Notes", 200),
-            new MasterDataColumn(nameof(HeldOrderRow.UpdatedAtUtc), "Held Since (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<HeldOrderRow>("Resume", row => _mediator.Send(new ResumeOrderCommand(row.OrderId)), FeatureOperation: "resume"),
-            new MasterDataListAction<HeldOrderRow>("Cancel", CancelAsync, FeatureOperation: "cancel"),
-        ])
+    /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
+    public HoldOrdersView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession) : base()
+    {
+        InitializeComponent();
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => $"{row.OrderNumber} {row.TableCode}",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-        };
+            _scope = null!;
+            _mediator = null!;
+            _featurePolicy = null!;
+            _currentSession = null!;
+            return;
+        }
 
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        _scope = scopeFactory.CreateScope();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
+        _currentSession = currentSession;
+    }
+
+    private async void HoldOrdersView_Load(object? sender, EventArgs e)
+    {
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+        await _listView.RefreshAsync();
     }
 
     /// <inheritdoc/>
@@ -67,7 +75,9 @@ public sealed class HoldOrdersView : XtraUserControl
     {
         if (disposing)
         {
+            components?.Dispose();
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);

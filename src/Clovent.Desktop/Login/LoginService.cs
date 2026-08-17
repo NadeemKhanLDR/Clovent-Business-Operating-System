@@ -8,6 +8,7 @@ using Clovent.Authentication.LoginAttempts;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Users;
 using Clovent.Identity.Users.ValueObjects;
+using Clovent.Restaurant.Application.ActivityLogs.Commands;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,7 +16,7 @@ namespace Clovent.Desktop.Login;
 
 /// <summary>
 /// The real <see cref="ILoginService"/> - replaces Milestone 8's placeholder
-/// registration only; <see cref="LoginForm"/> itself is unchanged.
+/// registration only; <see cref="Clovent.Desktop.Forms.Identity.LoginForm"/> itself is unchanged.
 /// Orchestrates Identity (resolve the submitted
 /// identifier to a <see cref="User"/>), Authentication's Application layer
 /// (via <see cref="IMediator"/> - <see cref="RecordLoginAttemptCommand"/>,
@@ -104,6 +105,20 @@ public sealed class LoginService(
         }
 
         currentSession.SignIn(user.Id.Value, session.SessionId, user.DisplayName.Value);
+
+        // Best-effort: the Restaurant activity log is a convenience audit
+        // trail, not the authoritative record of this sign-in (that's
+        // LoginAttempt, recorded above regardless of whether this call
+        // succeeds) - see RestaurantPosView.LogActivityAsync's identical
+        // reasoning for why a logging hiccup shouldn't turn a successful
+        // sign-in into a failure.
+        try
+        {
+            await mediator.Send(new RecordActivityCommand("Login", null, user.DisplayName.Value, Environment.MachineName), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+        }
 
         return LoginResult.Success();
     }

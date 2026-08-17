@@ -3,6 +3,7 @@ using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Orders.ValueObjects;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Tables;
@@ -35,6 +36,14 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>A table Vacate() was attempted while out of service.</summary>
     public static RestaurantDomainException TableCannotBeVacated(TableId tableId) =>
         new($"Table '{tableId}' cannot be vacated while out of service.");
+
+    /// <summary>
+    /// A manual Vacate was attempted on a table that still has a live order
+    /// seated at it - see <c>VacateTableCommandHandler</c> for why only the
+    /// manual action is refused and the order-lifecycle handlers are not.
+    /// </summary>
+    public static RestaurantDomainException TableHasLiveOrder(TableId tableId, OrderNumber orderNumber) =>
+        new($"Table '{tableId}' still has an open or held order ('{orderNumber}') and cannot be freed. Complete, cancel or void that order instead.");
 
     /// <summary>A table Reserve()/SetOutOfService() was attempted while not available.</summary>
     public static RestaurantDomainException TableNotAvailable(TableId tableId) =>
@@ -136,9 +145,34 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException OrderNotFullyPaid(OrderId orderId, decimal balance) =>
         new($"Order '{orderId}' still owes {balance:0.00} and cannot be completed.");
 
+    /// <summary>
+    /// A CompleteOrderCommand was attempted on an order that has taken more
+    /// money than it is owed. The mirror of <see cref="OrderNotFullyPaid"/>:
+    /// completion means the bill balances, and a bill that has been over-paid
+    /// balances no better than one still owing.
+    /// </summary>
+    public static RestaurantDomainException OrderOverPaid(OrderId orderId, decimal overpaidBy) =>
+        new($"Order '{orderId}' has been over-paid by {overpaidBy:0.00} and cannot be completed. Void the surplus payment, then complete the order.");
+
+    /// <summary>
+    /// An ApplyDiscountToOrderCommand would have discounted an order by more
+    /// than the goods on it are worth, driving the bill negative.
+    /// </summary>
+    public static RestaurantDomainException DiscountExceedsOrderSubtotal(OrderId orderId, decimal discountTotal, decimal subtotal) =>
+        new($"Discounts on order '{orderId}' would total {discountTotal:0.00}, which is more than the order's subtotal of {subtotal:0.00}.");
+
     /// <summary>A MergeTablesCommand/SplitOrderCommand was attempted with a source table/order that has no open or held order to move lines from.</summary>
     public static RestaurantDomainException TableHasNoOpenOrder(TableId tableId) =>
         new($"Table '{tableId}' has no open or held order.");
+
+    /// <summary>
+    /// A second dine-in order was attempted for a table that already has one
+    /// open or held - see <c>CreateOrderCommandHandler</c> for why the orders
+    /// themselves, rather than the table's occupancy flag, are what this is
+    /// checked against.
+    /// </summary>
+    public static RestaurantDomainException TableAlreadyHasOpenOrder(TableId tableId, OrderNumber orderNumber) =>
+        new($"Table '{tableId}' already has an open or held order ('{orderNumber}'). Settle or move that order before starting a new one.");
 
     /// <summary>A MergeTablesCommand was attempted merging a table into itself.</summary>
     public static RestaurantDomainException CannotMergeTableIntoItself(TableId tableId) =>
@@ -147,4 +181,20 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>Order.AssignDailySalesNumber() was attempted a second time.</summary>
     public static RestaurantDomainException DailySalesNumberAlreadyAssigned(OrderId orderId) =>
         new($"Order '{orderId}' already has a Daily Sales Number assigned.");
+
+    /// <summary>An OrderNumberSequence.Configure() was attempted with an empty or too-long prefix.</summary>
+    public static RestaurantDomainException InvalidOrderNumberSequencePrefix() =>
+        new("Order number prefix must be 1-20 characters.");
+
+    /// <summary>An OrderNumberSequence.Configure() was attempted with a starting number below 1.</summary>
+    public static RestaurantDomainException InvalidOrderNumberSequenceStartingNumber() =>
+        new("Order number starting number must be 1 or greater.");
+
+    /// <summary>An OrderLine.OverridePrice() was attempted with a negative new price.</summary>
+    public static RestaurantDomainException InvalidPriceOverrideAmount(OrderLineId orderLineId) =>
+        new($"Order line '{orderLineId}' price override must be zero or greater.");
+
+    /// <summary>An OrderLine.OverridePrice() was attempted with no reason given.</summary>
+    public static RestaurantDomainException PriceOverrideReasonRequired(OrderLineId orderLineId) =>
+        new($"Order line '{orderLineId}' price override requires a reason.");
 }

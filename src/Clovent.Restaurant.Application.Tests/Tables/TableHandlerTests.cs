@@ -1,8 +1,10 @@
 using Clovent.MasterData.Shared.ValueObjects;
+using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.Application.Tables.Commands;
 using Clovent.Restaurant.Application.Tables.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
 using Clovent.Restaurant.DiningAreas;
+using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
 using Xunit;
 
@@ -34,8 +36,105 @@ public class TableHandlerTests
         var occupied = await new OccupyTableCommandHandler(repository).Handle(new OccupyTableCommand(table.Id.Value), CancellationToken.None);
         Assert.Equal("Occupied", occupied.OccupancyStatus);
 
-        var vacated = await new VacateTableCommandHandler(repository).Handle(new VacateTableCommand(table.Id.Value), CancellationToken.None);
+        var vacated = await new VacateTableCommandHandler(repository, new FakeOrderRepository()).Handle(new VacateTableCommand(table.Id.Value), CancellationToken.None);
         Assert.Equal("Available", vacated.OccupancyStatus);
+    }
+
+    /// <summary>
+    /// A manual Vacate must refuse a table that still has an <b>Open</b> order
+    /// seated at it. This is the T-03 / ORD-54 regression: vacating succeeded
+    /// and left a live two-line bill on a table the floor plan showed as free.
+    /// </summary>
+    [Fact]
+    public async Task Vacate_TableWithOpenOrder_IsRefusedAndTableStaysOccupied()
+    {
+        var tableRepository = new FakeTableRepository();
+        var orderRepository = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepository.Add(order);
+
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new VacateTableCommandHandler(tableRepository, orderRepository)
+                .Handle(new VacateTableCommand(table.Id.Value), CancellationToken.None));
+
+        Assert.Contains("still has an open or held order", ex.Message);
+        Assert.Equal(TableOccupancyStatus.Occupied, table.OccupancyStatus);
+    }
+
+    /// <summary>A <b>Held</b> order holds the table just as an Open one does.</summary>
+    [Fact]
+    public async Task Vacate_TableWithHeldOrder_IsRefusedAndTableStaysOccupied()
+    {
+        var tableRepository = new FakeTableRepository();
+        var orderRepository = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        order.Hold();
+        orderRepository.Add(order);
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new VacateTableCommandHandler(tableRepository, orderRepository)
+                .Handle(new VacateTableCommand(table.Id.Value), CancellationToken.None));
+
+        Assert.Equal(TableOccupancyStatus.Occupied, table.OccupancyStatus);
+    }
+
+    /// <summary>
+    /// The orphaned-occupancy case the guard must NOT block - a table flagged
+    /// Occupied whose orders have all closed. This is T-01, and freeing it is
+    /// the whole point of the manual Vacate action.
+    /// </summary>
+    [Fact]
+    public async Task Vacate_OccupiedTableWhoseOrdersAllClosed_Succeeds()
+    {
+        var tableRepository = new FakeTableRepository();
+        var orderRepository = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 2);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var closed = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        closed.Cancel("Closed earlier");
+        orderRepository.Add(closed);
+
+        var result = await new VacateTableCommandHandler(tableRepository, orderRepository)
+            .Handle(new VacateTableCommand(table.Id.Value), CancellationToken.None);
+
+        Assert.Equal("Available", result.OccupancyStatus);
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
+
+    /// <summary>An order on a <em>different</em> table must not block this one.</summary>
+    [Fact]
+    public async Task Vacate_LiveOrderOnAnotherTable_DoesNotBlock()
+    {
+        var tableRepository = new FakeTableRepository();
+        var orderRepository = new FakeOrderRepository();
+
+        var target = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 2);
+        target.Occupy();
+        var other = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        other.Occupy();
+        tableRepository.Add(target);
+        tableRepository.Add(other);
+
+        orderRepository.Add(Order.Create(OrderType.DineIn, WarehouseId.New(), other.Id));
+
+        var result = await new VacateTableCommandHandler(tableRepository, orderRepository)
+            .Handle(new VacateTableCommand(target.Id.Value), CancellationToken.None);
+
+        Assert.Equal("Available", result.OccupancyStatus);
+        Assert.Equal(TableOccupancyStatus.Occupied, other.OccupancyStatus);
     }
 
     [Fact]

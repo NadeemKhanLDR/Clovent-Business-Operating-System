@@ -1,22 +1,27 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Companies;
 
 /// <summary>Create/edit dialog for a Company - name and an optional tax id.</summary>
-public sealed class CompanyEditForm : MasterDataEditFormBase
+public sealed partial class CompanyEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _taxIdEdit = new();
-
     /// <summary>Builds the dialog, pre-filled when editing an existing company.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public CompanyEditForm() : base("Edit Company")
+    {
+        InitializeComponent();
+        }
+
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; <paramref name="name"/> and <paramref name="taxId"/> pre-populate the fields when editing an existing company.</summary>
     public CompanyEditForm(string title, string? name = null, string? taxId = null) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
         _taxIdEdit.Text = taxId ?? string.Empty;
-
-        AddField("Name:", _nameEdit);
-        AddField("Tax Id:", _taxIdEdit);
     }
 
     /// <summary>The entered company name.</summary>
@@ -37,4 +42,5 @@ public sealed class CompanyEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

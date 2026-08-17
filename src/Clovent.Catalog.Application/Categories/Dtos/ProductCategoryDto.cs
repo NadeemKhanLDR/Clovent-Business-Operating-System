@@ -8,6 +8,8 @@ public sealed record ProductCategoryDto(
     string Name,
     Guid? ParentCategoryId,
     string Status,
+    string? ColorHex,
+    int SortOrder,
     DateTimeOffset CreatedAtUtc)
 {
     /// <summary>Projects a domain <see cref="ProductCategory"/> into its DTO.</summary>
@@ -16,5 +18,7 @@ public sealed record ProductCategoryDto(
         category.Name.Value,
         category.ParentCategoryId?.Value,
         category.Status.ToString(),
+        category.ColorHex,
+        category.SortOrder,
         category.CreatedAtUtc);
 }

@@ -1,5 +1,6 @@
 using Clovent.Domain;
 using Clovent.MasterData.Warehouses;
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.Discounts;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders.Events;
@@ -52,6 +53,9 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>The warehouse stock is drawn from when this order completes, fixed at creation.</summary>
     public WarehouseId WarehouseId { get; }
 
+    /// <summary>The customer associated with this order, if any.</summary>
+    public CustomerId? CustomerId { get; private set; }
+
     /// <summary>Free-text internal notes (kitchen/staff-facing), if any.</summary>
     public string? Notes { get; private set; }
 
@@ -92,7 +96,8 @@ public sealed class Order : AggregateRoot<OrderId>
         IReadOnlyCollection<ServiceChargeId> serviceChargeIds,
         IReadOnlyCollection<PaymentId> paymentIds,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        CustomerId? customerId)
     {
         Id = id;
         OrderNumber = orderNumber;
@@ -109,18 +114,30 @@ public sealed class Order : AggregateRoot<OrderId>
         _discountIds = [.. discountIds];
         _serviceChargeIds = [.. serviceChargeIds];
         _paymentIds = [.. paymentIds];
+        CustomerId = customerId;
     }
 
-    /// <summary>Creates a new, open order.</summary>
+    /// <summary>Creates a new, open order, with a timestamp-derived <see cref="Orders.ValueObjects.OrderNumber"/> - see <see cref="Create(OrderType, WarehouseId, TableId?, OrderNumber)"/> for the Application-layer entry point that instead assigns a restaurant owner's configured sequential number.</summary>
     /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/> with one.</exception>
-    public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId = null)
+    public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId = null) =>
+        Create(orderType, warehouseId, tableId, OrderNumber.Generate(DateTimeOffset.UtcNow));
+
+    /// <summary>
+    /// Creates a new, open order with an explicit <see cref="Orders.ValueObjects.OrderNumber"/>
+    /// - the entry point <c>CreateOrderCommandHandler</c> uses, having
+    /// already drawn the number from the restaurant's
+    /// <see cref="OrderNumberSequence"/> (a pure domain factory like this
+    /// one has no business reaching into a repository itself).
+    /// </summary>
+    /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/> with one.</exception>
+    public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId, OrderNumber orderNumber)
     {
         RequireConsistentTable(orderType, tableId);
 
         var now = DateTimeOffset.UtcNow;
         var order = new Order(
-            OrderId.New(), OrderNumber.Generate(now), null, orderType, OrderStatus.Open, tableId, warehouseId,
-            null, null, [], [], [], [], now, now);
+            OrderId.New(), orderNumber, null, orderType, OrderStatus.Open, tableId, warehouseId,
+            null, null, [], [], [], [], now, now, null);
         order.AddDomainEvent(new OrderCreated(order.Id, order.OrderNumber, order.OrderType, order.WarehouseId, order.TableId, now));
         return order;
     }
@@ -327,6 +344,16 @@ public sealed class Order : AggregateRoot<OrderId>
         Status = OrderStatus.Completed;
         Touch();
         AddDomainEvent(new OrderCompleted(Id, DateTimeOffset.UtcNow));
+    }
+
+    /// <summary>Sets the customer for this order.</summary>
+    public void SetCustomer(CustomerId? customerId)
+    {
+        if (Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
+        CustomerId = customerId;
+        Touch();
     }
 
     private void RequireOpen()

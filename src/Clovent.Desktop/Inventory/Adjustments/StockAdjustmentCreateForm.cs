@@ -1,6 +1,5 @@
 using Clovent.Desktop.MasterData;
 using Clovent.Inventory.Adjustments;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Inventory.Adjustments;
 
@@ -10,28 +9,35 @@ namespace Clovent.Desktop.Inventory.Adjustments;
 /// field is fixed once proposed (see <c>Clovent.Inventory.Adjustments.StockAdjustment</c>'s
 /// doc comment) - only <see cref="Clovent.Inventory.Application.Adjustments.Commands.ApplyStockAdjustmentCommand"/>
 /// or <see cref="Clovent.Inventory.Application.Adjustments.Commands.CancelStockAdjustmentCommand"/>
-/// act on it afterward, both exposed as list-view actions instead.
+/// act on it afterward, both exposed as list-view actions instead. Control
+/// tree (fields, <c>AddField</c> calls) lives in
+/// <c>StockAdjustmentCreateForm.Designer.cs</c>; this file holds behavior only.
 /// </summary>
-public sealed class StockAdjustmentCreateForm : MasterDataEditFormBase
+public sealed partial class StockAdjustmentCreateForm : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _variantCombo = new();
     private readonly Dictionary<string, Guid?> _variantsByDisplay;
-    private readonly ComboBoxEdit _typeCombo = new();
-    private readonly SpinEdit _quantityEdit = new() { Properties = { MinValue = 0.0001m, MaxValue = 1_000_000 } };
-    private readonly MemoEdit _reasonEdit = new() { Height = 60 };
 
     /// <summary>Builds the dialog.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public StockAdjustmentCreateForm() : base("New Stock Adjustment")
+    {
+        _variantsByDisplay = null!;
+
+        InitializeComponent();
+        }
+
+    /// <summary>Builds the dialog. <paramref name="variantOptions"/> populates the variant combo.</summary>
     public StockAdjustmentCreateForm(IReadOnlyList<(Guid Id, string Display)> variantOptions) : base("New Stock Adjustment")
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _variantsByDisplay = null!;
+            return;
+        }
+
         _variantsByDisplay = ComboBoxBinder.Bind(_variantCombo, variantOptions, includeEmpty: false);
-
-        _typeCombo.Properties.Items.AddRange([nameof(StockAdjustmentType.Increase), nameof(StockAdjustmentType.Decrease)]);
-        _typeCombo.SelectedIndex = 0;
-
-        AddField("Variant:", _variantCombo);
-        AddField("Type:", _typeCombo);
-        AddField("Quantity:", _quantityEdit);
-        AddField("Reason:", _reasonEdit);
     }
 
     /// <summary>The selected variant.</summary>
@@ -70,4 +76,5 @@ public sealed class StockAdjustmentCreateForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

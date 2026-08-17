@@ -18,7 +18,8 @@ public sealed record OrderDto(
     IReadOnlyCollection<Guid> ServiceChargeIds,
     IReadOnlyCollection<Guid> PaymentIds,
     DateTimeOffset CreatedAtUtc,
-    DateTimeOffset UpdatedAtUtc)
+    DateTimeOffset UpdatedAtUtc,
+    Guid? CustomerId)
 {
     /// <summary>Projects a domain <see cref="Order"/> into its DTO.</summary>
     public static OrderDto FromDomain(Order order) => new(
@@ -36,5 +37,6 @@ public sealed record OrderDto(
         [.. order.ServiceChargeIds.Select(id => id.Value)],
         [.. order.PaymentIds.Select(id => id.Value)],
         order.CreatedAtUtc,
-        order.UpdatedAtUtc);
+        order.UpdatedAtUtc,
+        order.CustomerId?.Value);
 }

@@ -26,6 +26,12 @@ public sealed class InventoryTransactionRepository(InventoryDbContext dbContext)
         await dbContext.InventoryTransactions.OrderByDescending(t => t.OccurredAtUtc).Take(count).ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyCollection<InventoryTransaction>> GetByReferenceAsync(string referenceType, Guid referenceId, CancellationToken cancellationToken = default) =>
+        await dbContext.InventoryTransactions
+            .Where(t => t.ReferenceType == referenceType && t.ReferenceId == referenceId)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc/>
     public async Task AddAsync(InventoryTransaction transaction, CancellationToken cancellationToken = default) =>
         await dbContext.InventoryTransactions.AddAsync(transaction, cancellationToken);
 }

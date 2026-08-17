@@ -1,6 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
-using DevExpress.XtraEditors.Controls;
 
 namespace Clovent.Desktop.Identity.Users;
 
@@ -10,24 +8,28 @@ namespace Clovent.Desktop.Identity.Users;
 /// differ only in whether the constructor's <c>requireCurrentPassword</c>
 /// flag shows the extra field, matching how
 /// <c>ResetPasswordCommand</c>/<c>ChangePasswordCommand</c> differ only in
-/// whether the handler verifies a current password.
+/// whether the handler verifies a current password. Control tree lives in
+/// <c>PasswordPromptForm.Designer.cs</c>; this file holds behavior only.
 /// </summary>
-public sealed class PasswordPromptForm : MasterDataEditFormBase
+public sealed partial class PasswordPromptForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _currentPasswordEdit = new() { Properties = { PasswordChar = '*' } };
-    private readonly TextEdit _newPasswordEdit = new() { Properties = { PasswordChar = '*' } };
-    private readonly TextEdit _confirmPasswordEdit = new() { Properties = { PasswordChar = '*' } };
-
     /// <summary>Builds the dialog.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public PasswordPromptForm() : base("Change Password")
+    {
+        InitializeComponent();
+    }
+
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; when <paramref name="requireCurrentPassword"/> is <see langword="true"/> an extra Current Password field is shown, for self-service Change Password.</summary>
     public PasswordPromptForm(string title, bool requireCurrentPassword) : base(title)
     {
-        if (requireCurrentPassword)
-        {
-            AddField("Current Password:", _currentPasswordEdit);
-        }
+        InitializeComponent();
 
-        AddField("New Password:", _newPasswordEdit);
-        AddField("Confirm Password:", _confirmPasswordEdit);
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
+        if (!requireCurrentPassword) { _currentPasswordEdit.Visible = false; label1.Visible = false; }
     }
 
     /// <summary>The entered current password (empty if not requested).</summary>

@@ -14,7 +14,8 @@ namespace Clovent.Desktop.MasterData.Terminals;
 /// over the terminals belonging to a selected branch. Feature-gated per
 /// <c>terminals.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class TerminalManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class TerminalManagementView : XtraUserControl
 {
     private const string FeatureCode = "terminals";
 
@@ -22,8 +23,6 @@ public sealed class TerminalManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly OrganizationHierarchySelector _selector;
-    private readonly MasterDataListView<TerminalDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public TerminalManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,32 +32,7 @@ public sealed class TerminalManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<TerminalDto>(
-        [
-            new MasterDataColumn(nameof(TerminalDto.Name), "Name", 200),
-            new MasterDataColumn(nameof(TerminalDto.Code), "Code", 100),
-            new MasterDataColumn(nameof(TerminalDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(TerminalDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateTerminalCommand(dto.TerminalId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateTerminalCommand(dto.TerminalId)),
-        };
-
-        _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: true);
-        _selector.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_selector);
-        Load += async (_, _) => await _selector.LoadOrganizationsAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -67,6 +41,7 @@ public sealed class TerminalManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -111,4 +86,8 @@ public sealed class TerminalManagementView : XtraUserControl
             await _mediator.Send(new RenameTerminalCommand(dto.TerminalId, form.TerminalNameValue));
         }
     }
+
+    private async void Selector_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void TerminalManagementView_Load(object? sender, EventArgs e) => await _selector.LoadOrganizationsAsync();
 }

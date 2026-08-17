@@ -15,7 +15,8 @@ namespace Clovent.Desktop.Catalog.Brands;
 /// the shared brand catalog. Feature-gated per
 /// <c>brands.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class BrandManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class BrandManagementView : XtraUserControl
 {
     private const string FeatureCode = "brands";
 
@@ -23,7 +24,6 @@ public sealed class BrandManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<BrandDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public BrandManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,39 +33,10 @@ public sealed class BrandManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<BrandDto>(
-        [
-            new MasterDataColumn(nameof(BrandDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(BrandDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(BrandDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateBrandCommand(dto.BrandId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateBrandCommand(dto.BrandId)),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-        }
-
-        base.Dispose(disposing);
-    }
+    private async void BrandManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async Task<IReadOnlyList<BrandDto>> LoadItemsAsync(CancellationToken cancellationToken)
     {

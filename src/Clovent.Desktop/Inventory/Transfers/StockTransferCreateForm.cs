@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Inventory.Transfers;
 
@@ -8,29 +7,40 @@ namespace Clovent.Desktop.Inventory.Transfers;
 /// warehouse, variant, and quantity. There is no edit dialog: every field is
 /// fixed once proposed (see <c>Clovent.Inventory.Transfers.StockTransfer</c>'s
 /// doc comment) - only Complete/Cancel act on it afterward, exposed as
-/// list-view actions instead.
+/// list-view actions instead. Control tree (fields, <c>AddField</c> calls)
+/// lives in <c>StockTransferCreateForm.Designer.cs</c>; this file holds
+/// behavior only.
 /// </summary>
-public sealed class StockTransferCreateForm : MasterDataEditFormBase
+public sealed partial class StockTransferCreateForm : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _sourceCombo = new();
-    private readonly ComboBoxEdit _destinationCombo = new();
-    private readonly ComboBoxEdit _variantCombo = new();
     private readonly Dictionary<string, Guid?> _warehousesByDisplay;
     private readonly Dictionary<string, Guid?> _variantsByDisplay;
-    private readonly SpinEdit _quantityEdit = new() { Properties = { MinValue = 0.0001m, MaxValue = 1_000_000 } };
 
     /// <summary>Builds the dialog.</summary>
-    public StockTransferCreateForm(IReadOnlyList<(Guid Id, string Display)> warehouseOptions, IReadOnlyList<(Guid Id, string Display)> variantOptions)
-        : base("New Stock Transfer")
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public StockTransferCreateForm() : base("New Stock Transfer")
     {
+        _warehousesByDisplay = null!;
+        _variantsByDisplay = null!;
+
+        InitializeComponent();
+        }
+
+    /// <summary>Builds the dialog. <paramref name="warehouseOptions"/> populates both the source and destination combos; <paramref name="variantOptions"/> populates the variant combo.</summary>
+    public StockTransferCreateForm(IReadOnlyList<(Guid Id, string Display)> warehouseOptions, IReadOnlyList<(Guid Id, string Display)> variantOptions) : base("New Stock Transfer")
+    {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _warehousesByDisplay = null!;
+            _variantsByDisplay = null!;
+            return;
+        }
+
         _warehousesByDisplay = ComboBoxBinder.Bind(_sourceCombo, warehouseOptions, includeEmpty: false);
         ComboBoxBinder.Bind(_destinationCombo, warehouseOptions, includeEmpty: false);
         _variantsByDisplay = ComboBoxBinder.Bind(_variantCombo, variantOptions, includeEmpty: false);
-
-        AddField("Source Warehouse:", _sourceCombo);
-        AddField("Destination Warehouse:", _destinationCombo);
-        AddField("Variant:", _variantCombo);
-        AddField("Quantity:", _quantityEdit);
     }
 
     /// <summary>The selected source warehouse.</summary>
@@ -75,4 +85,5 @@ public sealed class StockTransferCreateForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

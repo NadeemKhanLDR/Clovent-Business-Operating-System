@@ -1,5 +1,5 @@
+using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Navigation;
-using Clovent.Desktop.Shell;
 using Clovent.Identity.Application.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -10,7 +10,11 @@ public class NavigationMenuBuilderTests
 {
     private sealed class FakeWorkspaceHost : IWorkspaceHost
     {
-        public void SetContent(Control content)
+        public void ShowDocument(string key, string caption, Func<Control> contentFactory, bool allowMultipleInstances = false)
+        {
+        }
+
+        public void SetStatus(string text)
         {
         }
     }

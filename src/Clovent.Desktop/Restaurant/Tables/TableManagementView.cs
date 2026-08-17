@@ -1,4 +1,4 @@
-using Clovent.Desktop.MasterData;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Restaurant.Application.DiningAreas.Queries;
@@ -17,71 +17,40 @@ namespace Clovent.Desktop.Restaurant.Tables;
 /// Service) over the tables of a selected dining area. Feature-gated per
 /// <c>tables.{create|edit|activate|deactivate|occupy|vacate|reserve|outofservice|returntoservice}</c>.
 /// </summary>
-public sealed class TableManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class TableManagementView : XtraUserControl
 {
     private const string FeatureCode = "tables";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _diningAreaPicker = new("Dining Area:");
-    private readonly MasterDataListView<TableDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public TableManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<TableDto>(
-        [
-            new MasterDataColumn(nameof(TableDto.Code), "Code", 90),
-            new MasterDataColumn(nameof(TableDto.Capacity), "Capacity", 80),
-            new MasterDataColumn(nameof(TableDto.OccupancyStatus), "Occupancy", 100),
-            new MasterDataColumn(nameof(TableDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(TableDto.CreatedAtUtc), "Created (UTC)", 160),
-        ],
-        [
-            new MasterDataListAction<TableDto>("Occupy", dto => _mediator.Send(new OccupyTableCommand(dto.TableId)),
-                dto => dto.OccupancyStatus is "Available" or "Reserved", "occupy"),
-            new MasterDataListAction<TableDto>("Vacate", dto => _mediator.Send(new VacateTableCommand(dto.TableId)),
-                dto => dto.OccupancyStatus is "Occupied", "vacate"),
-            new MasterDataListAction<TableDto>("Reserve", dto => _mediator.Send(new ReserveTableCommand(dto.TableId)),
-                dto => dto.OccupancyStatus is "Available", "reserve"),
-            new MasterDataListAction<TableDto>("Out of Service", dto => _mediator.Send(new SetTableOutOfServiceCommand(dto.TableId)),
-                dto => dto.OccupancyStatus is "Available", "outofservice"),
-            new MasterDataListAction<TableDto>("Return to Service", dto => _mediator.Send(new ReturnTableToServiceCommand(dto.TableId)),
-                dto => dto.OccupancyStatus is "OutOfService", "returntoservice"),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Code,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateTableCommand(dto.TableId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateTableCommand(dto.TableId)),
-        };
-
-        _diningAreaPicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_diningAreaPicker);
-        Load += async (_, _) => await LoadDiningAreasAsync();
+        InitializeComponent();
     }
+
+    private async void DiningAreaPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void TableManagementView_Load(object? sender, EventArgs e) => await LoadDiningAreasAsync();
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
+            components?.Dispose();
             _scope.Dispose();
+            _gate.Dispose();
         }
 
         base.Dispose(disposing);

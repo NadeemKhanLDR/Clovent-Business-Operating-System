@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.FiscalYears;
 
@@ -8,25 +7,38 @@ namespace Clovent.Desktop.MasterData.FiscalYears;
 /// only, start/end dates (immutable after creation - a fiscal year's period
 /// cannot change once created, only its display name and open/closed state).
 /// </summary>
-public sealed class FiscalYearEditForm : MasterDataEditFormBase
+public sealed partial class FiscalYearEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly DateEdit _startDateEdit = new();
-    private readonly DateEdit _endDateEdit = new();
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public FiscalYearEditForm() : base("Edit Fiscal Year")
+    {
+        InitializeComponent();
+        }
 
-    /// <summary>Builds the dialog. Pass <paramref name="startDate"/>/<paramref name="endDate"/> when editing so the (disabled) fields still show them.</summary>
+    /// <summary>
+    /// Builds the dialog. <paramref name="title"/> is the dialog's caption;
+    /// <paramref name="name"/> pre-populates the display name. Pass
+    /// <paramref name="startDate"/>/<paramref name="endDate"/> when editing so
+    /// the (disabled) fields still show them - both are only enabled when
+    /// <paramref name="isNew"/> is <see langword="true"/>, since a fiscal
+    /// year's period is immutable after creation.
+    /// </summary>
     public FiscalYearEditForm(string title, string? name = null, DateOnly? startDate = null, DateOnly? endDate = null, bool isNew = true) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
         _startDateEdit.DateTime = (startDate ?? DateOnly.FromDateTime(DateTime.Today)).ToDateTime(TimeOnly.MinValue);
         _endDateEdit.DateTime = (endDate ?? DateOnly.FromDateTime(DateTime.Today).AddYears(1)).ToDateTime(TimeOnly.MinValue);
         _startDateEdit.Enabled = isNew;
         _endDateEdit.Enabled = isNew;
-
-        AddField("Name:", _nameEdit);
-        AddField("Start Date:", _startDateEdit);
-        AddField("End Date:", _endDateEdit);
     }
+
+
 
     /// <summary>The entered fiscal year name/label.</summary>
     public string FiscalYearNameValue => _nameEdit.Text.Trim();
@@ -55,4 +67,5 @@ public sealed class FiscalYearEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

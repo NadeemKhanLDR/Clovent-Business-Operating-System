@@ -1,0 +1,89 @@
+using Clovent.Restaurant.Application.Payments.Dtos;
+using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.PaymentMethods;
+using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Customers;
+using MediatR;
+
+namespace Clovent.Restaurant.Application.Payments.Commands;
+
+/// <summary>
+/// Records a payment against an order. Partial payments, multiple tenders,
+/// and split-bill scenarios are all a natural consequence of an order
+/// accumulating several of these - see <see cref="Payment"/>'s
+/// doc comment - so this one command covers all three, not a special
+/// "split bill" command.
+/// </summary>
+public sealed record RecordPaymentCommand(Guid OrderId, Guid PaymentMethodId, decimal Amount, bool ExceedCreditLimitApproved = false) : IRequest<PaymentDto>;
+
+/// <summary>Handles <see cref="RecordPaymentCommand"/>.</summary>
+public sealed class RecordPaymentCommandHandler(
+    IOrderRepository orderRepository,
+    IPaymentRepository paymentRepository,
+    ICustomerRepository customerRepository,
+    ICustomerLedgerEntryRepository ledgerRepository,
+    IPaymentMethodRepository paymentMethodRepository)
+    : IRequestHandler<RecordPaymentCommand, PaymentDto>
+{
+    /// <inheritdoc/>
+    public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
+    {
+        var orderId = new OrderId(request.OrderId);
+        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+            ?? throw new NotFoundException(nameof(Order), request.OrderId);
+
+        var paymentMethodId = new PaymentMethodId(request.PaymentMethodId);
+        var paymentMethod = await paymentMethodRepository.GetByIdAsync(paymentMethodId, cancellationToken)
+            ?? throw new NotFoundException(nameof(PaymentMethod), request.PaymentMethodId);
+
+        var isCredit = string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase);
+
+        if (isCredit)
+        {
+            if (order.CustomerId is null)
+            {
+                throw new InvalidOperationException("A customer must be selected for Credit / Pay Later sales.");
+            }
+
+            var customer = await customerRepository.GetByIdAsync(order.CustomerId.Value, cancellationToken)
+                ?? throw new NotFoundException(nameof(Customer), order.CustomerId.Value.Value);
+
+            if (!customer.IsActive)
+            {
+                throw new InvalidOperationException($"The customer '{customer.Name}' is inactive.");
+            }
+
+            if (customer.OutstandingBalance + request.Amount > customer.CreditLimit && !request.ExceedCreditLimitApproved)
+            {
+                throw new InvalidOperationException(
+                    $"Credit limit exceeded.\n\n" +
+                    $"This customer currently owes {customer.OutstandingBalance:N2}.\n" +
+                    $"The new sale would increase the balance to {(customer.OutstandingBalance + request.Amount):N2}, " +
+                    $"but the credit limit is {customer.CreditLimit:N2}.\n\n" +
+                    $"Collect a payment or ask an authorized manager to approve the credit sale.");
+            }
+
+            // Adjust customer balance
+            customer.AdjustBalance(request.Amount);
+            await customerRepository.UpdateAsync(customer, cancellationToken);
+
+            // Add ledger entry
+            var ledgerEntry = CustomerLedgerEntry.Create(
+                customer.Id,
+                order.OrderNumber.Value,
+                "Credit Sale",
+                request.Amount,
+                0m,
+                customer.OutstandingBalance);
+            await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
+        }
+
+        var payment = Payment.Create(orderId, paymentMethodId, request.Amount);
+        order.RecordPayment(payment.Id);
+
+        await paymentRepository.AddAsync(payment, cancellationToken);
+
+        return PaymentDto.FromDomain(payment);
+    }
+}

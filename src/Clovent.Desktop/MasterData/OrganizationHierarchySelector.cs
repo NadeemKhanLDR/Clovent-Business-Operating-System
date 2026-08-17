@@ -1,7 +1,6 @@
-using Clovent.Identity.Application.Branches.Queries;
+﻿using Clovent.Identity.Application.Branches.Queries;
 using Clovent.Identity.Application.Companies.Queries;
 using Clovent.Identity.Application.Organizations.Queries;
-using DevExpress.XtraEditors;
 using MediatR;
 
 namespace Clovent.Desktop.MasterData;
@@ -12,17 +11,16 @@ namespace Clovent.Desktop.MasterData;
 /// (Company needs Organization; Branch/Department/Warehouse/Terminal need
 /// Company; Fiscal Year/Business Settings need only Organization). Only the
 /// combos a screen actually needs are shown - the others stay hidden and
-/// their corresponding Selected*Id stays <see langword="null"/>.
+/// their corresponding Selected*Id stays <see langword="null"/>. Control
+/// tree lives in <c>OrganizationHierarchySelector.Designer.cs</c>; this file
+/// holds behavior only.
 /// </summary>
-public sealed class OrganizationHierarchySelector : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEditors.XtraUserControl
 {
     private readonly IMediator _mediator;
     private readonly bool _showCompany;
     private readonly bool _showBranch;
-
-    private readonly ComboBoxEdit _organizationCombo = new();
-    private readonly ComboBoxEdit _companyCombo = new();
-    private readonly ComboBoxEdit _branchCombo = new();
 
     private readonly Dictionary<string, Guid> _organizationsByDisplay = [];
     private readonly Dictionary<string, Guid> _companiesByDisplay = [];
@@ -50,37 +48,7 @@ public sealed class OrganizationHierarchySelector : XtraUserControl
         _showCompany = showCompany || showBranch;
         _showBranch = showBranch;
 
-        Dock = DockStyle.Top;
-        Height = 32;
-
-        var layout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
-
-        _organizationCombo.Width = 220;
-        _organizationCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-        layout.Controls.Add(new LabelControl { Text = "Organization:", Padding = new Padding(0, 6, 4, 0) });
-        layout.Controls.Add(_organizationCombo);
-
-        if (_showCompany)
-        {
-            _companyCombo.Width = 220;
-            _companyCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-            layout.Controls.Add(new LabelControl { Text = "Company:", Padding = new Padding(12, 6, 4, 0) });
-            layout.Controls.Add(_companyCombo);
-        }
-
-        if (_showBranch)
-        {
-            _branchCombo.Width = 220;
-            _branchCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-            layout.Controls.Add(new LabelControl { Text = "Branch:", Padding = new Padding(12, 6, 4, 0) });
-            layout.Controls.Add(_branchCombo);
-        }
-
-        Controls.Add(layout);
-
-        _organizationCombo.SelectedIndexChanged += async (_, _) => await OnOrganizationSelectedAsync();
-        _companyCombo.SelectedIndexChanged += async (_, _) => await OnCompanySelectedAsync();
-        _branchCombo.SelectedIndexChanged += (_, _) => OnBranchSelected();
+        InitializeComponent();
     }
 
     /// <summary>Loads every organization into the top-level combo. Call once when the hosting screen loads.</summary>
@@ -105,6 +73,14 @@ public sealed class OrganizationHierarchySelector : XtraUserControl
             await OnOrganizationSelectedAsync();
         }
     }
+
+    private async void OrganizationCombo_SelectedIndexChanged(object? sender, EventArgs e) => await OnOrganizationSelectedAsync();
+
+    private async void CompanyCombo_SelectedIndexChanged(object? sender, EventArgs e) => await OnCompanySelectedAsync();
+
+    private void BranchCombo_SelectedIndexChanged(object? sender, EventArgs e) => OnBranchSelected();
+
+    private void Layout_SizeChanged(object? sender, EventArgs e) => Size = _layout.Size;
 
     private async Task OnOrganizationSelectedAsync()
     {

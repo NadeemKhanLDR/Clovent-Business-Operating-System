@@ -27,8 +27,23 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
     /// <summary>The quantity ordered.</summary>
     public decimal Quantity { get; private set; }
 
-    /// <summary>The unit price, snapshotted at creation from the variant's active selling price.</summary>
-    public decimal UnitPrice { get; }
+    /// <summary>The unit price actually charged - the catalog-snapshotted value, unless <see cref="OverridePrice"/> has since replaced it.</summary>
+    public decimal UnitPrice { get; private set; }
+
+    /// <summary>The unit price as originally snapshotted from the catalog at creation - fixed forever, even after <see cref="OverridePrice"/>, so the audit trail always has something to compare the override against.</summary>
+    public decimal OriginalUnitPrice { get; }
+
+    /// <summary>Whether <see cref="UnitPrice"/> has been manually overridden away from <see cref="OriginalUnitPrice"/>.</summary>
+    public bool IsPriceOverridden { get; private set; }
+
+    /// <summary>Why the price was overridden (required whenever <see cref="IsPriceOverridden"/> is true).</summary>
+    public string? PriceOverrideReason { get; private set; }
+
+    /// <summary>Who performed the override (a display name/username, supplied by the caller - this aggregate has no notion of "current user").</summary>
+    public string? PriceOverriddenBy { get; private set; }
+
+    /// <summary>UTC instant of the most recent override, if any.</summary>
+    public DateTimeOffset? PriceOverriddenAtUtc { get; private set; }
 
     /// <summary>The tax rate percentage, snapshotted at creation from the product's tax configuration.</summary>
     public decimal TaxRatePercentage { get; }
@@ -55,6 +70,11 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         ProductVariantId productVariantId,
         decimal quantity,
         decimal unitPrice,
+        decimal originalUnitPrice,
+        bool isPriceOverridden,
+        string? priceOverrideReason,
+        string? priceOverriddenBy,
+        DateTimeOffset? priceOverriddenAtUtc,
         decimal taxRatePercentage,
         bool taxIsInclusive,
         string? notes,
@@ -66,6 +86,11 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         ProductVariantId = productVariantId;
         Quantity = quantity;
         UnitPrice = unitPrice;
+        OriginalUnitPrice = originalUnitPrice;
+        IsPriceOverridden = isPriceOverridden;
+        PriceOverrideReason = priceOverrideReason;
+        PriceOverriddenBy = priceOverriddenBy;
+        PriceOverriddenAtUtc = priceOverriddenAtUtc;
         TaxRatePercentage = taxRatePercentage;
         TaxIsInclusive = taxIsInclusive;
         Notes = notes;
@@ -88,9 +113,35 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         RequireNonNegativePrice(unitPrice);
 
         var now = DateTimeOffset.UtcNow;
-        var line = new OrderLine(OrderLineId.New(), orderId, productVariantId, quantity, unitPrice, taxRatePercentage, taxIsInclusive, notes, false, now);
+        var line = new OrderLine(OrderLineId.New(), orderId, productVariantId, quantity, unitPrice, unitPrice, false, null, null, null, taxRatePercentage, taxIsInclusive, notes, false, now);
         line.AddDomainEvent(new OrderLineCreated(line.Id, line.OrderId, line.ProductVariantId, line.Quantity, line.UnitPrice, now));
         return line;
+    }
+
+    /// <summary>
+    /// Manually sets this line's unit price away from its catalog-snapshotted
+    /// value - the "Half Chicken Karahi, marked down to 300" case a menu's
+    /// fixed price list can't anticipate. <see cref="OriginalUnitPrice"/>
+    /// never changes, so re-overriding a line still shows what the catalog
+    /// originally charged, not just the last override.
+    /// </summary>
+    /// <exception cref="RestaurantDomainException"><paramref name="newUnitPrice"/> is negative, or <paramref name="reason"/> is empty.</exception>
+    public void OverridePrice(decimal newUnitPrice, string reason, string performedBy)
+    {
+        if (newUnitPrice < 0)
+            throw RestaurantDomainException.InvalidPriceOverrideAmount(Id);
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw RestaurantDomainException.PriceOverrideReasonRequired(Id);
+
+        var now = DateTimeOffset.UtcNow;
+        UnitPrice = newUnitPrice;
+        IsPriceOverridden = true;
+        PriceOverrideReason = reason.Trim();
+        PriceOverriddenBy = performedBy;
+        PriceOverriddenAtUtc = now;
+
+        AddDomainEvent(new OrderLinePriceOverridden(Id, OriginalUnitPrice, newUnitPrice, PriceOverrideReason, performedBy, now));
     }
 
     /// <summary>Changes the ordered quantity.</summary>

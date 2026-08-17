@@ -1,19 +1,29 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Departments;
 
 /// <summary>Create/edit dialog for a Department - just a name.</summary>
-public sealed class DepartmentEditForm : MasterDataEditFormBase
+public sealed partial class DepartmentEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-
     /// <summary>Builds the dialog, pre-filled when editing an existing department.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public DepartmentEditForm() : base("Edit Department")
+    {
+        InitializeComponent();
+        }
+
+    /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; <paramref name="name"/> pre-populates the name field when editing an existing department.</summary>
     public DepartmentEditForm(string title, string? name = null) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
-        AddField("Name:", _nameEdit);
     }
+
+
 
     /// <summary>The entered department name.</summary>
     public string DepartmentNameValue => _nameEdit.Text.Trim();
@@ -30,4 +40,5 @@ public sealed class DepartmentEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

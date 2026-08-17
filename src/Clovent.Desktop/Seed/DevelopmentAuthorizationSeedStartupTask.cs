@@ -54,8 +54,31 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         // Milestone 15 ("Restaurant POS Core").
         "diningareas", "tables", "pos", "runningorders", "holdorders", "kitchentickets",
 
+        // Closed-order lookup, so a payment recorded in error on an already
+        // closed bill can still reach Payment History / Void Payment.
+        "orderhistory",
+
         // End-of-Day reporting gap-closing pass.
         "endofday",
+
+        // Restaurant UX refinement: Menu Items (a presentation layer over Catalog).
+        "menuitems",
+
+        // Restaurant Setup: configurable sequential order numbers.
+        "restaurantsetup",
+
+        // Commercial POS overhaul: owner-managed payment methods.
+        "paymentmethods",
+
+        // Commercial POS overhaul: activity log viewer.
+        "activitylog",
+
+        // Restaurant POS refinement pass: owner-configurable font/color
+        // appearance engine.
+        "appearance",
+
+        // Customers management screen
+        "customers",
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
@@ -89,11 +112,31 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         ("diningareas", ["create", "edit", "activate", "deactivate"]),
         ("tables", ["create", "edit", "activate", "deactivate", "occupy", "vacate", "reserve", "outofservice", "returntoservice"]),
         ("pos", ["create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
-            "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline"]),
+            "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
+            "priceoverride", "creditsale", "exceedcreditlimit"]),
         ("kitchentickets", ["start", "markready", "serve", "cancel"]),
 
         // End-of-Day reporting gap-closing pass.
         ("endofday", ["view"]),
+
+        // Restaurant UX refinement: Menu Items (a presentation layer over Catalog).
+        ("menuitems", ["create", "edit", "activate", "deactivate", "createcategory"]),
+
+        // Restaurant Setup: configurable sequential order numbers.
+        ("restaurantsetup", ["edit"]),
+
+        // Commercial POS overhaul: owner-managed payment methods.
+        ("paymentmethods", ["create", "edit", "activate", "deactivate"]),
+
+        // Commercial POS overhaul: activity log viewer.
+        ("activitylog", ["view"]),
+
+        // Restaurant POS refinement pass: owner-configurable font/color
+        // appearance engine.
+        ("appearance", ["create", "edit", "delete"]),
+
+        // Customer management
+        ("customers", ["create", "edit", "activate", "deactivate", "viewledger", "payment"]),
     ];
 
     /// <inheritdoc/>

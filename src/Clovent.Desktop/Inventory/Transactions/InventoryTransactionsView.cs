@@ -1,5 +1,4 @@
 using Clovent.Catalog.Application.Variants.Queries;
-using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.Transactions.Dtos;
@@ -19,9 +18,12 @@ namespace Clovent.Desktop.Inventory.Transactions;
 /// <see cref="Clovent.Inventory.Transactions.InventoryTransaction"/> is only
 /// ever created by the Warehouse Stock/Stock Adjustment/Stock Transfer
 /// screens' own handlers, never directly. Feature-gated per
-/// <c>inventorytransactions.view</c>.
+/// <c>inventorytransactions.view</c>. Control tree (list view, warehouse/
+/// product filters) lives in <c>InventoryTransactionsView.Designer.cs</c>;
+/// this file holds behavior only.
 /// </summary>
-public sealed class InventoryTransactionsView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class InventoryTransactionsView : XtraUserControl
 {
     private const string FeatureCode = "inventorytransactions";
 
@@ -29,9 +31,6 @@ public sealed class InventoryTransactionsView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly EntityPicker _warehousePicker = new("Warehouse:");
-    private readonly EntityPicker _productPicker = new("Product (Stock History):");
-    private readonly MasterDataListView<InventoryTransactionRow> _listView;
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
 
@@ -43,32 +42,7 @@ public sealed class InventoryTransactionsView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<InventoryTransactionRow>(
-        [
-            new MasterDataColumn(nameof(InventoryTransactionRow.Sku), "SKU", 100),
-            new MasterDataColumn(nameof(InventoryTransactionRow.ProductName), "Product", 160),
-            new MasterDataColumn(nameof(InventoryTransactionRow.TransactionType), "Type", 100),
-            new MasterDataColumn(nameof(InventoryTransactionRow.Quantity), "Quantity", 90),
-            new MasterDataColumn(nameof(InventoryTransactionRow.ReferenceType), "Reference", 120),
-            new MasterDataColumn(nameof(InventoryTransactionRow.Notes), "Notes", 200),
-            new MasterDataColumn(nameof(InventoryTransactionRow.OccurredAtUtc), "Occurred (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = row => $"{row.Sku} {row.ProductName} {row.TransactionType} {row.ReferenceType} {row.Notes}",
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-        };
-
-        // Product takes precedence when both are selected - see LoadItemsAsync.
-        _warehousePicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-        _productPicker.SelectionChanged += async (_, _) => await _listView.RefreshAsync();
-
-        Controls.Add(_listView);
-        Controls.Add(_productPicker);
-        Controls.Add(_warehousePicker);
-        Load += async (_, _) => await LoadPickersAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -77,10 +51,17 @@ public sealed class InventoryTransactionsView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
+
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void ProductPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+
+    private async void InventoryTransactionsView_Load(object? sender, EventArgs e) => await LoadPickersAsync();
 
     private async Task LoadPickersAsync()
     {

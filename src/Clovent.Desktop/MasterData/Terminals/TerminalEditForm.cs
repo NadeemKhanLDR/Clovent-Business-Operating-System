@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Terminals;
 
@@ -7,21 +6,35 @@ namespace Clovent.Desktop.MasterData.Terminals;
 /// Create/edit dialog for a Terminal - name and, for new terminals only, a
 /// code (immutable after creation).
 /// </summary>
-public sealed class TerminalEditForm : MasterDataEditFormBase
+public sealed partial class TerminalEditForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _codeEdit = new();
+    /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [Obsolete("Designer only", true)]
+    public TerminalEditForm() : base("Edit Terminal")
+    {
+        InitializeComponent();
+        }
 
-    /// <summary>Builds the dialog. Pass <paramref name="code"/> when editing so the (disabled) field still shows it.</summary>
+    /// <summary>
+    /// Builds the dialog. <paramref name="title"/> is the dialog's caption;
+    /// <paramref name="name"/> pre-populates the display name. Pass
+    /// <paramref name="code"/> when editing so the (disabled) field still
+    /// shows it - the field is only enabled when <paramref name="isNew"/> is
+    /// <see langword="true"/>, since the code is immutable after creation.
+    /// </summary>
     public TerminalEditForm(string title, string? name = null, string? code = null, bool isNew = true) : base(title)
     {
+        InitializeComponent();
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
         _nameEdit.Text = name ?? string.Empty;
         _codeEdit.Text = code ?? string.Empty;
         _codeEdit.Enabled = isNew;
-
-        AddField("Name:", _nameEdit);
-        AddField("Code:", _codeEdit);
     }
+
+
 
     /// <summary>The entered terminal name.</summary>
     public string TerminalNameValue => _nameEdit.Text.Trim();
@@ -47,4 +60,5 @@ public sealed class TerminalEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

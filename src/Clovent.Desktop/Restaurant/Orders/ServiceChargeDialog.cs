@@ -1,26 +1,16 @@
 using Clovent.Desktop.MasterData;
 using Clovent.Restaurant.ServiceCharges;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
-/// <summary>Prompt for applying a service charge to an order - type, value, and reason.</summary>
-public sealed class ServiceChargeDialog : MasterDataEditFormBase
+/// <summary>Prompt for applying a service charge to an order - type, value, and reason. Control tree lives in <c>ServiceChargeDialog.Designer.cs</c>; this file holds behavior only.</summary>
+public sealed partial class ServiceChargeDialog : MasterDataEditFormBase
 {
-    private readonly ComboBoxEdit _typeCombo = new();
-    private readonly SpinEdit _valueEdit = new() { Properties = { MinValue = 0, MaxValue = 1_000_000, Increment = 0.01m } };
-    private readonly MemoEdit _reasonEdit = new() { Height = 60 };
-
     /// <summary>Builds the dialog.</summary>
     public ServiceChargeDialog() : base("Apply Service Charge")
     {
-        _typeCombo.Properties.Items.AddRange([nameof(ServiceChargeType.Percentage), nameof(ServiceChargeType.FixedAmount)]);
-        _typeCombo.SelectedIndex = 0;
-
-        AddField("Type:", _typeCombo);
-        AddField("Value:", _valueEdit);
-        AddField("Reason:", _reasonEdit);
-    }
+        InitializeComponent();
+        }
 
     /// <summary>The selected service charge type.</summary>
     public ServiceChargeType ServiceChargeType => Enum.Parse<ServiceChargeType>((string)_typeCombo.SelectedItem);
@@ -55,4 +45,5 @@ public sealed class ServiceChargeDialog : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

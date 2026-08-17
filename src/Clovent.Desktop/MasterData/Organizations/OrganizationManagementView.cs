@@ -15,7 +15,8 @@ namespace Clovent.Desktop.MasterData.Organizations;
 /// Built entirely on the shared <see cref="MasterDataListView{TDto}"/>
 /// chrome. Feature-gated per <c>organizations.{create|edit|activate|deactivate}</c>.
 /// </summary>
-public sealed class OrganizationManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class OrganizationManagementView : XtraUserControl
 {
     private const string FeatureCode = "organizations";
 
@@ -23,7 +24,6 @@ public sealed class OrganizationManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<OrganizationDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public OrganizationManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -33,28 +33,7 @@ public sealed class OrganizationManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<OrganizationDto>(
-        [
-            new MasterDataColumn(nameof(OrganizationDto.Name), "Name", 220),
-            new MasterDataColumn(nameof(OrganizationDto.TaxId), "Tax Id", 140),
-            new MasterDataColumn(nameof(OrganizationDto.Status), "Status", 90),
-            new MasterDataColumn(nameof(OrganizationDto.CreatedAtUtc), "Created (UTC)", 160),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Name,
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateOrganizationCommand(dto.OrganizationId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateOrganizationCommand(dto.OrganizationId)),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -63,6 +42,7 @@ public sealed class OrganizationManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -97,4 +77,6 @@ public sealed class OrganizationManagementView : XtraUserControl
             await _mediator.Send(new SetOrganizationTaxIdCommand(dto.OrganizationId, form.TaxId));
         }
     }
+
+    private async void OrganizationManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 }

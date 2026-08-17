@@ -1,5 +1,7 @@
+using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
+using Clovent.Inventory.Transactions;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders.Dtos;
@@ -57,17 +59,21 @@ public sealed class CompleteOrderCommandHandler(
             serviceCharges.Select(ServiceChargeDto.FromDomain).ToList(),
             payments.Select(PaymentDto.FromDomain).ToList());
 
+        // Completion means the bill balances - in both directions. The
+        // over-payment arm (M-4) used to be missing, so `Balance > 0.005m`
+        // alone waved a negative balance straight through: order ORD-35 took
+        // 660.00 against a 280.00 bill and still closed silently, with nothing
+        // downstream ever flagging it. RecordPaymentCommandHandler's own
+        // ceiling should now make a negative balance unreachable for new
+        // orders, which makes this the backstop that catches any regression in
+        // that ceiling, plus the historical orders that are already over-paid.
         if (totals.Balance > 0.005m)
             throw RestaurantDomainException.OrderNotFullyPaid(orderId, totals.Balance);
 
-        foreach (var line in lineDtos.Where(l => !l.IsVoided))
-        {
-            var stock = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(order.WarehouseId.Value, line.ProductVariantId), cancellationToken);
-            if (stock is not null)
-            {
-                await mediator.Send(new IssueStockCommand(stock.WarehouseStockId, line.Quantity, $"Order {order.OrderNumber.Value}"), cancellationToken);
-            }
-        }
+        if (totals.Balance < -0.005m)
+            throw RestaurantDomainException.OrderOverPaid(orderId, -totals.Balance);
+
+        await IssueStockForOrderAsync(order, lineDtos, cancellationToken);
 
         var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
         var sequence = await dailySalesSequenceRepository.GetByWarehouseAndDateAsync(order.WarehouseId, today, cancellationToken);
@@ -87,5 +93,127 @@ public sealed class CompleteOrderCommandHandler(
         }
 
         return OrderDto.FromDomain(order);
+    }
+
+    /// <summary>
+    /// The <see cref="InventoryTransaction.ReferenceType"/> every stock movement
+    /// this handler issues is stamped with, so those movements can be found
+    /// again by order id.
+    /// </summary>
+    private const string StockReferenceType = "Order";
+
+    /// <summary>
+    /// Issues warehouse stock for every active line, in a way that is safe to
+    /// retry: it checks the whole order can be satisfied before it moves
+    /// anything, and skips whatever a previous attempt already moved.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Root cause this closes (H-2):</b> stock used to be issued one line at
+    /// a time inside a bare <c>foreach</c>. Each <see cref="IssueStockCommand"/>
+    /// is a nested MediatR request, so it runs the whole pipeline - including
+    /// Inventory's own <c>UnitOfWorkBehavior</c> - and <b>commits to the
+    /// Inventory database immediately</b>, before this handler has done
+    /// anything to the order. Restaurant and Inventory are separate databases
+    /// (<c>Clovent_Restaurant</c> / <c>Clovent_Inventory</c>) on separate
+    /// <c>DbContext</c>s, and the solution opens no explicit transaction
+    /// anywhere, so those per-line commits are permanent the instant they
+    /// happen. A five-line order whose fourth line was short therefore left
+    /// lines one to three issued for good while
+    /// <see cref="Order.Complete"/> never ran and the order stayed
+    /// <see cref="OrderStatus.Open"/> - and completing it again re-issued those
+    /// same three lines, silently depleting stock twice.
+    /// </para>
+    /// <para>
+    /// <b>Why this is not a transaction:</b> two databases cannot share an EF
+    /// Core transaction, and promoting to a distributed one (MSDTC) is a
+    /// deployment burden this app does not carry. Instead the two failure
+    /// modes are addressed directly - validate before the first write so the
+    /// common failure never starts, and make the writes idempotent so any
+    /// failure that still occurs is recoverable simply by retrying.
+    /// </para>
+    /// <para>
+    /// Quantities are aggregated <em>per variant</em> rather than per line,
+    /// because the same variant legitimately appears on several lines (a line
+    /// carrying notes is kept separate from one without - see
+    /// <c>RestaurantPosForm.AddProductToCurrentOrder</c>). Checking each line
+    /// against stock independently would let two lines of six units each pass
+    /// against a balance of ten, and it would make "has this variant already
+    /// been issued?" ambiguous. The stock delta is unchanged; only the ledger
+    /// granularity differs (one Issue row per variant instead of per line).
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Stock is insufficient for one or more variants. Thrown before anything is issued.</exception>
+    private async Task IssueStockForOrderAsync(Order order, IReadOnlyCollection<OrderLineDto> lineDtos, CancellationToken cancellationToken)
+    {
+        var required = lineDtos
+            .Where(l => !l.IsVoided)
+            .GroupBy(l => l.ProductVariantId)
+            .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToList();
+
+        if (required.Count == 0)
+        {
+            return;
+        }
+
+        // Whatever an earlier, failed attempt already issued for this order.
+        // Re-issuing those would deplete stock a second time.
+        var alreadyIssued = await mediator.Send(
+            new ListInventoryTransactionsByReferenceQuery(StockReferenceType, order.Id.Value), cancellationToken);
+        var alreadyIssuedVariantIds = alreadyIssued
+            .Where(t => t.TransactionType == nameof(InventoryTransactionType.Issue))
+            .Select(t => t.ProductVariantId)
+            .ToHashSet();
+
+        // Pass one: resolve and verify everything, writing nothing. A variant
+        // with no stock record at this warehouse is not tracked and is skipped,
+        // exactly as before.
+        var pending = new List<(Guid WarehouseStockId, decimal Quantity)>();
+        var shortfalls = new List<string>();
+
+        foreach (var item in required)
+        {
+            if (alreadyIssuedVariantIds.Contains(item.ProductVariantId))
+            {
+                continue;
+            }
+
+            var stock = await mediator.Send(
+                new GetWarehouseStockByWarehouseAndVariantQuery(order.WarehouseId.Value, item.ProductVariantId), cancellationToken);
+            if (stock is null)
+            {
+                continue;
+            }
+
+            if (!stock.AllowNegativeStock && stock.QuantityOnHand < item.Quantity)
+            {
+                shortfalls.Add($"variant {item.ProductVariantId}: {item.Quantity:N2} needed, {stock.QuantityOnHand:N2} on hand");
+                continue;
+            }
+
+            pending.Add((stock.WarehouseStockId, item.Quantity));
+        }
+
+        if (shortfalls.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"This order cannot be completed because there is not enough stock at its location.\n\n" +
+                string.Join("\n", shortfalls) +
+                "\n\nNo stock has been taken. Adjust the stock or void the affected lines, then complete the order again.");
+        }
+
+        // Pass two: every movement is now known to succeed.
+        foreach (var (warehouseStockId, quantity) in pending)
+        {
+            await mediator.Send(
+                new IssueStockCommand(
+                    warehouseStockId,
+                    quantity,
+                    $"Order {order.OrderNumber.Value}",
+                    StockReferenceType,
+                    order.Id.Value),
+                cancellationToken);
+        }
     }
 }

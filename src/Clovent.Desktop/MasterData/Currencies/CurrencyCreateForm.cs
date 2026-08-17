@@ -1,5 +1,4 @@
 using Clovent.Desktop.MasterData;
-using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData.Currencies;
 
@@ -10,21 +9,13 @@ namespace Clovent.Desktop.MasterData.Currencies;
 /// <see cref="MasterDataListView{TDto}.OnEdit"/> is deliberately left unset
 /// for the Currency screen.
 /// </summary>
-public sealed class CurrencyCreateForm : MasterDataEditFormBase
+public sealed partial class CurrencyCreateForm : MasterDataEditFormBase
 {
-    private readonly TextEdit _codeEdit = new();
-    private readonly TextEdit _nameEdit = new();
-    private readonly TextEdit _symbolEdit = new();
-    private readonly SpinEdit _decimalPlacesEdit = new() { Properties = { MinValue = 0, MaxValue = 4 }, Value = 2 };
-
     /// <summary>Builds the dialog.</summary>
     public CurrencyCreateForm() : base("New Currency")
     {
-        AddField("Code (e.g. USD):", _codeEdit);
-        AddField("Name:", _nameEdit);
-        AddField("Symbol:", _symbolEdit);
-        AddField("Decimal Places:", _decimalPlacesEdit);
-    }
+        InitializeComponent();
+        }
 
     /// <summary>The entered ISO 4217 code.</summary>
     public string Code => _codeEdit.Text.Trim();
@@ -62,4 +53,5 @@ public sealed class CurrencyCreateForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-}
+
+    }

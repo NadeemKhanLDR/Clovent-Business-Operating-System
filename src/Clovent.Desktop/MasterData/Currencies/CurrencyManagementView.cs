@@ -14,7 +14,8 @@ namespace Clovent.Desktop.MasterData.Currencies;
 /// over the shared currency catalog - reference data, not scoped to any one
 /// organization. Feature-gated per <c>currencies.{create|activate|deactivate}</c>.
 /// </summary>
-public sealed class CurrencyManagementView : XtraUserControl
+[System.ComponentModel.DesignerCategory("Code")]
+public sealed partial class CurrencyManagementView : XtraUserControl
 {
     private const string FeatureCode = "currencies";
 
@@ -22,7 +23,6 @@ public sealed class CurrencyManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly MasterDataListView<CurrencyDto> _listView;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public CurrencyManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -32,28 +32,7 @@ public sealed class CurrencyManagementView : XtraUserControl
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
 
-        Dock = DockStyle.Fill;
-
-        _listView = new MasterDataListView<CurrencyDto>(
-        [
-            new MasterDataColumn(nameof(CurrencyDto.Code), "Code", 80),
-            new MasterDataColumn(nameof(CurrencyDto.Name), "Name", 180),
-            new MasterDataColumn(nameof(CurrencyDto.Symbol), "Symbol", 70),
-            new MasterDataColumn(nameof(CurrencyDto.DecimalPlaces), "Decimals", 80),
-            new MasterDataColumn(nameof(CurrencyDto.Status), "Status", 90),
-        ])
-        {
-            LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => $"{dto.Code} {dto.Name}",
-            StatusSelector = dto => dto.Status,
-            CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
-            OnNew = CreateAsync,
-            OnActivate = dto => _mediator.Send(new ActivateCurrencyCommand(dto.CurrencyId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateCurrencyCommand(dto.CurrencyId)),
-        };
-
-        Controls.Add(_listView);
-        Load += async (_, _) => await _listView.RefreshAsync();
+        InitializeComponent();
     }
 
     /// <inheritdoc/>
@@ -62,6 +41,7 @@ public sealed class CurrencyManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -86,4 +66,6 @@ public sealed class CurrencyManagementView : XtraUserControl
             await _mediator.Send(new CreateCurrencyCommand(form.Code, form.CurrencyNameValue, form.Symbol, form.DecimalPlaces));
         }
     }
+
+    private async void CurrencyManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
 }
