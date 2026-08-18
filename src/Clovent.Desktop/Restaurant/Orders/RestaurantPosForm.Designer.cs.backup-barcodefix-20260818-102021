@@ -95,7 +95,7 @@ partial class RestaurantPosForm
         _lineGridColumnDiscount = new GridColumn();
         _lineGridColumnLineTotal = new GridColumn();
         _lineGridColumnNotes = new GridColumn();
-        _billEmptyLabel = new System.Windows.Forms.Label();
+        _billEmptyLabel = new LabelControl();
         pnlCartActions = new Panel();
         flowCartActions = new FlowLayoutPanel();
         _decreaseQuantityButton = new SimpleButton();
@@ -1148,9 +1148,13 @@ partial class RestaurantPosForm
         // 
         // _billEmptyLabel
         // 
-        _billEmptyLabel.Font = new Font("Segoe UI", 11F);
-        _billEmptyLabel.ForeColor = Color.Gray;
-        _billEmptyLabel.AutoSize = false;
+        _billEmptyLabel.Appearance.Font = new Font("Segoe UI", 11F);
+        _billEmptyLabel.Appearance.ForeColor = Color.Gray;
+        _billEmptyLabel.Appearance.Options.UseFont = true;
+        _billEmptyLabel.Appearance.Options.UseForeColor = true;
+        _billEmptyLabel.Appearance.Options.UseTextOptions = true;
+        _billEmptyLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _billEmptyLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _billEmptyLabel.Dock = DockStyle.Fill;
         _billEmptyLabel.Location = new Point(6, 0);
         _billEmptyLabel.Margin = new Padding(0);
@@ -1158,7 +1162,6 @@ partial class RestaurantPosForm
         _billEmptyLabel.Size = new Size(140, 20);
         _billEmptyLabel.TabIndex = 1;
         _billEmptyLabel.Text = "No active order lines.";
-        _billEmptyLabel.TextAlign = ContentAlignment.MiddleCenter;
         // 
         // pnlCartActions
         // 
@@ -1690,6 +1693,8 @@ partial class RestaurantPosForm
         // 
         // tlpSearch
         // 
+        tlpSearch.AutoSize = true;
+        tlpSearch.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         tlpSearch.ColumnCount = 4;
         tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58F));
         tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150F));
@@ -1904,9 +1909,7 @@ partial class RestaurantPosForm
         // 
         // _sortByNameButton
         // 
-        _sortByNameButton.AutoSize = true;
         _sortByNameButton.Location = new Point(3, 3);
-        _sortByNameButton.Margin = new Padding(0, 0, 6, 4);
         _sortByNameButton.Name = "_sortByNameButton";
         _sortByNameButton.Size = new Size(84, 28);
         _sortByNameButton.TabIndex = 0;
@@ -1915,9 +1918,7 @@ partial class RestaurantPosForm
         // 
         // _sortByColorButton
         // 
-        _sortByColorButton.AutoSize = true;
         _sortByColorButton.Location = new Point(93, 3);
-        _sortByColorButton.Margin = new Padding(0, 0, 6, 4);
         _sortByColorButton.Name = "_sortByColorButton";
         _sortByColorButton.Size = new Size(84, 28);
         _sortByColorButton.TabIndex = 1;
@@ -2194,7 +2195,7 @@ partial class RestaurantPosForm
     private GridColumn _lineGridColumnDiscount;
     private GridColumn _lineGridColumnLineTotal;
     private GridColumn _lineGridColumnNotes;
-    private System.Windows.Forms.Label _billEmptyLabel;
+    private LabelControl _billEmptyLabel;
 
     private Panel pnlCartActions;
     private FlowLayoutPanel flowCartActions;

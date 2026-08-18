@@ -173,7 +173,6 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             InitializeComponent();
             AttachPickers();
-            ScaleSearchStripColumnsForDpi();
 
             if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             {
@@ -190,41 +189,6 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
-    /// <summary>
-    /// <see cref="TableLayoutPanel"/> column styles are not DPI-scaled at
-    /// runtime (their fonts and the auto-sized row height are), so the search
-    /// strip's Absolute columns keep their 96-DPI widths on high-DPI displays.
-    /// Every strip child is <c>Dock=Fill</c>, so each takes its column's
-    /// unscaled width while its content renders scaled - which clips the
-    /// barcode editor's "Scan barcode..." prompt to "Scan ba...". Re-issues
-    /// the three fixed column widths multiplied by the form's current DPI.
-    /// </summary>
-    private void ScaleSearchStripColumnsForDpi()
-    {
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
-        {
-            return;
-        }
-
-        Apply();
-        HandleCreated += (_, _) => Apply();
-
-        return;
-
-        void Apply()
-        {
-            var scale = DeviceDpi / 96f;
-            if (scale <= 1f)
-            {
-                return;
-            }
-
-            tlpSearch.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 58F * scale);
-            tlpSearch.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, 150F * scale);
-            tlpSearch.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, 70F * scale);
-            tlpSearch.PerformLayout();
-        }
-    }
     /// <summary>
     /// Parents the two <see cref="EntityPicker"/>s and wires the table
     /// selection handler. Called immediately after every
@@ -255,9 +219,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         try
         {
-            var logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "Logs");
-            System.IO.Directory.CreateDirectory(logDir);
-            var logPath = System.IO.Path.Combine(logDir, "designer_exception.txt");
+            var logPath = @"d:\Clovent Business Operating System\designer_exception.txt";
             System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] Context: {context}\r\nException: {ex}\r\n\r\n");
         }
         catch { }
@@ -802,23 +764,13 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         SetCategoryButtonSelected(_allCategoriesButton, _selectedCategoryId is null, null);
 
-        // _categoryButtonsPanel.Controls contains _categorySortFlow (a FlowLayoutPanel)
-        // in addition to the per-category SimpleButtons.  The old implicit-cast
-        // foreach (SimpleButton button in ...) threw InvalidCastException when the
-        // runtime reached that FlowLayoutPanel.  Iterate as Control and skip any
-        // child that is not a SimpleButton so _categorySortFlow is silently ignored
-        // while every category button still receives its selection state.
-        foreach (Control control in _categoryButtonsPanel.Controls)
+        foreach (SimpleButton button in _categoryButtonsPanel.Controls)
         {
-            if (control is not SimpleButton button)
-                continue;
-
             var isSelected = button.Tag is Guid categoryId && categoryId == _selectedCategoryId;
             var colorHex = button.Tag is Guid tagId ? _loadedCategories.FirstOrDefault(c => c.ProductCategoryId == tagId)?.ColorHex : null;
             SetCategoryButtonSelected(button, isSelected, colorHex);
         }
     }
-
 
     private static void SetCategoryButtonSelected(SimpleButton button, bool selected, string? colorHex)
     {
@@ -1630,12 +1582,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         _sendToKitchenButton.Enabled = isOpen && Permit("sendtokitchen");
         _completeButton.Enabled = isOpen && Permit("complete");
 
-        // Enable or disable the payment entry controls (excluding payment methods):
-        var canPay = isOpen && Permit("pay");
-        pnlAmountTendered.Enabled = canPay;
-        pnlKeypad.Enabled = canPay;
-        pnlQuickCash.Enabled = canPay;
-        _recordButton.Enabled = canPay;
+        // Enable or disable the entire bottom payment bar:
+        pnlPayment.Enabled = isOpen && Permit("pay");
 
         _paymentHistoryButton.Enabled = hasOrder;
         _transferTableButton.Enabled = isOpen && isDineIn && Permit("transfertable");
@@ -1771,17 +1719,11 @@ public sealed partial class RestaurantPosForm : XtraForm
             _amountEdit.Text = string.Empty;
             _amountEntryIsPreset = true;
             UpdateChangeDisplay();
-            pnlAmountTendered.Enabled = false;
-            pnlKeypad.Enabled = false;
-            pnlQuickCash.Enabled = false;
-            _recordButton.Enabled = false;
+            pnlPayment.Enabled = false;
             return;
         }
 
-        pnlAmountTendered.Enabled = true;
-        pnlKeypad.Enabled = true;
-        pnlQuickCash.Enabled = true;
-        _recordButton.Enabled = true;
+        pnlPayment.Enabled = true;
 
         var totals = await _mediator.Send(new GetOrderSummaryQuery(orderId));
         _balance = Math.Max(totals.Balance, 0m);
@@ -1799,8 +1741,6 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             var button = new SimpleButton { Text = name, AutoSize = true, Padding = new Padding(8, 4, 8, 4), MinimumSize = new Size(70, 32), Margin = new Padding(0, 0, 4, 4), Name = "PaymentMethodButton" };
             button.Tag = id;
-            button.LookAndFeel.UseDefaultLookAndFeel = false;
-            button.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
             button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             button.Appearance.Options.UseFont = true;
             button.Click += (_, _) => SelectPaymentMethod(id);

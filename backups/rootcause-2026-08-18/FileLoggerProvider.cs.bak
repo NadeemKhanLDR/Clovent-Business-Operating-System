@@ -151,11 +151,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
             FileMode.Append,
             FileAccess.Write,
             FileShare.Read);
-        // AutoFlush is required for crash/error post-mortem: a buffered
-        // writer keeps entries in memory until dispose, so entries logged
-        // right before a crash or error dialog (the ones an investigation
-        // needs most) would never reach disk.
-        _writer = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+        _writer = new StreamWriter(stream, Encoding.UTF8);
     }
 
     private void PruneOldFiles()
