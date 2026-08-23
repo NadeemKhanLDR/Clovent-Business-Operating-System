@@ -104,7 +104,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
     private void InitializeRuntime()
     {
-        Localization.LocalizationHelper.LocalizeControl(this);
+        LocalizationHelper.LocalizeControl(this);
 
         _tabbedView.DocumentClosing += TabbedView_DocumentClosing;
         _tabbedView.DocumentClosed += TabbedView_DocumentClosed;
@@ -387,7 +387,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
         var content = contentFactory();
         content.Dock = DockStyle.Fill;
-        Localization.LocalizationHelper.LocalizeControl(content);
+        LocalizationHelper.LocalizeControl(content);
         var document = _tabbedView.AddDocument(content, PosStrings.Get(caption));
 
         if (!allowMultipleInstances)

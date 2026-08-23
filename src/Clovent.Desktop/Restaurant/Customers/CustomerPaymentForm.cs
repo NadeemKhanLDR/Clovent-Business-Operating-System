@@ -87,7 +87,7 @@ public sealed partial class CustomerPaymentForm : XtraForm
         if (DesignModeHelper.IsInDesignMode)
             return;
 
-        Localization.LocalizationHelper.LocalizeControl(this);
+        Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
         AppearanceManager.Apply(this, "Restaurant", nameof(CustomerPaymentForm));
     }
 

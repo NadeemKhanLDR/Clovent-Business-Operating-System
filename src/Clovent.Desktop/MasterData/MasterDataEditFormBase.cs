@@ -181,7 +181,7 @@ public partial class MasterDataEditFormBase : XtraForm
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode) return;
 
-        Localization.LocalizationHelper.LocalizeControl(this);
+        Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
 
         // Ensure proper Z-order docking layout so Dock=Fill content takes remaining space correctly.
         _contentPanel.SendToBack();

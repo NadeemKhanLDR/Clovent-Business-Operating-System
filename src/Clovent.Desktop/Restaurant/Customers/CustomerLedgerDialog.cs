@@ -54,7 +54,7 @@ public sealed partial class CustomerLedgerDialog : XtraForm
         if (DesignModeHelper.IsInDesignMode)
             return;
 
-        Localization.LocalizationHelper.LocalizeControl(this);
+        Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
         AppearanceManager.Apply(this, "Restaurant", nameof(CustomerLedgerDialog));
         Text = $"{_customer.Name} ({_customer.Code}) - Ledger Statement";
 
