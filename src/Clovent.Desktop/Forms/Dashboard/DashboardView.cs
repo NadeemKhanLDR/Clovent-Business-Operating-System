@@ -294,7 +294,7 @@ public sealed partial class DashboardView : BaseForm
         }
 
         var inventoryValue = CatalogDashboardCalculations.CalculateInventoryValue(stocks, id => costsByVariantId.GetValueOrDefault(id));
-        lblInventoryValueValue.Text = inventoryValue.ToString("N2");
+        lblInventoryValueValue.Text = inventoryValue.ToString("N" + CurrencyDisplay.DecimalPlaces);
 
         var recentTransactions = await _mediator.Send(new ListRecentInventoryTransactionsQuery(10));
         PopulateList(lstStockMovements, [.. recentTransactions
@@ -334,7 +334,7 @@ public sealed partial class DashboardView : BaseForm
             var lines = await _mediator.Send(new ListOrderLinesByOrderQuery(order.OrderId));
             allLines.AddRange(lines);
         }
-        lblTodaysSalesValue.Text = todaysSales.ToString("N2");
+        lblTodaysSalesValue.Text = todaysSales.ToString("N" + CurrencyDisplay.DecimalPlaces);
 
         var topSelling = RestaurantDashboardCalculations.TopSellingItems(allLines);
         var topSellingDisplay = new List<string>();

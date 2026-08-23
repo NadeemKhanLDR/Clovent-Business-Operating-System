@@ -106,6 +106,7 @@ partial class ActivityLogView
         _gridView.OptionsBehavior.Editable = false;
         _gridView.OptionsSelection.MultiSelect = false;
         _gridView.OptionsView.ShowGroupPanel = false;
+        _gridView.OptionsView.ColumnAutoWidth = true;
         _gridView.RowHeight = 32;
         _gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
         //
@@ -134,13 +135,16 @@ partial class ActivityLogView
         //
         _searchEdit.Name = "_searchEdit";
         _searchEdit.Properties.NullValuePrompt = "Search action, user, or details...";
-        _searchEdit.Width = 280;
+        _searchEdit.MinimumSize = new Size(280, 0);
+        _searchEdit.Width = 400;
         _searchEdit.EditValueChanged += SearchEdit_EditValueChanged;
+        _searchEdit.HandleCreated += SearchEdit_HandleCreated;
         //
         // _refreshButton
         //
+        _refreshButton.AutoSize = true;
         _refreshButton.Name = "_refreshButton";
-        _refreshButton.Text = "⟳  Refresh";
+        _refreshButton.Text = "Refresh";
         _refreshButton.Click += RefreshButton_Click;
         //
         // _toolbar
@@ -154,11 +158,12 @@ partial class ActivityLogView
         _toolbar.Name = "_toolbar";
         _toolbar.Padding = new Padding(8);
         _toolbar.WrapContents = false;
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_refreshButton, Clovent.Desktop.Forms.Base.DesktopIcons.Refresh);
         //
         // ActivityLogView
         //
-        Controls.Add(_gridHost);
         Controls.Add(_toolbar);
+        Controls.Add(_gridHost);
         Dock = DockStyle.Fill;
         Name = "ActivityLogView";
         AppearanceManager.Changed += AppearanceManager_Changed;

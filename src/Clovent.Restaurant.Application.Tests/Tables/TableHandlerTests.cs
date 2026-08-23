@@ -6,6 +6,7 @@ using Clovent.Restaurant.Application.Tests.TestSupport;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
+using Clovent.Restaurant.Tables.ValueObjects;
 using Xunit;
 
 namespace Clovent.Restaurant.Application.Tests.Tables;
@@ -19,9 +20,10 @@ public class TableHandlerTests
         var handler = new CreateTableCommandHandler(repository);
         var diningAreaId = DiningAreaId.New();
 
-        var result = await handler.Handle(new CreateTableCommand(diningAreaId.Value, "T-01", 4), CancellationToken.None);
+        var result = await handler.Handle(new CreateTableCommand(diningAreaId.Value, "T-01", "Table 1", 4), CancellationToken.None);
 
         Assert.Equal("T-01", result.Code);
+        Assert.Equal("Table 1", result.Name);
         Assert.Equal(4, result.Capacity);
         Assert.Equal("Available", result.OccupancyStatus);
     }
@@ -30,7 +32,7 @@ public class TableHandlerTests
     public async Task OccupyThenVacate_RoundTrips()
     {
         var repository = new FakeTableRepository();
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         repository.Add(table);
 
         var occupied = await new OccupyTableCommandHandler(repository).Handle(new OccupyTableCommand(table.Id.Value), CancellationToken.None);
@@ -51,7 +53,7 @@ public class TableHandlerTests
         var tableRepository = new FakeTableRepository();
         var orderRepository = new FakeOrderRepository();
 
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), TableName.Create("T-03"), 6);
         table.Occupy();
         tableRepository.Add(table);
 
@@ -73,7 +75,7 @@ public class TableHandlerTests
         var tableRepository = new FakeTableRepository();
         var orderRepository = new FakeOrderRepository();
 
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), TableName.Create("T-03"), 6);
         table.Occupy();
         tableRepository.Add(table);
 
@@ -99,7 +101,7 @@ public class TableHandlerTests
         var tableRepository = new FakeTableRepository();
         var orderRepository = new FakeOrderRepository();
 
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 2);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 2);
         table.Occupy();
         tableRepository.Add(table);
 
@@ -121,9 +123,9 @@ public class TableHandlerTests
         var tableRepository = new FakeTableRepository();
         var orderRepository = new FakeOrderRepository();
 
-        var target = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 2);
+        var target = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 2);
         target.Occupy();
-        var other = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 6);
+        var other = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), TableName.Create("T-03"), 6);
         other.Occupy();
         tableRepository.Add(target);
         tableRepository.Add(other);
@@ -141,7 +143,7 @@ public class TableHandlerTests
     public async Task Reserve_ThenOccupy_Succeeds()
     {
         var repository = new FakeTableRepository();
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         repository.Add(table);
 
         await new ReserveTableCommandHandler(repository).Handle(new ReserveTableCommand(table.Id.Value), CancellationToken.None);
@@ -154,7 +156,7 @@ public class TableHandlerTests
     public async Task SetOutOfService_ThenReturnToService_RoundTrips()
     {
         var repository = new FakeTableRepository();
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         repository.Add(table);
 
         var outOfService = await new SetTableOutOfServiceCommandHandler(repository).Handle(new SetTableOutOfServiceCommand(table.Id.Value), CancellationToken.None);
@@ -165,14 +167,15 @@ public class TableHandlerTests
     }
 
     [Fact]
-    public async Task SetTableCapacityCommandHandler_Changes()
+    public async Task UpdateTableCommandHandler_ChangesNameAndCapacity()
     {
         var repository = new FakeTableRepository();
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         repository.Add(table);
 
-        var result = await new SetTableCapacityCommandHandler(repository).Handle(new SetTableCapacityCommand(table.Id.Value, 6), CancellationToken.None);
+        var result = await new UpdateTableCommandHandler(repository).Handle(new UpdateTableCommand(table.Id.Value, "Window Table", 6), CancellationToken.None);
 
+        Assert.Equal("Window Table", result.Name);
         Assert.Equal(6, result.Capacity);
     }
 
@@ -180,7 +183,7 @@ public class TableHandlerTests
     public async Task ActivateThenDeactivate_RoundTrips()
     {
         var repository = new FakeTableRepository();
-        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         table.Deactivate();
         repository.Add(table);
 
@@ -196,9 +199,9 @@ public class TableHandlerTests
     {
         var repository = new FakeTableRepository();
         var areaId = DiningAreaId.New();
-        repository.Add(Table.Create(areaId, EntityCode.Create("T-01"), 4));
-        repository.Add(Table.Create(areaId, EntityCode.Create("T-02"), 4));
-        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 4));
+        repository.Add(Table.Create(areaId, EntityCode.Create("T-01"), TableName.Create("T-01"), 4));
+        repository.Add(Table.Create(areaId, EntityCode.Create("T-02"), TableName.Create("T-02"), 4));
+        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), TableName.Create("T-03"), 4));
 
         var result = await new ListTablesByDiningAreaQueryHandler(repository).Handle(new ListTablesByDiningAreaQuery(areaId.Value), CancellationToken.None);
 
@@ -209,8 +212,8 @@ public class TableHandlerTests
     public async Task ListAllTablesQueryHandler_ReturnsEvery()
     {
         var repository = new FakeTableRepository();
-        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4));
-        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-02"), 4));
+        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4));
+        repository.Add(Table.Create(DiningAreaId.New(), EntityCode.Create("T-02"), TableName.Create("T-02"), 4));
 
         var result = await new ListAllTablesQueryHandler(repository).Handle(new ListAllTablesQuery(), CancellationToken.None);
 
@@ -223,5 +226,18 @@ public class TableHandlerTests
         var handler = new GetTableByIdQueryHandler(new FakeTableRepository());
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new GetTableByIdQuery(Guid.NewGuid()), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task GetTableByIdQueryHandler_Found_ReturnsName()
+    {
+        var repository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("Window Table"), 4);
+        repository.Add(table);
+
+        var handler = new GetTableByIdQueryHandler(repository);
+        var result = await handler.Handle(new GetTableByIdQuery(table.Id.Value), CancellationToken.None);
+
+        Assert.Equal("Window Table", result.Name);
     }
 }

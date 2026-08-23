@@ -26,6 +26,11 @@ internal sealed class TableConfiguration : IEntityTypeConfiguration<Table>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(t => t.Name)
+            .HasConversion(ValueConverters.TableNameConverter)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(t => t.Capacity).IsRequired();
 
         builder.Property(t => t.Status)

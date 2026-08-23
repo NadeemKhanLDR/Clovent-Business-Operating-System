@@ -59,6 +59,8 @@ public sealed partial class CustomersView : XtraUserControl
         _currentSession = currentSession;
 
         InitializeComponent();
+        _gridView.OptionsSelection.MultiSelect = true;
+        _gridView.SelectionChanged += async (s, e) => await TryRunAsync(UpdateActionButtonsStateAsync, "update the toolbar");
         ScaleLayoutAtRuntime();
     }
 
@@ -118,6 +120,16 @@ public sealed partial class CustomersView : XtraUserControl
         {
             var items = await _mediator.Send(new ListCustomersQuery(), cancellationToken);
             _allItems = [.. items];
+
+            var pickerItems = new List<CustomerPickerRow>();
+            pickerItems.Add(new CustomerPickerRow(Guid.Empty, "All Customers", string.Empty, string.Empty));
+            pickerItems.AddRange(_allItems
+                .Select(c => new CustomerPickerRow(c.CustomerId, c.Name, c.MobileNumber, CurrencyDisplay.FormatPlain(c.OutstandingBalance))));
+
+            var selectedVal = _txtSearch.EditValue;
+            _txtSearch.Properties.DataSource = pickerItems;
+            _txtSearch.EditValue = selectedVal ?? Guid.Empty;
+
             await ApplyFiltersAsync();
         }
         finally
@@ -153,17 +165,18 @@ public sealed partial class CustomersView : XtraUserControl
 
         if (_currentSession.UserId is not { } userId) return;
 
+        var selectedCount = _gridView.GetSelectedRows().Length;
         var focusedDto = GetFocusedCustomer();
 
         _newButton.Enabled = await _featurePolicy.CanUseFeatureAsync(userId, "customers.create");
         
-        var canActivate = focusedDto != null && !focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.activate");
-        var canDeactivate = focusedDto != null && focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.deactivate");
+        var canActivate = selectedCount > 0 && await _featurePolicy.CanUseFeatureAsync(userId, "customers.activate");
+        var canDeactivate = selectedCount > 0 && await _featurePolicy.CanUseFeatureAsync(userId, "customers.deactivate");
         _btnToggleStatus.Enabled = canActivate || canDeactivate;
         _btnToggleStatus.Text = focusedDto != null && focusedDto.IsActive ? "Deactivate" : "Activate";
 
-        _btnLedger.Enabled = focusedDto != null && await _featurePolicy.CanUseFeatureAsync(userId, "customers.viewledger");
-        _btnReceivePayment.Enabled = focusedDto != null && focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.payment");
+        _btnLedger.Enabled = (selectedCount == 1) && focusedDto != null && await _featurePolicy.CanUseFeatureAsync(userId, "customers.viewledger");
+        _btnReceivePayment.Enabled = (selectedCount == 1) && focusedDto != null && focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.payment");
     }
 
     private CustomerDto? GetFocusedCustomer()
@@ -177,18 +190,17 @@ public sealed partial class CustomersView : XtraUserControl
 
     private async Task ApplyFiltersAsync()
     {
-        var searchText = _txtSearch.Text.Trim();
         var statusFilter = _comboStatus.Text;
+
+        var selectedId = GetFocusedCustomer()?.CustomerId;
+        var focusedRowHandle = _gridView.FocusedRowHandle;
+        var topRowIndex = _gridView.TopRowIndex;
 
         var filtered = _allItems.AsEnumerable();
 
-        if (!string.IsNullOrEmpty(searchText))
+        if (_txtSearch.EditValue is Guid selectedCustId && selectedCustId != Guid.Empty)
         {
-            filtered = filtered.Where(x =>
-                x.Code.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                x.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                x.MobileNumber.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                (x.Email != null && x.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+            filtered = filtered.Where(x => x.CustomerId == selectedCustId);
         }
 
         if (statusFilter == "Active")
@@ -205,6 +217,28 @@ public sealed partial class CustomersView : XtraUserControl
 
         UpdateSummaryMetrics(list);
         await UpdateActionButtonsStateAsync();
+
+        if (selectedId is { } id)
+        {
+            var newIndex = -1;
+            for (int i = 0; i < _gridView.RowCount; i++)
+            {
+                if (_gridView.GetRow(i) is CustomerGridRow r && r.Dto.CustomerId == id)
+                {
+                    newIndex = i;
+                    break;
+                }
+            }
+            if (newIndex >= 0)
+            {
+                _gridView.FocusedRowHandle = newIndex;
+            }
+        }
+        else if (focusedRowHandle >= 0 && focusedRowHandle < _gridView.RowCount)
+        {
+            _gridView.FocusedRowHandle = focusedRowHandle;
+        }
+        _gridView.TopRowIndex = topRowIndex;
     }
 
     private void UpdateSummaryMetrics(List<CustomerDto> visibleItems)
@@ -217,7 +251,7 @@ public sealed partial class CustomersView : XtraUserControl
         _lblTotalCustomers.Text = $"Total Customers: {total}";
         _lblActiveCustomers.Text = $"Active: {active}";
         _lblWithBalance.Text = $"With Balance: {withBalance}";
-        _lblTotalOutstanding.Text = $"Total Outstanding: {CurrencyDisplay.Format(totalOutstanding)}";
+        _lblTotalOutstanding.Text = $"Total Outstanding: {CurrencyDisplay.FormatPlain(totalOutstanding)}";
     }
 
     private async Task LogActivityAsync(string action, string? details = null)
@@ -251,14 +285,30 @@ public sealed partial class CustomersView : XtraUserControl
 
     private async void BtnClearFilters_Click(object? sender, EventArgs e)
     {
-        _txtSearch.Text = string.Empty;
+        _txtSearch.EditValue = Guid.Empty;
         _comboStatus.SelectedIndex = 0; // "All"
         await TryRunAsync(ApplyFiltersAsync, "clear the filters");
     }
 
     private async void NewButton_Click(object? sender, EventArgs e)
     {
-        using var form = new CustomerEditForm("New Customer");
+        var customers = await _mediator.Send(new ListCustomersQuery());
+        var nextNumber = 1;
+        foreach (var c in customers)
+        {
+            var code = c.Code;
+            if (code.StartsWith("C", StringComparison.OrdinalIgnoreCase) && 
+                int.TryParse(code.Substring(1), out var num))
+            {
+                if (num >= nextNumber)
+                {
+                    nextNumber = num + 1;
+                }
+            }
+        }
+        var nextCode = $"C{nextNumber:D3}";
+
+        using var form = new CustomerEditForm("New Customer", code: nextCode);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             await _mediator.Send(new CreateCustomerCommand(
@@ -269,7 +319,10 @@ public sealed partial class CustomersView : XtraUserControl
                 form.EmailValue,
                 form.OpeningBalanceValue,
                 form.CreditLimitValue,
-                form.NotesValue));
+                form.NotesValue,
+                form.ShopNoValue,
+                form.Mobile2Value,
+                form.PhoneValue));
 
             await LogActivityAsync("Customer Created", $"Customer: {form.NameValue} ({form.CodeValue})");
             await RefreshAsync();
@@ -361,12 +414,12 @@ public sealed partial class CustomersView : XtraUserControl
         decimal changeAmount)
     {
         var detail =
-            $"Received payment of {CurrencyDisplay.Format(amount)} (Method: {paymentMethod}) " +
-            $"for {customerName} ({customerCode}). Outstanding: {CurrencyDisplay.Format(outstandingAfter)}.";
+            $"Received payment of {CurrencyDisplay.FormatPlain(amount)} (Method: {paymentMethod}) " +
+            $"for {customerName} ({customerCode}). Outstanding: {CurrencyDisplay.FormatPlain(outstandingAfter)}.";
 
         if (changeAmount > 0)
         {
-            detail += $" Change handed back: {CurrencyDisplay.Format(changeAmount)}.";
+            detail += $" Change handed back: {CurrencyDisplay.FormatPlain(changeAmount)}.";
         }
 
         return detail;
@@ -390,21 +443,35 @@ public sealed partial class CustomersView : XtraUserControl
 
     private async void BtnToggleStatus_Click(object? sender, EventArgs e)
     {
-        if (GetFocusedCustomer() is not { } customer) return;
+        var selectedRows = _gridView.GetSelectedRows();
+        var customers = selectedRows
+            .Select(r => _gridView.GetRow(r) as CustomerGridRow)
+            .Where(r => r != null)
+            .Select(r => r!.Dto)
+            .ToList();
 
-        string targetStateText = customer.IsActive ? "Deactivate" : "Activate";
+        if (customers.Count == 0) return;
+
+        bool targetActive = _btnToggleStatus.Text == "Activate";
+        string targetStateText = targetActive ? "Activate" : "Deactivate";
+
         if (!await CanUseFeatureAsync(targetStateText.ToLower()))
         {
             XtraMessageBox.Show(this, $"You do not have permission to {targetStateText.ToLower()} customers.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        string confirmMsg = $"Are you sure you want to {targetStateText.ToLower()} the customer '{customer.Name}' ({customer.Code})?";
+        string confirmMsg = customers.Count == 1
+            ? $"Are you sure you want to {targetStateText.ToLower()} the customer '{customers[0].Name}' ({customers[0].Code})?"
+            : $"Are you sure you want to {targetStateText.ToLower()} the {customers.Count} selected customers?";
 
         if (XtraMessageBox.Show(this, confirmMsg, $"Confirm {targetStateText}", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new SetCustomerStatusCommand(customer.CustomerId, !customer.IsActive));
-            await LogActivityAsync($"Customer {targetStateText}d", $"Customer: {customer.Name} ({customer.Code})");
+            foreach (var customer in customers)
+            {
+                await _mediator.Send(new SetCustomerStatusCommand(customer.CustomerId, targetActive));
+                await LogActivityAsync($"Customer {targetStateText}d", $"Customer: {customer.Name} ({customer.Code})");
+            }
             await RefreshAsync();
         }
     }
@@ -414,7 +481,7 @@ public sealed partial class CustomersView : XtraUserControl
 
     private async void GridView_RowCellClick(object sender, RowCellClickEventArgs e)
     {
-        if (e.Clicks == 2 && GetFocusedCustomer() is { } customer)
+        if (e.Clicks == 2 && _gridView.GetSelectedRows().Length == 1 && GetFocusedCustomer() is { } customer)
         {
             if (await CanUseFeatureAsync("edit"))
             {
@@ -435,7 +502,10 @@ public sealed partial class CustomersView : XtraUserControl
             dto.OpeningBalance,
             dto.CreditLimit,
             dto.Notes,
-            isNew: false);
+            isNew: false,
+            dto.ShopNo,
+            dto.Mobile2,
+            dto.Phone);
 
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -446,18 +516,30 @@ public sealed partial class CustomersView : XtraUserControl
                 form.AddressValue,
                 form.EmailValue,
                 form.CreditLimitValue,
-                form.NotesValue));
+                form.NotesValue,
+                form.ShopNoValue,
+                form.Mobile2Value,
+                form.PhoneValue));
 
             await LogActivityAsync("Customer Edited", $"Customer: {form.NameValue} ({dto.Code})");
             await RefreshAsync();
         }
     }
 
+
     private void GridView_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
     {
-        if (e.Column.FieldName is "OutstandingBalance" or "CreditLimit" && e.Value is decimal val)
+        if (e.Column.FieldName is "OutstandingBalance" or "CreditLimit" && e.Value != null && e.Value != DBNull.Value)
         {
-            e.DisplayText = CurrencyDisplay.Format(val);
+            try
+            {
+                var val = Convert.ToDecimal(e.Value);
+                e.DisplayText = CurrencyDisplay.FormatPlain(val);
+            }
+            catch
+            {
+                // Fallback
+            }
         }
     }
 
@@ -483,7 +565,22 @@ public sealed partial class CustomersView : XtraUserControl
         filterPanel.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(110));
 
         _gridView.RowHeight = LogicalToDeviceUnits(32);
+        _gridView.ColumnPanelRowHeight = LogicalToDeviceUnits(40);
+        _gridView.Appearance.HeaderPanel.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _gridView.Appearance.HeaderPanel.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+        _gridView.Appearance.HeaderPanel.Options.UseTextOptions = true;
+
+        _gridView.Columns["Code"].MinWidth = LogicalToDeviceUnits(60);
+        _gridView.Columns["Name"].MinWidth = LogicalToDeviceUnits(150);
+        _gridView.Columns["MobileNumber"].MinWidth = LogicalToDeviceUnits(100);
+        _gridView.Columns["Email"].MinWidth = LogicalToDeviceUnits(150);
+        _gridView.Columns["OutstandingBalance"].MinWidth = LogicalToDeviceUnits(100);
+        _gridView.Columns["CreditLimit"].MinWidth = LogicalToDeviceUnits(100);
+        _gridView.Columns["StatusText"].MinWidth = LogicalToDeviceUnits(80);
+        _gridView.Columns["LastTransactionText"].MinWidth = LogicalToDeviceUnits(140);
     }
+
+    private sealed record CustomerPickerRow(Guid CustomerId, string Name, string Phone, string BalanceDisplay);
 
     // --- GRID VIEW ROW SHAPE ---
     private sealed class CustomerGridRow(CustomerDto dto)
@@ -493,9 +590,12 @@ public sealed partial class CustomersView : XtraUserControl
         public string Name => Dto.Name;
         public string MobileNumber => Dto.MobileNumber;
         public string Email => Dto.Email ?? "-";
+        public string? ShopNo => Dto.ShopNo;
+        public string? Mobile2 => Dto.Mobile2 ?? "-";
+        public string? Phone => Dto.Phone ?? "-";
         public decimal OutstandingBalance => Dto.OutstandingBalance;
         public decimal CreditLimit => Dto.CreditLimit;
         public string StatusText => Dto.IsActive ? "Active" : "Inactive";
-        public string LastTransactionText => Dto.LastTransactionDate?.ToLocalTime().ToString("g") ?? "-";
+        public string LastTransactionText => DateTimeDisplay.Format(Dto.LastTransactionDate);
     }
 }

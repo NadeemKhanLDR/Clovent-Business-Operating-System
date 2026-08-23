@@ -1,4 +1,4 @@
-﻿using DevExpress.XtraEditors;
+using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData;
 
@@ -49,7 +49,19 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     {
         InitializeComponent();
 
+        _layout.HandleCreated += (s, e) => {
+            var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
+            _layout.Padding = new Padding(left, top, right, bottom);
+        };
+
         _combo.Width = comboWidth;
+        // comboWidth is a 96-DPI logical value and this control may not have a
+        // handle (and thus a real DeviceDpi) yet at construction - re-scale
+        // once it does, so the dropdown doesn't render pinched at above-100% DPI.
+        _combo.HandleCreated += (_, _) => _combo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(comboWidth, _combo);
         _label.Text = labelText;
         _label.Name = labelControlName ?? string.Empty;
 

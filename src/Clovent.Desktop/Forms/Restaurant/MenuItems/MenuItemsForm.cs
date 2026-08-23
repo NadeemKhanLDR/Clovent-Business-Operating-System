@@ -1,3 +1,5 @@
+using Clovent.Catalog.Application.Barcodes.Commands;
+using Clovent.Catalog.Application.Barcodes.Queries;
 using Clovent.Catalog.Application.Categories.Commands;
 using Clovent.Catalog.Application.Categories.Queries;
 using Clovent.Catalog.Application.Prices.Commands;
@@ -107,6 +109,8 @@ public sealed partial class MenuItemsForm : BaseForm
 
     private void InitializeRuntime()
     {
+        gridView.OptionsSelection.MultiSelect = true;
+        gridView.SelectionChanged += (s, e) => UpdateButtonStates();
         gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
         StatusBadgeStyler.Apply(gridView, colStatus, value => value == "Active");
 
@@ -120,9 +124,17 @@ public sealed partial class MenuItemsForm : BaseForm
 
     private void GridView_CustomColumnDisplayText(object? sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
     {
-        if (e.Column == colPrice && e.Value is decimal amount)
+        if (e.Column == colPrice && e.Value != null && e.Value != DBNull.Value)
         {
-            e.DisplayText = CurrencyDisplay.Format(amount);
+            try
+            {
+                var amount = Convert.ToDecimal(e.Value);
+                e.DisplayText = CurrencyDisplay.FormatPlain(amount);
+            }
+            catch
+            {
+                // Fallback
+            }
         }
     }
 
@@ -150,6 +162,59 @@ public sealed partial class MenuItemsForm : BaseForm
         _imagesByProductId.Clear();
     }
 
+    /// <summary>
+    /// Grid-only refresh for status actions (Activate/Deactivate/reorder):
+    /// reloads the item rows and re-applies the current filter WITHOUT the
+    /// full-reinit side of <see cref="RefreshAsync"/> (theme re-application,
+    /// currency/category filter reloads, permission re-evaluation). Search
+    /// text and category filter are preserved because they are only ever
+    /// read here, never reset - and the focused row is restored by id, so
+    /// the screen doesn't visibly "reset" after a one-row status change.
+    /// </summary>
+    private async Task RefreshGridAsync(Guid? focusProductVariantId = null, Guid? focusProductId = null)
+    {
+        var focusedRowHandle = gridView.FocusedRowHandle;
+        var topRowIndex = gridView.TopRowIndex;
+
+        Cursor = Cursors.WaitCursor;
+        try
+        {
+            _allItems = await LoadItemsAsync();
+            ApplyFilter();
+            UpdateButtonStates();
+        }
+        finally
+        {
+            Cursor = Cursors.Default;
+        }
+
+        if (focusProductVariantId is { } id)
+        {
+            FocusItem(id);
+        }
+        else if (focusProductId is { } pId)
+        {
+            FocusItemByProductId(pId);
+        }
+        else if (focusedRowHandle >= 0 && focusedRowHandle < gridView.RowCount)
+        {
+            gridView.FocusedRowHandle = focusedRowHandle;
+        }
+        gridView.TopRowIndex = topRowIndex;
+    }
+
+    private void FocusItemByProductId(Guid productId)
+    {
+        for (var rowHandle = 0; rowHandle < gridView.DataRowCount; rowHandle++)
+        {
+            if (gridView.GetRow(rowHandle) is MenuItemRow row && row.ProductId == productId)
+            {
+                gridView.FocusedRowHandle = rowHandle;
+                return;
+            }
+        }
+    }
+
     /// <summary>Reloads every row, re-applies the current search/category filter, and re-evaluates feature permissions. Called once by <c>MainForm</c> when this document opens, and again on F5/the Refresh button.</summary>
     public override async Task RefreshAsync()
     {
@@ -157,11 +222,7 @@ public sealed partial class MenuItemsForm : BaseForm
 
         await RunBusyAsync(async () =>
         {
-            var currencies = await _mediator.Send(new ListCurrenciesQuery());
-            if (currencies.FirstOrDefault() is { } currency)
-            {
-                CurrencyDisplay.Configure(currency.Symbol, currency.DecimalPlaces);
-            }
+            await CurrencyDisplayLoader.ConfigureAsync(_mediator);
 
             _allItems = await LoadItemsAsync();
             await LoadCategoryFilterOptionsAsync();
@@ -179,8 +240,8 @@ public sealed partial class MenuItemsForm : BaseForm
 
     private async void BtnNewMenuItem_Click(object? sender, EventArgs e) => await TryRunAsync(async () =>
     {
-        await CreateAsync();
-        await RefreshAsync();
+        var productId = await CreateAsync();
+        await RefreshGridAsync(focusProductId: productId);
         _changeNotifier.NotifyChanged();
     }, "add this menu item");
 
@@ -189,48 +250,62 @@ public sealed partial class MenuItemsForm : BaseForm
         if (GetFocusedItem() is { } item)
         {
             await EditAsync(item);
-            await RefreshAsync();
+            await RefreshGridAsync(item.ProductVariantId);
             _changeNotifier.NotifyChanged();
         }
     }, "save changes to this menu item");
 
     private async void BtnActivate_Click(object? sender, EventArgs e) => await TryRunAsync(async () =>
     {
-        if (GetFocusedItem() is { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as MenuItemRow)
+            .Where(r => r is not null)
+            .Cast<MenuItemRow>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? "Activate the selected menu item?"
+            : $"Activate the {items.Count} selected menu items?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Activate Menu Items", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new ActivateProductVariantCommand(item.ProductVariantId));
-            await RefreshAsync();
+            foreach (var item in items)
+            {
+                await _mediator.Send(new ActivateProductVariantCommand(item.ProductVariantId));
+            }
+            await RefreshGridAsync(items[0].ProductVariantId);
             _changeNotifier.NotifyChanged();
         }
-    }, "activate this menu item");
+    }, "activate menu items");
 
     private async void BtnDeactivate_Click(object? sender, EventArgs e) => await TryRunAsync(async () =>
     {
-        if (GetFocusedItem() is not { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as MenuItemRow)
+            .Where(r => r is not null)
+            .Cast<MenuItemRow>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? $"\"{items[0].Name}\" will no longer appear on the POS screen. Continue?"
+            : $"{items.Count} selected menu items will no longer appear on the POS screen. Continue?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Deactivate Menu Items", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            return;
+            foreach (var item in items)
+            {
+                await _mediator.Send(new DeactivateProductVariantCommand(item.ProductVariantId));
+            }
+            await RefreshGridAsync(items[0].ProductVariantId);
+            _changeNotifier.NotifyChanged();
         }
-
-        // Deactivating pulls the item off the POS tile wall immediately -
-        // worth a confirmation, unlike Activate (which only ever adds
-        // something back), so a slipped click during a busy shift doesn't
-        // silently stop a dish from being sellable.
-        var confirm = XtraMessageBox.Show(
-            this,
-            $"\"{item.Name}\" will no longer appear on the POS screen. Continue?",
-            "Deactivate Menu Item",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question);
-
-        if (confirm != DialogResult.Yes)
-        {
-            return;
-        }
-
-        await _mediator.Send(new DeactivateProductVariantCommand(item.ProductVariantId));
-        await RefreshAsync();
-        _changeNotifier.NotifyChanged();
-    }, "deactivate this menu item");
+    }, "deactivate menu items");
 
     private async void BtnNewCategory_Click(object? sender, EventArgs e) => await TryRunAsync(async () =>
     {
@@ -309,7 +384,7 @@ public sealed partial class MenuItemsForm : BaseForm
         await _mediator.Send(new SetProductVariantSortOrderCommand(current.ProductVariantId, neighbor.SortOrder));
         await _mediator.Send(new SetProductVariantSortOrderCommand(neighbor.ProductVariantId, current.SortOrder));
 
-        await RefreshAsync();
+        await RefreshGridAsync(current.ProductVariantId);
         _changeNotifier.NotifyChanged();
     }
 
@@ -332,8 +407,6 @@ public sealed partial class MenuItemsForm : BaseForm
         var newestSellingPriceByVariantId = sellingPrices
             .GroupBy(p => p.ProductVariantId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.EffectiveFromUtc).First());
-
-        ClearCachedImages();
 
         var rows = new List<MenuItemRow>();
         foreach (var variant in variants)
@@ -394,20 +467,20 @@ public sealed partial class MenuItemsForm : BaseForm
             ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
             : Task.FromResult(false);
 
-    private async Task CreateAsync()
+    private async Task<Guid?> CreateAsync()
     {
         var units = await LoadUnitOptionsAsync();
         if (units.Count == 0)
         {
             XtraMessageBox.Show(this, "Ask an administrator to set up a unit of measure first.", "Not Ready Yet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return null;
         }
 
         var currencies = await _mediator.Send(new ListCurrenciesQuery());
         if (currencies.Count == 0)
         {
             XtraMessageBox.Show(this, "Ask an administrator to set up a currency first.", "Not Ready Yet", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            return null;
         }
 
         // "Save & New" (MasterDataEditFormBase.EnableSaveAndNew) reopens a
@@ -418,10 +491,10 @@ public sealed partial class MenuItemsForm : BaseForm
         bool saveAndNew;
         do
         {
-            using var form = new MenuItemEditForm("Add Menu Item", await LoadCategoryOptionsAsync());
+            using var form = new MenuItemEditForm("Add Menu Item", await LoadCategoryOptionsAsync(), checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(Guid.Empty, val));
             if (form.ShowDialog(this) != DialogResult.OK)
             {
-                return;
+                return null;
             }
 
             var product = await _mediator.Send(new CreateProductWithPriceCommand(
@@ -432,18 +505,38 @@ public sealed partial class MenuItemsForm : BaseForm
                 units[0].Id,
                 form.ItemIsActive));
 
+            var variants = await _mediator.Send(new ListProductVariantsByProductQuery(product.ProductId));
+            if (variants.Count > 0)
+            {
+                var variantId = variants.First().ProductVariantId;
+                await SaveMenuItemBarcodesAsync(variantId, form.Barcode1, form.Barcode2, form.Barcode3);
+            }
+
             if (form.PendingImage is not null)
             {
                 MenuItemImageStore.Save(product.ProductId, form.PendingImage);
+                _imagesByProductId[product.ProductId] = MenuItemImageStore.Load(product.ProductId);
             }
 
             saveAndNew = form.IsSaveAndNew;
+            if (!saveAndNew)
+            {
+                return product.ProductId;
+            }
         }
         while (saveAndNew);
+
+        return null;
     }
 
     private async Task EditAsync(MenuItemRow row)
     {
+        var existingBarcodes = await _mediator.Send(new ListBarcodesByVariantQuery(row.ProductVariantId));
+        var barcodeList = existingBarcodes.OrderBy(b => b.CreatedAtUtc).ToList();
+        var bc1 = barcodeList.Count > 0 ? barcodeList[0].Value : null;
+        var bc2 = barcodeList.Count > 1 ? barcodeList[1].Value : null;
+        var bc3 = barcodeList.Count > 2 ? barcodeList[2].Value : null;
+
         using var existingImage = MenuItemImageStore.Load(row.ProductId);
         using var form = new MenuItemEditForm(
             "Edit Menu Item",
@@ -452,7 +545,11 @@ public sealed partial class MenuItemsForm : BaseForm
             row.CategoryId,
             row.Price,
             row.Status == "Active",
-            existingImage);
+            existingImage,
+            bc1,
+            bc2,
+            bc3,
+            checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(row.ProductVariantId, val));
 
         if (form.ShowDialog(this) != DialogResult.OK)
         {
@@ -462,6 +559,7 @@ public sealed partial class MenuItemsForm : BaseForm
         await _mediator.Send(new RenameProductCommand(row.ProductId, form.NameValue));
         await _mediator.Send(new RenameProductVariantCommand(row.ProductVariantId, form.NameValue));
         await _mediator.Send(new SetProductCategoryCommand(row.ProductId, form.CategoryId));
+        await SaveMenuItemBarcodesAsync(row.ProductVariantId, form.Barcode1, form.Barcode2, form.Barcode3);
 
         if (row.ProductPriceId is { } priceId)
         {
@@ -489,10 +587,19 @@ public sealed partial class MenuItemsForm : BaseForm
         if (form.ImageCleared)
         {
             MenuItemImageStore.Delete(row.ProductId);
+            if (_imagesByProductId.Remove(row.ProductId, out var oldImg))
+            {
+                oldImg.Dispose();
+            }
         }
         else if (form.PendingImage is not null)
         {
             MenuItemImageStore.Save(row.ProductId, form.PendingImage);
+            if (_imagesByProductId.Remove(row.ProductId, out var oldImg))
+            {
+                oldImg.Dispose();
+            }
+            _imagesByProductId[row.ProductId] = MenuItemImageStore.Load(row.ProductId);
         }
     }
 
@@ -534,24 +641,94 @@ public sealed partial class MenuItemsForm : BaseForm
 
     private void UpdateButtonStates()
     {
+        var selectedCount = gridView.GetSelectedRows().Length;
         var focused = GetFocusedItem();
-        var hasFocusedRow = focused is not null;
-        var status = focused?.Status;
+        var hasFocusedRow = selectedCount > 0 && focused is not null;
 
-        btnEdit.Enabled = MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
-        btnActivate.Enabled = MasterDataFilter.CanActivate(hasFocusedRow, btnActivate.Tag as bool?, status, true);
-        btnDeactivate.Enabled = MasterDataFilter.CanDeactivate(hasFocusedRow, btnDeactivate.Tag as bool?, status, true);
+        btnEdit.Enabled = (selectedCount == 1) && MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
+        btnActivate.Enabled = (selectedCount > 0) && (btnActivate.Tag as bool? ?? true);
+        btnDeactivate.Enabled = (selectedCount > 0) && (btnDeactivate.Tag as bool? ?? true);
     }
 
     private void GridView_DoubleClick(object? sender, EventArgs e)
     {
-        if (GetFocusedItem() is not null)
+        if (gridView.GetSelectedRows().Length == 1 && GetFocusedItem() is not null)
         {
             BtnEdit_Click(gridView, EventArgs.Empty);
         }
     }
 
+    private async Task SaveMenuItemBarcodesAsync(Guid variantId, string b1, string b2, string b3)
+    {
+        var existing = await _mediator.Send(new ListBarcodesByVariantQuery(variantId));
+        var inputs = new[] { b1, b2, b3 }.Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+        // 1. Deactivate any existing barcode of this variant that is NOT in the inputs
+        foreach (var bc in existing)
+        {
+            if (bc.Status == "Active" && !inputs.Contains(bc.Value))
+            {
+                await _mediator.Send(new DeactivateBarcodeCommand(bc.BarcodeId));
+            }
+        }
+
+        // 2. Process inputs: activate inactive ones, mark primary, or create new ones
+        for (int i = 0; i < inputs.Count; i++)
+        {
+            var val = inputs[i];
+            var match = existing.FirstOrDefault(b => b.Value == val);
+            var shouldBePrimary = (i == 0);
+
+            if (match is not null)
+            {
+                if (match.Status != "Active")
+                {
+                    await _mediator.Send(new ActivateBarcodeCommand(match.BarcodeId));
+                }
+
+                if (shouldBePrimary && !match.IsPrimary)
+                {
+                    await _mediator.Send(new MarkBarcodeAsPrimaryCommand(match.BarcodeId));
+                }
+                else if (!shouldBePrimary && match.IsPrimary)
+                {
+                    await _mediator.Send(new UnmarkBarcodeAsPrimaryCommand(match.BarcodeId));
+                }
+            }
+            else
+            {
+                await _mediator.Send(new CreateBarcodeCommand(variantId, val, IsPrimary: shouldBePrimary));
+            }
+        }
+    }
+
+    private async Task<bool> IsBarcodeInUseAsync(Guid currentVariantId, string barcodeValue)
+    {
+        try
+        {
+            var existing = await _mediator.Send(new GetBarcodeByValueQuery(barcodeValue));
+            return existing.ProductVariantId != currentVariantId;
+        }
+        catch (Clovent.Catalog.Application.NotFoundException)
+        {
+            return false;
+        }
+    }
+
     private MenuItemRow? GetFocusedItem() => gridView.GetFocusedRow() as MenuItemRow;
+
+    /// <summary>Re-focuses the just-edited row after a grid reload (the reload re-sorts and clears the selection) - a no-op if a filter now hides the item.</summary>
+    private void FocusItem(Guid productVariantId)
+    {
+        for (var rowHandle = 0; rowHandle < gridView.DataRowCount; rowHandle++)
+        {
+            if (gridView.GetRow(rowHandle) is MenuItemRow row && row.ProductVariantId == productVariantId)
+            {
+                gridView.FocusedRowHandle = rowHandle;
+                return;
+            }
+        }
+    }
 
     private sealed record MenuItemRow(
         Guid ProductId,

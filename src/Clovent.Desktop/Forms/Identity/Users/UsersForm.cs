@@ -73,6 +73,21 @@ public sealed partial class UsersForm : BaseForm
         _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
+
+        gridView.OptionsSelection.MultiSelect = true;
+        gridView.SelectionChanged += (s, e) => UpdateButtonStates();
+        gridView.DoubleClick += async (sender, e) =>
+        {
+            var info = gridView.CalcHitInfo(gridControl.PointToClient(Control.MousePosition));
+            if (info.InRow || info.InRowCell)
+            {
+                if (GetFocusedItem() is { } item && btnEdit.Enabled)
+                {
+                    await EditAsync(item);
+                    await RefreshAsync();
+                }
+            }
+        };
     }
 
     /// <inheritdoc/>
@@ -122,19 +137,121 @@ public sealed partial class UsersForm : BaseForm
 
     private async void BtnActivate_Click(object? sender, EventArgs e)
     {
-        if (GetFocusedItem() is { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as UserRow)
+            .Where(r => r is not null)
+            .Cast<UserRow>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? "Activate the selected user?"
+            : $"Activate the {items.Count} selected users?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Activate Users", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new ActivateUserCommand(item.UserId));
+            var successCount = 0;
+            var skippedCount = 0;
+            var failedMessages = new List<string>();
+
+            foreach (var item in items)
+            {
+                try
+                {
+                    await _mediator.Send(new ActivateUserCommand(item.UserId));
+                    successCount++;
+                }
+                catch (Clovent.Identity.IdentityDomainException ex) when (ex.Message.Contains("already active"))
+                {
+                    skippedCount++;
+                }
+                catch (Exception ex)
+                {
+                    failedMessages.Add($"{item.UserName}: {ex.Message}");
+                }
+            }
+
             await RefreshAsync();
+
+            if (failedMessages.Count > 0)
+            {
+                var summary = $"{successCount} user(s) activated successfully.\n" +
+                              $"{skippedCount} user(s) were already active and skipped.\n" +
+                              $"Errors occurred for the following user(s):\n" +
+                              string.Join("\n", failedMessages);
+                XtraMessageBox.Show(this, summary, "Activate Users Result", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            else if (items.Count > 1)
+            {
+                var summary = $"{successCount} user(s) activated successfully.";
+                if (skippedCount > 0)
+                {
+                    summary += $" {skippedCount} user(s) were already active and were skipped.";
+                }
+                XtraMessageBox.Show(this, summary, "Activate Users Result", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
     private async void BtnDeactivate_Click(object? sender, EventArgs e)
     {
-        if (GetFocusedItem() is { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as UserRow)
+            .Where(r => r is not null)
+            .Cast<UserRow>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? "Deactivate the selected user?"
+            : $"Deactivate the {items.Count} selected users?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Deactivate Users", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new DeactivateUserCommand(item.UserId));
+            var successCount = 0;
+            var skippedCount = 0;
+            var failedMessages = new List<string>();
+
+            foreach (var item in items)
+            {
+                try
+                {
+                    await _mediator.Send(new DeactivateUserCommand(item.UserId));
+                    successCount++;
+                }
+                catch (Clovent.Identity.IdentityDomainException ex) when (ex.Message.Contains("not active"))
+                {
+                    skippedCount++;
+                }
+                catch (Exception ex)
+                {
+                    failedMessages.Add($"{item.UserName}: {ex.Message}");
+                }
+            }
+
             await RefreshAsync();
+
+            if (failedMessages.Count > 0)
+            {
+                var summary = $"{successCount} user(s) deactivated successfully.\n" +
+                              $"{skippedCount} user(s) were already inactive and skipped.\n" +
+                              $"Errors occurred for the following user(s):\n" +
+                              string.Join("\n", failedMessages);
+                XtraMessageBox.Show(this, summary, "Deactivate Users Result", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            else if (items.Count > 1)
+            {
+                var summary = $"{successCount} user(s) deactivated successfully.";
+                if (skippedCount > 0)
+                {
+                    summary += $" {skippedCount} user(s) were already inactive and were skipped.";
+                }
+                XtraMessageBox.Show(this, summary, "Deactivate Users Result", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
@@ -297,15 +414,16 @@ public sealed partial class UsersForm : BaseForm
 
     private void UpdateButtonStates()
     {
+        var selectedCount = gridView.GetSelectedRows().Length;
         var focused = GetFocusedItem();
-        var hasFocusedRow = focused is not null;
+        var hasFocusedRow = selectedCount > 0 && focused is not null;
         var status = focused?.Status;
 
-        btnEdit.Enabled = MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
-        btnActivate.Enabled = MasterDataFilter.CanActivate(hasFocusedRow, btnActivate.Tag as bool?, status, true);
-        btnDeactivate.Enabled = MasterDataFilter.CanDeactivate(hasFocusedRow, btnDeactivate.Tag as bool?, status, true);
-        btnResetPassword.Enabled = hasFocusedRow && (btnResetPassword.Tag as bool? ?? true);
-        btnUnlock.Enabled = hasFocusedRow && (btnUnlock.Tag as bool? ?? true) && status == "Locked";
+        btnEdit.Enabled = (selectedCount == 1) && MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
+        btnActivate.Enabled = (selectedCount > 0) && (btnActivate.Tag as bool? ?? true);
+        btnDeactivate.Enabled = (selectedCount > 0) && (btnDeactivate.Tag as bool? ?? true);
+        btnResetPassword.Enabled = (selectedCount == 1) && hasFocusedRow && (btnResetPassword.Tag as bool? ?? true);
+        btnUnlock.Enabled = (selectedCount == 1) && hasFocusedRow && (btnUnlock.Tag as bool? ?? true) && status == "Locked";
     }
 
     private UserRow? GetFocusedItem() => gridView.GetFocusedRow() as UserRow;

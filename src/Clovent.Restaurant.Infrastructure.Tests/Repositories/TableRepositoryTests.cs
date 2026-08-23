@@ -3,6 +3,7 @@ using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Infrastructure.Repositories;
 using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using Clovent.Restaurant.Tables;
+using Clovent.Restaurant.Tables.ValueObjects;
 using Xunit;
 
 namespace Clovent.Restaurant.Infrastructure.Tests.Repositories;
@@ -13,7 +14,7 @@ public class TableRepositoryTests : SqliteTestBase
     public async Task AddAsync_ThenGetById_RoundTripsFields()
     {
         var diningAreaId = DiningAreaId.New();
-        var table = Table.Create(diningAreaId, EntityCode.Create("T-01"), 4);
+        var table = Table.Create(diningAreaId, EntityCode.Create("T-01"), TableName.Create("T-01"), 4);
         table.Occupy();
 
         await using (var writeContext = CreateContext())
@@ -29,6 +30,7 @@ public class TableRepositoryTests : SqliteTestBase
         Assert.NotNull(reloaded);
         Assert.Equal(diningAreaId, reloaded!.DiningAreaId);
         Assert.Equal(table.Code, reloaded.Code);
+        Assert.Equal("T-01", reloaded.Name.Value);
         Assert.Equal(4, reloaded.Capacity);
         Assert.Equal(TableOccupancyStatus.Occupied, reloaded.OccupancyStatus);
     }
@@ -42,9 +44,9 @@ public class TableRepositoryTests : SqliteTestBase
         await using (var writeContext = CreateContext())
         {
             var repository = new TableRepository(writeContext);
-            await repository.AddAsync(Table.Create(areaId, EntityCode.Create("T-01"), 4));
-            await repository.AddAsync(Table.Create(areaId, EntityCode.Create("T-02"), 4));
-            await repository.AddAsync(Table.Create(otherAreaId, EntityCode.Create("T-03"), 4));
+            await repository.AddAsync(Table.Create(areaId, EntityCode.Create("T-01"), TableName.Create("T-01"), 4));
+            await repository.AddAsync(Table.Create(areaId, EntityCode.Create("T-02"), TableName.Create("T-02"), 4));
+            await repository.AddAsync(Table.Create(otherAreaId, EntityCode.Create("T-03"), TableName.Create("T-03"), 4));
             await writeContext.SaveChangesAsync();
         }
 
@@ -61,8 +63,8 @@ public class TableRepositoryTests : SqliteTestBase
         await using (var writeContext = CreateContext())
         {
             var repository = new TableRepository(writeContext);
-            await repository.AddAsync(Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4));
-            await repository.AddAsync(Table.Create(DiningAreaId.New(), EntityCode.Create("T-02"), 4));
+            await repository.AddAsync(Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 4));
+            await repository.AddAsync(Table.Create(DiningAreaId.New(), EntityCode.Create("T-02"), TableName.Create("T-02"), 4));
             await writeContext.SaveChangesAsync();
         }
 

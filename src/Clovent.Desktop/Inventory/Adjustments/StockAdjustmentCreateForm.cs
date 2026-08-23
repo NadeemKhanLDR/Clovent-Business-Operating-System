@@ -31,6 +31,7 @@ public sealed partial class StockAdjustmentCreateForm : MasterDataEditFormBase
     public StockAdjustmentCreateForm(IReadOnlyList<(Guid Id, string Display)> variantOptions) : base("New Stock Adjustment")
     {
         InitializeComponent();
+        SetFixedRowHeight(_reasonEdit, 70);
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
             _variantsByDisplay = null!;

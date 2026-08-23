@@ -78,6 +78,7 @@ partial class RestaurantPosForm
         _quickCash2000Button = new SimpleButton();
         _quickCash5000Button = new SimpleButton();
         _recordButton = new SimpleButton();
+        _splitPaymentButton = new SimpleButton();
         pnlCurrentOrder = new PanelControl();
         pnlCart = new Panel();
         _lineGrid = new GridControl();
@@ -92,10 +93,8 @@ partial class RestaurantPosForm
         _lineGridColumnName = new GridColumn();
         _lineGridColumnQuantity = new GridColumn();
         _lineGridColumnUnitPrice = new GridColumn();
-        _lineGridColumnDiscount = new GridColumn();
         _lineGridColumnLineTotal = new GridColumn();
         _lineGridColumnNotes = new GridColumn();
-        _billEmptyLabel = new System.Windows.Forms.Label();
         pnlCartActions = new Panel();
         flowCartActions = new FlowLayoutPanel();
         _decreaseQuantityButton = new SimpleButton();
@@ -322,7 +321,7 @@ partial class RestaurantPosForm
         _orderStatusLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _orderStatusLabel.Dock = DockStyle.Fill;
         _orderStatusLabel.Location = new Point(337, 6);
-        _orderStatusLabel.Margin = new Padding(8, 0, 12, 0);
+        _orderStatusLabel.Margin = new Padding(8, 0, 28, 0);
         _orderStatusLabel.Name = "_orderStatusLabel";
         _orderStatusLabel.Size = new Size(551, 46);
         _orderStatusLabel.TabIndex = 2;
@@ -433,14 +432,16 @@ partial class RestaurantPosForm
         tlpPayment.Controls.Add(pnlKeypad, 0, 2);
         tlpPayment.Controls.Add(pnlQuickCash, 0, 3);
         tlpPayment.Controls.Add(_recordButton, 0, 4);
+        tlpPayment.Controls.Add(_splitPaymentButton, 0, 5);
         tlpPayment.Dock = DockStyle.Fill;
         tlpPayment.Location = new Point(10, 10);
         tlpPayment.Margin = new Padding(0);
         tlpPayment.Name = "tlpPayment";
-        tlpPayment.RowCount = 5;
+        tlpPayment.RowCount = 6;
         tlpPayment.RowStyles.Add(new RowStyle());
         tlpPayment.RowStyles.Add(new RowStyle());
         tlpPayment.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        tlpPayment.RowStyles.Add(new RowStyle());
         tlpPayment.RowStyles.Add(new RowStyle());
         tlpPayment.RowStyles.Add(new RowStyle());
         tlpPayment.Size = new Size(322, 690);
@@ -623,7 +624,7 @@ partial class RestaurantPosForm
         _changeValueLabel.Name = "_changeValueLabel";
         _changeValueLabel.Size = new Size(129, 40);
         _changeValueLabel.TabIndex = 3;
-        _changeValueLabel.Text = "$0.00";
+        _changeValueLabel.Text = "0.00";
         // 
         // pnlKeypad
         // 
@@ -815,9 +816,8 @@ partial class RestaurantPosForm
         // 
         // _keypadClearButton
         // 
-        _keypadClearButton.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _keypadClearButton.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
         _keypadClearButton.Appearance.Options.UseFont = true;
-        pnlKeypad.SetColumnSpan(_keypadClearButton, 3);
         _keypadClearButton.Dock = DockStyle.Fill;
         _keypadClearButton.Location = new Point(2, 310);
         _keypadClearButton.Margin = new Padding(2);
@@ -966,6 +966,26 @@ partial class RestaurantPosForm
         _recordButton.TabIndex = 4;
         _recordButton.Text = "Record Payment";
         _recordButton.Click += RecordButton_Click;
+        // 
+        // _splitPaymentButton
+        // 
+        _splitPaymentButton.Appearance.BackColor = Color.FromArgb(22, 163, 74);
+        _splitPaymentButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _splitPaymentButton.Appearance.ForeColor = Color.White;
+        _splitPaymentButton.Appearance.Options.UseBackColor = true;
+        _splitPaymentButton.Appearance.Options.UseFont = true;
+        _splitPaymentButton.Appearance.Options.UseForeColor = true;
+        _splitPaymentButton.AutoSize = true;
+        _splitPaymentButton.Dock = DockStyle.Fill;
+        _splitPaymentButton.Location = new Point(0, 696);
+        _splitPaymentButton.Margin = new Padding(0, 6, 0, 0);
+        _splitPaymentButton.MinimumSize = new Size(0, 44);
+        _splitPaymentButton.Name = "_splitPaymentButton";
+        _splitPaymentButton.Padding = new Padding(20);
+        _splitPaymentButton.Size = new Size(322, 45);
+        _splitPaymentButton.TabIndex = 5;
+        _splitPaymentButton.Text = "Split Payment";
+        _splitPaymentButton.Click += SplitPaymentButton_Click;
         //
         // pnlCurrentOrder
         // 
@@ -983,7 +1003,6 @@ partial class RestaurantPosForm
         // pnlCart
         // 
         pnlCart.Controls.Add(_lineGrid);
-        pnlCart.Controls.Add(_billEmptyLabel);
         pnlCart.Dock = DockStyle.Fill;
         pnlCart.Location = new Point(2, 76);
         pnlCart.Margin = new Padding(0);
@@ -1054,12 +1073,12 @@ partial class RestaurantPosForm
         // 
         // _lineGridView
         // 
-        _lineGridView.Columns.AddRange(new GridColumn[] { _lineGridColumnName, _lineGridColumnQuantity, _lineGridColumnUnitPrice, _lineGridColumnDiscount, _lineGridColumnLineTotal, _lineGridColumnNotes });
+        _lineGridView.Columns.AddRange(new GridColumn[] { _lineGridColumnName, _lineGridColumnQuantity, _lineGridColumnUnitPrice, _lineGridColumnLineTotal, _lineGridColumnNotes });
         _lineGridView.DetailHeight = 284;
         _lineGridView.GridControl = _lineGrid;
         _lineGridView.Name = "_lineGridView";
         _lineGridView.OptionsBehavior.AutoPopulateColumns = false;
-        _lineGridView.OptionsBehavior.Editable = false;
+        _lineGridView.OptionsBehavior.Editable = true;
         _lineGridView.OptionsEditForm.PopupEditFormWidth = 46875;
         _lineGridView.OptionsView.EnableAppearanceEvenRow = true;
         _lineGridView.OptionsView.ShowGroupPanel = false;
@@ -1067,6 +1086,7 @@ partial class RestaurantPosForm
         _lineGridView.OptionsView.ShowVerticalLines = DevExpress.Utils.DefaultBoolean.False;
         _lineGridView.RowHeight = 26;
         _lineGridView.RowStyle += LineGridView_RowStyle;
+        _lineGridView.CustomDrawEmptyForeground += LineGridView_CustomDrawEmptyForeground;
         // 
         // _lineGridColumnName
         // 
@@ -1078,6 +1098,7 @@ partial class RestaurantPosForm
         _lineGridColumnName.FieldName = "Name";
         _lineGridColumnName.MinWidth = 30;
         _lineGridColumnName.Name = "_lineGridColumnName";
+        _lineGridColumnName.OptionsColumn.ReadOnly = true;
         _lineGridColumnName.Visible = true;
         _lineGridColumnName.VisibleIndex = 0;
         _lineGridColumnName.Width = 118;
@@ -1092,6 +1113,7 @@ partial class RestaurantPosForm
         _lineGridColumnQuantity.FieldName = "Quantity";
         _lineGridColumnQuantity.MinWidth = 26;
         _lineGridColumnQuantity.Name = "_lineGridColumnQuantity";
+        _lineGridColumnQuantity.OptionsColumn.ReadOnly = true;
         _lineGridColumnQuantity.Visible = true;
         _lineGridColumnQuantity.VisibleIndex = 1;
         _lineGridColumnQuantity.Width = 38;
@@ -1106,23 +1128,10 @@ partial class RestaurantPosForm
         _lineGridColumnUnitPrice.FieldName = "UnitPrice";
         _lineGridColumnUnitPrice.MinWidth = 30;
         _lineGridColumnUnitPrice.Name = "_lineGridColumnUnitPrice";
+        _lineGridColumnUnitPrice.OptionsColumn.ReadOnly = true;
         _lineGridColumnUnitPrice.Visible = true;
         _lineGridColumnUnitPrice.VisibleIndex = 2;
         _lineGridColumnUnitPrice.Width = 56;
-        // 
-        // _lineGridColumnDiscount
-        // 
-        _lineGridColumnDiscount.AppearanceCell.Options.UseTextOptions = true;
-        _lineGridColumnDiscount.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _lineGridColumnDiscount.AppearanceHeader.Options.UseTextOptions = true;
-        _lineGridColumnDiscount.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _lineGridColumnDiscount.Caption = "Discount";
-        _lineGridColumnDiscount.FieldName = "Discount";
-        _lineGridColumnDiscount.MinWidth = 30;
-        _lineGridColumnDiscount.Name = "_lineGridColumnDiscount";
-        _lineGridColumnDiscount.Visible = true;
-        _lineGridColumnDiscount.VisibleIndex = 3;
-        _lineGridColumnDiscount.Width = 50;
         // 
         // _lineGridColumnLineTotal
         // 
@@ -1134,6 +1143,7 @@ partial class RestaurantPosForm
         _lineGridColumnLineTotal.FieldName = "LineTotal";
         _lineGridColumnLineTotal.MinWidth = 30;
         _lineGridColumnLineTotal.Name = "_lineGridColumnLineTotal";
+        _lineGridColumnLineTotal.OptionsColumn.ReadOnly = true;
         _lineGridColumnLineTotal.Visible = true;
         _lineGridColumnLineTotal.VisibleIndex = 4;
         _lineGridColumnLineTotal.Width = 60;
@@ -1144,21 +1154,8 @@ partial class RestaurantPosForm
         _lineGridColumnNotes.FieldName = "Notes";
         _lineGridColumnNotes.MinWidth = 30;
         _lineGridColumnNotes.Name = "_lineGridColumnNotes";
+        _lineGridColumnNotes.OptionsColumn.ReadOnly = true;
         _lineGridColumnNotes.Width = 80;
-        // 
-        // _billEmptyLabel
-        // 
-        _billEmptyLabel.Font = new Font("Segoe UI", 11F);
-        _billEmptyLabel.ForeColor = Color.Gray;
-        _billEmptyLabel.AutoSize = false;
-        _billEmptyLabel.Dock = DockStyle.Fill;
-        _billEmptyLabel.Location = new Point(6, 0);
-        _billEmptyLabel.Margin = new Padding(0);
-        _billEmptyLabel.Name = "_billEmptyLabel";
-        _billEmptyLabel.Size = new Size(140, 20);
-        _billEmptyLabel.TabIndex = 1;
-        _billEmptyLabel.Text = "No active order lines.";
-        _billEmptyLabel.TextAlign = ContentAlignment.MiddleCenter;
         // 
         // pnlCartActions
         // 
@@ -1691,10 +1688,10 @@ partial class RestaurantPosForm
         // tlpSearch
         // 
         tlpSearch.ColumnCount = 4;
-        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 58F));
-        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150F));
-        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 70F));
-        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38F));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        tlpSearch.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62F));
         tlpSearch.Controls.Add(_addQuantityEdit, 0, 0);
         tlpSearch.Controls.Add(_barcodeEdit, 1, 0);
         tlpSearch.Controls.Add(_addByBarcodeButton, 2, 0);
@@ -1703,8 +1700,10 @@ partial class RestaurantPosForm
         tlpSearch.Location = new Point(6, 3);
         tlpSearch.Margin = new Padding(0);
         tlpSearch.Name = "tlpSearch";
+        tlpSearch.AutoSize = true;
+        tlpSearch.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         tlpSearch.RowCount = 1;
-        tlpSearch.RowStyles.Add(new RowStyle());
+        tlpSearch.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         tlpSearch.Size = new Size(671, 32);
         tlpSearch.TabIndex = 0;
         // 
@@ -1997,6 +1996,7 @@ partial class RestaurantPosForm
         // RestaurantPosForm
         // 
         ClientSize = new Size(1366, 768);
+        ControlBox = false;
         Controls.Add(tlpMain);
         Controls.Add(pnlHeader);
         IconOptions.ShowIcon = false;
@@ -2109,11 +2109,17 @@ partial class RestaurantPosForm
 
     private void UpdateBillEmptyState(bool isEmpty)
     {
-        _billEmptyLabel.Visible = isEmpty;
-        if (isEmpty)
-        {
-            _billEmptyLabel.BringToFront();
-        }
+        // The empty-state message is painted by the grid itself via
+        // LineGridView_CustomDrawEmptyForeground, which only fires when the
+        // grid has no rows, so there is nothing to toggle here.
+    }
+
+    private void LineGridView_CustomDrawEmptyForeground(object sender, DevExpress.XtraGrid.Views.Base.CustomDrawEventArgs e)
+    {
+        e.Handled = true;
+        using var font = new Font("Segoe UI", 11F);
+        TextRenderer.DrawText(e.Graphics, "No active order lines.", font, e.Bounds, Color.Gray,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
     }
 
     private void ApplyColumnWidths()
@@ -2191,10 +2197,8 @@ partial class RestaurantPosForm
     private GridColumn _lineGridColumnName;
     private GridColumn _lineGridColumnQuantity;
     private GridColumn _lineGridColumnUnitPrice;
-    private GridColumn _lineGridColumnDiscount;
     private GridColumn _lineGridColumnLineTotal;
     private GridColumn _lineGridColumnNotes;
-    private System.Windows.Forms.Label _billEmptyLabel;
 
     private Panel pnlCartActions;
     private FlowLayoutPanel flowCartActions;
@@ -2265,6 +2269,7 @@ partial class RestaurantPosForm
     private SimpleButton _quickCash2000Button;
     private SimpleButton _quickCash5000Button;
     private SimpleButton _recordButton;
+    private SimpleButton _splitPaymentButton;
 
     private ContextMenuStrip _moreActionsMenu;
     private ToolStripMenuItem _transferTableButton;

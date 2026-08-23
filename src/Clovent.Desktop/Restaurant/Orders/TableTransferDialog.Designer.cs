@@ -26,21 +26,33 @@ partial class TableTransferDialog
     /// </summary>
     private void InitializeComponent()
     {
+        label1 = new LabelControl();
         _tableCombo = new ComboBoxEdit();
         ((System.ComponentModel.ISupportInitialize)_tableCombo.Properties).BeginInit();
         SuspendLayout();
-        // 
+        _contentPanel.SuspendLayout();
+        _contentPanel.RowCount = 1;
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.Controls.Add(label1, 0, 0);
+        _contentPanel.Controls.Add(_tableCombo, 1, 0);
+        //
+        // label1
+        //
+        label1.AutoSize = true;
+        label1.Dock = System.Windows.Forms.DockStyle.Left;
+        label1.Text = "New Table:";
+        label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        //
         // _tableCombo
-        // 
-        _tableCombo.Location = new Point(0, 0);
-        _tableCombo.Name = "_tableCombo";
-        _tableCombo.Size = new Size(250, 50);
-        _tableCombo.TabIndex = 0;
-        // 
+        //
+        _tableCombo.Dock = System.Windows.Forms.DockStyle.Top;
+        _tableCombo.Width = 260;
+        _contentPanel.ResumeLayout(false);
+        _contentPanel.PerformLayout();
+        //
         // TableTransferDialog
-        // 
-        ClientSize = new Size(476, 314);
-        MinimumSize = new Size(480, 360);
+        //
+        ClientSize = new System.Drawing.Size(480, 200);
         Name = "TableTransferDialog";
         ((System.ComponentModel.ISupportInitialize)_tableCombo.Properties).EndInit();
         ResumeLayout(false);
@@ -50,4 +62,6 @@ partial class TableTransferDialog
     #endregion
 
     private ComboBoxEdit _tableCombo;
+
+    private LabelControl label1;
 }

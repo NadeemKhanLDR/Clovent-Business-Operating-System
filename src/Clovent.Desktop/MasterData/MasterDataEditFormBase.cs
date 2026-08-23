@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Windows.Forms;
 using System.Drawing;
 using Clovent.Desktop.Forms.Base;
@@ -139,6 +141,29 @@ public partial class MasterDataEditFormBase : XtraForm
         _rowCount++;
     }
 
+    /// <summary>
+    /// Converts the row containing <paramref name="editor"/> from AutoSize to
+    /// an absolute <paramref name="height"/> - the runtime-layout twin of
+    /// <see cref="AddField(string, Control, int?)"/>'s <c>fixedHeight</c>
+    /// argument, for rows whose editors were added in a Designer file. Needed
+    /// for editors whose <c>GetPreferredSize</c> ignores their assigned
+    /// <c>Height</c> (<c>CheckedListBoxControl</c>, tall <c>MemoEdit</c>s):
+    /// an AutoSize row measures via <c>GetPreferredSize</c> and collapses
+    /// such a control to a sliver.
+    /// </summary>
+    protected void SetFixedRowHeight(Control editor, int height)
+    {
+        var row = _contentPanel.GetRow(editor);
+        if (row < 0 || row >= _contentPanel.RowStyles.Count)
+        {
+            return;
+        }
+
+        _contentPanel.RowStyles[row] = new RowStyle(SizeType.Absolute, height);
+        editor.Height = height - editor.Margin.Vertical;
+        editor.Dock = DockStyle.Fill;
+    }
+
     /// <summary>Validates every field before OK is allowed to close the dialog. The default accepts anything.</summary>
     /// <param name="error">The message to show the user when validation fails.</param>
     protected virtual bool ValidateFields(out string error)
@@ -156,35 +181,81 @@ public partial class MasterDataEditFormBase : XtraForm
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode) return;
 
+        Localization.LocalizationHelper.LocalizeControl(this);
+
+        // Ensure proper Z-order docking layout so Dock=Fill content takes remaining space correctly.
         _contentPanel.SendToBack();
-
-        var contentHeight = _contentPanel.GetPreferredSize(new Size(_contentPanel.Width, 0)).Height;
-        // Any extra Top/Bottom-docked chrome a subclass adds after this
-        // constructor returns (e.g. MenuItemEditForm's centered "Menu
-        // Item" heading) needs its height counted here too, or this
-        // dialog sizes itself short by exactly that much and clips the
-        // last field row - the same class of bug this whole recompute
-        // was added to fix in the first place.
-        var extraChromeHeight = Controls.OfType<Control>()
-            .Where(c => c != _contentPanel && c != _buttonPanel && c.Dock is DockStyle.Top or DockStyle.Bottom)
-            .Sum(c => {
-                var prefHeight = c.GetPreferredSize(new Size(c.Width, 0)).Height;
-                return prefHeight > 0 ? prefHeight : c.Height;
-            });
-        var wantedClientHeight = contentHeight + _buttonPanel.Height + extraChromeHeight;
-
-        var columnWidths = _contentPanel.GetColumnWidths();
-        var labelColumnWidth = columnWidths.Length > 0 ? columnWidths[0] : 0;
-        var maxEditorWidth = 260;
-        foreach (Control control in _contentPanel.Controls)
+        _buttonPanel.BringToFront();
+        foreach (Control c in Controls.Cast<Control>().ToList())
         {
-            if (control is CheckEdit)
+            if (c != _contentPanel && c != _buttonPanel && c.Dock is DockStyle.Top or DockStyle.Bottom)
             {
-                maxEditorWidth = Math.Max(maxEditorWidth, control.Width);
+                c.BringToFront();
             }
         }
 
-        var wantedClientWidth = labelColumnWidth + maxEditorWidth + _contentPanel.Padding.Horizontal + 48;
+        // Convert any default percent-based row styles to AutoSize so fields don't stretch/align poorly,
+        // but ignore empty spacer rows (rows that have no controls at all in any column).
+        for (int i = 0; i < _contentPanel.RowStyles.Count; i++)
+        {
+            var style = _contentPanel.RowStyles[i];
+            if (style.SizeType == SizeType.Percent)
+            {
+                bool isRowEmpty = true;
+                for (int col = 0; col < _contentPanel.ColumnCount; col++)
+                {
+                    if (_contentPanel.GetControlFromPosition(col, i) != null)
+                    {
+                        isRowEmpty = false;
+                        break;
+                    }
+                }
+
+                if (!isRowEmpty)
+                {
+                    style.SizeType = SizeType.AutoSize;
+                }
+            }
+        }
+
+        // Force layout initialization before sizing calculations
+        _contentPanel.PerformLayout();
+        _buttonPanel.PerformLayout();
+        this.PerformLayout();
+
+        var labelColumnWidth = 0;
+        var maxEditorWidth = 260;
+        var maxSpan2Width = 0;
+
+        foreach (Control control in _contentPanel.Controls)
+        {
+            var col = _contentPanel.GetColumn(control);
+            var colSpan = _contentPanel.GetColumnSpan(control);
+            var prefSize = control.GetPreferredSize(Size.Empty);
+
+            if (colSpan == 2)
+            {
+                maxSpan2Width = Math.Max(maxSpan2Width, prefSize.Width);
+            }
+            else if (col == 0)
+            {
+                labelColumnWidth = Math.Max(labelColumnWidth, prefSize.Width);
+            }
+            else if (col == 1)
+            {
+                maxEditorWidth = Math.Max(maxEditorWidth, prefSize.Width);
+            }
+        }
+
+        var wantedClientWidth = Math.Max(labelColumnWidth + maxEditorWidth, maxSpan2Width) + _contentPanel.Padding.Horizontal + 48;
+
+        // The button strip's own preferred width (three AutoSize buttons plus
+        // its padding) is a floor too - a narrow field set must not size the
+        // dialog narrower than its own buttons ("Save & New"/Save/Cancel
+        // squeezed against the edges, confirmed in the Menu Item Edit
+        // screenshot).
+        var buttonRowWidth = _buttonPanel.GetPreferredSize(Size.Empty).Width + 16;
+        wantedClientWidth = Math.Max(wantedClientWidth, buttonRowWidth);
 
         // Ensure title bar text is fully visible (not truncated)
         int titleWidth = 0;
@@ -197,6 +268,33 @@ public partial class MasterDataEditFormBase : XtraForm
             titleWidth = TextRenderer.MeasureText(Text, Font).Width + 120;
         }
         wantedClientWidth = Math.Max(wantedClientWidth, titleWidth);
+
+        // Comfortable click targets: AutoSize grows buttons to their caption,
+        // but a DPI-scaled minimum keeps OK/Cancel/Save & New from rendering
+        // as thin slivers on short captions at above-100% DPI.
+        var minButtonWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(96, this);
+        foreach (var button in new[] { _okButton, _cancelButton, _saveAndNewButton })
+        {
+            button.MinimumSize = new Size(minButtonWidth, 0);
+            button.Padding = new Padding(10, 4, 10, 4);
+        }
+
+        var contentHeight = _contentPanel.GetPreferredSize(new Size(wantedClientWidth - _contentPanel.Padding.Horizontal, 0)).Height;
+        var buttonHeight = _buttonPanel.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
+
+        // Any extra Top/Bottom-docked chrome a subclass adds after this
+        // constructor returns (e.g. MenuItemEditForm's centered "Menu
+        // Item" heading) needs its height counted here too, or this
+        // dialog sizes itself short by exactly that much and clips the
+        // last field row - the same class of bug this whole recompute
+        // was added to fix in the first place.
+        var extraChromeHeight = Controls.OfType<Control>()
+            .Where(c => c != _contentPanel && c != _buttonPanel && c.Dock is DockStyle.Top or DockStyle.Bottom)
+            .Sum(c => {
+                var prefHeight = c.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
+                return prefHeight > 0 ? prefHeight : c.Height;
+            });
+        var wantedClientHeight = contentHeight + buttonHeight + extraChromeHeight;
 
         ClientSize = new Size(
             Math.Max(ClientSize.Width, wantedClientWidth),

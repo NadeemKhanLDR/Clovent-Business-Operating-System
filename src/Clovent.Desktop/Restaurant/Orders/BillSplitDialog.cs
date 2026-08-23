@@ -28,6 +28,7 @@ public sealed partial class BillSplitDialog : MasterDataEditFormBase
     public BillSplitDialog(IReadOnlyList<(Guid Id, string Display)> lineOptions, IReadOnlyList<(Guid Id, string Display)> tableOptions) : base("Split Bill")
     {
         InitializeComponent();
+        SetFixedRowHeight(_linesList, 200);
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
             _tablesByDisplay = null!;

@@ -1,9 +1,9 @@
 using Clovent.MasterData.Shared.ValueObjects;
-using Clovent.Restaurant;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Shared;
 using Clovent.Restaurant.Tables;
 using Clovent.Restaurant.Tables.Events;
+using Clovent.Restaurant.Tables.ValueObjects;
 using Xunit;
 
 namespace Clovent.Restaurant.Tests.Tables;
@@ -11,7 +11,7 @@ namespace Clovent.Restaurant.Tests.Tables;
 public class TableTests
 {
     private static Table CreateTable(int capacity = 4) =>
-        Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), capacity);
+        Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), capacity);
 
     [Fact]
     public void Create_Valid_ActiveAndAvailableByDefault_RaisesTableCreated()
@@ -26,7 +26,13 @@ public class TableTests
     [Fact]
     public void Create_NonPositiveCapacity_Throws()
     {
-        Assert.Throws<ArgumentOutOfRangeException>(() => Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), TableName.Create("T-01"), 0));
+    }
+
+    [Fact]
+    public void Create_BlankName_Throws()
+    {
+        Assert.Throws<ArgumentException>(() => TableName.Create("  "));
     }
 
     [Fact]

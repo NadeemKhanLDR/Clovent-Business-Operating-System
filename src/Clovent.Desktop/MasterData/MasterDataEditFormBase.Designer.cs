@@ -51,17 +51,27 @@ partial class MasterDataEditFormBase
         _buttonPanel.Controls.Add(_okButton);
         _buttonPanel.Dock = DockStyle.Bottom;
         _buttonPanel.FlowDirection = FlowDirection.RightToLeft;
-        _buttonPanel.Height = 48;
+        _buttonPanel.AutoSize = true;
+        _buttonPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        // Top padding is the breathing room between the last field row and
+        // the button strip - without it the buttons sit squeezed against the
+        // content (the Menu Item Edit screenshot).
+        _buttonPanel.Padding = new Padding(12, 10, 12, 10);
         _buttonPanel.Name = "_buttonPanel";
         //
         // _cancelButton
-        //
+        // All three buttons AutoSize to their real caption: this app has
+        // no AutoScaleMode, so a default fixed-width SimpleButton clips
+        // longer captions ("Save & New") once the skin font scales up at
+        // above-100% DPI - confirmed in the Edit Menu Item audit screenshot.
+        _cancelButton.AutoSize = true;
         _cancelButton.DialogResult = DialogResult.Cancel;
         _cancelButton.Name = "_cancelButton";
         _cancelButton.Text = "Cancel";
         //
         // _okButton
         //
+        _okButton.AutoSize = true;
         _okButton.Name = "_okButton";
         _okButton.Text = "OK";
         _okButton.Click += OkButton_Click;
@@ -70,6 +80,7 @@ partial class MasterDataEditFormBase
         //
         // Not added to _buttonPanel here - only screens that call
         // EnableSaveAndNew (MasterDataEditFormBase.cs) opt into showing it.
+        _saveAndNewButton.AutoSize = true;
         _saveAndNewButton.Name = "_saveAndNewButton";
         _saveAndNewButton.Text = "Save && New";
         _saveAndNewButton.Click += SaveAndNewButton_Click;

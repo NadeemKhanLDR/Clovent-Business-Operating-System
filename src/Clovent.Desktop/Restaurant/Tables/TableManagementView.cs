@@ -89,16 +89,16 @@ public sealed partial class TableManagementView : XtraUserControl
         using var form = new TableEditForm("New Table");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new CreateTableCommand(diningAreaId, form.CodeValue, form.CapacityValue));
+            await _mediator.Send(new CreateTableCommand(diningAreaId, form.CodeValue, form.TableNameValue, form.CapacityValue));
         }
     }
 
     private async Task EditAsync(TableDto dto)
     {
-        using var form = new TableEditForm("Edit Table", dto.Code, dto.Capacity, isNew: false);
+        using var form = new TableEditForm("Edit Table", dto.Code, dto.Name, dto.Capacity, isNew: false);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new SetTableCapacityCommand(dto.TableId, form.CapacityValue));
+            await _mediator.Send(new UpdateTableCommand(dto.TableId, form.TableNameValue, form.CapacityValue));
         }
     }
 }

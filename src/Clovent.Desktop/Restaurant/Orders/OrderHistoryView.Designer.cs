@@ -31,8 +31,8 @@ partial class OrderHistoryView
             new MasterDataColumn("PaidTotal", "Paid", 110),
             new MasterDataColumn("Balance", "Balance", 110),
             new MasterDataColumn("PaymentCount", "Payments", 80),
-            new MasterDataColumn("CreatedAtUtc", "Opened (UTC)", 160),
-            new MasterDataColumn("UpdatedAtUtc", "Closed (UTC)", 160),
+            new MasterDataColumn("CreatedAtUtc", "Opened", 160),
+            new MasterDataColumn("UpdatedAtUtc", "Closed", 160),
         ],
         [
             // Gated on pos.void - the existing permission for reversing a

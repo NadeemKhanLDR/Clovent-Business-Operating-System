@@ -125,23 +125,20 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
     /// never changes, so re-overriding a line still shows what the catalog
     /// originally charged, not just the last override.
     /// </summary>
-    /// <exception cref="RestaurantDomainException"><paramref name="newUnitPrice"/> is negative, or <paramref name="reason"/> is empty.</exception>
+    /// <exception cref="RestaurantDomainException"><paramref name="newUnitPrice"/> is negative.</exception>
     public void OverridePrice(decimal newUnitPrice, string reason, string performedBy)
     {
         if (newUnitPrice < 0)
             throw RestaurantDomainException.InvalidPriceOverrideAmount(Id);
 
-        if (string.IsNullOrWhiteSpace(reason))
-            throw RestaurantDomainException.PriceOverrideReasonRequired(Id);
-
         var now = DateTimeOffset.UtcNow;
         UnitPrice = newUnitPrice;
         IsPriceOverridden = true;
-        PriceOverrideReason = reason.Trim();
+        PriceOverrideReason = string.IsNullOrWhiteSpace(reason) ? null : reason.Trim();
         PriceOverriddenBy = performedBy;
         PriceOverriddenAtUtc = now;
 
-        AddDomainEvent(new OrderLinePriceOverridden(Id, OriginalUnitPrice, newUnitPrice, PriceOverrideReason, performedBy, now));
+        AddDomainEvent(new OrderLinePriceOverridden(Id, OriginalUnitPrice, newUnitPrice, PriceOverrideReason ?? string.Empty, performedBy, now));
     }
 
     /// <summary>Changes the ordered quantity.</summary>

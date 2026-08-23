@@ -11,6 +11,9 @@ partial class CustomerEditForm
         label1 = new System.Windows.Forms.Label();
         label2 = new System.Windows.Forms.Label();
         label3 = new System.Windows.Forms.Label();
+        labelMobile2 = new System.Windows.Forms.Label();
+        labelPhone = new System.Windows.Forms.Label();
+        labelShopNo = new System.Windows.Forms.Label();
         label4 = new System.Windows.Forms.Label();
         label5 = new System.Windows.Forms.Label();
         label6 = new System.Windows.Forms.Label();
@@ -19,15 +22,21 @@ partial class CustomerEditForm
         _codeEdit = new DevExpress.XtraEditors.TextEdit();
         _nameEdit = new DevExpress.XtraEditors.TextEdit();
         _mobileEdit = new DevExpress.XtraEditors.TextEdit();
+        _mobile2Edit = new DevExpress.XtraEditors.TextEdit();
+        _phoneEdit = new DevExpress.XtraEditors.TextEdit();
+        _shopNoEdit = new DevExpress.XtraEditors.TextEdit();
         _addressEdit = new DevExpress.XtraEditors.TextEdit();
         _emailEdit = new DevExpress.XtraEditors.TextEdit();
         _openingBalanceEdit = new DevExpress.XtraEditors.SpinEdit();
         _creditLimitEdit = new DevExpress.XtraEditors.SpinEdit();
-        _notesEdit = new DevExpress.XtraEditors.TextEdit();
+        _notesEdit = new DevExpress.XtraEditors.MemoEdit();
 
         ((System.ComponentModel.ISupportInitialize)_codeEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_nameEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_mobileEdit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_mobile2Edit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_phoneEdit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_shopNoEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_addressEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_emailEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_openingBalanceEdit.Properties).BeginInit();
@@ -36,67 +45,110 @@ partial class CustomerEditForm
 
         SuspendLayout();
         _contentPanel.SuspendLayout();
-        _contentPanel.RowCount = 8;
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowCount = 12;
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+
         _contentPanel.Controls.Add(label1, 0, 0);
         _contentPanel.Controls.Add(_codeEdit, 1, 0);
         // label1
         label1.AutoSize = true;
         label1.Dock = System.Windows.Forms.DockStyle.Left;
-        label1.Text = "Customer Code:";
+        label1.Text = "Customer Code *:";
         label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _codeEdit
         _codeEdit.Dock = System.Windows.Forms.DockStyle.Top;
+
         _contentPanel.Controls.Add(label2, 0, 1);
         _contentPanel.Controls.Add(_nameEdit, 1, 1);
         // label2
         label2.AutoSize = true;
         label2.Dock = System.Windows.Forms.DockStyle.Left;
-        label2.Text = "Customer Name:";
+        label2.Text = "Customer Name *:";
         label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _nameEdit
         _nameEdit.Dock = System.Windows.Forms.DockStyle.Top;
+
         _contentPanel.Controls.Add(label3, 0, 2);
         _contentPanel.Controls.Add(_mobileEdit, 1, 2);
         // label3
         label3.AutoSize = true;
         label3.Dock = System.Windows.Forms.DockStyle.Left;
-        label3.Text = "Mobile Number:";
+        label3.Text = "Mobile Number *:";
         label3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label3.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _mobileEdit
         _mobileEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _contentPanel.Controls.Add(label4, 0, 3);
-        _contentPanel.Controls.Add(_addressEdit, 1, 3);
+
+        _contentPanel.Controls.Add(labelMobile2, 0, 3);
+        _contentPanel.Controls.Add(_mobile2Edit, 1, 3);
+        // labelMobile2
+        labelMobile2.AutoSize = true;
+        labelMobile2.Dock = System.Windows.Forms.DockStyle.Left;
+        labelMobile2.Text = "Mobile 2:";
+        labelMobile2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        labelMobile2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        // _mobile2Edit
+        _mobile2Edit.Dock = System.Windows.Forms.DockStyle.Top;
+
+        _contentPanel.Controls.Add(labelPhone, 0, 4);
+        _contentPanel.Controls.Add(_phoneEdit, 1, 4);
+        // labelPhone
+        labelPhone.AutoSize = true;
+        labelPhone.Dock = System.Windows.Forms.DockStyle.Left;
+        labelPhone.Text = "Phone:";
+        labelPhone.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        labelPhone.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        // _phoneEdit
+        _phoneEdit.Dock = System.Windows.Forms.DockStyle.Top;
+
+        _contentPanel.Controls.Add(labelShopNo, 0, 5);
+        _contentPanel.Controls.Add(_shopNoEdit, 1, 5);
+        // labelShopNo
+        labelShopNo.AutoSize = true;
+        labelShopNo.Dock = System.Windows.Forms.DockStyle.Left;
+        labelShopNo.Text = "Shop No:";
+        labelShopNo.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+        labelShopNo.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        // _shopNoEdit
+        _shopNoEdit.Dock = System.Windows.Forms.DockStyle.Top;
+
+        _contentPanel.Controls.Add(label4, 0, 6);
+        _contentPanel.Controls.Add(_addressEdit, 1, 6);
         // label4
         label4.AutoSize = true;
         label4.Dock = System.Windows.Forms.DockStyle.Left;
-        label4.Text = "Address:";
+        label4.Text = "Address *:";
         label4.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label4.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _addressEdit
         _addressEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _contentPanel.Controls.Add(label5, 0, 4);
-        _contentPanel.Controls.Add(_emailEdit, 1, 4);
+
+        _contentPanel.Controls.Add(label5, 0, 7);
+        _contentPanel.Controls.Add(_emailEdit, 1, 7);
         // label5
         label5.AutoSize = true;
         label5.Dock = System.Windows.Forms.DockStyle.Left;
-        label5.Text = "Email (Optional):";
+        label5.Text = "Email:";
         label5.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label5.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _emailEdit
         _emailEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _contentPanel.Controls.Add(label6, 0, 5);
-        _contentPanel.Controls.Add(_openingBalanceEdit, 1, 5);
+
+        _contentPanel.Controls.Add(label6, 0, 8);
+        _contentPanel.Controls.Add(_openingBalanceEdit, 1, 8);
         // label6
         label6.AutoSize = true;
         label6.Dock = System.Windows.Forms.DockStyle.Left;
@@ -105,8 +157,9 @@ partial class CustomerEditForm
         label6.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _openingBalanceEdit
         _openingBalanceEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _contentPanel.Controls.Add(label7, 0, 6);
-        _contentPanel.Controls.Add(_creditLimitEdit, 1, 6);
+
+        _contentPanel.Controls.Add(label7, 0, 9);
+        _contentPanel.Controls.Add(_creditLimitEdit, 1, 9);
         // label7
         label7.AutoSize = true;
         label7.Dock = System.Windows.Forms.DockStyle.Left;
@@ -115,8 +168,9 @@ partial class CustomerEditForm
         label7.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _creditLimitEdit
         _creditLimitEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _contentPanel.Controls.Add(label8, 0, 7);
-        _contentPanel.Controls.Add(_notesEdit, 1, 7);
+
+        _contentPanel.Controls.Add(label8, 0, 10);
+        _contentPanel.Controls.Add(_notesEdit, 1, 10);
         // label8
         label8.AutoSize = true;
         label8.Dock = System.Windows.Forms.DockStyle.Left;
@@ -124,7 +178,8 @@ partial class CustomerEditForm
         label8.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label8.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _notesEdit
-        _notesEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _notesEdit.Dock = System.Windows.Forms.DockStyle.Fill;
+
         _contentPanel.ResumeLayout(false);
         _contentPanel.PerformLayout();
 
@@ -142,6 +197,21 @@ partial class CustomerEditForm
         // _mobileEdit
         // 
         _mobileEdit.Name = "_mobileEdit";
+
+        // 
+        // _mobile2Edit
+        // 
+        _mobile2Edit.Name = "_mobile2Edit";
+
+        // 
+        // _phoneEdit
+        // 
+        _phoneEdit.Name = "_phoneEdit";
+
+        // 
+        // _shopNoEdit
+        // 
+        _shopNoEdit.Name = "_shopNoEdit";
 
         // 
         // _addressEdit
@@ -177,6 +247,9 @@ partial class CustomerEditForm
         ((System.ComponentModel.ISupportInitialize)_codeEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_nameEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_mobileEdit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_mobile2Edit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_phoneEdit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_shopNoEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_addressEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_emailEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_openingBalanceEdit.Properties).EndInit();
@@ -189,15 +262,21 @@ partial class CustomerEditForm
     private DevExpress.XtraEditors.TextEdit _codeEdit;
     private DevExpress.XtraEditors.TextEdit _nameEdit;
     private DevExpress.XtraEditors.TextEdit _mobileEdit;
+    private DevExpress.XtraEditors.TextEdit _mobile2Edit;
+    private DevExpress.XtraEditors.TextEdit _phoneEdit;
+    private DevExpress.XtraEditors.TextEdit _shopNoEdit;
     private DevExpress.XtraEditors.TextEdit _addressEdit;
     private DevExpress.XtraEditors.TextEdit _emailEdit;
     private DevExpress.XtraEditors.SpinEdit _openingBalanceEdit;
     private DevExpress.XtraEditors.SpinEdit _creditLimitEdit;
-    private DevExpress.XtraEditors.TextEdit _notesEdit;
+    private DevExpress.XtraEditors.MemoEdit _notesEdit;
 
     private System.Windows.Forms.Label label1;
     private System.Windows.Forms.Label label2;
     private System.Windows.Forms.Label label3;
+    private System.Windows.Forms.Label labelMobile2;
+    private System.Windows.Forms.Label labelPhone;
+    private System.Windows.Forms.Label labelShopNo;
     private System.Windows.Forms.Label label4;
     private System.Windows.Forms.Label label5;
     private System.Windows.Forms.Label label6;

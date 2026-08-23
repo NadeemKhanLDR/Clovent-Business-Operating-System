@@ -42,13 +42,14 @@ partial class PriceOverrideDialog
         _contentPanel.Controls.Add(_currentPriceLabel, 0, 0);
         _contentPanel.SetColumnSpan(_currentPriceLabel, 2);
         // _currentPriceLabel
+        _currentPriceLabel.Text = "Current price:";
         _currentPriceLabel.Dock = System.Windows.Forms.DockStyle.Top;
         _contentPanel.Controls.Add(label2, 0, 1);
         _contentPanel.Controls.Add(_newPriceEdit, 1, 1);
         // label2
         label2.AutoSize = true;
         label2.Dock = System.Windows.Forms.DockStyle.Left;
-        label2.Text = "New Price:";
+        label2.Text = "New Price: *";
         label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _newPriceEdit

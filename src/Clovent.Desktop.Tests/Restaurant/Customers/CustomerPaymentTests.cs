@@ -89,7 +89,7 @@ public class CustomerPaymentTests
             changeAmount: 0m);
 
         Assert.DoesNotContain("Outstanding outstanding", detail, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains($"Outstanding: {CurrencyDisplay.Format(317.50m)}", detail);
+        Assert.Contains($"Outstanding: {CurrencyDisplay.FormatPlain(317.50m)}", detail);
         Assert.DoesNotContain("Change handed back", detail);
     }
 
@@ -105,7 +105,7 @@ public class CustomerPaymentTests
             changeAmount: 100m);
 
         Assert.DoesNotContain("Outstanding outstanding", detail, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains($"Change handed back: {CurrencyDisplay.Format(100m)}", detail);
+        Assert.Contains($"Change handed back: {CurrencyDisplay.FormatPlain(100m)}", detail);
     }
 
     private static List<string> ComboItems(CustomerPaymentForm form)

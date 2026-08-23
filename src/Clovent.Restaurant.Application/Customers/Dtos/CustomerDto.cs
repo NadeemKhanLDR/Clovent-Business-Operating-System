@@ -15,6 +15,9 @@ public sealed record CustomerDto(
     string? Notes,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
+    string? ShopNo = null,
+    string? Mobile2 = null,
+    string? Phone = null,
     DateTimeOffset? LastTransactionDate = null)
 {
     /// <summary>Projects a domain <see cref="Clovent.Restaurant.Customers.Customer"/> into its DTO.</summary>
@@ -31,5 +34,8 @@ public sealed record CustomerDto(
         customer.IsActive,
         customer.Notes,
         customer.CreatedAtUtc,
-        customer.UpdatedAtUtc);
+        customer.UpdatedAtUtc,
+        customer.ShopNo,
+        customer.Mobile2,
+        customer.Phone);
 }

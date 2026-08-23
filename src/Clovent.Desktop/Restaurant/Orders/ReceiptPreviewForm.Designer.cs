@@ -59,25 +59,30 @@ partial class ReceiptPreviewForm
         _buttonPanel.Controls.Add(_printButton);
         _buttonPanel.Dock = DockStyle.Bottom;
         _buttonPanel.FlowDirection = FlowDirection.RightToLeft;
+        _buttonPanel.AutoSize = true;
+        _buttonPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _buttonPanel.Padding = new Padding(8, 8, 8, 8);
         _buttonPanel.Location = new Point(0, 433);
         _buttonPanel.Name = "_buttonPanel";
         _buttonPanel.Size = new Size(416, 48);
         _buttonPanel.TabIndex = 1;
-        // 
+        //
         // _closeButton
-        // 
+        //
         _closeButton.DialogResult = DialogResult.OK;
         _closeButton.Location = new Point(226, 3);
         _closeButton.Name = "_closeButton";
-        _closeButton.Size = new Size(187, 57);
+        _closeButton.AutoSize = true;
+        _closeButton.Padding = new Padding(10, 4, 10, 4);
         _closeButton.TabIndex = 0;
         _closeButton.Text = "Close";
-        // 
+        //
         // _printButton
-        // 
+        //
         _printButton.Location = new Point(33, 3);
         _printButton.Name = "_printButton";
-        _printButton.Size = new Size(187, 57);
+        _printButton.AutoSize = true;
+        _printButton.Padding = new Padding(10, 4, 10, 4);
         _printButton.TabIndex = 1;
         _printButton.Text = "Print";
         _printButton.Click += PrintButton_Click;
@@ -95,6 +100,7 @@ partial class ReceiptPreviewForm
         StartPosition = FormStartPosition.CenterParent;
         Text = "Receipt Preview";
         FormClosed += ReceiptPreviewForm_FormClosed;
+        Load += ReceiptPreviewForm_Load;
         ((System.ComponentModel.ISupportInitialize)_textEdit.Properties).EndInit();
         _buttonPanel.ResumeLayout(false);
         ResumeLayout(false);

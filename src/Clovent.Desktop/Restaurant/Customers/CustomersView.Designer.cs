@@ -1,4 +1,4 @@
-﻿using System.Drawing;
+using System.Drawing;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
@@ -12,7 +12,7 @@ partial class CustomersView
 
     private GridControl _gridControl;
     private GridView _gridView;
-    private TextEdit _txtSearch;
+    private SearchLookUpEdit _txtSearch;
     private ComboBoxEdit _comboStatus;
     private SimpleButton _btnClearFilters;
 
@@ -40,7 +40,7 @@ partial class CustomersView
     {
         _gridControl = new GridControl();
         _gridView = new GridView();
-        _txtSearch = new TextEdit();
+        _txtSearch = new SearchLookUpEdit();
         _comboStatus = new ComboBoxEdit();
         _btnClearFilters = new SimpleButton();
 
@@ -141,7 +141,16 @@ partial class CustomersView
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110F)); // Clear Filters
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-        _txtSearch.Properties.NullValuePrompt = "Search Customer...";
+        _txtSearch.Properties.DisplayMember = "Name";
+        _txtSearch.Properties.NullText = "Search Customer...";
+        _txtSearch.Properties.ValueMember = "CustomerId";
+        _txtSearch.Properties.PopupView.Columns.Clear();
+        var colSearchName = _txtSearch.Properties.PopupView.Columns.AddVisible("Name", "Customer");
+        colSearchName.Width = 375;
+        var colSearchPhone = _txtSearch.Properties.PopupView.Columns.AddVisible("Phone", "Phone");
+        colSearchPhone.Width = 250;
+        var colSearchBalance = _txtSearch.Properties.PopupView.Columns.AddVisible("BalanceDisplay", "Balance");
+        colSearchBalance.Width = 225;
         _txtSearch.Dock = DockStyle.Fill;
         _txtSearch.Font = new Font("Segoe UI", 9.5F);
         _txtSearch.EditValueChanged += TxtSearch_EditValueChanged;
@@ -190,6 +199,21 @@ partial class CustomersView
         colMobile.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         colMobile.AppearanceHeader.Options.UseFont = true;
 
+        DevExpress.XtraGrid.Columns.GridColumn colMobile2 = _gridView.Columns.AddVisible("Mobile2", "Mobile 2");
+        colMobile2.Width = 120;
+        colMobile2.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        colMobile2.AppearanceHeader.Options.UseFont = true;
+
+        DevExpress.XtraGrid.Columns.GridColumn colPhone = _gridView.Columns.AddVisible("Phone", "Phone");
+        colPhone.Width = 120;
+        colPhone.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        colPhone.AppearanceHeader.Options.UseFont = true;
+
+        DevExpress.XtraGrid.Columns.GridColumn colShopNo = _gridView.Columns.AddVisible("ShopNo", "Shop No");
+        colShopNo.Width = 100;
+        colShopNo.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        colShopNo.AppearanceHeader.Options.UseFont = true;
+
         DevExpress.XtraGrid.Columns.GridColumn colEmail = _gridView.Columns.AddVisible("Email", "Email");
         colEmail.Width = 160;
         colEmail.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
@@ -199,11 +223,19 @@ partial class CustomersView
         colOutstanding.Width = 120;
         colOutstanding.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         colOutstanding.AppearanceHeader.Options.UseFont = true;
+        colOutstanding.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        colOutstanding.AppearanceHeader.Options.UseTextOptions = true;
+        colOutstanding.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        colOutstanding.AppearanceCell.Options.UseTextOptions = true;
 
         DevExpress.XtraGrid.Columns.GridColumn colLimit = _gridView.Columns.AddVisible("CreditLimit", "Credit Limit");
         colLimit.Width = 120;
         colLimit.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         colLimit.AppearanceHeader.Options.UseFont = true;
+        colLimit.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        colLimit.AppearanceHeader.Options.UseTextOptions = true;
+        colLimit.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        colLimit.AppearanceCell.Options.UseTextOptions = true;
 
         DevExpress.XtraGrid.Columns.GridColumn colStatus = _gridView.Columns.AddVisible("StatusText", "Status");
         colStatus.Width = 90;

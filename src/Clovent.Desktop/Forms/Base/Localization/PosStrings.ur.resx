@@ -112,4 +112,169 @@
   <data name="Table" xml:space="preserve">
     <value>میز:</value>
   </data>
+  <data name="Home" xml:space="preserve">
+    <value>ہوم</value>
+  </data>
+  <data name="Administration" xml:space="preserve">
+    <value>انتظامیہ</value>
+  </data>
+  <data name="Catalog" xml:space="preserve">
+    <value>کیٹلاگ</value>
+  </data>
+  <data name="Inventory" xml:space="preserve">
+    <value>انوینٹری</value>
+  </data>
+  <data name="Restaurant" xml:space="preserve">
+    <value>ریسٹورنٹ</value>
+  </data>
+  <data name="Security" xml:space="preserve">
+    <value>سیکیورٹی</value>
+  </data>
+  <data name="OperationsSetup" xml:space="preserve">
+    <value>آپریشنز سیٹ اپ</value>
+  </data>
+  <data name="FinancialSetup" xml:space="preserve">
+    <value>مالیاتی سیٹ اپ</value>
+  </data>
+  <data name="Configuration" xml:space="preserve">
+    <value>کنفیگریشن</value>
+  </data>
+  <data name="Operations" xml:space="preserve">
+    <value>آپریشنز</value>
+  </data>
+  <data name="Transactions" xml:space="preserve">
+    <value>لین دین</value>
+  </data>
+  <data name="Users" xml:space="preserve">
+    <value>صارفین</value>
+  </data>
+  <data name="Roles" xml:space="preserve">
+    <value>کردار</value>
+  </data>
+  <data name="Organizations" xml:space="preserve">
+    <value>تنظیمیں</value>
+  </data>
+  <data name="Companies" xml:space="preserve">
+    <value>کمپنیاں</value>
+  </data>
+  <data name="Branches" xml:space="preserve">
+    <value>شاخیں</value>
+  </data>
+  <data name="Departments" xml:space="preserve">
+    <value>شعبے</value>
+  </data>
+  <data name="Warehouses" xml:space="preserve">
+    <value>گودام</value>
+  </data>
+  <data name="Terminals" xml:space="preserve">
+    <value>ٹرمینلز</value>
+  </data>
+  <data name="FiscalYears" xml:space="preserve">
+    <value>مالیاتی سال</value>
+  </data>
+  <data name="Currencies" xml:space="preserve">
+    <value>کرنسیز</value>
+  </data>
+  <data name="BusinessSettings" xml:space="preserve">
+    <value>کاروباری ترتیبات</value>
+  </data>
+  <data name="Brands" xml:space="preserve">
+    <value>برانڈز</value>
+  </data>
+  <data name="UnitsOfMeasure" xml:space="preserve">
+    <value>پیمائش کے یونٹ</value>
+  </data>
+  <data name="Products" xml:space="preserve">
+    <value>مصنوعات</value>
+  </data>
+  <data name="Variants" xml:space="preserve">
+    <value>مختلف اقسام</value>
+  </data>
+  <data name="Barcodes" xml:space="preserve">
+    <value>بارکوڈز</value>
+  </data>
+  <data name="Prices" xml:space="preserve">
+    <value>قیمتیں</value>
+  </data>
+  <data name="WarehouseStocks" xml:space="preserve">
+    <value>گودام کا اسٹاک</value>
+  </data>
+  <data name="StockAdjustments" xml:space="preserve">
+    <value>اسٹاک ایڈجسٹمنٹ</value>
+  </data>
+  <data name="StockTransfers" xml:space="preserve">
+    <value>اسٹاک کی منتقلی</value>
+  </data>
+  <data name="InventoryTransactions" xml:space="preserve">
+    <value>انوینٹری کے لین دین</value>
+  </data>
+  <data name="DiningAreas" xml:space="preserve">
+    <value>کھانے کے علاقے</value>
+  </data>
+  <data name="Tables" xml:space="preserve">
+    <value>میزیں</value>
+  </data>
+  <data name="MenuItems" xml:space="preserve">
+    <value>مینیو آئٹمز</value>
+  </data>
+  <data name="RestaurantPOS" xml:space="preserve">
+    <value>ریسٹورنٹ پی او ایس</value>
+  </data>
+  <data name="RunningOrders" xml:space="preserve">
+    <value>جاری آرڈرز</value>
+  </data>
+  <data name="HeldOrders" xml:space="preserve">
+    <value>روکے گئے آرڈرز</value>
+  </data>
+  <data name="OrderHistory" xml:space="preserve">
+    <value>آرڈر کی تاریخ</value>
+  </data>
+  <data name="KitchenTickets" xml:space="preserve">
+    <value>کچن ٹکٹ</value>
+  </data>
+  <data name="Customers" xml:space="preserve">
+    <value>گاہکوں</value>
+  </data>
+  <data name="EndOfDay" xml:space="preserve">
+    <value>دن کا اختتام</value>
+  </data>
+  <data name="RestaurantSetup" xml:space="preserve">
+    <value>ریسٹورنٹ سیٹ اپ</value>
+  </data>
+  <data name="PaymentMethods" xml:space="preserve">
+    <value>ادائیگی کے طریقے</value>
+  </data>
+  <data name="ActivityLog" xml:space="preserve">
+    <value>سرگرمی لاگ</value>
+  </data>
+  <data name="Appearance" xml:space="preserve">
+    <value>ظاہری شکل</value>
+  </data>
+  <data name="Save" xml:space="preserve">
+    <value>محفوظ کریں</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>منسوخ کریں</value>
+  </data>
+  <data name="Search" xml:space="preserve">
+    <value>تلاش کریں</value>
+  </data>
+  <data name="DefaultCurrency" xml:space="preserve">
+    <value>بنیادی کرنسی</value>
+  </data>
+  <data name="DefaultLanguage" xml:space="preserve">
+    <value>بنیادی زبان</value>
+  </data>
+  <data name="DefaultTimeZone" xml:space="preserve">
+    <value>بنیادی وقت کا زون</value>
+  </data>
+  <data name="DefaultFiscalYear" xml:space="preserve">
+    <value>بنیادی مالیاتی سال</value>
+  </data>
+  <data name="DateTimeFormat" xml:space="preserve">
+    <value>تاریخ اور وقت کا فارمیٹ</value>
+  </data>
+  <data name="Example" xml:space="preserve">
+    <value>مثال</value>
+  </data>
 </root>

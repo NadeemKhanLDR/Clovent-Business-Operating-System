@@ -35,6 +35,7 @@ partial class QuantityPromptForm
         _contentPanel.Controls.Add(_quantityEdit, 1, 0);
         // label1
         label1.AutoSize = true;
+        label1.Text = "Quantity:";
         label1.Dock = System.Windows.Forms.DockStyle.Left;
         label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);

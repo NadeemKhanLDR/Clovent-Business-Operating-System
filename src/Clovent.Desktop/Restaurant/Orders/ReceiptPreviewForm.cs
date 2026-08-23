@@ -33,6 +33,24 @@ public sealed partial class ReceiptPreviewForm : DevExpress.XtraEditors.XtraForm
         _textEdit.Text = receiptText;
         WindowPlacementStore.Restore(this, PlacementKey);
     }
+
+    /// <summary>
+    /// The Designer's ClientSize/MinimumSize are 96-DPI logical values - this
+    /// app has no AutoScaleMode, so the DPI-grown monospace text and AutoSize
+    /// buttons need the form scaled by its actual device DPI or they clip.
+    /// </summary>
+    private void ReceiptPreviewForm_Load(object? sender, EventArgs e)
+    {
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
+        ClientSize = new Size(
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(416, this),
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(481, this));
+        MinimumSize = new Size(
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(360, this),
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(420, this));
+    }
     private void ReceiptPreviewForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)

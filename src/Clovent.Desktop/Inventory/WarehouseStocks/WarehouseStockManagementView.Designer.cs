@@ -54,14 +54,39 @@ partial class WarehouseStockManagementView
         _warehousePicker.SelectionChanged += WarehousePicker_SelectionChanged;
         _receiveInventoryButton.Click += ReceiveInventoryButton_Click;
 
-        var toolbar = new PanelControl { Dock = DockStyle.Top, Height = 32 };
-        var toolbarLayout = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
+        // AutoSize toolbar, not a fixed Height=32 - with no AutoScaleMode in
+        // this app, a DPI-grown button is taller than 32 logical px and got
+        // clipped by the fixed panel.
+        var toolbar = new PanelControl { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(0, 4, 0, 4) };
+        var toolbarLayout = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, WrapContents = false };
         toolbarLayout.Controls.Add(_receiveInventoryButton);
         toolbar.Controls.Add(toolbarLayout);
 
-        Controls.Add(_listView);
-        Controls.Add(toolbar);
-        Controls.Add(_warehousePicker);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 5,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _warehousePicker.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_warehousePicker, 0, 0);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 1);
+        toolbar.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(toolbar, 0, 2);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 3);
+        _listView.Dock = DockStyle.Fill;
+        mainLayout.Controls.Add(_listView, 0, 4);
+
+        Controls.Add(mainLayout);
         Load += WarehouseStockManagementView_Load;
     }
 

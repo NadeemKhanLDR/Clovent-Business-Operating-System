@@ -212,15 +212,18 @@ public class CustomersViewCsvExportTests
             var parsedRows = CsvFile.ParseDataRows(lines);
 
             // Verify Headers
-            Assert.Equal(8, headers.Count);
+            Assert.Equal(11, headers.Count);
             Assert.Equal("Code", headers[0]);
             Assert.Equal("Customer Name", headers[1]);
             Assert.Equal("Mobile", headers[2]);
-            Assert.Equal("Email", headers[3]);
-            Assert.Equal("Outstanding", headers[4]);
-            Assert.Equal("Credit Limit", headers[5]);
-            Assert.Equal("Status", headers[6]);
-            Assert.Equal("Last Transaction", headers[7]);
+            Assert.Equal("Mobile 2", headers[3]);
+            Assert.Equal("Phone", headers[4]);
+            Assert.Equal("Shop No", headers[5]);
+            Assert.Equal("Email", headers[6]);
+            Assert.Equal("Outstanding", headers[7]);
+            Assert.Equal("Credit Limit", headers[8]);
+            Assert.Equal("Status", headers[9]);
+            Assert.Equal("Last Transaction", headers[10]);
 
             // Verify Row Count
             Assert.Equal(2, parsedRows.Count);
@@ -230,22 +233,28 @@ public class CustomersViewCsvExportTests
             Assert.Equal("C001", row1[0]);
             Assert.Equal("Doe, John", row1[1]);
             Assert.Equal("555-1234", row1[2]);
-            Assert.Equal("john@doe.com", row1[3]);
-            Assert.Equal(CurrencyDisplay.Format(123.45m), row1[4]);
-            Assert.Equal(CurrencyDisplay.Format(500m), row1[5]);
-            Assert.Equal("Active", row1[6]);
-            Assert.Equal("-", row1[7]); // Last transaction date is null
+            Assert.Equal("-", row1[3]);
+            Assert.Equal("-", row1[4]);
+            Assert.Equal("", row1[5]);
+            Assert.Equal("john@doe.com", row1[6]);
+            Assert.Equal(CurrencyDisplay.FormatPlain(123.45m), row1[7]);
+            Assert.Equal(CurrencyDisplay.FormatPlain(500m), row1[8]);
+            Assert.Equal("Active", row1[9]);
+            Assert.Equal("-", row1[10]); // Last transaction date is null
 
             // Verify Row 2: empty/null handling
             var row2 = parsedRows[1];
             Assert.Equal("C002", row2[0]);
             Assert.Equal("Plain Jane", row2[1]);
             Assert.Equal("555-5678", row2[2]);
-            Assert.Equal("-", row2[3]); // Email null translates to "-" in grid row
-            Assert.Equal(CurrencyDisplay.Format(0m), row2[4]);
-            Assert.Equal(CurrencyDisplay.Format(0m), row2[5]);
-            Assert.Equal("Inactive", row2[6]);
-            Assert.Equal("-", row2[7]);
+            Assert.Equal("-", row2[3]);
+            Assert.Equal("-", row2[4]);
+            Assert.Equal("", row2[5]);
+            Assert.Equal("-", row2[6]); // Email null translates to "-" in grid row
+            Assert.Equal(CurrencyDisplay.FormatPlain(0m), row2[7]);
+            Assert.Equal(CurrencyDisplay.FormatPlain(0m), row2[8]);
+            Assert.Equal("Inactive", row2[9]);
+            Assert.Equal("-", row2[10]);
         }
         finally
         {

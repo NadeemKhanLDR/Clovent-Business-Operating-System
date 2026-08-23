@@ -40,7 +40,9 @@ partial class AppearanceSettingsView
     private void BuildLayout()
     {
         _gridView.OptionsBehavior.Editable = false;
-        _gridView.OptionsSelection.MultiSelect = false;
+        _gridView.OptionsSelection.MultiSelect = true;
+        _gridView.OptionsSelection.MultiSelectMode = DevExpress.XtraGrid.Views.Grid.GridMultiSelectMode.RowSelect;
+        _gridView.SelectionChanged += (s, e) => UpdateButtonStates();
         _gridView.OptionsView.ShowGroupPanel = false;
         _gridView.OptionsView.ColumnAutoWidth = true;
         _gridView.RowHeight = 32;

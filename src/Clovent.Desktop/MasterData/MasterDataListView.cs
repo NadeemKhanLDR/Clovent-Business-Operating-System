@@ -153,6 +153,10 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         set => _deactivateButton.Text = value;
     }
 
+    /// <summary>Exposes the underlying DevExpress GridView.</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden), Browsable(false)]
+    public DevExpress.XtraGrid.Views.Grid.GridView GridView => _gridView;
+
     /// <summary>Builds the list view for the given columns.</summary>
     /// <param name="columns">The grid's columns.</param>
     /// <param name="extraActions">Entity-specific command buttons beyond New/Edit/Activate/Deactivate/Refresh, added in order after Refresh.</param>
@@ -165,20 +169,62 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         _gridControl.MainView = _gridView;
         _gridControl.ViewCollection.Add(_gridView);
         _gridView.OptionsBehavior.Editable = false;
-        _gridView.OptionsSelection.MultiSelect = false;
+        _gridView.OptionsSelection.MultiSelect = true;
         _gridView.OptionsView.ShowGroupPanel = false;
         _gridView.OptionsView.ColumnAutoWidth = true;
 
         foreach (var column in columns)
         {
-            var gridColumn = _gridView.Columns.AddVisible(column.FieldName, column.Caption);
+            var caption = column.Caption;
+            if (caption.EndsWith(" (UTC)", StringComparison.OrdinalIgnoreCase))
+            {
+                caption = caption.Substring(0, caption.Length - 6);
+            }
+            var gridColumn = _gridView.Columns.AddVisible(column.FieldName, caption);
             if (column.Width is { } width)
             {
                 gridColumn.Width = width;
             }
         }
 
+        _gridView.CustomColumnDisplayText += (sender, e) =>
+        {
+            if (e.Value is DateTimeOffset dto)
+            {
+                e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.Format(dto);
+            }
+            else if (e.Value is DateTime dt)
+            {
+                e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.Format(dt);
+            }
+        };
+
         _gridView.FocusedRowChanged += (_, _) => UpdateButtonStates();
+        _gridView.SelectionChanged += (_, _) => UpdateButtonStates();
+        _gridView.DoubleClick += async (sender, e) =>
+        {
+            var info = _gridView.CalcHitInfo(_gridControl.PointToClient(Control.MousePosition));
+            if (info.InRow || info.InRowCell)
+            {
+                if (GetFocusedItem() is { } item && OnEdit is { } handler)
+                {
+                    if (_editButton.Enabled)
+                    {
+                        await handler(item);
+                        await RefreshAsync();
+                    }
+                }
+            }
+        };
+
+        // DevExpress image-gallery glyphs on the standard command set - see
+        // Forms.Base.DesktopIcons for why ImageUri (and a silent text-only
+        // fallback) is this app's icon mechanism.
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_newButton, Clovent.Desktop.Forms.Base.DesktopIcons.Add);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_editButton, Clovent.Desktop.Forms.Base.DesktopIcons.Edit);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_activateButton, Clovent.Desktop.Forms.Base.DesktopIcons.ActivateIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_deactivateButton, Clovent.Desktop.Forms.Base.DesktopIcons.CancelIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_refreshButton, Clovent.Desktop.Forms.Base.DesktopIcons.Refresh);
 
         _searchBox.Properties.NullValuePrompt = "Search...";
         _searchBox.EditValueChanged += (_, _) => ApplyFilter();
@@ -203,20 +249,64 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
 
         _activateButton.Click += async (_, _) =>
         {
-            if (GetFocusedItem() is { } item && OnActivate is { } handler)
+            var selectedRows = _gridView.GetSelectedRows();
+            var items = selectedRows
+                .Select(r => _gridView.GetRow(r) as TDto)
+                .Where(item => item is not null)
+                .Cast<TDto>()
+                .ToList();
+
+            if (items.Count == 0 || OnActivate is null)
             {
-                await handler(item);
-                await RefreshAsync();
+                return;
             }
+
+            var confirmMsg = items.Count == 1
+                ? "Activate the selected record?"
+                : $"Activate the {items.Count} selected records?";
+
+            var confirm = XtraMessageBox.Show(this, confirmMsg, "Confirm Activation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes)
+            {
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                await OnActivate(item);
+            }
+            await RefreshAsync();
         };
 
         _deactivateButton.Click += async (_, _) =>
         {
-            if (GetFocusedItem() is { } item && OnDeactivate is { } handler)
+            var selectedRows = _gridView.GetSelectedRows();
+            var items = selectedRows
+                .Select(r => _gridView.GetRow(r) as TDto)
+                .Where(item => item is not null)
+                .Cast<TDto>()
+                .ToList();
+
+            if (items.Count == 0 || OnDeactivate is null)
             {
-                await handler(item);
-                await RefreshAsync();
+                return;
             }
+
+            var confirmMsg = items.Count == 1
+                ? "Deactivate the selected record?"
+                : $"Deactivate the {items.Count} selected records?";
+
+            var confirm = XtraMessageBox.Show(this, confirmMsg, "Confirm Deactivation", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (confirm != DialogResult.Yes)
+            {
+                return;
+            }
+
+            foreach (var item in items)
+            {
+                await OnDeactivate(item);
+            }
+            await RefreshAsync();
         };
 
         _refreshButton.Click += async (_, _) => await RefreshAsync();
@@ -263,11 +353,34 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             return;
         }
 
+        var selectedId = GetDtoId(GetFocusedItem());
+
         SetBusy(true);
         try
         {
             _allItems = await LoadItemsAsync(cancellationToken);
-            ApplyFilter();
+            
+            var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector).ToList();
+            _gridControl.DataSource = visible;
+            _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
+            
+            if (selectedId is { } id)
+            {
+                var newIndex = -1;
+                for (int i = 0; i < visible.Count; i++)
+                {
+                    if (GetDtoId(visible[i]) == id)
+                    {
+                        newIndex = i;
+                        break;
+                    }
+                }
+                if (newIndex >= 0)
+                {
+                    _gridView.FocusedRowHandle = newIndex;
+                }
+            }
+
             await UpdateFeaturePermissionsAsync();
             UpdateButtonStates();
         }
@@ -279,10 +392,23 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
 
     private void ApplyFilter()
     {
+        // Preserve the focused row across the DataSource swap so a status
+        // action (Activate/Deactivate/Occupy/...) doesn't visually "reset"
+        // the screen - the row handle is restored after the reload when the
+        // row still exists (row count unchanged is the common case).
+        var focusedRowHandle = _gridView.FocusedRowHandle;
+        var topRowIndex = _gridView.TopRowIndex;
+
         var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector);
 
         _gridControl.DataSource = visible.ToList();
         _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
+        if (focusedRowHandle >= 0 && focusedRowHandle < _gridView.RowCount)
+        {
+            _gridView.FocusedRowHandle = focusedRowHandle;
+        }
+        _gridView.TopRowIndex = topRowIndex;
+
         UpdateButtonStates();
     }
 
@@ -312,23 +438,25 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
 
     private void UpdateButtonStates()
     {
+        var selectedRows = _gridView.GetSelectedRows();
+        var selectedCount = selectedRows.Length;
         var focused = GetFocusedItem();
-        var hasFocusedRow = focused is not null;
+        var hasFocusedRow = selectedCount > 0 && focused is not null;
         var status = focused is not null && StatusSelector is not null ? StatusSelector(focused) : null;
 
         var permittedEdit = _editButton.Tag as bool?;
         var permittedActivate = _activateButton.Tag as bool?;
         var permittedDeactivate = _deactivateButton.Tag as bool?;
 
-        _editButton.Enabled = MasterDataFilter.CanEdit(hasFocusedRow, permittedEdit, OnEdit is not null);
-        _activateButton.Enabled = MasterDataFilter.CanActivate(hasFocusedRow, permittedActivate, status, OnActivate is not null);
-        _deactivateButton.Enabled = MasterDataFilter.CanDeactivate(hasFocusedRow, permittedDeactivate, status, OnDeactivate is not null);
+        _editButton.Enabled = (selectedCount == 1) && MasterDataFilter.CanEdit(hasFocusedRow, permittedEdit, OnEdit is not null);
+        _activateButton.Enabled = (selectedCount > 0) && (permittedActivate ?? true) && (OnActivate is not null);
+        _deactivateButton.Enabled = (selectedCount > 0) && (permittedDeactivate ?? true) && (OnDeactivate is not null);
 
         for (var i = 0; i < _extraActions.Count; i++)
         {
             var isEnabledFor = _extraActions[i].IsEnabledFor;
             var permitted = _extraActionButtons[i].Tag as bool?;
-            var stateAllows = isEnabledFor is null || (focused is not null && isEnabledFor(focused));
+            var stateAllows = (selectedCount == 1) && (isEnabledFor is null || (focused is not null && isEnabledFor(focused)));
             _extraActionButtons[i].Enabled = hasFocusedRow && (permitted ?? true) && stateAllows;
         }
     }
@@ -404,7 +532,14 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         commandFlow.Controls.Add(BuildSectionHeading("Search"));
         _searchBox.Properties.NullValuePrompt = "Search...";
         _searchBox.AutoSize = false;
-        _searchBox.Width = CommandPanelWidth - commandPanel.Padding.Horizontal - 4;
+        // Anchored Left|Right (not a fixed width) so the search box always
+        // stretches to the DPI-scaled command-panel width below - a fixed
+        // unscaled width clipped its prompt text at above-100% DPI.
+        _searchBox.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+        // DPI-scaled initial width - the anchor only fixes it once the panel
+        // reaches its final DPI-scaled width; before that, an unscaled 212px
+        // clipped the "Search..." prompt at above-100% DPI.
+        _searchBox.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(CommandPanelWidth - commandPanel.Padding.Horizontal - 4, this);
         _searchBox.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         commandFlow.Controls.Add(_searchBox);
 
@@ -452,16 +587,43 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         // once real width is available, catches whichever event actually
         // ends up carrying the real size first.
         var splitterDistanceSet = false;
+        int GetRequiredSidebarWidth()
+        {
+            var maxControlWidth = 0;
+            foreach (Control control in commandFlow.Controls)
+            {
+                var prefWidth = control.GetPreferredSize(Size.Empty).Width;
+                maxControlWidth = Math.Max(maxControlWidth, prefWidth);
+            }
+            var padding = commandPanel.Padding.Horizontal;
+            var required = maxControlWidth + padding + 32;
+            var floor = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(CommandPanelWidth, split);
+            return Math.Max(required, floor);
+        }
+
         void EnsureSplitterDistance()
         {
-            if (splitterDistanceSet || split.Width < split.Panel1MinSize + split.Panel2MinSize)
+            var target = GetRequiredSidebarWidth();
+            var maxPossible = split.Width - split.Panel2MinSize;
+            if (maxPossible <= 0)
+            {
+                return;
+            }
+
+            var actualTarget = Math.Min(target, maxPossible);
+
+            if (split.SplitterDistance >= actualTarget && splitterDistanceSet)
             {
                 return;
             }
 
             try
             {
-                split.SplitterDistance = CommandPanelWidth;
+                // DPI-scaled, not the raw 240 logical pixels - this app has
+                // no AutoScaleMode, so an unscaled panel width clips the
+                // skin's DPI-grown buttons at above-100% DPI (confirmed in
+                // the Tables/Product Variants audit screenshots).
+                split.SplitterDistance = actualTarget;
                 splitterDistanceSet = true;
             }
             catch (ArgumentOutOfRangeException)
@@ -479,6 +641,13 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
 
         Load += (_, _) => EnsureSplitterDistance();
         split.Resize += (_, _) => EnsureSplitterDistance();
+        // Restore triggers beyond Resize: a DevExpress document tab that is
+        // hidden and re-shown at the SAME size fires VisibleChanged without
+        // any Resize - without this hook the sidebar stayed collapsed to the
+        // framework default after tab switches (the Dining Areas/Tables/
+        // Product Variants screenshots).
+        split.VisibleChanged += (_, _) => EnsureSplitterDistance();
+        split.HandleCreated += (_, _) => EnsureSplitterDistance();
     }
 
     /// <summary>A left-command-panel section label ("Search"/"Actions"/"Info"), styled like Dashboard's list-column captions for a consistent look across the app.</summary>
@@ -499,8 +668,18 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     private void AddCommandButton(FlowLayoutPanel commandFlow, SimpleButton button)
     {
         button.AutoSize = true;
-        button.MinimumSize = new Size(CommandPanelWidth - 24, DesktopStyle.ToolbarControlHeight);
+        button.MinimumSize = new Size(
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(CommandPanelWidth - 24, button),
+            DesktopStyle.ToolbarControlHeight);
         button.Margin = new Padding(0, 0, 0, DesktopStyle.ControlGap / 2);
         commandFlow.Controls.Add(button);
+    }
+
+    private static Guid? GetDtoId(object? dto)
+    {
+        if (dto == null) return null;
+        var prop = dto.GetType().GetProperties()
+            .FirstOrDefault(p => p.PropertyType == typeof(Guid) && p.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase));
+        return prop?.GetValue(dto) as Guid?;
     }
 }

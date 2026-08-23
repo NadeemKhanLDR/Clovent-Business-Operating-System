@@ -21,6 +21,8 @@ public sealed partial class NotificationsForm : XtraForm
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
+        Load += (s, e) => Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
+
         _notificationsList.Items.AddRange([.. notifications.Select(n => $"{n.TimestampUtc:g}  -  {n.Title}: {n.Message}")]);
         if (notifications.Count == 0)
         {

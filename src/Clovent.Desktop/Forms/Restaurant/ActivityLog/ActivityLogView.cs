@@ -71,7 +71,7 @@ public sealed partial class ActivityLogView : DevExpress.XtraEditors.XtraUserCon
             // apply (RestaurantPOSArchitecture.md Section 15.1): a
             // restaurant owner reading an activity log shouldn't have to
             // mentally convert time zones.
-            e.DisplayText = occurredAtUtc.ToLocalTime().ToString("g");
+            e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.Format(occurredAtUtc);
         }
     }
 
@@ -93,7 +93,27 @@ public sealed partial class ActivityLogView : DevExpress.XtraEditors.XtraUserCon
 
     private async void RefreshButton_Click(object? sender, EventArgs e) => await RefreshAsync();
 
-    private async void ActivityLogView_Load(object? sender, EventArgs e) => await RefreshAsync();
+    private void SearchEdit_HandleCreated(object? sender, EventArgs e)
+    {
+        // Minimum width is measured from the placeholder text itself (plus
+        // editor chrome), floored at 280 logical px - both then DPI-scaled.
+        // Scaling only the width left the unscaled minimum fighting it at
+        // above-100% DPI, clipping the "Search action, user, or details..."
+        // prompt (the Activity Log screenshot).
+        var promptWidth = TextRenderer.MeasureText(
+            _searchEdit.Properties.NullValuePrompt ?? string.Empty,
+            _searchEdit.Font).Width + 56;
+        var logicalMinimum = Math.Max(280, promptWidth);
+        _searchEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(logicalMinimum, _searchEdit), 0);
+        _searchEdit.Width = Math.Max(
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(400, _searchEdit),
+            _searchEdit.MinimumSize.Width);
+    }
+
+    private async void ActivityLogView_Load(object? sender, EventArgs e)
+    {
+        await RefreshAsync();
+    }
 
     private async Task RefreshAsync()
     {

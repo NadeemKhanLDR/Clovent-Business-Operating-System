@@ -16,9 +16,8 @@ public sealed partial class PasswordPromptForm : MasterDataEditFormBase
     /// <summary>Builds the dialog.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     [Obsolete("Designer only", true)]
-    public PasswordPromptForm() : base("Change Password")
+    public PasswordPromptForm() : this("Change Password", false)
     {
-        InitializeComponent();
     }
 
     /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; when <paramref name="requireCurrentPassword"/> is <see langword="true"/> an extra Current Password field is shown, for self-service Change Password.</summary>
@@ -29,7 +28,12 @@ public sealed partial class PasswordPromptForm : MasterDataEditFormBase
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
-        if (!requireCurrentPassword) { _currentPasswordEdit.Visible = false; label1.Visible = false; }
+        if (requireCurrentPassword)
+        {
+            AddField("Current Password:", _currentPasswordEdit);
+        }
+        AddField("New Password:", _newPasswordEdit);
+        AddField("Confirm Password:", _confirmPasswordEdit);
     }
 
     /// <summary>The entered current password (empty if not requested).</summary>

@@ -38,9 +38,9 @@ partial class ProductPriceEditForm
         SuspendLayout();
         _contentPanel.SuspendLayout();
         _contentPanel.RowCount = 3;
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
         _contentPanel.Controls.Add(label1, 0, 0);
         _contentPanel.Controls.Add(_priceTypeCombo, 1, 0);
         // label1
@@ -51,6 +51,7 @@ partial class ProductPriceEditForm
         label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _priceTypeCombo
         _priceTypeCombo.Dock = System.Windows.Forms.DockStyle.Top;
+        _priceTypeCombo.Width = 260;
         _contentPanel.Controls.Add(label2, 0, 1);
         _contentPanel.Controls.Add(_currencyCombo, 1, 1);
         // label2
@@ -61,6 +62,7 @@ partial class ProductPriceEditForm
         label2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _currencyCombo
         _currencyCombo.Dock = System.Windows.Forms.DockStyle.Top;
+        _currencyCombo.Width = 260;
         _contentPanel.Controls.Add(label3, 0, 2);
         _contentPanel.Controls.Add(_amountEdit, 1, 2);
         // label3
@@ -71,6 +73,7 @@ partial class ProductPriceEditForm
         label3.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         // _amountEdit
         _amountEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _amountEdit.Width = 260;
         _contentPanel.ResumeLayout(false);
         _contentPanel.PerformLayout();
         //

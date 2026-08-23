@@ -26,6 +26,7 @@ partial class TableManagementView
         _listView = new MasterDataListView<TableDto>(
         [
             new MasterDataColumn("Code", "Code", 90),
+            new MasterDataColumn("Name", "Table Name", 120),
             new MasterDataColumn("Capacity", "Capacity", 80),
             new MasterDataColumn("OccupancyStatus", "Occupancy", 100),
             new MasterDataColumn("Status", "Status", 90),
@@ -45,7 +46,7 @@ partial class TableManagementView
         ])
         {
             LoadItemsAsync = LoadItemsAsync,
-            SearchTextSelector = dto => dto.Code,
+            SearchTextSelector = dto => $"{dto.Code} {dto.Name}",
             StatusSelector = dto => dto.Status,
             CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
             OnNew = CreateAsync,
@@ -56,8 +57,26 @@ partial class TableManagementView
 
         _diningAreaPicker.SelectionChanged += DiningAreaPicker_SelectionChanged;
 
-        Controls.Add(_listView);
-        Controls.Add(_diningAreaPicker);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _diningAreaPicker.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_diningAreaPicker, 0, 0);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 1);
+        _listView.Dock = DockStyle.Fill;
+        mainLayout.Controls.Add(_listView, 0, 2);
+
+        Controls.Add(mainLayout);
         Load += TableManagementView_Load;
     }
 

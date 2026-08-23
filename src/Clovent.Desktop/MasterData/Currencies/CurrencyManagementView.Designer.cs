@@ -26,7 +26,11 @@ partial class CurrencyManagementView
             new MasterDataColumn("Name", "Name", 180),
             new MasterDataColumn("Symbol", "Symbol", 70),
             new MasterDataColumn("DecimalPlaces", "Decimals", 80),
+            new MasterDataColumn("IsDefault", "Default", 80),
             new MasterDataColumn("Status", "Status", 90),
+        ],
+        [
+            new MasterDataListAction<CurrencyDto>("Set as Default", SetAsDefaultAsync),
         ])
         {
             LoadItemsAsync = LoadItemsAsync,

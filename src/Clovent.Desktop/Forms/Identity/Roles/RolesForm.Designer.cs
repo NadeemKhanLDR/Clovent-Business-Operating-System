@@ -25,14 +25,12 @@ partial class RolesForm
         //
         // txtSearch
         //
-        txtSearch.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         txtSearch.Name = "txtSearch";
         txtSearch.Properties.NullValuePrompt = "Search...";
         // Width only, not a fixed Height - see UsersForm.Designer.cs's
         // matching comment (the DevExpress skin renders TextEdit taller
         // than a hand-guessed Height, overlapping whatever FlowLayoutPanel
         // positioned next based on the shorter declared size).
-        txtSearch.Width = CommandPanelLayout.Width - 24;
         txtSearch.TabIndex = 0;
         txtSearch.EditValueChanged += TxtSearch_EditValueChanged;
         //
@@ -107,7 +105,7 @@ partial class RolesForm
         // toolbar band above the command-panel/grid split.
         var commandFlow = CommandPanelLayout.Build(ContentPanel, gridControl);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Search"));
-        commandFlow.Controls.Add(txtSearch);
+        CommandPanelLayout.AddEditor(commandFlow, txtSearch);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Actions"));
         CommandPanelLayout.AddCommandButton(commandFlow, btnNew);
         CommandPanelLayout.AddCommandButton(commandFlow, btnEdit);

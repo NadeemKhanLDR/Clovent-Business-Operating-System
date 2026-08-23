@@ -61,7 +61,10 @@ partial class PaymentHistoryDialog
     {
         var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(12) };
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52F));
+        // AutoSize action row, not a fixed 52px - the DPI-grown AutoSize
+        // buttons (40px minimum + margins) overflowed the fixed row and
+        // clipped into the grid at above-100% DPI.
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         _paymentsGrid.MainView = _paymentsGridView;
         _paymentsGrid.ViewCollection.Add(_paymentsGridView);
@@ -80,7 +83,7 @@ partial class PaymentHistoryDialog
         {
             if (e.Column.FieldName == "Amount" && e.Value is decimal amount)
             {
-                e.DisplayText = CurrencyDisplay.Format(amount);
+                e.DisplayText = CurrencyDisplay.FormatPlain(amount);
             }
         };
 

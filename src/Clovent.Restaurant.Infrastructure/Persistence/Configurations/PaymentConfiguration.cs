@@ -25,7 +25,7 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasConversion(ValueConverters.PaymentMethodIdConverter)
             .IsRequired();
 
-        builder.Property(p => p.Amount).HasPrecision(18, 4).IsRequired();
+        builder.Property(p => p.Amount).HasPrecision(18, 2).IsRequired();
         builder.Property(p => p.IsVoided).IsRequired();
 
         builder.Property(p => p.CreatedAtUtc).IsRequired();

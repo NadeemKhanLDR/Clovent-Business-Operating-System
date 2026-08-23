@@ -32,4 +32,15 @@ public static class CurrencyDisplay
         var numeric = amount.ToString("N" + Math.Clamp(_decimalPlaces, 0, 4));
         return string.IsNullOrEmpty(_symbol) ? numeric : $"{_symbol}{numeric}";
     }
+
+    /// <summary>
+    /// Formats <paramref name="amount"/> as a bare number ("850.00") using the
+    /// last-configured decimal places but no symbol - for dense screens (the
+    /// POS cart/totals) where the symbol would repeat on every value and the
+    /// configured currency is instead shown once on the summary figures.
+    /// </summary>
+    public static string FormatPlain(decimal amount) => amount.ToString("N" + DecimalPlaces);
+
+    /// <summary>The currently configured number of decimal places, for editors that need to match <see cref="FormatPlain"/>'s precision.</summary>
+    public static int DecimalPlaces => Math.Clamp(_decimalPlaces, 0, 4);
 }

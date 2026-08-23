@@ -18,6 +18,7 @@ using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
+using Clovent.Restaurant.Tables.ValueObjects;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -86,6 +87,10 @@ internal static class ValueConverters
     /// <summary><see cref="EntityCode"/> (from <c>Clovent.MasterData</c>, reused for <see cref="Table.Code"/>) &lt;-&gt; code text.</summary>
     public static readonly ValueConverter<EntityCode, string> EntityCodeConverter =
         new(v => v.Value, v => EntityCode.Create(v));
+
+    /// <summary><see cref="TableName"/> &lt;-&gt; name text.</summary>
+    public static readonly ValueConverter<TableName, string> TableNameConverter =
+        new(v => v.Value, v => TableName.Create(v));
 
     /// <summary><see cref="DiningAreaName"/> &lt;-&gt; name text.</summary>
     public static readonly ValueConverter<DiningAreaName, string> DiningAreaNameConverter =

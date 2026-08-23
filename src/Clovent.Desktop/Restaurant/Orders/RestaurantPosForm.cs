@@ -39,6 +39,7 @@ using Clovent.Restaurant.Application.Orders;
 using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Application.Orders.Queries;
+using Clovent.Restaurant.Application.PaymentMethods.Dtos;
 using Clovent.Restaurant.Application.PaymentMethods.Queries;
 using Clovent.Restaurant.Application.Payments.Commands;
 using Clovent.Restaurant.Application.ServiceCharges.Commands;
@@ -102,6 +103,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private readonly IMenuItemsChangeNotifier _changeNotifier;
     private readonly IManagerAuthorizationService _managerAuthorization;
     private readonly ILogger<RestaurantPosForm> _logger;
+    private readonly ISplashScreenService _splashScreenService;
 
     private const int TileWidth = 160;
     private const int TileHeight = 150;
@@ -140,6 +142,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _changeNotifier = null!;
         _managerAuthorization = null!;
         _logger = null!;
+        _splashScreenService = null!;
 
         try
         {
@@ -159,7 +162,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         IServiceScopeFactory scopeFactory,
         ICurrentSession currentSession,
         IMenuItemsChangeNotifier changeNotifier,
-        IManagerAuthorizationService managerAuthorization)
+        IManagerAuthorizationService managerAuthorization,
+        ISplashScreenService splashScreenService)
     {
         try
         {
@@ -170,10 +174,10 @@ public sealed partial class RestaurantPosForm : XtraForm
             _logger = _scope.ServiceProvider.GetRequiredService<ILogger<RestaurantPosForm>>();
             _currentSession = currentSession;
             _changeNotifier = changeNotifier;
+            _splashScreenService = splashScreenService;
 
             InitializeComponent();
             AttachPickers();
-            ScaleSearchStripColumnsForDpi();
 
             if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             {
@@ -190,41 +194,6 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
-    /// <summary>
-    /// <see cref="TableLayoutPanel"/> column styles are not DPI-scaled at
-    /// runtime (their fonts and the auto-sized row height are), so the search
-    /// strip's Absolute columns keep their 96-DPI widths on high-DPI displays.
-    /// Every strip child is <c>Dock=Fill</c>, so each takes its column's
-    /// unscaled width while its content renders scaled - which clips the
-    /// barcode editor's "Scan barcode..." prompt to "Scan ba...". Re-issues
-    /// the three fixed column widths multiplied by the form's current DPI.
-    /// </summary>
-    private void ScaleSearchStripColumnsForDpi()
-    {
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
-        {
-            return;
-        }
-
-        Apply();
-        HandleCreated += (_, _) => Apply();
-
-        return;
-
-        void Apply()
-        {
-            var scale = DeviceDpi / 96f;
-            if (scale <= 1f)
-            {
-                return;
-            }
-
-            tlpSearch.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, 58F * scale);
-            tlpSearch.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, 150F * scale);
-            tlpSearch.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, 70F * scale);
-            tlpSearch.PerformLayout();
-        }
-    }
     /// <summary>
     /// Parents the two <see cref="EntityPicker"/>s and wires the table
     /// selection handler. Called immediately after every
@@ -293,18 +262,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             .ToList();
 
         var totals = RestaurantPosDesignDataProvider.SampleTotals;
-        _subtotalLabel.Text = $"{PosStrings.Subtotal}: {CurrencyDisplay.Format(totals.Subtotal)}";
-        _discountLabel.Text = $"{PosStrings.Discount}: -{CurrencyDisplay.Format(totals.Discount)}";
-        _taxLabel.Text = $"{PosStrings.Tax}: {CurrencyDisplay.Format(totals.Tax)}";
-        _serviceChargeLabel.Text = $"{PosStrings.ServiceCharge}: {CurrencyDisplay.Format(totals.ServiceCharge)}";
-        _grandTotalLabel.Text = $"{PosStrings.GrandTotal}: {CurrencyDisplay.Format(totals.GrandTotal)}";
-        _paidLabel.Text = $"{PosStrings.Paid}: {CurrencyDisplay.Format(totals.Paid)}";
-        _balanceLabel.Text = $"{PosStrings.Balance}: {CurrencyDisplay.Format(totals.Balance)}";
+        _subtotalLabel.Text = $"{PosStrings.Subtotal}: {CurrencyDisplay.FormatPlain(totals.Subtotal)}";
+        _discountLabel.Text = $"{PosStrings.Discount}: -{CurrencyDisplay.FormatPlain(totals.Discount)}";
+        _taxLabel.Text = $"{PosStrings.Tax}: {CurrencyDisplay.FormatPlain(totals.Tax)}";
+        _serviceChargeLabel.Text = $"{PosStrings.ServiceCharge}: {CurrencyDisplay.FormatPlain(totals.ServiceCharge)}";
+        _grandTotalLabel.Text = $"{PosStrings.GrandTotal}: {CurrencyDisplay.FormatPlain(totals.GrandTotal)}";
+        _paidLabel.Text = $"{PosStrings.Paid}: {CurrencyDisplay.FormatPlain(totals.Paid)}";
+        _balanceLabel.Text = $"{PosStrings.Balance}: {CurrencyDisplay.FormatPlain(totals.Balance)}";
 
         // Payment design-time initialization:
         _paymentMethods = [.. RestaurantPosDesignDataProvider.PaymentMethodNames.Select(name => (Guid.NewGuid(), name))];
         _balance = totals.Balance;
-        _paymentBalanceLabel.Text = $"Balance Due: {CurrencyDisplay.Format(_balance)}";
+        _paymentBalanceLabel.Text = $"Balance Due: {CurrencyDisplay.FormatPlain(_balance)}";
         _amountEdit.Text = FormatPlain(_balance);
         _amountEntryIsPreset = true;
         BuildMethodButtons();
@@ -318,6 +287,21 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         _cashierLabel.Text = _currentSession.DisplayName is { } name ? $"Cashier: {name}" : "Cashier: Not signed in";
 
+        LocalizationHelper.LocalizeControl(this);
+
+        // Hard guarantee that only Qty and Price are editable: even if a
+        // column's ReadOnly flag is ever lost, the Total/Item/Notes cells can
+        // never open an editor (no "100.0000000" edit mode).
+        _lineGridView.ShowingEditor += (_, e) =>
+        {
+            if (_lineGridView.FocusedColumn is not { } column ||
+                (column != _lineGridColumnUnitPrice && column != _lineGridColumnQuantity))
+            {
+                e.Cancel = true;
+            }
+        };
+        _lineGridView.ValidatingEditor += LineGridView_ValidatingEditor;
+        _lineGridView.CellValueChanged += LineGridView_CellValueChanged;
         _lineGridView.CustomColumnDisplayText += (_, e) =>
         {
             if (e.Value is not decimal amount)
@@ -327,7 +311,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             if (e.Column.FieldName == nameof(OrderLineRow.UnitPrice) || e.Column.FieldName == nameof(OrderLineRow.LineTotal))
             {
-                e.DisplayText = CurrencyDisplay.Format(amount);
+                e.DisplayText = CurrencyDisplay.FormatPlain(amount);
             }
             else if (e.Column.FieldName == nameof(OrderLineRow.Quantity))
             {
@@ -362,7 +346,14 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
-        await LoadAsync();
+        try
+        {
+            await LoadAsync();
+        }
+        finally
+        {
+            _splashScreenService.Close();
+        }
     }
 
     private void AppearanceManager_Changed(object? sender, EventArgs e)
@@ -538,6 +529,11 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// </remarks>
     private async void LogoutButton_Click(object? sender, EventArgs e)
     {
+        if (XtraMessageBox.Show(this, "Are you sure you want to logout?", "Logout", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+        {
+            return;
+        }
+
         var outgoingUserDisplayName = _currentSession.DisplayName ?? "Unknown";
 
         try
@@ -619,11 +615,26 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task LoadCoreAsync()
     {
-        var currencies = await _mediator.Send(new ListCurrenciesQuery());
-        if (currencies.FirstOrDefault() is { } currency)
-        {
-            CurrencyDisplay.Configure(currency.Symbol, currency.DecimalPlaces);
-        }
+        await CurrencyDisplayLoader.ConfigureAsync(_mediator);
+
+        // Inline cart editors: Price shows the configured currency precision
+        // (50.00, not 50.0000) and Qty edits whole numbers (2, not 2.0000).
+        // Persistence still goes through the same commands as the buttons -
+        // see LineGridView_CellValueChanged.
+        var priceEditor = new DevExpress.XtraEditors.Repository.RepositoryItemTextEdit();
+        priceEditor.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        priceEditor.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
+        priceEditor.Mask.UseMaskAsDisplayFormat = true;
+        _lineGrid.RepositoryItems.Add(priceEditor);
+        _lineGridColumnUnitPrice.ColumnEdit = priceEditor;
+
+        var quantityEditor = new DevExpress.XtraEditors.Repository.RepositoryItemSpinEdit();
+        quantityEditor.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        quantityEditor.Mask.EditMask = "D";
+        quantityEditor.IsFloatValue = false;
+        quantityEditor.MinValue = 1;
+        _lineGrid.RepositoryItems.Add(quantityEditor);
+        _lineGridColumnQuantity.ColumnEdit = quantityEditor;
 
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
         _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
@@ -926,7 +937,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         var priceLabel = new DevExpress.XtraEditors.LabelControl
         {
-            Text = CurrencyDisplay.Format(price),
+            Text = CurrencyDisplay.FormatPlain(price),
             Dock = DockStyle.Bottom,
             Height = 24,
             Padding = new Padding(6, 0, 6, 6),
@@ -1145,7 +1156,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             XtraMessageBox.Show(
                 this,
-                $"This bill still has {CurrencyDisplay.Format(totals.Balance)} outstanding. Collect payment before completing the order.",
+                $"This bill still has {CurrencyDisplay.FormatPlain(totals.Balance)} outstanding. Collect payment before completing the order.",
                 "Payment Not Collected",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -1280,7 +1291,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        var options = discounts.Select(d => (d.DiscountId, $"{d.DiscountType} {d.Value:N2} - {d.Reason}")).ToList();
+        var options = discounts.Select(d => (d.DiscountId, d.DiscountType == "Percentage" ? $"{d.DiscountType} {d.Value:N2}% - {d.Reason}" : $"{d.DiscountType} {CurrencyDisplay.Format(d.Value)} - {d.Reason}")).ToList();
         using var form = new SelectionPromptForm("Remove Discount", "Discount:", options);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -1308,7 +1319,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        var options = charges.Select(c => (c.ServiceChargeId, $"{c.ServiceChargeType} {c.Value:N2} - {c.Reason}")).ToList();
+        var options = charges.Select(c => (c.ServiceChargeId, c.ServiceChargeType == "Percentage" ? $"{c.ServiceChargeType} {c.Value:N2}% - {c.Reason}" : $"{c.ServiceChargeType} {CurrencyDisplay.Format(c.Value)} - {c.Reason}")).ToList();
         using var form = new SelectionPromptForm("Remove Service Charge", "Service Charge:", options);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -1412,7 +1423,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             var performedBy = _currentSession.DisplayName ?? "Unknown";
             await _mediator.Send(new OverrideOrderLinePriceCommand(row.OrderLineId, form.NewPrice, form.Reason, performedBy));
             await RefreshOrderAsync();
-            await LogActivityAsync("Price Override", $"{_currentOrder!.OrderNumber}: {row.Name} {CurrencyDisplay.Format(row.UnitPrice)} -> {CurrencyDisplay.Format(form.NewPrice)} ({form.Reason})");
+            await LogActivityAsync("Price Override", $"{_currentOrder!.OrderNumber}: {row.Name} {CurrencyDisplay.FormatPlain(row.UnitPrice)} -> {CurrencyDisplay.FormatPlain(form.NewPrice)} ({form.Reason})");
         }
     }
 
@@ -1441,6 +1452,10 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task RefreshOrderAsync()
     {
+        // Rebinding the grid resets focus to the first row; remember the
+        // focused line's identity so it can be restored after the rebind.
+        var focusedLineId = _lineGridView.GetFocusedRow() is OrderLineRow focused ? focused.OrderLineId : (Guid?)null;
+
         _isRefreshingOrder = true;
         try
         {
@@ -1482,7 +1497,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                 var customer = await _mediator.Send(new GetCustomerByIdQuery(custId));
                 if (customer is not null)
                 {
-                    _customerDetailsLabel.Text = $"{customer.Name} • Outstanding: {CurrencyDisplay.Format(customer.OutstandingBalance)}";
+                    _customerDetailsLabel.Text = $"{customer.Name} • Outstanding: {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}";
                     _customerDetailsLabel.ForeColor = customer.OutstandingBalance > 0 ? Color.Red : Color.Green;
                 }
                 else
@@ -1492,13 +1507,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
             else
             {
-                _customerDetailsLabel.Text = "Walk-in Customer • Outstanding: $0.00";
+                _customerDetailsLabel.Text = $"Walk-in Customer • Outstanding: {CurrencyDisplay.FormatPlain(0m)}";
                 _customerDetailsLabel.ForeColor = Color.Green;
             }
 
-            var lines = await _mediator.Send(new ListOrderLinesByOrderQuery(_currentOrder.OrderId));
+            var lines = (await _mediator.Send(new ListOrderLinesByOrderQuery(_currentOrder.OrderId)))
+                .Where(l => !l.IsVoided)
+                .ToList();
+            // Voided lines stay in the database for audit/order history - the
+            // active cart shows only live lines (totals already exclude voided
+            // lines, see OrderTotalsCalculator).
             _currentOrderLines = lines;
-            _lineGrid.DataSource = lines.Select(l => new OrderLineRow(
+            var rows = lines.Select(l => new OrderLineRow(
                 l.OrderLineId,
                 ResolveVariantSku(l.ProductVariantId),
                 ResolveVariantName(l.ProductVariantId),
@@ -1508,6 +1528,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                 l.Notes ?? string.Empty,
                 l.IsVoided,
                 l.IsPriceOverridden)).ToList();
+            _lineGrid.DataSource = rows;
+            RestoreFocusedLine(focusedLineId, rows);
             UpdateBillEmptyState(isEmpty: lines.Count == 0);
 
             var totals = await _mediator.Send(new GetOrderSummaryQuery(_currentOrder.OrderId));
@@ -1517,23 +1539,48 @@ public sealed partial class RestaurantPosForm : XtraForm
             UpdateOrderStatusBadge();
 
             await ReloadTablesAsync();
-            UpdateButtonStates();
         }
         finally
         {
             _isRefreshingOrder = false;
+
+            // Runs even when a later refresh step (tables reload, customer
+            // lookup) threw, so Print/History state always matches the
+            // currently-loaded order instead of staying stale-disabled.
+            UpdateButtonStates();
+        }
+    }
+
+    /// <summary>
+    /// Re-focuses the row whose <see cref="OrderLineRow.OrderLineId"/> matches
+    /// the line that was focused before a cart rebind. Matching is by identity,
+    /// not row index, because the refresh may reorder rows. If the line no
+    /// longer exists (removed/voided), the grid keeps its default behavior.
+    /// </summary>
+    private void RestoreFocusedLine(Guid? orderLineId, List<OrderLineRow> rows)
+    {
+        if (orderLineId is null)
+        {
+            return;
+        }
+
+        var index = rows.FindIndex(r => r.OrderLineId == orderLineId);
+        if (index >= 0)
+        {
+            _lineGridView.FocusedRowHandle = index;
+            _lineGridView.SelectRow(index);
         }
     }
 
     private void SetTotals(OrderTotals? totals)
     {
-        _subtotalLabel.Text = $"{PosStrings.Subtotal}: {CurrencyDisplay.Format(totals?.Subtotal ?? 0m)}";
-        _discountLabel.Text = $"{PosStrings.Discount}: -{CurrencyDisplay.Format(totals?.DiscountTotal ?? 0m)}";
-        _taxLabel.Text = $"{PosStrings.Tax}: {CurrencyDisplay.Format(totals?.TaxTotal ?? 0m)}";
-        _serviceChargeLabel.Text = $"{PosStrings.ServiceCharge}: {CurrencyDisplay.Format(totals?.ServiceChargeTotal ?? 0m)}";
-        _grandTotalLabel.Text = $"{PosStrings.GrandTotal}: {CurrencyDisplay.Format(totals?.GrandTotal ?? 0m)}";
-        _paidLabel.Text = $"{PosStrings.Paid}: {CurrencyDisplay.Format(totals?.PaidTotal ?? 0m)}";
-        _balanceLabel.Text = $"{PosStrings.Balance}: {CurrencyDisplay.Format(totals?.Balance ?? 0m)}";
+        _subtotalLabel.Text = $"{PosStrings.Subtotal}: {CurrencyDisplay.FormatPlain(totals?.Subtotal ?? 0m)}";
+        _discountLabel.Text = $"{PosStrings.Discount}: -{CurrencyDisplay.FormatPlain(totals?.DiscountTotal ?? 0m)}";
+        _taxLabel.Text = $"{PosStrings.Tax}: {CurrencyDisplay.FormatPlain(totals?.TaxTotal ?? 0m)}";
+        _serviceChargeLabel.Text = $"{PosStrings.ServiceCharge}: {CurrencyDisplay.FormatPlain(totals?.ServiceChargeTotal ?? 0m)}";
+        _grandTotalLabel.Text = $"{PosStrings.GrandTotal}: {CurrencyDisplay.FormatPlain(totals?.GrandTotal ?? 0m)}";
+        _paidLabel.Text = $"{PosStrings.Paid}: {CurrencyDisplay.FormatPlain(totals?.PaidTotal ?? 0m)}";
+        _balanceLabel.Text = $"{PosStrings.Balance}: {CurrencyDisplay.FormatPlain(totals?.Balance ?? 0m)}";
     }
 
     private async void PrintBillButton_Click(object? sender, EventArgs e) => await TryRunAsync(PrintBillAsync, "print the bill");
@@ -1608,6 +1655,84 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    /// <summary>
+    /// Validates in-place edits of the cart's Price column: the value must be
+    /// a non-negative number. Everything else about the override (permission,
+    /// reason capture, persistence) is handled in
+    /// <see cref="LineGridView_CellValueChanged"/> via the existing
+    /// <c>OverrideOrderLinePriceCommand</c> path.
+    /// </summary>
+    private void LineGridView_ValidatingEditor(object? sender, DevExpress.XtraEditors.Controls.BaseContainerValidateEditorEventArgs e)
+    {
+        if (_lineGridView.FocusedColumn == _lineGridColumnUnitPrice)
+        {
+            if (!decimal.TryParse(Convert.ToString(e.Value), out var price) || price < 0)
+            {
+                e.Valid = false;
+                e.ErrorText = "Enter a valid non-negative price.";
+            }
+        }
+        else if (_lineGridView.FocusedColumn == _lineGridColumnQuantity)
+        {
+            // Same rule the +/- buttons enforce via the domain: quantity must
+            // be a whole number of at least 1.
+            if (!decimal.TryParse(Convert.ToString(e.Value), out var quantity) || quantity < 1 || quantity != Math.Floor(quantity))
+            {
+                e.Valid = false;
+                e.ErrorText = "Enter a quantity of 1 or more.";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Persists an in-place Price-cell edit through the same
+    /// <c>OverrideOrderLinePriceCommand</c> the Price Override button uses
+    /// (so the permission gate, reason capture, and audit trail are shared),
+    /// then refreshes - which re-focuses the same order line by id.
+    /// </summary>
+    private async void LineGridView_CellValueChanged(object? sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
+    {
+        if (_isRefreshingOrder || (e.Column != _lineGridColumnUnitPrice && e.Column != _lineGridColumnQuantity))
+        {
+            return;
+        }
+
+        if (_lineGridView.GetRow(e.RowHandle) is not OrderLineRow row)
+        {
+            return;
+        }
+
+        if (e.Column == _lineGridColumnUnitPrice)
+        {
+            var newPrice = Convert.ToDecimal(e.Value);
+            if (newPrice == row.UnitPrice)
+            {
+                return;
+            }
+
+            await TryRunAsync(async () =>
+            {
+                await _mediator.Send(new OverrideOrderLinePriceCommand(row.OrderLineId, newPrice, "Inline price edit (POS cart)", _currentSession.DisplayName ?? "Unknown"));
+                await RefreshOrderAsync();
+            }, "update the price");
+        }
+        else
+        {
+            var newQuantity = Convert.ToDecimal(e.Value);
+            if (newQuantity == row.Quantity)
+            {
+                return;
+            }
+
+            // Same command the +/- buttons and Edit Quantity dialog use.
+            await TryRunAsync(async () =>
+            {
+                await _mediator.Send(new SetOrderLineQuantityCommand(row.OrderLineId, newQuantity));
+                await RefreshOrderAsync();
+            }, "update the quantity");
+        }
+    }
+
     private bool Permit(string operation) => _permissions.GetValueOrDefault(operation, false);
 
     private void UpdateButtonStates()
@@ -1636,6 +1761,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         pnlKeypad.Enabled = canPay;
         pnlQuickCash.Enabled = canPay;
         _recordButton.Enabled = canPay;
+        _splitPaymentButton.Enabled = canPay;
 
         _paymentHistoryButton.Enabled = hasOrder;
         _transferTableButton.Enabled = isOpen && isDineIn && Permit("transfertable");
@@ -1656,6 +1782,12 @@ public sealed partial class RestaurantPosForm : XtraForm
         _voidLineButton.Enabled = isOpen && Permit("editline");
         _removeLineButton.Enabled = isOpen && Permit("editline");
         _overridePriceButton.Enabled = isOpen && Permit("priceoverride");
+        // The in-place Price-cell edit uses the same "priceoverride" permission
+        // as the button; without it the column stays read-only.
+        _lineGridColumnUnitPrice.OptionsColumn.ReadOnly = !(isOpen && Permit("priceoverride"));
+        // The in-place Qty-cell edit uses the same "editline" permission as
+        // the +/- buttons and Edit Quantity dialog.
+        _lineGridColumnQuantity.OptionsColumn.ReadOnly = !(isOpen && Permit("editline"));
 
         _printBillButton.Enabled = hasOrder;
         _moreActionsButton.Enabled = hasOrder;
@@ -1679,7 +1811,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         List<CustomerPickerRow> pickerItems = [new CustomerPickerRow(Guid.Empty, "Walk-in Customer", string.Empty, string.Empty)];
         pickerItems.AddRange(customers
             .Where(c => c.IsActive)
-            .Select(c => new CustomerPickerRow(c.CustomerId, c.Name, c.MobileNumber, CurrencyDisplay.Format(c.OutstandingBalance))));
+            .Select(c => new CustomerPickerRow(c.CustomerId, c.Name, c.MobileNumber, CurrencyDisplay.FormatPlain(c.OutstandingBalance))));
 
         _customerPicker.Properties.DataSource = pickerItems;
         SetSelectedCustomerId(selectCustomerId ?? Guid.Empty);
@@ -1729,7 +1861,10 @@ public sealed partial class RestaurantPosForm : XtraForm
                     form.EmailValue,
                     form.OpeningBalanceValue,
                     form.CreditLimitValue,
-                    form.NotesValue));
+                    form.NotesValue,
+                    form.ShopNoValue,
+                    form.Mobile2Value,
+                    form.PhoneValue));
 
                 await ReloadCustomersAsync(newCustomer.CustomerId);
 
@@ -1785,7 +1920,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         var totals = await _mediator.Send(new GetOrderSummaryQuery(orderId));
         _balance = Math.Max(totals.Balance, 0m);
-        _paymentBalanceLabel.Text = $"Balance Due: {CurrencyDisplay.Format(_balance)}";
+        _paymentBalanceLabel.Text = $"Balance Due: {CurrencyDisplay.FormatPlain(_balance)}";
         _amountEdit.Text = FormatPlain(_balance);
         _amountEntryIsPreset = true;
         UpdateChangeDisplay();
@@ -1810,7 +1945,15 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_selectedPaymentMethodId is null && _paymentMethods.Count > 0)
         {
-            SelectPaymentMethod(_paymentMethods[0].PaymentMethodId);
+            // Pre-select the configured default (the method the cashier last
+            // used) when a new order starts; the cashier can still pick any
+            // other method manually.
+            var preferredId = _paymentMethods.FirstOrDefault(m => m.PaymentMethodId == PosPaymentMethodPreferenceStore.Load()).PaymentMethodId;
+            if (preferredId == Guid.Empty)
+            {
+                preferredId = _paymentMethods[0].PaymentMethodId;
+            }
+            SelectPaymentMethod(preferredId);
         }
         else
         {
@@ -1821,6 +1964,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private void SelectPaymentMethod(Guid paymentMethodId)
     {
         _selectedPaymentMethodId = paymentMethodId;
+        PosPaymentMethodPreferenceStore.Save(paymentMethodId);
         UpdateMethodButtonSelection();
     }
 
@@ -1918,6 +2062,74 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// handlers already use. Belt-and-braces only: the authoritative ceiling
     /// is <c>RecordPaymentCommandHandler</c>'s server-side balance check.
     /// </summary>
+    /// <summary>
+    /// Opens <see cref="SplitPaymentDialog"/> and records the accepted
+    /// allocations through the same <c>RecordPaymentCommand</c> the Record
+    /// Payment button uses (one per method, in dialog order), then runs the
+    /// normal refresh/auto-complete pipeline. Payment methods, permissions
+    /// ("pos.pay" gates this button exactly like Record Payment), audit, and
+    /// history are all shared with the single-method flow.
+    /// </summary>
+    private async void SplitPaymentButton_Click(object? sender, EventArgs e) => await TryRunAsync(SplitPaymentAsync, "record a split payment");
+
+    private async Task SplitPaymentAsync()
+    {
+        if (_orderId is not { } orderId)
+        {
+            return;
+        }
+
+        if (_balance <= 0)
+        {
+            XtraMessageBox.Show(this, "There is no outstanding balance to split.", "Split Payment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        // Re-query on every open so methods added or deactivated in Back
+        // Office are reflected in each new split dialog. This is the same
+        // ListPaymentMethodsQuery source the POS payment buttons load from;
+        // it deliberately does not touch _paymentMethods or the currently
+        // selected/default payment method.
+        var activeMethods = (await _mediator.Send(new ListPaymentMethodsQuery()))
+            .Where(m => m.Status == "Active")
+            .Select(m => (m.PaymentMethodId, m.Name))
+            .ToList();
+
+        if (activeMethods.Count == 0)
+        {
+            XtraMessageBox.Show(this, "There are no active payment methods to split across.", "Split Payment", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new SplitPaymentDialog(_balance, activeMethods);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        var remaining = _balance;
+        foreach (var (paymentMethodId, methodName, amount) in dialog.Allocations)
+        {
+            var applied = Math.Min(amount, Math.Max(remaining, 0m));
+            if (applied <= 0)
+            {
+                continue;
+            }
+
+            await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, false));
+            remaining -= applied;
+            await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName} (split)");
+        }
+
+        await RefreshOrderAsync();
+        UpdateChangeDisplay();
+
+        if (_currentOrder is not null && PosPaymentRules.ShouldAutoComplete(_currentOrder.Status, _balance, paymentRecorded: true))
+        {
+            await CompleteAsync();
+        }
+    }
+
     private async void RecordButton_Click(object? sender, EventArgs e)
     {
         if (_isRecordingPayment) return;
@@ -1990,12 +2202,12 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (decimal.TryParse(_amountEdit.Text, out var tendered) && tendered > _balance)
         {
             var change = tendered - _balance;
-            _changeValueLabel.Text = CurrencyDisplay.Format(change);
+            _changeValueLabel.Text = CurrencyDisplay.FormatPlain(change);
             _changeValueLabel.ForeColor = ChangeColor;
         }
         else
         {
-            _changeValueLabel.Text = CurrencyDisplay.Format(0m);
+            _changeValueLabel.Text = CurrencyDisplay.FormatPlain(0m);
             _changeValueLabel.ForeColor = Color.Gray;
         }
     }
@@ -2026,7 +2238,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             XtraMessageBox.Show(
                 this,
-                $"{methodName} cannot be tendered for more than the balance due ({CurrencyDisplay.Format(_balance)}).\n\nOnly Cash accepts an amount greater than the balance - the excess is handed back as change.",
+                $"{methodName} cannot be tendered for more than the balance due ({CurrencyDisplay.FormatPlain(_balance)}).\n\nOnly Cash accepts an amount greater than the balance - the excess is handed back as change.",
                 "Amount Exceeds Balance",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
@@ -2073,9 +2285,9 @@ public sealed partial class RestaurantPosForm : XtraForm
                 if (customer.OutstandingBalance + applied > customer.CreditLimit)
                 {
                     var situation = $"Credit limit exceeded.\n\n" +
-                                    $"This customer currently owes {CurrencyDisplay.Format(customer.OutstandingBalance)}.\n" +
-                                    $"The new sale would increase the balance to {CurrencyDisplay.Format(customer.OutstandingBalance + applied)}, " +
-                                    $"but the credit limit is {CurrencyDisplay.Format(customer.CreditLimit)}.";
+                                    $"This customer currently owes {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}.\n" +
+                                    $"The new sale would increase the balance to {CurrencyDisplay.FormatPlain(customer.OutstandingBalance + applied)}, " +
+                                    $"but the credit limit is {CurrencyDisplay.FormatPlain(customer.CreditLimit)}.";
 
                     // Exceeding a credit limit is a manager decision whoever is
                     // standing at the till, so the challenge is unconditional.
@@ -2108,7 +2320,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved));
         await RefreshOrderAsync();
-        await LogActivityAsync("Payment", $"{CurrencyDisplay.Format(applied)} via {methodName}");
+        await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
 
         UpdateChangeDisplay();
 
@@ -2132,8 +2344,5 @@ public sealed partial class RestaurantPosForm : XtraForm
         decimal LineTotal,
         string Notes,
         bool IsVoided,
-        bool IsPriceOverridden)
-    {
-        public string Discount => "-";
-    }
+        bool IsPriceOverridden);
 }

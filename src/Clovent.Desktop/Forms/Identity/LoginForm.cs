@@ -1,6 +1,7 @@
 using Clovent.Desktop.Login;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Sessions;
+using Clovent.Desktop.Startup;
 using Clovent.Desktop.Theming;
 using DevExpress.XtraEditors;
 using Microsoft.Extensions.DependencyInjection;
@@ -55,6 +56,8 @@ public sealed partial class LoginForm : XtraForm
     private readonly IThemeService _themeService;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICurrentSession _currentSession;
+    private readonly ISplashScreenService _splashScreenService;
+    private readonly System.Collections.Generic.Dictionary<string, string> _languagesByDisplay = new(System.StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Raised once both <see cref="ILoginService.LoginAsync"/> AND the
@@ -82,12 +85,13 @@ public sealed partial class LoginForm : XtraForm
     public string? SelectedModuleKey { get; private set; }
 
     /// <summary>Builds the sign-in screen.</summary>
-    public LoginForm(ILoginService loginService, IThemeService themeService, IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
+    public LoginForm(ILoginService loginService, IThemeService themeService, IServiceScopeFactory scopeFactory, ICurrentSession currentSession, ISplashScreenService splashScreenService)
     {
         _loginService = loginService;
         _themeService = themeService;
         _scopeFactory = scopeFactory;
         _currentSession = currentSession;
+        _splashScreenService = splashScreenService;
 
         InitializeComponent();
     }
@@ -105,7 +109,7 @@ public sealed partial class LoginForm : XtraForm
     /// registered - this parameterless overload is strictly less
     /// resolvable, so it is never chosen outside the Designer.
     /// </summary>
-    public LoginForm() : this(null!, null!, null!, null!)
+    public LoginForm() : this(null!, null!, null!, null!, null!)
     {
     }
 
@@ -119,15 +123,20 @@ public sealed partial class LoginForm : XtraForm
     /// is expected - the Designer only needs the static control tree
     /// <c>InitializeComponent</c> builds, not populated combo items.
     /// </summary>
-    private void LoginForm_Load(object? sender, EventArgs e)
+    private async void LoginForm_Load(object? sender, EventArgs e)
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
             return;
         }
 
+        var initialCulture = System.Globalization.CultureInfo.GetCultureInfo(Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Load());
+        System.Threading.Thread.CurrentThread.CurrentUICulture = initialCulture;
+        System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = initialCulture;
+        Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
+
         ApplyContentDrivenMinimumSize();
-        PopulateLanguages();
+        await PopulateLanguagesAsync();
         PopulateThemes();
 
         // DevExpress's TextEdit.UseSystemPasswordChar defers its native
@@ -139,6 +148,8 @@ public sealed partial class LoginForm : XtraForm
         // handle has been created along with the form's own, which avoids it.
         txtPassword.Properties.UseSystemPasswordChar = true;
         txtPin.Properties.UseSystemPasswordChar = true;
+
+        cmbLanguage.SelectedIndexChanged += CmbLanguage_SelectedIndexChanged;
     }
 
     /// <summary>
@@ -170,10 +181,88 @@ public sealed partial class LoginForm : XtraForm
         }
     }
 
-    private void PopulateLanguages()
+    private async System.Threading.Tasks.Task PopulateLanguagesAsync()
     {
-        cmbLanguage.Properties.Items.AddRange(["English (United States)", "Español", "Français"]);
-        cmbLanguage.SelectedIndex = 0;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+            var languages = await mediator.Send(new Clovent.MasterData.Application.Languages.Queries.ListLanguagesQuery());
+            
+            _languagesByDisplay.Clear();
+            foreach (var lang in languages)
+            {
+                string displayText = lang.Code switch
+                {
+                    "en" => "English (United States)",
+                    "es" => "Español",
+                    "fr" => "Français",
+                    "ur" => "اردو (Urdu)",
+                    _ => $"{lang.NativeName} ({lang.Name})"
+                };
+                _languagesByDisplay[displayText] = lang.Code;
+            }
+
+            cmbLanguage.Properties.Items.Clear();
+            foreach (var text in _languagesByDisplay.Keys)
+            {
+                cmbLanguage.Properties.Items.Add(text);
+            }
+
+            var savedPref = Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Load();
+            string? selectedText = null;
+            foreach (var pair in _languagesByDisplay)
+            {
+                if (pair.Value == savedPref)
+                {
+                    selectedText = pair.Key;
+                    break;
+                }
+            }
+            selectedText ??= "English (United States)";
+            
+            var index = cmbLanguage.Properties.Items.IndexOf(selectedText);
+            cmbLanguage.SelectedIndex = index >= 0 ? index : 0;
+        }
+        catch
+        {
+            _languagesByDisplay.Clear();
+            _languagesByDisplay["English (United States)"] = "en";
+            _languagesByDisplay["Español"] = "es";
+            _languagesByDisplay["Français"] = "fr";
+            _languagesByDisplay["اردو (Urdu)"] = "ur";
+
+            cmbLanguage.Properties.Items.Clear();
+            cmbLanguage.Properties.Items.AddRange(new[] { "English (United States)", "Español", "Français", "اردو (Urdu)" });
+            
+            var savedPref = Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Load();
+            string? selectedText = null;
+            foreach (var pair in _languagesByDisplay)
+            {
+                if (pair.Value == savedPref)
+                {
+                    selectedText = pair.Key;
+                    break;
+                }
+            }
+            selectedText ??= "English (United States)";
+
+            var index = cmbLanguage.Properties.Items.IndexOf(selectedText);
+            cmbLanguage.SelectedIndex = index >= 0 ? index : 0;
+        }
+    }
+
+    private void CmbLanguage_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (cmbLanguage.SelectedItem is string selectedText && _languagesByDisplay.TryGetValue(selectedText, out var code))
+        {
+            Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Save(code);
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(code);
+            System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
+            System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+            
+            Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
+        }
     }
 
     private void PopulateThemes()
@@ -246,7 +335,12 @@ public sealed partial class LoginForm : XtraForm
             return;
         }
 
+        var isUrdu = System.Threading.Thread.CurrentThread.CurrentUICulture.TwoLetterISOLanguageName == "ur";
+        var splashText = isUrdu ? "لوڈ ہو رہا ہے..." : "Loading...";
+        _splashScreenService.Show("Clovent", splashText);
+
         SetLoading(true);
+        bool shouldKeepSplash = false;
         try
         {
             var request = new LoginRequest(
@@ -284,11 +378,16 @@ public sealed partial class LoginForm : XtraForm
             LoginSucceeded?.Invoke(this, EventArgs.Empty);
 
             SelectedModuleKey = moduleKey;
+            shouldKeepSplash = true;
             Close();
         }
         finally
         {
             SetLoading(false);
+            if (!shouldKeepSplash)
+            {
+                _splashScreenService.Close();
+            }
         }
     }
 

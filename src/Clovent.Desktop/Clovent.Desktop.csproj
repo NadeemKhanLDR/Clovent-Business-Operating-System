@@ -61,7 +61,15 @@
   <ItemGroup>
     <PackageReference Include="DevExpress.Reporting.Core" Version="26.1.4-pre-26179" />
     <PackageReference Include="DevExpress.Win" Version="26.1.4-pre-26179" />
+    <!-- The DX Image Gallery assembly ImageOptions.ImageUri icons resolve
+         from (see Forms.Base.DesktopIcons) - without it, assigning an
+         ImageUri throws at control-construction time. -->
+    <PackageReference Include="DevExpress.Images" Version="26.1.4-pre-26179" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Clovent.Desktop.Tests" />
   </ItemGroup>
 
   <ItemGroup>

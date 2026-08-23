@@ -1,4 +1,4 @@
-﻿using Clovent.Desktop.Forms.Base.Appearance;
+using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using DevExpress.XtraEditors;
@@ -90,8 +90,9 @@ public sealed partial class AppearanceSettingsView : XtraUserControl
 
     private void UpdateButtonStates()
     {
-        var hasFocusedRow = _gridView.GetFocusedRow() is AppearanceRule;
-        _editButton.Enabled = hasFocusedRow && (_editButton.Tag as bool? ?? false);
+        var selectedCount = _gridView.GetSelectedRows().Length;
+        var hasFocusedRow = selectedCount > 0 && _gridView.GetFocusedRow() is AppearanceRule;
+        _editButton.Enabled = (selectedCount == 1) && (_editButton.Tag as bool? ?? false);
         _deleteButton.Enabled = hasFocusedRow && (_deleteButton.Tag as bool? ?? false);
     }
 
@@ -132,18 +133,30 @@ public sealed partial class AppearanceSettingsView : XtraUserControl
 
     private async Task DeleteAsync()
     {
-        if (_gridView.GetFocusedRow() is not AppearanceRule existing)
+        var selectedRowHandles = _gridView.GetSelectedRows();
+        var selectedRules = selectedRowHandles
+            .Select(h => _gridView.GetRow(h) as AppearanceRule)
+            .Where(r => r != null)
+            .Cast<AppearanceRule>()
+            .ToList();
+
+        if (selectedRules.Count == 0)
         {
             return;
         }
 
-        var confirm = XtraMessageBox.Show(this, $"Delete the appearance rule for \"{existing.ScopeDescription}\"?", "Delete Rule", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+        var confirmMsg = selectedRules.Count == 1
+            ? $"Delete the appearance rule for \"{selectedRules[0].ScopeDescription}\"?"
+            : $"Delete the {selectedRules.Count} selected appearance rules?";
+
+        var confirm = XtraMessageBox.Show(this, confirmMsg, "Delete Rules", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
         if (confirm != DialogResult.Yes)
         {
             return;
         }
 
-        var rules = AppearanceManager.Rules.Where(r => r.RuleId != existing.RuleId).ToList();
+        var idsToDelete = selectedRules.Select(r => r.RuleId).ToHashSet();
+        var rules = AppearanceManager.Rules.Where(r => !idsToDelete.Contains(r.RuleId)).ToList();
         AppearanceManager.Save(rules);
 
         await RefreshAsync();

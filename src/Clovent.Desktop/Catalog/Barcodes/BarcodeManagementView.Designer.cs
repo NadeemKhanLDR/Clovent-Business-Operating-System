@@ -56,8 +56,26 @@ partial class BarcodeManagementView
 
         _variantPicker.SelectionChanged += VariantPicker_SelectionChanged;
 
-        Controls.Add(_listView);
-        Controls.Add(_variantPicker);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _variantPicker.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_variantPicker, 0, 0);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 1);
+        _listView.Dock = DockStyle.Fill;
+        mainLayout.Controls.Add(_listView, 0, 2);
+
+        Controls.Add(mainLayout);
         Load += BarcodeManagementView_Load;
     }
 

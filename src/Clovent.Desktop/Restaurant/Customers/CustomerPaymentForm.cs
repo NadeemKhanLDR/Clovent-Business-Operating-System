@@ -48,10 +48,12 @@ public sealed partial class CustomerPaymentForm : XtraForm
             return;
 
         _txtCustomer.Text = $"{_customer.Name} ({_customer.Code})";
-        _txtOutstanding.Text = CurrencyDisplay.Format(_customer.OutstandingBalance);
+        _txtOutstanding.Text = CurrencyDisplay.FormatPlain(_customer.OutstandingBalance);
 
-        // Prepopulate amount with outstanding balance (gated at min 0.01)
         _spinAmount.Value = Math.Max(0.01m, _customer.OutstandingBalance);
+        _spinAmount.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _spinAmount.Properties.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
+        _spinAmount.Properties.Mask.UseMaskAsDisplayFormat = true;
 
         _comboPaymentMethod.Properties.Items.Clear();
         foreach (var name in paymentMethodNames)
@@ -85,6 +87,7 @@ public sealed partial class CustomerPaymentForm : XtraForm
         if (DesignModeHelper.IsInDesignMode)
             return;
 
+        Localization.LocalizationHelper.LocalizeControl(this);
         AppearanceManager.Apply(this, "Restaurant", nameof(CustomerPaymentForm));
     }
 

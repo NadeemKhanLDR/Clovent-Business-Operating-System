@@ -100,6 +100,18 @@ public static class PosStrings
     /// <summary>"Table:" - the Table picker's caption.</summary>
     public static string Table => Get(nameof(Table));
 
-    /// <summary>Looks up <paramref name="key"/> for the current UI culture, falling back to the neutral (English) resource if the key/culture isn't found - never throws for a missing translation.</summary>
-    private static string Get(string key) => Resources.GetString(key, Thread.CurrentThread.CurrentUICulture) ?? key;
+    /// <summary>Looks up a translation by key, normalizing it to match resource names.</summary>
+    public static string Get(string key)
+    {
+        if (string.IsNullOrEmpty(key)) return key;
+
+        var val = Resources.GetString(key, Thread.CurrentThread.CurrentUICulture);
+        if (val != null) return val;
+
+        var cleanKey = key.Replace(" ", "").Replace("&", "And").Replace(":", "").Replace("▾", "").Trim();
+        val = Resources.GetString(cleanKey, Thread.CurrentThread.CurrentUICulture);
+        if (val != null) return val;
+
+        return key;
+    }
 }

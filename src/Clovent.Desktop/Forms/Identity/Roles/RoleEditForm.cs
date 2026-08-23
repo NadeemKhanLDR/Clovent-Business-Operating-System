@@ -28,6 +28,7 @@ public sealed partial class RoleEditForm : MasterDataEditFormBase
     public RoleEditForm(string title, string? name = null) : base(title)
     {
         InitializeComponent();
+        SetFixedRowHeight(_permissionsList, 230);
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 

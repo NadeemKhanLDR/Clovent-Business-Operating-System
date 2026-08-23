@@ -118,6 +118,14 @@ public sealed partial class RestaurantSetupView : DevExpress.XtraEditors.XtraUse
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
+
+        // The Designer's fixed editor widths (150/150/260) are 96-DPI logical
+        // values - scale them now that the view has a real device DPI, so the
+        // editors don't render pinched at above-100% DPI.
+        _prefixEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(150, this);
+        _startingNumberEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(150, this);
+        _languageCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(260, this);
+
         await LoadAsync();
     }
     private void UpdatePreview() => _previewLabel.Text = $"{_prefixEdit.Text}{(int)_startingNumberEdit.Value}";

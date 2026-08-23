@@ -2,6 +2,7 @@ using Clovent.Catalog.Application.Prices.Commands;
 using Clovent.Catalog.Application.Prices.Dtos;
 using Clovent.Catalog.Application.Prices.Queries;
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -39,6 +40,23 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
         _currentSession = currentSession;
 
         InitializeComponent();
+        _listView.GridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
+    }
+
+    private void GridView_CustomColumnDisplayText(object? sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
+    {
+        if (e.Column.FieldName == "Amount" && e.Value != null && e.Value != DBNull.Value)
+        {
+            try
+            {
+                var val = Convert.ToDecimal(e.Value);
+                e.DisplayText = CurrencyDisplay.FormatPlain(val);
+            }
+            catch
+            {
+                // Fallback
+            }
+        }
     }
 
     private async void VariantPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();

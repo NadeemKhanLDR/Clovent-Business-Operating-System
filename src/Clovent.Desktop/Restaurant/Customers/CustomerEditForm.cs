@@ -27,7 +27,10 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         decimal openingBalance = 0m,
         decimal creditLimit = 0m,
         string? notes = null,
-        bool isNew = true) : base(title)
+        bool isNew = true,
+        string? shopNo = null,
+        string? mobile2 = null,
+        string? phone = null) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -36,14 +39,27 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         _codeEdit.Text = code ?? string.Empty;
         _nameEdit.Text = name ?? string.Empty;
         _mobileEdit.Text = mobileNumber ?? string.Empty;
+        _mobile2Edit.Text = mobile2 ?? string.Empty;
+        _phoneEdit.Text = phone ?? string.Empty;
+        _shopNoEdit.Text = shopNo ?? string.Empty;
         _addressEdit.Text = address ?? string.Empty;
         _emailEdit.Text = email ?? string.Empty;
         _openingBalanceEdit.Value = openingBalance;
         _creditLimitEdit.Value = creditLimit;
         _notesEdit.Text = notes ?? string.Empty;
 
-        _codeEdit.Enabled = isNew;
+        _codeEdit.Properties.ReadOnly = true;
         _openingBalanceEdit.Enabled = isNew;
+
+        _openingBalanceEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _openingBalanceEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
+        _openingBalanceEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
+
+        _creditLimitEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _creditLimitEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
+        _creditLimitEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
+
+        SetFixedRowHeight(_notesEdit, 80);
     }
 
     /// <summary>The entered customer code.</summary>
@@ -54,6 +70,15 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
 
     /// <summary>The entered mobile number.</summary>
     public string MobileValue => _mobileEdit.Text.Trim();
+
+    /// <summary>The entered secondary mobile number (optional).</summary>
+    public string? Mobile2Value => string.IsNullOrWhiteSpace(_mobile2Edit.Text) ? null : _mobile2Edit.Text.Trim();
+
+    /// <summary>The entered secondary phone number (optional).</summary>
+    public string? PhoneValue => string.IsNullOrWhiteSpace(_phoneEdit.Text) ? null : _phoneEdit.Text.Trim();
+
+    /// <summary>The entered shop number (optional).</summary>
+    public string? ShopNoValue => string.IsNullOrWhiteSpace(_shopNoEdit.Text) ? null : _shopNoEdit.Text.Trim();
 
     /// <summary>The entered address.</summary>
     public string AddressValue => _addressEdit.Text.Trim();

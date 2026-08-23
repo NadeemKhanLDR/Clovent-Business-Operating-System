@@ -1,4 +1,4 @@
-﻿using Clovent.Identity.Application.Branches.Queries;
+using Clovent.Identity.Application.Branches.Queries;
 using Clovent.Identity.Application.Companies.Queries;
 using Clovent.Identity.Application.Organizations.Queries;
 using MediatR;
@@ -49,6 +49,23 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
         _showBranch = showBranch;
 
         InitializeComponent();
+
+        _layout.HandleCreated += (s, e) => {
+            var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
+            _layout.Padding = new Padding(left, top, right, bottom);
+        };
+
+        // The Designer's combo widths (220) are 96-DPI logical values - this
+        // app has no AutoScaleMode, so re-scale each combo once it has a real
+        // device DPI to keep it from clipping its content at above-100% DPI.
+        foreach (var combo in new[] { _organizationCombo, _companyCombo, _branchCombo })
+        {
+            var logicalWidth = combo.Width;
+            combo.HandleCreated += (_, _) => combo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(logicalWidth, combo);
+        }
     }
 
     /// <summary>Loads every organization into the top-level combo. Call once when the hosting screen loads.</summary>

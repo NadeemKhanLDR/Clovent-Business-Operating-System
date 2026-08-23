@@ -54,6 +54,7 @@ public sealed partial class CustomerLedgerDialog : XtraForm
         if (DesignModeHelper.IsInDesignMode)
             return;
 
+        Localization.LocalizationHelper.LocalizeControl(this);
         AppearanceManager.Apply(this, "Restaurant", nameof(CustomerLedgerDialog));
         Text = $"{_customer.Name} ({_customer.Code}) - Ledger Statement";
 
@@ -74,9 +75,9 @@ public sealed partial class CustomerLedgerDialog : XtraForm
             var limit = currentCustomer?.CreditLimit ?? _customer.CreditLimit;
             var available = Math.Max(0m, limit - outstanding);
 
-            _outstandingVal.Text = CurrencyDisplay.Format(outstanding);
-            _limitVal.Text = CurrencyDisplay.Format(limit);
-            _availableVal.Text = CurrencyDisplay.Format(available);
+            _outstandingVal.Text = CurrencyDisplay.FormatPlain(outstanding);
+            _limitVal.Text = CurrencyDisplay.FormatPlain(limit);
+            _availableVal.Text = CurrencyDisplay.FormatPlain(available);
 
             ApplyFilters();
         }
@@ -150,8 +151,8 @@ public sealed partial class CustomerLedgerDialog : XtraForm
         var totalDebit = list.Sum(x => x.Debit);
         var totalCredit = list.Sum(x => x.Credit);
 
-        _totalDebitVal.Text = CurrencyDisplay.Format(totalDebit);
-        _totalCreditVal.Text = CurrencyDisplay.Format(totalCredit);
+        _totalDebitVal.Text = CurrencyDisplay.FormatPlain(totalDebit);
+        _totalCreditVal.Text = CurrencyDisplay.FormatPlain(totalCredit);
     }
 
     // --- BUTTON EVENT WIRING ---
@@ -222,13 +223,21 @@ public sealed partial class CustomerLedgerDialog : XtraForm
 
     private void LedgerGridView_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
     {
-        if (e.Column.FieldName is "Debit" or "Credit" or "RunningBalance" && e.Value is decimal val)
+        if (e.Column.FieldName is "Debit" or "Credit" or "RunningBalance" && e.Value != null && e.Value != DBNull.Value)
         {
-            e.DisplayText = val == 0 && e.Column.FieldName is "Debit" or "Credit" ? "-" : CurrencyDisplay.Format(val);
+            try
+            {
+                var val = Convert.ToDecimal(e.Value);
+                e.DisplayText = val == 0 && e.Column.FieldName is "Debit" or "Credit" ? "-" : CurrencyDisplay.FormatPlain(val);
+            }
+            catch
+            {
+                // Fallback
+            }
         }
         else if (e.Column.FieldName == "Date" && e.Value is DateTimeOffset dt)
         {
-            e.DisplayText = dt.ToLocalTime().ToString("g");
+            e.DisplayText = DateTimeDisplay.Format(dt);
         }
     }
 

@@ -82,16 +82,41 @@ public static class CommandPanelLayout
         // and only once a valid width is available) reliably catches
         // the point where the constraint above can actually be satisfied.
         var splitterDistanceSet = false;
-        split.Resize += (_, _) =>
+        int GetRequiredSidebarWidth()
         {
-            if (splitterDistanceSet || split.Width < split.Panel1MinSize + split.Panel2MinSize)
+            var maxControlWidth = 0;
+            foreach (Control control in commandFlow.Controls)
+            {
+                var prefWidth = control.GetPreferredSize(Size.Empty).Width;
+                maxControlWidth = Math.Max(maxControlWidth, prefWidth);
+            }
+            var padding = commandPanel.Padding.Horizontal;
+            var required = maxControlWidth + padding + 32;
+            var floor = DesktopDpi.Scale(Width, split);
+            return Math.Max(required, floor);
+        }
+
+        void EnsureSplitterDistance()
+        {
+            var target = GetRequiredSidebarWidth();
+            if (split.Width < target + split.Panel2MinSize)
+            {
+                return;
+            }
+
+            if (split.SplitterDistance >= target && splitterDistanceSet)
             {
                 return;
             }
 
             try
             {
-                split.SplitterDistance = Width;
+                // DPI-scaled, not the raw 240 logical pixels: this app has
+                // no AutoScaleMode, so an unscaled panel width leaves the
+                // skin's DPI-grown buttons/search boxes wider than their
+                // panel - the clipped "+ New"/"Move U" buttons confirmed in
+                // the Restaurant UI audit screenshots.
+                split.SplitterDistance = target;
                 splitterDistanceSet = true;
             }
             catch (ArgumentOutOfRangeException)
@@ -105,7 +130,16 @@ public static class CommandPanelLayout
                 // at its framework default instead of Width, a cosmetic
                 // gap, not the crash this replaces.
             }
-        };
+        }
+
+        split.Resize += (_, _) => EnsureSplitterDistance();
+
+        // Restore triggers beyond Resize: a DevExpress document tab that is
+        // hidden and re-shown at the SAME size fires VisibleChanged without
+        // any Resize - without this hook the sidebar stayed collapsed after
+        // tab switches.
+        split.VisibleChanged += (_, _) => EnsureSplitterDistance();
+        split.HandleCreated += (_, _) => EnsureSplitterDistance();
 
         return commandFlow;
     }
@@ -137,8 +171,23 @@ public static class CommandPanelLayout
     public static void AddCommandButton(FlowLayoutPanel commandFlow, SimpleButton button)
     {
         button.AutoSize = true;
-        button.MinimumSize = new Size(Width - 24, DesktopStyle.ToolbarControlHeight);
+        button.MinimumSize = new Size(DesktopDpi.Scale(Width - 24, commandFlow), DesktopStyle.ToolbarControlHeight);
         button.Margin = new Padding(0, 0, 0, DesktopStyle.ControlGap / 2);
         commandFlow.Controls.Add(button);
+    }
+
+    /// <summary>
+    /// Adds a search box/filter editor to the left command panel. Width is
+    /// DPI-scaled and anchored Left|Right so the editor stretches if the
+    /// user drags the splitter wider, instead of the fixed unscaled width
+    /// callers used to set themselves (which clipped their prompt text at
+    /// above-100% DPI - see the Activity Log/Menu Items audit screenshots).
+    /// </summary>
+    public static void AddEditor(FlowLayoutPanel commandFlow, Control editor)
+    {
+        editor.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+        editor.Width = DesktopDpi.Scale(Width - 24, commandFlow);
+        editor.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
+        commandFlow.Controls.Add(editor);
     }
 }

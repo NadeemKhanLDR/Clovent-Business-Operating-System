@@ -1,3 +1,4 @@
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.MasterData;
 using Clovent.Restaurant.ServiceCharges;
 
@@ -10,7 +11,26 @@ public sealed partial class ServiceChargeDialog : MasterDataEditFormBase
     public ServiceChargeDialog() : base("Apply Service Charge")
     {
         InitializeComponent();
+        SetFixedRowHeight(_reasonEdit, 70);
+        _typeCombo.SelectedIndexChanged += (s, e) => UpdateValueMask();
+        UpdateValueMask();
+    }
+
+    private void UpdateValueMask()
+    {
+        if (ServiceChargeType == ServiceChargeType.Percentage)
+        {
+            _valueEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+            _valueEdit.Properties.Mask.EditMask = "n2";
+            _valueEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
         }
+        else
+        {
+            _valueEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+            _valueEdit.Properties.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
+            _valueEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
+        }
+    }
 
     /// <summary>The selected service charge type.</summary>
     public ServiceChargeType ServiceChargeType => Enum.Parse<ServiceChargeType>((string)_typeCombo.SelectedItem);

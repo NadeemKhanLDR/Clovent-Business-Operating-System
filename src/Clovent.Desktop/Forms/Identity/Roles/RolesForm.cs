@@ -66,6 +66,11 @@ public sealed partial class RolesForm : BaseForm
         _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
+
+        gridView.OptionsSelection.MultiSelect = true;
+        gridView.OptionsSelection.MultiSelectMode = DevExpress.XtraGrid.Views.Grid.GridMultiSelectMode.RowSelect;
+        gridView.SelectionChanged += (s, e) => UpdateButtonStates();
+        gridView.DoubleClick += GridView_DoubleClick;
     }
 
     /// <inheritdoc/>
@@ -185,10 +190,20 @@ public sealed partial class RolesForm : BaseForm
 
     private void UpdateButtonStates()
     {
+        var selectedCount = gridView.GetSelectedRows().Length;
         var focused = GetFocusedItem();
-        var hasFocusedRow = focused is not null;
+        var hasFocusedRow = selectedCount > 0 && focused is not null;
 
-        btnEdit.Enabled = MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
+        btnEdit.Enabled = (selectedCount == 1) && MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
+    }
+
+    private async void GridView_DoubleClick(object? sender, EventArgs e)
+    {
+        if (gridView.GetSelectedRows().Length == 1 && GetFocusedItem() is { } item)
+        {
+            await EditAsync(item);
+            await RefreshAsync();
+        }
     }
 
     private RoleDto? GetFocusedItem() => gridView.GetFocusedRow() as RoleDto;

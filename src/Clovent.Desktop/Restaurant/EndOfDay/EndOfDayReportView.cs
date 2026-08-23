@@ -73,6 +73,14 @@ public sealed partial class EndOfDayReportView : XtraUserControl
 
     private async void EndOfDayReportView_Load(object? sender, EventArgs e)
     {
+        // The Designer's fixed DateEdit minimum width (145) and Generate
+        // button minimum width (110) are 96-DPI logical values - scale them
+        // now that the view has its real device DPI so the date editors and
+        // the Generate button don't clip at above-100% DPI.
+        _fromDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this), 0);
+        _toDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this), 0);
+        _generateButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(110, this), 34);
+
         AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
         await LoadAndShowTodayAsync();
     }
@@ -156,11 +164,7 @@ public sealed partial class EndOfDayReportView : XtraUserControl
     /// <summary>The half-dozen sequential reads behind one Generate (report, every variant, every transaction, every stock line) are the slowest single action in this screen - worth a wait cursor, unlike the quick per-tab Preview/Print/Export actions.</summary>
     private async Task GenerateCoreAsync(Guid warehouseId, DateOnly fromDate, DateOnly toDate)
     {
-        var currencies = await _mediator.Send(new ListCurrenciesQuery());
-        if (currencies.FirstOrDefault() is { } currency)
-        {
-            CurrencyDisplay.Configure(currency.Symbol, currency.DecimalPlaces);
-        }
+        await CurrencyDisplayLoader.ConfigureAsync(_mediator);
 
         var variants = await _mediator.Send(new ListProductVariantsQuery());
         _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
@@ -171,9 +175,13 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         _totalSalesValueLabel.Text = CurrencyDisplay.Format(report.TotalSales);
         _cashValueLabel.Text = CurrencyDisplay.Format(report.CashCollected);
         _cardValueLabel.Text = CurrencyDisplay.Format(report.CardCollected);
-        _voidedCountLabel.Text = $"Voided Orders: {report.VoidedOrderCount}";
-        _averageSaleLabel.Text = $"Average Sale: {CurrencyDisplay.Format(report.AverageSale)}";
+        _voidedCountLabel.Text = $"{report.VoidedOrderCount}";
+        _averageSaleLabel.Text = CurrencyDisplay.Format(report.AverageSale);
         _summaryText = BuildSummaryText(report, fromDate, toDate);
+
+        // Presentation-only: an empty period shows the professional empty
+        // state in the Summary body instead of a blank white area.
+        _summaryEmptyStateLabel.Visible = report.ReceiptCount == 0;
 
         _itemsSoldGrid.DataSource = report.ItemsSold
             .Select(i => new ItemSoldRow(ResolveSku(i.ProductVariantId), ResolveName(i.ProductVariantId), i.Quantity, i.Total))

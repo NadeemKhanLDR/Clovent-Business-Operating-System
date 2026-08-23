@@ -27,17 +27,21 @@ public sealed partial class PriceOverrideDialog : MasterDataEditFormBase
     public PriceOverrideDialog(string itemName, decimal currentPrice) : base($"Override Price - {itemName}")
     {
         InitializeComponent();
+        SetFixedRowHeight(_reasonEdit, 70);
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
-        _currentPriceLabel.Text = $"Current price: {CurrencyDisplay.Format(currentPrice)}";
+        _currentPriceLabel.Text = $"Current price: {CurrencyDisplay.FormatPlain(currentPrice)}";
         _newPriceEdit.Value = currentPrice;
+        _newPriceEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _newPriceEdit.Properties.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
+        _newPriceEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
     }
 
     /// <summary>The entered new unit price.</summary>
     public decimal NewPrice => _newPriceEdit.Value;
 
-    /// <summary>The entered reason - required, kept for the audit trail.</summary>
+    /// <summary>The entered reason, if any - optional, kept for the audit trail when provided.</summary>
     public string Reason => _reasonEdit.Text.Trim();
 
     /// <inheritdoc/>
@@ -46,12 +50,6 @@ public sealed partial class PriceOverrideDialog : MasterDataEditFormBase
         if (NewPrice < 0)
         {
             error = "Enter a price of zero or more.";
-            return false;
-        }
-
-        if (string.IsNullOrWhiteSpace(_reasonEdit.Text))
-        {
-            error = "Enter a reason for this price override (kept for audit purposes).";
             return false;
         }
 

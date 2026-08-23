@@ -52,9 +52,17 @@ internal static class WindowPlacementStore
             {
                 form.StartPosition = FormStartPosition.Manual;
                 form.Location = bounds.Location;
+                // Clamp the restored size into [minimum, 1.5x minimum]: a
+                // below-minimum save is raised to the content-driven floor,
+                // while a stale oversized save is trimmed - without the cap,
+                // an old large placement reopened a small field set inside a
+                // mostly-empty dialog (the "large unexplained blank area"
+                // from the QA screenshots).
+                var maxWidth = (int)(form.MinimumSize.Width * 1.5);
+                var maxHeight = (int)(form.MinimumSize.Height * 1.5);
                 form.Size = new Size(
-                    Math.Max(bounds.Width, form.MinimumSize.Width),
-                    Math.Max(bounds.Height, form.MinimumSize.Height));
+                    Math.Clamp(bounds.Width, form.MinimumSize.Width, maxWidth),
+                    Math.Clamp(bounds.Height, form.MinimumSize.Height, maxHeight));
             }
 
             if (maximized)

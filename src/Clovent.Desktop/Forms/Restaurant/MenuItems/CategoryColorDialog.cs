@@ -28,8 +28,14 @@ public sealed partial class CategoryColorDialog : MasterDataEditFormBase
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        {
+            _categoryNameEdit = null!;
             return;
+        }
 
+        _categoryNameEdit.Text = categoryName;
+        _clearCheck.Checked = currentColorHex is null;
+        _colorEdit.Enabled = currentColorHex is not null;
         _colorEdit.Color = currentColorHex is not null
             ? ColorTranslator.FromHtml(currentColorHex)
             : Color.FromArgb(37, 99, 235);

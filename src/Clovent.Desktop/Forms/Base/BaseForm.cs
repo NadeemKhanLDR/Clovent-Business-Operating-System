@@ -50,7 +50,10 @@ public partial class BaseForm : XtraUserControl
         // chain (including the subclass's own InitializeComponent) has
         // finished, so by then ToolbarFlow's real, final child count is
         // known either way.
-        Load += (_, _) => UpdateToolbarPanelSize();
+        Load += (_, _) => {
+            UpdateToolbarPanelSize();
+            Localization.LocalizationHelper.LocalizeControl(this);
+        };
     }
 
     /// <summary>Standard Designer-generated disposal of <c>components</c> (<c>BaseForm.Designer.cs</c>) - most subclasses declare their own shadowing <c>components</c> field and dispose it themselves, but this keeps <see cref="BaseForm"/> correct on its own.</summary>

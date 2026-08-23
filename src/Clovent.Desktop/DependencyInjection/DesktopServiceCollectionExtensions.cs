@@ -95,6 +95,9 @@ public static class DesktopServiceCollectionExtensions
         services.AddScoped<IStartupTask, DevelopmentMasterDataSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentCatalogSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentRestaurantSeedStartupTask>();
+        services.AddScoped<IStartupTask, WorldCurrencySeedStartupTask>();
+        services.AddScoped<IStartupTask, WorldTimeZoneSeedStartupTask>();
+        services.AddScoped<IStartupTask, WorldLanguageSeedStartupTask>();
 
         services.TryAddSingleton<ICurrentSession, CurrentSession>();
         services.TryAddScoped<IIdentityUserService, IdentityUserServiceAdapter>();

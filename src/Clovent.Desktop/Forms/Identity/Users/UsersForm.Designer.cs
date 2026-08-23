@@ -33,7 +33,6 @@ partial class UsersForm
         //
         // txtSearch
         //
-        txtSearch.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         txtSearch.Name = "txtSearch";
         txtSearch.Properties.NullValuePrompt = "Search...";
         // Width only, not a fixed Height - this DevExpress skin's TextEdit
@@ -43,7 +42,6 @@ partial class UsersForm
         // the shorter declared Size), the same skin-vs-declared-size
         // mismatch as LoginForm's fields. Leaving Height unset lets the
         // control report its own real size to the FlowLayoutPanel instead.
-        txtSearch.Width = CommandPanelLayout.Width - 24;
         txtSearch.TabIndex = 0;
         txtSearch.EditValueChanged += TxtSearch_EditValueChanged;
         //
@@ -182,7 +180,7 @@ partial class UsersForm
         // toolbar band above the command-panel/grid split.
         var commandFlow = CommandPanelLayout.Build(ContentPanel, gridControl);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Search"));
-        commandFlow.Controls.Add(txtSearch);
+        CommandPanelLayout.AddEditor(commandFlow, txtSearch);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Actions"));
         CommandPanelLayout.AddCommandButton(commandFlow, btnNew);
         CommandPanelLayout.AddCommandButton(commandFlow, btnEdit);

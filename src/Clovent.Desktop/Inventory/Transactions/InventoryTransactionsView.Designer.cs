@@ -44,9 +44,29 @@ partial class InventoryTransactionsView
         _warehousePicker.SelectionChanged += WarehousePicker_SelectionChanged;
         _productPicker.SelectionChanged += ProductPicker_SelectionChanged;
 
-        Controls.Add(_listView);
-        Controls.Add(_productPicker);
-        Controls.Add(_warehousePicker);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _warehousePicker.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_warehousePicker, 0, 0);
+        _productPicker.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_productPicker, 0, 1);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 2);
+        _listView.Dock = DockStyle.Fill;
+        mainLayout.Controls.Add(_listView, 0, 3);
+
+        Controls.Add(mainLayout);
         Load += InventoryTransactionsView_Load;
     }
 

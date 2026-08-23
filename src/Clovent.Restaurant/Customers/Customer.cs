@@ -39,6 +39,15 @@ public sealed class Customer : AggregateRoot<CustomerId>
     /// <summary>General notes about the customer.</summary>
     public string? Notes { get; private set; }
 
+    /// <summary>Shop number (optional).</summary>
+    public string? ShopNo { get; private set; }
+
+    /// <summary>Secondary mobile number (optional).</summary>
+    public string? Mobile2 { get; private set; }
+
+    /// <summary>Secondary phone number (optional).</summary>
+    public string? Phone { get; private set; }
+
     /// <summary>UTC instant this customer was created.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
@@ -59,7 +68,10 @@ public sealed class Customer : AggregateRoot<CustomerId>
         bool isActive,
         string? notes,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc)
+        DateTimeOffset updatedAtUtc,
+        string? shopNo,
+        string? mobile2,
+        string? phone)
     {
         Id = id;
         Code = code;
@@ -74,6 +86,9 @@ public sealed class Customer : AggregateRoot<CustomerId>
         Notes = notes;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
+        ShopNo = shopNo;
+        Mobile2 = mobile2;
+        Phone = phone;
     }
 
     /// <summary>Creates a new Customer aggregate.</summary>
@@ -85,7 +100,10 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? email,
         decimal openingBalance,
         decimal creditLimit,
-        string? notes)
+        string? notes,
+        string? shopNo = null,
+        string? mobile2 = null,
+        string? phone = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Customer name is required.", nameof(name));
@@ -112,7 +130,10 @@ public sealed class Customer : AggregateRoot<CustomerId>
             true,
             notes?.Trim(),
             now,
-            now);
+            now,
+            shopNo?.Trim(),
+            mobile2?.Trim(),
+            phone?.Trim());
     }
 
     /// <summary>Updates customer information.</summary>
@@ -122,7 +143,10 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string address,
         string? email,
         decimal creditLimit,
-        string? notes)
+        string? notes,
+        string? shopNo = null,
+        string? mobile2 = null,
+        string? phone = null)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Customer name is required.", nameof(name));
@@ -139,6 +163,9 @@ public sealed class Customer : AggregateRoot<CustomerId>
         Email = email?.Trim();
         CreditLimit = creditLimit;
         Notes = notes?.Trim();
+        ShopNo = shopNo?.Trim();
+        Mobile2 = mobile2?.Trim();
+        Phone = phone?.Trim();
         Touch();
     }
 

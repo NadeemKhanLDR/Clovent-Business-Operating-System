@@ -40,7 +40,6 @@ public sealed partial class TextPromptForm : MasterDataEditFormBase
         this.MinimizeBox = false;
         this.MaximizeBox = false;
         this.ClientSize = new System.Drawing.Size(420, 170);
-        this.MaximumSize = new System.Drawing.Size(460, 220);
     }
 
     /// <summary>The entered text, trimmed, or <see langword="null"/> if blank.</summary>

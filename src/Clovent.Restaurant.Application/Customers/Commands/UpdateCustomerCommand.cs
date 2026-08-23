@@ -12,7 +12,10 @@ public sealed record UpdateCustomerCommand(
     string Address,
     string? Email,
     decimal CreditLimit,
-    string? Notes) : IRequest<CustomerDto>;
+    string? Notes,
+    string? ShopNo = null,
+    string? Mobile2 = null,
+    string? Phone = null) : IRequest<CustomerDto>;
 
 /// <summary>Handles <see cref="UpdateCustomerCommand"/>.</summary>
 public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository) : IRequestHandler<UpdateCustomerCommand, CustomerDto>
@@ -29,7 +32,10 @@ public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository)
             request.Address,
             request.Email,
             request.CreditLimit,
-            request.Notes);
+            request.Notes,
+            request.ShopNo,
+            request.Mobile2,
+            request.Phone);
 
         await repository.UpdateAsync(customer, cancellationToken);
 

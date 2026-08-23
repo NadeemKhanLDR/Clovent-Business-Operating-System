@@ -115,7 +115,7 @@ public sealed partial class PaymentHistoryDialog : XtraForm
         await _mediator.Send(new VoidPaymentCommand(row.PaymentId));
         await LoadAsync();
         PaymentsChanged?.Invoke(this, EventArgs.Empty);
-        await LogActivityAsync("Refund", $"Voided payment of {CurrencyDisplay.Format(row.Amount)} ({row.MethodName})");
+        await LogActivityAsync("Refund", $"Voided payment of {CurrencyDisplay.FormatPlain(row.Amount)} ({row.MethodName})");
     }
 
     private async Task ShowReceiptAsync()

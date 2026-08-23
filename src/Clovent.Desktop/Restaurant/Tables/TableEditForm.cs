@@ -22,10 +22,11 @@ public sealed partial class TableEditForm : MasterDataEditFormBase
     /// Pass <paramref name="code"/> when editing so the (disabled) field
     /// still shows it - the field is only enabled when
     /// <paramref name="isNew"/> is <see langword="true"/>, since the code is
-    /// immutable after creation. <paramref name="capacity"/> pre-populates
+    /// immutable after creation. <paramref name="name"/> pre-populates the
+    /// table display name. <paramref name="capacity"/> pre-populates
     /// the seating capacity.
     /// </summary>
-    public TableEditForm(string title, string? code = null, int capacity = 2, bool isNew = true) : base(title)
+    public TableEditForm(string title, string? code = null, string? name = null, int capacity = 2, bool isNew = true) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -33,13 +34,15 @@ public sealed partial class TableEditForm : MasterDataEditFormBase
 
         _codeEdit.Text = code ?? string.Empty;
         _codeEdit.Enabled = isNew;
+        _nameEdit.Text = name ?? string.Empty;
         _capacityEdit.Value = capacity;
     }
 
-
-
     /// <summary>The entered table code (only meaningful when creating).</summary>
     public string CodeValue => _codeEdit.Text.Trim();
+
+    /// <summary>The entered table display name.</summary>
+    public string TableNameValue => _nameEdit.Text.Trim();
 
     /// <summary>The entered seating capacity.</summary>
     public int CapacityValue => (int)_capacityEdit.Value;
@@ -50,6 +53,12 @@ public sealed partial class TableEditForm : MasterDataEditFormBase
         if (_codeEdit.Enabled && string.IsNullOrWhiteSpace(_codeEdit.Text))
         {
             error = "Code is required.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(TableNameValue))
+        {
+            error = "Table Name is required.";
             return false;
         }
 

@@ -88,6 +88,28 @@ public sealed partial class OrderHistoryView : XtraUserControl
         _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
         _logger = logger;
+
+        _listView.GridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
+    }
+
+    private void GridView_CustomColumnDisplayText(object? sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
+    {
+        if (e.Column.FieldName is "GrandTotal" or "PaidTotal" or "Balance" && e.Value != null && e.Value != DBNull.Value)
+        {
+            try
+            {
+                var val = Convert.ToDecimal(e.Value);
+                e.DisplayText = CurrencyDisplay.FormatPlain(val);
+            }
+            catch
+            {
+                // Fallback
+            }
+        }
+        else if (e.Column.FieldName is "CreatedAtUtc" or "UpdatedAtUtc" && e.Value is DateTimeOffset dt)
+        {
+            e.DisplayText = DateTimeDisplay.Format(dt);
+        }
     }
 
     private async void OrderHistoryView_Load(object? sender, EventArgs e)

@@ -39,18 +39,14 @@ partial class MenuItemsForm
         //
         // txtSearch
         //
-        txtSearch.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         txtSearch.Name = "txtSearch";
         txtSearch.Properties.NullValuePrompt = "Search menu items...";
-        txtSearch.Width = CommandPanelLayout.Width - 24;
         txtSearch.TabIndex = 0;
         txtSearch.EditValueChanged += TxtSearch_EditValueChanged;
         //
         // cboCategory
         //
-        cboCategory.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         cboCategory.Name = "cboCategory";
-        cboCategory.Width = CommandPanelLayout.Width - 24;
         cboCategory.TabIndex = 1;
         cboCategory.EditValueChanged += CboCategory_EditValueChanged;
         //
@@ -58,7 +54,7 @@ partial class MenuItemsForm
         //
         btnNewMenuItem.Name = "btnNewMenuItem";
         btnNewMenuItem.TabIndex = 2;
-        btnNewMenuItem.Text = "+  New Menu Item";
+        btnNewMenuItem.Text = "New Menu Item";
         btnNewMenuItem.Appearance.Font = new Font(Font.FontFamily, 9.5F, FontStyle.Bold);
         btnNewMenuItem.Appearance.Options.UseFont = true;
         btnNewMenuItem.Click += BtnNewMenuItem_Click;
@@ -67,56 +63,56 @@ partial class MenuItemsForm
         //
         btnEdit.Name = "btnEdit";
         btnEdit.TabIndex = 3;
-        btnEdit.Text = "✎  Edit";
+        btnEdit.Text = "Edit";
         btnEdit.Click += BtnEdit_Click;
         //
         // btnActivate
         //
         btnActivate.Name = "btnActivate";
         btnActivate.TabIndex = 4;
-        btnActivate.Text = "✓  Activate";
+        btnActivate.Text = "Activate";
         btnActivate.Click += BtnActivate_Click;
         //
         // btnDeactivate
         //
         btnDeactivate.Name = "btnDeactivate";
         btnDeactivate.TabIndex = 5;
-        btnDeactivate.Text = "✕  Deactivate";
+        btnDeactivate.Text = "Deactivate";
         btnDeactivate.Click += BtnDeactivate_Click;
         //
         // btnNewCategory
         //
         btnNewCategory.Name = "btnNewCategory";
         btnNewCategory.TabIndex = 6;
-        btnNewCategory.Text = "+  New Category";
+        btnNewCategory.Text = "New Category";
         btnNewCategory.Click += BtnNewCategory_Click;
         //
         // btnCategoryColor
         //
         btnCategoryColor.Name = "btnCategoryColor";
         btnCategoryColor.TabIndex = 7;
-        btnCategoryColor.Text = "🎨  Category Color";
+        btnCategoryColor.Text = "Category Color";
         btnCategoryColor.Click += BtnCategoryColor_Click;
         //
         // btnMoveUp
         //
         btnMoveUp.Name = "btnMoveUp";
         btnMoveUp.TabIndex = 8;
-        btnMoveUp.Text = "▲  Move Up";
+        btnMoveUp.Text = "Move Up";
         btnMoveUp.Click += BtnMoveUp_Click;
         //
         // btnMoveDown
         //
         btnMoveDown.Name = "btnMoveDown";
         btnMoveDown.TabIndex = 9;
-        btnMoveDown.Text = "▼  Move Down";
+        btnMoveDown.Text = "Move Down";
         btnMoveDown.Click += BtnMoveDown_Click;
         //
         // btnRefresh
         //
         btnRefresh.Name = "btnRefresh";
         btnRefresh.TabIndex = 10;
-        btnRefresh.Text = "⟳  Refresh";
+        btnRefresh.Text = "Refresh";
         btnRefresh.Click += BtnRefresh_Click;
         //
         // gridControl
@@ -239,13 +235,19 @@ partial class MenuItemsForm
         // to Restaurant-friendly fields/vocabulary only.
         var commandFlow = CommandPanelLayout.Build(ContentPanel, gridHost);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Search"));
-        commandFlow.Controls.Add(txtSearch);
-        commandFlow.Controls.Add(cboCategory);
+        CommandPanelLayout.AddEditor(commandFlow, txtSearch);
+        CommandPanelLayout.AddEditor(commandFlow, cboCategory);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Actions"));
         CommandPanelLayout.AddCommandButton(commandFlow, btnNewMenuItem);
         CommandPanelLayout.AddCommandButton(commandFlow, btnEdit);
         CommandPanelLayout.AddCommandButton(commandFlow, btnActivate);
         CommandPanelLayout.AddCommandButton(commandFlow, btnDeactivate);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnNewMenuItem, Clovent.Desktop.Forms.Base.DesktopIcons.Add);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnEdit, Clovent.Desktop.Forms.Base.DesktopIcons.Edit);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnActivate, Clovent.Desktop.Forms.Base.DesktopIcons.ActivateIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnDeactivate, Clovent.Desktop.Forms.Base.DesktopIcons.CancelIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnNewCategory, Clovent.Desktop.Forms.Base.DesktopIcons.Add);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnCategoryColor, Clovent.Desktop.Forms.Base.DesktopIcons.Edit);
         CommandPanelLayout.AddCommandButton(commandFlow, btnNewCategory);
         CommandPanelLayout.AddCommandButton(commandFlow, btnCategoryColor);
         // "Arrange" - drag-and-drop is the ask, but a live WinForms/
@@ -258,8 +260,11 @@ partial class MenuItemsForm
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Arrange"));
         CommandPanelLayout.AddCommandButton(commandFlow, btnMoveUp);
         CommandPanelLayout.AddCommandButton(commandFlow, btnMoveDown);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnMoveUp, Clovent.Desktop.Forms.Base.DesktopIcons.Up);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnMoveDown, Clovent.Desktop.Forms.Base.DesktopIcons.Down);
         commandFlow.Controls.Add(CommandPanelLayout.BuildSectionHeading("Info"));
         CommandPanelLayout.AddCommandButton(commandFlow, btnRefresh);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnRefresh, Clovent.Desktop.Forms.Base.DesktopIcons.Refresh);
         Name = "MenuItemsForm";
         Size = new Size(1200, 600);
         ((System.ComponentModel.ISupportInitialize)txtSearch.Properties).EndInit();

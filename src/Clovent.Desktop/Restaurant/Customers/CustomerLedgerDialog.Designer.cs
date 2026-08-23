@@ -176,7 +176,7 @@ partial class CustomerLedgerDialog
         cardTitle1.ForeColor = Color.Gray;
         cardTitle1.Dock = DockStyle.Fill;
         cardTitle1.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _outstandingVal.Text = "Rs. 0.00";
+        _outstandingVal.Text = "0.00";
         _outstandingVal.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
         _outstandingVal.Dock = DockStyle.Fill;
         _outstandingVal.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -199,7 +199,7 @@ partial class CustomerLedgerDialog
         cardTitle2.ForeColor = Color.Gray;
         cardTitle2.Dock = DockStyle.Fill;
         cardTitle2.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _limitVal.Text = "Rs. 0.00";
+        _limitVal.Text = "0.00";
         _limitVal.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
         _limitVal.Dock = DockStyle.Fill;
         _limitVal.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -222,7 +222,7 @@ partial class CustomerLedgerDialog
         cardTitle3.ForeColor = Color.Gray;
         cardTitle3.Dock = DockStyle.Fill;
         cardTitle3.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _availableVal.Text = "Rs. 0.00";
+        _availableVal.Text = "0.00";
         _availableVal.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
         _availableVal.Dock = DockStyle.Fill;
         _availableVal.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -245,7 +245,7 @@ partial class CustomerLedgerDialog
         cardTitle4.ForeColor = Color.Gray;
         cardTitle4.Dock = DockStyle.Fill;
         cardTitle4.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _totalDebitVal.Text = "Rs. 0.00";
+        _totalDebitVal.Text = "0.00";
         _totalDebitVal.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
         _totalDebitVal.Dock = DockStyle.Fill;
         _totalDebitVal.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -268,7 +268,7 @@ partial class CustomerLedgerDialog
         cardTitle5.ForeColor = Color.Gray;
         cardTitle5.Dock = DockStyle.Fill;
         cardTitle5.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-        _totalCreditVal.Text = "Rs. 0.00";
+        _totalCreditVal.Text = "0.00";
         _totalCreditVal.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
         _totalCreditVal.Dock = DockStyle.Fill;
         _totalCreditVal.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
@@ -317,27 +317,32 @@ partial class CustomerLedgerDialog
         toolsFlow.Padding = new Padding(8, 0, 0, 0);
 
         _btnClear.Text = "Clear";
-        _btnClear.Size = new Size(70, 28);
+        _btnClear.AutoSize = true;
+        _btnClear.MinimumSize = new Size(90, 28);
         _btnClear.Font = new Font("Segoe UI", 9F);
         toolsFlow.Controls.Add(_btnClear);
 
         _btnRefresh.Text = "Refresh";
-        _btnRefresh.Size = new Size(80, 28);
+        _btnRefresh.AutoSize = true;
+        _btnRefresh.MinimumSize = new Size(100, 28);
         _btnRefresh.Font = new Font("Segoe UI", 9F);
         toolsFlow.Controls.Add(_btnRefresh);
 
         _btnPrint.Text = "Print";
-        _btnPrint.Size = new Size(70, 28);
+        _btnPrint.AutoSize = true;
+        _btnPrint.MinimumSize = new Size(80, 28);
         _btnPrint.Font = new Font("Segoe UI", 9F);
         toolsFlow.Controls.Add(_btnPrint);
 
         _btnExportPdf.Text = "PDF";
-        _btnExportPdf.Size = new Size(60, 28);
+        _btnExportPdf.AutoSize = true;
+        _btnExportPdf.MinimumSize = new Size(70, 28);
         _btnExportPdf.Font = new Font("Segoe UI", 9F);
         toolsFlow.Controls.Add(_btnExportPdf);
 
         _btnExportExcel.Text = "Excel";
-        _btnExportExcel.Size = new Size(70, 28);
+        _btnExportExcel.AutoSize = true;
+        _btnExportExcel.MinimumSize = new Size(80, 28);
         _btnExportExcel.Font = new Font("Segoe UI", 9F);
         toolsFlow.Controls.Add(_btnExportExcel);
 

@@ -61,18 +61,23 @@ public sealed partial class ProductCategoryManagementView : XtraUserControl
         using var form = new ProductCategoryEditForm("New Category", parentOptions);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new CreateProductCategoryCommand(form.NameValue, form.ParentCategoryId));
+            var category = await _mediator.Send(new CreateProductCategoryCommand(form.NameValue, form.ParentCategoryId));
+            if (form.ColorHex is { } hex)
+            {
+                await _mediator.Send(new SetProductCategoryColorCommand(category.ProductCategoryId, hex));
+            }
         }
     }
 
     private async Task EditAsync(ProductCategoryDto dto)
     {
         var parentOptions = await LoadParentOptionsAsync(excludeId: dto.ProductCategoryId);
-        using var form = new ProductCategoryEditForm("Edit Category", parentOptions, dto.Name, dto.ParentCategoryId);
+        using var form = new ProductCategoryEditForm("Edit Category", parentOptions, dto.Name, dto.ParentCategoryId, dto.ColorHex);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             await _mediator.Send(new RenameProductCategoryCommand(dto.ProductCategoryId, form.NameValue));
             await _mediator.Send(new SetProductCategoryParentCommand(dto.ProductCategoryId, form.ParentCategoryId));
+            await _mediator.Send(new SetProductCategoryColorCommand(dto.ProductCategoryId, form.ColorHex));
         }
     }
 }

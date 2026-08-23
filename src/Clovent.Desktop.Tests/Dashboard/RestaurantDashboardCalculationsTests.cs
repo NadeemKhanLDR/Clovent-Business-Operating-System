@@ -9,7 +9,7 @@ namespace Clovent.Desktop.Tests.Dashboard;
 public class RestaurantDashboardCalculationsTests
 {
     private static TableDto CreateTable(string occupancyStatus) => new(
-        Guid.NewGuid(), Guid.NewGuid(), "T-01", 4, "Active", occupancyStatus, DateTimeOffset.UtcNow);
+        Guid.NewGuid(), Guid.NewGuid(), "T-01", "T-01", 4, "Active", occupancyStatus, DateTimeOffset.UtcNow);
 
     private static OrderDto CreateOrder(string status, DateTimeOffset updatedAtUtc) => new(
         Guid.NewGuid(), "ORD-1", null, "DineIn", status, Guid.NewGuid(), Guid.NewGuid(), null, null, [], [], [], [], DateTimeOffset.UtcNow, updatedAtUtc, null);

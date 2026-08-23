@@ -1,4 +1,5 @@
 using Clovent.Catalog.Prices;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.MasterData;
 
 namespace Clovent.Desktop.Catalog.Prices;
@@ -57,6 +58,9 @@ public sealed partial class ProductPriceEditForm : MasterDataEditFormBase
         _currencyCombo.Enabled = isNew;
 
         _amountEdit.Value = amount;
+        _amountEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _amountEdit.Properties.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
+        _amountEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
     }
 
     /// <summary>The selected price type.</summary>

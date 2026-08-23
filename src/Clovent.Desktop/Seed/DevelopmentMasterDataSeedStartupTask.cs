@@ -64,6 +64,12 @@ public sealed class DevelopmentMasterDataSeedStartupTask(
         var existingOrganizations = await organizationRepository.GetAllAsync(cancellationToken);
         if (existingOrganizations.Count > 0)
         {
+            if (await languageRepository.GetByCodeAsync(LanguageCode.Create("ur"), cancellationToken) == null)
+            {
+                var urduLang = Language.Create(LanguageCode.Create("ur"), "Urdu", "اردو");
+                await languageRepository.AddAsync(urduLang, cancellationToken);
+                await masterDataDbContext.SaveChangesAsync(cancellationToken);
+            }
             return;
         }
 
@@ -87,9 +93,36 @@ public sealed class DevelopmentMasterDataSeedStartupTask(
 
         var english = Language.Create(LanguageCode.Create("en"), "English", "English");
         var spanish = Language.Create(LanguageCode.Create("es"), "Spanish", "Español");
+        var urdu = Language.Create(LanguageCode.Create("ur"), "Urdu", "اردو");
 
-        var utc = TimeZoneEntry.Create(IanaId.Create("UTC"), "(UTC) Coordinated Universal Time", 0);
-        var eastern = TimeZoneEntry.Create(IanaId.Create("America/New_York"), "(UTC-05:00) Eastern Time", -300);
+        var utc = await timeZoneRepository.GetByIanaIdAsync(IanaId.Create("UTC"), cancellationToken);
+        if (utc == null)
+        {
+            utc = TimeZoneEntry.Create(IanaId.Create("UTC"), "Coordinated Universal Time (UTC+00:00)", 0);
+            await timeZoneRepository.AddAsync(utc, cancellationToken);
+        }
+
+        var eastern = await timeZoneRepository.GetByIanaIdAsync(IanaId.Create("America/New_York"), cancellationToken);
+        if (eastern == null)
+        {
+            eastern = await timeZoneRepository.GetByIanaIdAsync(IanaId.Create("Eastern Standard Time"), cancellationToken);
+        }
+        if (eastern == null)
+        {
+            eastern = TimeZoneEntry.Create(IanaId.Create("America/New_York"), "America/New_York (UTC-05:00)", -300);
+            await timeZoneRepository.AddAsync(eastern, cancellationToken);
+        }
+
+        var karachi = await timeZoneRepository.GetByIanaIdAsync(IanaId.Create("Asia/Karachi"), cancellationToken);
+        if (karachi == null)
+        {
+            karachi = await timeZoneRepository.GetByIanaIdAsync(IanaId.Create("Pakistan Standard Time"), cancellationToken);
+        }
+        if (karachi == null)
+        {
+            karachi = TimeZoneEntry.Create(IanaId.Create("Asia/Karachi"), "Asia/Karachi (UTC+05:00)", 300);
+            await timeZoneRepository.AddAsync(karachi, cancellationToken);
+        }
 
         var today = timeProvider.GetUtcNow();
         var yearStart = new DateOnly(today.Year, 1, 1);
@@ -106,8 +139,7 @@ public sealed class DevelopmentMasterDataSeedStartupTask(
         await currencyRepository.AddAsync(eur, cancellationToken);
         await languageRepository.AddAsync(english, cancellationToken);
         await languageRepository.AddAsync(spanish, cancellationToken);
-        await timeZoneRepository.AddAsync(utc, cancellationToken);
-        await timeZoneRepository.AddAsync(eastern, cancellationToken);
+        await languageRepository.AddAsync(urdu, cancellationToken);
         await fiscalYearRepository.AddAsync(fiscalYear, cancellationToken);
         await businessSettingsRepository.AddAsync(businessSettings, cancellationToken);
         await masterDataDbContext.SaveChangesAsync(cancellationToken);

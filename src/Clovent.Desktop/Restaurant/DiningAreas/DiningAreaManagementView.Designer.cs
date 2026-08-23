@@ -43,8 +43,26 @@ partial class DiningAreaManagementView
         _selector = new OrganizationHierarchySelector(_mediator, showCompany: true, showBranch: true);
         _selector.SelectionChanged += Selector_SelectionChanged;
 
-        Controls.Add(_listView);
-        Controls.Add(_selector);
+        var mainLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+        mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _selector.Dock = DockStyle.Top;
+        mainLayout.Controls.Add(_selector, 0, 0);
+        mainLayout.Controls.Add(new Clovent.Desktop.Forms.Base.GridSpacer(), 0, 1);
+        _listView.Dock = DockStyle.Fill;
+        mainLayout.Controls.Add(_listView, 0, 2);
+
+        Controls.Add(mainLayout);
         Load += DiningAreaManagementView_Load;
     }
 

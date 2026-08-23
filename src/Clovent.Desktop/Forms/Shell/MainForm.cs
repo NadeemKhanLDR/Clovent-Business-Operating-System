@@ -1,11 +1,13 @@
-﻿using Clovent.Authentication.Application.Credentials.Commands;
+using Clovent.Authentication.Application.Credentials.Commands;
 using Clovent.Desktop.Forms.Base;
+using Clovent.Desktop.Forms.Base.Localization;
 using Clovent.Desktop.Forms.Identity;
 using Clovent.Desktop.Identity.Users;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Shell;
+using Clovent.Desktop.Startup;
 using Clovent.Desktop.Theming;
 using Clovent.Restaurant.Application.ActivityLogs.Commands;
 using DevExpress.XtraBars;
@@ -46,11 +48,12 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private readonly IRecentItemsService _recentItemsService;
     private readonly IThemeService _themeService;
 
-    /// <summary>Every open document, keyed by its navigation key - how <see cref="ShowDocument"/> decides "activate the existing tab" vs. "build a new one".</summary>
     private readonly Dictionary<string, BaseDocument> _openDocumentsByKey = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The active document's <see cref="BaseForm"/>, if any - subscribed to <see cref="BaseForm.StatusTextChanged"/> so the status bar tracks whichever tab is active.</summary>
     private BaseForm? _activeStatusSource;
+    private readonly ISplashScreenService _splashScreenService;
+
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     [Obsolete("Designer only", true)]
@@ -62,6 +65,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         _notificationService = null!;
         _recentItemsService = null!;
         _themeService = null!;
+        _splashScreenService = null!;
 
         InitializeComponent();
     }
@@ -73,7 +77,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         IServiceScopeFactory scopeFactory,
         ICurrentSession currentSession,
         INotificationService notificationService,
-        IRecentItemsService recentItemsService)
+        IRecentItemsService recentItemsService,
+        ISplashScreenService splashScreenService)
     {
         _navigationService = navigationService;
         _scopeFactory = scopeFactory;
@@ -81,6 +86,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         _notificationService = notificationService;
         _recentItemsService = recentItemsService;
         _themeService = themeService;
+        _splashScreenService = splashScreenService;
 
         Text = "Clovent Business Operating System";
         StartPosition = FormStartPosition.CenterScreen;
@@ -98,6 +104,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
     private void InitializeRuntime()
     {
+        Localization.LocalizationHelper.LocalizeControl(this);
+
         _tabbedView.DocumentClosing += TabbedView_DocumentClosing;
         _tabbedView.DocumentClosed += TabbedView_DocumentClosed;
         _tabbedView.DocumentActivated += TabbedView_DocumentActivated;
@@ -123,7 +131,21 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     {
         if (DesignModeHelper.IsInDesignMode)
             return;
-        await RefreshNavigationAsync();
+
+        try
+        {
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+                await DateTimeDisplayLoader.ConfigureAsync(mediator);
+            }
+
+            await RefreshNavigationAsync();
+        }
+        finally
+        {
+            _splashScreenService.Close();
+        }
     }
 
     private void NotificationService_Changed(object? sender, EventArgs e) => RefreshNotificationsButton();
@@ -207,6 +229,9 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             var page = _ribbon.Pages[pageName];
             page.Visible = page.Groups.Cast<RibbonPageGroup>().Any(g => g.Visible);
         }
+
+        LocalizationHelper.LocalizeRibbon(_ribbon);
+        this.RightToLeft = LocalizationHelper.IsRtl ? RightToLeft.Yes : RightToLeft.No;
     }
 
     private void RefreshNotificationsButton() =>
@@ -362,7 +387,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
         var content = contentFactory();
         content.Dock = DockStyle.Fill;
-        var document = _tabbedView.AddDocument(content, caption);
+        Localization.LocalizationHelper.LocalizeControl(content);
+        var document = _tabbedView.AddDocument(content, PosStrings.Get(caption));
 
         if (!allowMultipleInstances)
         {

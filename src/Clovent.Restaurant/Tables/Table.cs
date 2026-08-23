@@ -3,6 +3,7 @@ using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Shared;
 using Clovent.Restaurant.Tables.Events;
+using Clovent.Restaurant.Tables.ValueObjects;
 
 namespace Clovent.Restaurant.Tables;
 
@@ -24,6 +25,9 @@ public sealed class Table : AggregateRoot<TableId>
     /// <summary>The table's short code (e.g. "T-01"), fixed at creation.</summary>
     public EntityCode Code { get; }
 
+    /// <summary>The table's display name.</summary>
+    public TableName Name { get; private set; }
+
     /// <summary>The table's seating capacity.</summary>
     public int Capacity { get; private set; }
 
@@ -41,6 +45,7 @@ public sealed class Table : AggregateRoot<TableId>
         TableId id,
         DiningAreaId diningAreaId,
         EntityCode code,
+        TableName name,
         int capacity,
         RestaurantStatus status,
         TableOccupancyStatus occupancyStatus,
@@ -49,6 +54,7 @@ public sealed class Table : AggregateRoot<TableId>
         Id = id;
         DiningAreaId = diningAreaId;
         Code = code;
+        Name = name;
         Capacity = capacity;
         Status = status;
         OccupancyStatus = occupancyStatus;
@@ -57,15 +63,32 @@ public sealed class Table : AggregateRoot<TableId>
 
     /// <summary>Creates a new, active, available table under the given dining area.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="capacity"/> is not positive.</exception>
-    public static Table Create(DiningAreaId diningAreaId, EntityCode code, int capacity)
+    public static Table Create(DiningAreaId diningAreaId, EntityCode code, TableName name, int capacity)
     {
         ArgumentNullException.ThrowIfNull(code);
+        ArgumentNullException.ThrowIfNull(name);
         RequirePositiveCapacity(capacity);
 
         var now = DateTimeOffset.UtcNow;
-        var table = new Table(TableId.New(), diningAreaId, code, capacity, RestaurantStatus.Active, TableOccupancyStatus.Available, now);
+        var table = new Table(TableId.New(), diningAreaId, code, name, capacity, RestaurantStatus.Active, TableOccupancyStatus.Available, now);
         table.AddDomainEvent(new TableCreated(table.Id, table.DiningAreaId, table.Code, table.Capacity, now));
         return table;
+    }
+
+    /// <summary>Creates a new, active, available table under the given dining area using its code as the initial name.</summary>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="capacity"/> is not positive.</exception>
+    public static Table Create(DiningAreaId diningAreaId, EntityCode code, int capacity)
+    {
+        return Create(diningAreaId, code, TableName.Create(code.Value), capacity);
+    }
+
+    /// <summary>Renames the table. A no-op if unchanged.</summary>
+    public void Rename(TableName name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        if (Name == name) return;
+
+        Name = name;
     }
 
     /// <summary>Changes the table's seating capacity.</summary>

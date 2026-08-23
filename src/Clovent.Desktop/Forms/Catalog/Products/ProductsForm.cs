@@ -70,6 +70,11 @@ public sealed partial class ProductsForm : BaseForm
         _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
         _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
         _currentSession = currentSession;
+
+        gridView.OptionsSelection.MultiSelect = true;
+        gridView.OptionsSelection.MultiSelectMode = DevExpress.XtraGrid.Views.Grid.GridMultiSelectMode.RowSelect;
+        gridView.SelectionChanged += (s, e) => UpdateButtonStates();
+        gridView.DoubleClick += GridView_DoubleClick;
     }
 
     /// <inheritdoc/>
@@ -119,19 +124,95 @@ public sealed partial class ProductsForm : BaseForm
 
     private async void BtnActivate_Click(object? sender, EventArgs e)
     {
-        if (GetFocusedItem() is { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as ProductDto)
+            .Where(r => r is not null)
+            .Cast<ProductDto>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? "Activate the selected product?"
+            : $"Activate the {items.Count} selected products?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Activate Products", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new ActivateProductCommand(item.ProductId));
+            var successCount = 0;
+            var skippedCount = 0;
+            foreach (var item in items)
+            {
+                try
+                {
+                    await _mediator.Send(new ActivateProductCommand(item.ProductId));
+                    successCount++;
+                }
+                catch (Exception ex) when (ex.Message.Contains("already active") || ex.InnerException?.Message.Contains("already active") == true)
+                {
+                    skippedCount++;
+                }
+            }
+
             await RefreshAsync();
+
+            if (items.Count > 1)
+            {
+                var summary = successCount == 1 ? "1 product activated successfully." : $"{successCount} products activated successfully.";
+                if (skippedCount > 0)
+                {
+                    var skipMsg = skippedCount == 1 ? "1 product was already active and was skipped." : $"{skippedCount} products were already active and were skipped.";
+                    summary += $"\n{skipMsg}";
+                }
+                XtraMessageBox.Show(this, summary, "Activate Products Result", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
     private async void BtnDeactivate_Click(object? sender, EventArgs e)
     {
-        if (GetFocusedItem() is { } item)
+        var selectedRows = gridView.GetSelectedRows();
+        var items = selectedRows
+            .Select(r => gridView.GetRow(r) as ProductDto)
+            .Where(r => r is not null)
+            .Cast<ProductDto>()
+            .ToList();
+
+        if (items.Count == 0) return;
+
+        var confirmMsg = items.Count == 1
+            ? "Deactivate the selected product?"
+            : $"Deactivate the {items.Count} selected products?";
+
+        if (XtraMessageBox.Show(this, confirmMsg, "Deactivate Products", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
         {
-            await _mediator.Send(new DeactivateProductCommand(item.ProductId));
+            var successCount = 0;
+            var skippedCount = 0;
+            foreach (var item in items)
+            {
+                try
+                {
+                    await _mediator.Send(new DeactivateProductCommand(item.ProductId));
+                    successCount++;
+                }
+                catch (Exception ex) when (ex.Message.Contains("not active") || ex.InnerException?.Message.Contains("not active") == true)
+                {
+                    skippedCount++;
+                }
+            }
+
             await RefreshAsync();
+
+            if (items.Count > 1)
+            {
+                var summary = successCount == 1 ? "1 product deactivated successfully." : $"{successCount} products deactivated successfully.";
+                if (skippedCount > 0)
+                {
+                    var skipMsg = skippedCount == 1 ? "1 product was already inactive and was skipped." : $"{skippedCount} products were already inactive and were skipped.";
+                    summary += $"\n{skipMsg}";
+                }
+                XtraMessageBox.Show(this, summary, "Deactivate Products Result", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
     }
 
@@ -301,13 +382,22 @@ public sealed partial class ProductsForm : BaseForm
 
     private void UpdateButtonStates()
     {
+        var selectedCount = gridView.GetSelectedRows().Length;
         var focused = GetFocusedItem();
-        var hasFocusedRow = focused is not null;
-        var status = focused?.Status;
+        var hasFocusedRow = selectedCount > 0 && focused is not null;
 
-        btnEdit.Enabled = MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
-        btnActivate.Enabled = MasterDataFilter.CanActivate(hasFocusedRow, btnActivate.Tag as bool?, status, true);
-        btnDeactivate.Enabled = MasterDataFilter.CanDeactivate(hasFocusedRow, btnDeactivate.Tag as bool?, status, true);
+        btnEdit.Enabled = (selectedCount == 1) && MasterDataFilter.CanEdit(hasFocusedRow, btnEdit.Tag as bool?, true);
+        btnActivate.Enabled = (selectedCount > 0) && (btnActivate.Tag as bool? ?? true);
+        btnDeactivate.Enabled = (selectedCount > 0) && (btnDeactivate.Tag as bool? ?? true);
+    }
+
+    private async void GridView_DoubleClick(object? sender, EventArgs e)
+    {
+        if (gridView.GetSelectedRows().Length == 1 && GetFocusedItem() is { } item)
+        {
+            await EditAsync(item);
+            await RefreshAsync();
+        }
     }
 
     private ProductDto? GetFocusedItem() => gridView.GetFocusedRow() as ProductDto;

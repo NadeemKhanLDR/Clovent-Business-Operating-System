@@ -4,6 +4,7 @@ using Clovent.Identity.Application.Authorization;
 using Clovent.Restaurant.Application.KitchenTickets.Dtos;
 using Clovent.Restaurant.Application.KitchenTickets.Queries;
 using Clovent.Restaurant.Application.Orders.Queries;
+using Clovent.Restaurant.Application;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -80,12 +81,37 @@ public sealed partial class KitchenTicketViewerView : XtraUserControl
     private async Task<IReadOnlyList<KitchenTicketRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {
         var tickets = await _mediator.Send(new ListActiveKitchenTicketsQuery(), cancellationToken);
+        return await BuildRowsAsync(_mediator, tickets, cancellationToken);
+    }
+
+    /// <summary>
+    /// Maps each ticket to its grid row. A ticket whose order no longer
+    /// exists (confirmed live data: one stale ticket from an earlier
+    /// database reset) must not take the whole screen down. It is shown as
+    /// "order unavailable" - visibly broken, never silently fabricated or
+    /// hidden - so the kitchen can still see and Cancel it.
+    /// </summary>
+    internal static async Task<List<KitchenTicketRow>> BuildRowsAsync(
+        IMediator mediator,
+        IReadOnlyCollection<KitchenTicketDto> tickets,
+        CancellationToken cancellationToken)
+    {
         var rows = new List<KitchenTicketRow>();
 
         foreach (var ticket in tickets)
         {
-            var order = await _mediator.Send(new GetOrderByIdQuery(ticket.OrderId), cancellationToken);
-            rows.Add(ToRow(ticket, order.OrderNumber));
+            string orderNumber;
+            try
+            {
+                var order = await mediator.Send(new GetOrderByIdQuery(ticket.OrderId), cancellationToken);
+                orderNumber = order.OrderNumber;
+            }
+            catch (NotFoundException)
+            {
+                orderNumber = "(order unavailable)";
+            }
+
+            rows.Add(ToRow(ticket, orderNumber));
         }
 
         return rows;
@@ -105,7 +131,7 @@ public sealed partial class KitchenTicketViewerView : XtraUserControl
             ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
             : Task.FromResult(false);
 
-    private sealed record KitchenTicketRow(
+    internal sealed record KitchenTicketRow(
         Guid KitchenTicketId,
         string OrderNumber,
         int LineCount,

@@ -220,6 +220,14 @@ internal static class Program
             // is null if the window closed without a permitted sign-in
             // (Cancel, failed authentication, or a permission denial), in
             // which case nothing opens and the application simply exits.
+            if (loginForm.SelectedModuleKey != null)
+            {
+                var code = Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Load();
+                var culture = System.Globalization.CultureInfo.GetCultureInfo(code);
+                System.Threading.Thread.CurrentThread.CurrentUICulture = culture;
+                System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+            }
+
             switch (loginForm.SelectedModuleKey)
             {
                 case "pos":

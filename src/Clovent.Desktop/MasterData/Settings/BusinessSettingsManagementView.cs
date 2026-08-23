@@ -1,4 +1,4 @@
-﻿using Clovent.Desktop.Sessions;
+using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.MasterData.Application;
 using Clovent.MasterData.Application.Currencies.Dtos;
@@ -15,6 +15,9 @@ using Clovent.MasterData.Application.TimeZones.Queries;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Clovent.Desktop.Forms.Base.Localization;
+using Clovent.Desktop.Forms.Base;
+using System.Threading;
 
 namespace Clovent.Desktop.MasterData.Settings;
 
@@ -40,7 +43,6 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
 
     private readonly Dictionary<string, Guid> _currenciesByDisplay = [];
     private readonly Dictionary<string, Guid> _languagesByDisplay = [];
-    private readonly Dictionary<string, Guid> _timeZonesByDisplay = [];
     private readonly Dictionary<string, Guid> _fiscalYearsByDisplay = [];
     private const string NoFiscalYear = "(none)";
 
@@ -55,6 +57,22 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
         _currentSession = currentSession;
 
         InitializeComponent();
+
+        _timeZoneCombo.CloseUp += (s, e) =>
+        {
+            if (e.CloseMode == DevExpress.XtraEditors.PopupCloseMode.Normal)
+            {
+                this.BeginInvoke(new Action(() =>
+                {
+                    _timeZoneCombo.Text = _timeZoneCombo.Properties.GetDisplayText(_timeZoneCombo.EditValue);
+                }));
+            }
+        };
+
+        _timeZoneCombo.Leave += (s, e) =>
+        {
+            _timeZoneCombo.Text = _timeZoneCombo.Properties.GetDisplayText(_timeZoneCombo.EditValue);
+        };
     }
 
     /// <inheritdoc/>
@@ -75,10 +93,20 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
         PopulateCombo(_currencyCombo, _currenciesByDisplay, currencies, c => $"{c.Code} - {c.Name}", c => c.CurrencyId);
 
         var languages = await _mediator.Send(new ListLanguagesQuery());
-        PopulateCombo(_languageCombo, _languagesByDisplay, languages, l => $"{l.Code} - {l.Name}", l => l.LanguageId);
+        PopulateCombo(_languageCombo, _languagesByDisplay, languages, l => {
+            if (l.Code == "ur") return "ur - اردو (Urdu)";
+            if (l.Code == "en") return "en - English (United States)";
+            if (l.Code == "es") return "es - Español (Spanish)";
+            if (l.Code == "fr") return "fr - Français (French)";
+            return $"{l.Code} - {l.Name}";
+        }, l => l.LanguageId);
 
         var timeZones = await _mediator.Send(new ListTimeZoneEntriesQuery());
-        PopulateCombo(_timeZoneCombo, _timeZonesByDisplay, timeZones, t => t.DisplayName, t => t.TimeZoneEntryId);
+        _timeZoneCombo.Properties.DataSource = timeZones;
+        if (timeZones.Count > 0)
+        {
+            _timeZoneCombo.EditValue = timeZones.First().TimeZoneEntryId;
+        }
     }
 
     private static void PopulateCombo<T>(
@@ -125,20 +153,48 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
             _existingSettings = await _mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizationId));
             SelectComboValue(_currencyCombo, _currenciesByDisplay, _existingSettings.DefaultCurrencyId);
             SelectComboValue(_languageCombo, _languagesByDisplay, _existingSettings.DefaultLanguageId);
-            SelectComboValue(_timeZoneCombo, _timeZonesByDisplay, _existingSettings.DefaultTimeZoneId);
+            _timeZoneCombo.EditValue = _existingSettings.DefaultTimeZoneId;
             if (_existingSettings.DefaultFiscalYearId is { } fiscalYearId)
             {
                 SelectComboValue(_fiscalYearCombo, _fiscalYearsByDisplay, fiscalYearId);
             }
 
-            _dateFormatEdit.Text = _existingSettings.DateFormat;
+            if (_dateFormatCombo.Properties.Items.Contains(_existingSettings.DateFormat))
+            {
+                _dateFormatCombo.SelectedItem = _existingSettings.DateFormat;
+            }
+            else
+            {
+                _dateFormatCombo.Text = _existingSettings.DateFormat;
+            }
+            UpdateExampleLabel();
             _statusLabel.Text = "Loaded existing settings.";
         }
         catch (NotFoundException)
         {
             _existingSettings = null;
-            _dateFormatEdit.Text = "MM/dd/yyyy";
+            _dateFormatCombo.SelectedIndex = 0;
+            UpdateExampleLabel();
             _statusLabel.Text = "No settings yet for this organization - Save to create them.";
+        }
+    }
+
+    private void UpdateExampleLabel()
+    {
+        var format = _dateFormatCombo.Text.Trim();
+        if (string.IsNullOrEmpty(format))
+        {
+            _exampleLabel.Text = "-";
+            return;
+        }
+
+        try
+        {
+            _exampleLabel.Text = DateTime.Now.ToString(format);
+        }
+        catch
+        {
+            _exampleLabel.Text = "Invalid Format";
         }
     }
 
@@ -175,7 +231,7 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
 
         if (_currencyCombo.SelectedItem is not string currencyDisplay || !_currenciesByDisplay.TryGetValue(currencyDisplay, out var currencyId) ||
             _languageCombo.SelectedItem is not string languageDisplay || !_languagesByDisplay.TryGetValue(languageDisplay, out var languageId) ||
-            _timeZoneCombo.SelectedItem is not string timeZoneDisplay || !_timeZonesByDisplay.TryGetValue(timeZoneDisplay, out var timeZoneId))
+            _timeZoneCombo.EditValue is not Guid timeZoneId)
         {
             XtraMessageBox.Show(this, "Select a currency, language, and time zone.", "Incomplete", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -185,7 +241,16 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
             ? fyId
             : null;
 
-        var dateFormat = _dateFormatEdit.Text.Trim();
+        var dateFormat = _dateFormatCombo.Text.Trim();
+        try
+        {
+            DateTime.Now.ToString(dateFormat);
+        }
+        catch
+        {
+            XtraMessageBox.Show(this, "The entered Date & Time Format is invalid. Please enter a valid .NET format pattern (e.g., dd-MMM-yyyy HH:mm).", "Invalid Format", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
 
         if (_existingSettings is null)
         {
@@ -201,6 +266,23 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
             _existingSettings = await _mediator.Send(new UpdateBusinessSettingsCommand(
                 _existingSettings.BusinessSettingsId, currencyId, languageId, timeZoneId, fiscalYearId, dateFormat));
         }
+
+        var languages = await _mediator.Send(new ListLanguagesQuery());
+        var selectedLanguage = languages.FirstOrDefault(l => l.LanguageId == languageId);
+        string? languageCode = selectedLanguage?.Code;
+
+        string oldLanguage = LanguagePreferenceStore.Load();
+        if (languageCode != null && languageCode != oldLanguage)
+        {
+            LanguagePreferenceStore.Save(languageCode);
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(languageCode);
+            Thread.CurrentThread.CurrentUICulture = culture;
+            System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+            XtraMessageBox.Show(this, "Please restart the application to apply the language.", "Language Changed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        await DateTimeDisplayLoader.ConfigureAsync(_mediator);
 
         _statusLabel.Text = "Saved.";
     }

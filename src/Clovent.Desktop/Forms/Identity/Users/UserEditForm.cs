@@ -42,6 +42,7 @@ public sealed partial class UserEditForm : MasterDataEditFormBase
     public UserEditForm(string title, bool isNew, string? email = null, string? userName = null, string? displayName = null) : base(title)
     {
         InitializeComponent();
+        SetFixedRowHeight(_rolesList, 100);
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
