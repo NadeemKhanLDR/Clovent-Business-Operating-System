@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.Forms.Base.Localization;
@@ -122,9 +122,12 @@ public sealed partial class RestaurantSetupView : DevExpress.XtraEditors.XtraUse
         // The Designer's fixed editor widths (150/150/260) are 96-DPI logical
         // values - scale them now that the view has a real device DPI, so the
         // editors don't render pinched at above-100% DPI.
-        _prefixEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(150, this);
-        _startingNumberEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(150, this);
-        _languageCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(260, this);
+        _prefixEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this);
+        _startingNumberEdit.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this);
+        _languageCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this);
+        _itemsPerRowCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(120, this);
+        _activeOrdersRadioGroup.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
+        _defaultPaymentMethodCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this);
 
         await LoadAsync();
     }
@@ -144,6 +147,52 @@ public sealed partial class RestaurantSetupView : DevExpress.XtraEditors.XtraUse
         var selectedIndex = Array.FindIndex(LanguageOptions, o => o.CultureCode == currentCultureCode);
         _languageCombo.SelectedIndex = selectedIndex >= 0 ? selectedIndex : 0;
         _languageStatusLabel.Text = string.Empty;
+
+        var itemsPerRow = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadItemsPerRow();
+        _itemsPerRowCombo.SelectedItem = itemsPerRow;
+
+        _activeOrdersRadioGroup.EditValue = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadActiveOrdersCollapsed();
+
+        try
+        {
+            var paymentMethods = await _mediator.Send(new Clovent.Restaurant.Application.PaymentMethods.Queries.ListPaymentMethodsQuery());
+            _defaultPaymentMethodCombo.Properties.Items.Clear();
+            foreach (var pm in paymentMethods)
+            {
+                _defaultPaymentMethodCombo.Properties.Items.Add(pm.Name);
+            }
+        }
+        catch
+        {
+            _defaultPaymentMethodCombo.Properties.Items.Clear();
+            _defaultPaymentMethodCombo.Properties.Items.AddRange(new[] { "Cash", "Card", "Mobile Wallet", "Bank Transfer" });
+        }
+
+        var defaultMethod = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadDefaultPaymentMethod();
+        _defaultPaymentMethodCombo.SelectedItem = defaultMethod;
+        if (_defaultPaymentMethodCombo.SelectedIndex < 0 && _defaultPaymentMethodCombo.Properties.Items.Count > 0)
+        {
+            _defaultPaymentMethodCombo.SelectedIndex = 0;
+        }
+
+        _posStatusLabel.Text = string.Empty;
+    }
+
+    private void SavePosButton_Click(object? sender, EventArgs e)
+    {
+        if (_itemsPerRowCombo.SelectedItem is int val)
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveItemsPerRow(val);
+        }
+        if (_activeOrdersRadioGroup.EditValue is bool hideActiveOrders)
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveActiveOrdersCollapsed(hideActiveOrders);
+        }
+        if (_defaultPaymentMethodCombo.SelectedItem is string defaultMethod && !string.IsNullOrWhiteSpace(defaultMethod))
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveDefaultPaymentMethod(defaultMethod);
+        }
+        _posStatusLabel.Text = "Saved.";
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>

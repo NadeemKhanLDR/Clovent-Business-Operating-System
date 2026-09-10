@@ -258,10 +258,10 @@ public class CustomersViewLoadAndRefreshTests
             mediator.Customers = [Customer("C001", "John Smith", 10m), Customer("C002", "Jane Doe", 20m)];
             RaiseLoad(view);
 
-            var search = (DevExpress.XtraEditors.TextEdit)typeof(CustomersView)
+            var search = (DevExpress.XtraEditors.SearchLookUpEdit)typeof(CustomersView)
                 .GetField("_txtSearch", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .GetValue(view)!;
-            search.Text = "Jane";
+            search.EditValue = mediator.Customers[1].CustomerId;
 
             InvokeRefresh(view);
 

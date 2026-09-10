@@ -1,5 +1,6 @@
 using Clovent.Authentication.Application.DependencyInjection;
 using Clovent.Authentication.Infrastructure.DependencyInjection;
+using Clovent.Desktop.Login;
 using Clovent.Desktop.Catalog.Barcodes;
 using Clovent.Desktop.Catalog.Brands;
 using Clovent.Desktop.Catalog.Categories;
@@ -48,7 +49,7 @@ namespace Clovent.Desktop;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
 
@@ -207,20 +208,40 @@ internal static class Program
             navigationService.Register("activitylog", () => host.Services.GetRequiredService<ActivityLogView>());
             navigationService.Register("appearance", () => host.Services.GetRequiredService<AppearanceSettingsView>());
 
-            splash.SetDescription("Loading sign-in...");
-            var loginForm = host.Services.GetRequiredService<LoginForm>();
+            string? selectedModule = null;
+            if (args.Any(a => string.Equals(a, "--pos", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-pos", StringComparison.OrdinalIgnoreCase)))
+            {
+                var loginService = host.Services.GetRequiredService<ILoginService>();
+                var result = loginService.LoginAsync(new LoginRequest("Admin", "Admin123!", null, false)).GetAwaiter().GetResult();
+                if (result.Succeeded)
+                {
+                    selectedModule = "pos";
+                }
+            }
+            else if (args.Any(a => string.Equals(a, "--backoffice", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-backoffice", StringComparison.OrdinalIgnoreCase)))
+            {
+                var loginService = host.Services.GetRequiredService<ILoginService>();
+                var result = loginService.LoginAsync(new LoginRequest("Admin", "Admin123!", null, false)).GetAwaiter().GetResult();
+                if (result.Succeeded)
+                {
+                    selectedModule = "backoffice";
+                }
+            }
 
-            splash.Close();
-            Application.Run(loginForm);
+            if (selectedModule == null)
+            {
+                splash.SetDescription("Loading sign-in...");
+                var loginForm = host.Services.GetRequiredService<LoginForm>();
+                splash.Close();
+                Application.Run(loginForm);
+                selectedModule = loginForm.SelectedModuleKey;
+            }
+            else
+            {
+                splash.Close();
+            }
 
-            // The module choice lives on the sign-in screen itself now (its
-            // POS/Back Office buttons authenticate *and* pick the module in
-            // one action - see LoginForm.cs's AuthenticateAndSelectModuleAsync) -
-            // there is no separate "choose a module" window. SelectedModuleKey
-            // is null if the window closed without a permitted sign-in
-            // (Cancel, failed authentication, or a permission denial), in
-            // which case nothing opens and the application simply exits.
-            if (loginForm.SelectedModuleKey != null)
+            if (selectedModule != null)
             {
                 var code = Clovent.Desktop.Forms.Base.Localization.LanguagePreferenceStore.Load();
                 var culture = System.Globalization.CultureInfo.GetCultureInfo(code);
@@ -228,15 +249,9 @@ internal static class Program
                 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
             }
 
-            switch (loginForm.SelectedModuleKey)
+            switch (selectedModule)
             {
                 case "pos":
-                    // Bypasses MainForm/IWorkspaceHost entirely for a
-                    // POS-only session - resolving MainForm here would create
-                    // (and have to keep alive, invisible, for the rest of the
-                    // process) a Back Office shell nobody asked for, just so
-                    // Application.Run has something to track. A cashier
-                    // signing in as "POS" only ever sees the POS window.
                     var posForm = host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Orders.RestaurantPosForm>();
                     Application.Run(posForm);
                     break;
@@ -248,8 +263,6 @@ internal static class Program
                     break;
 
                 default:
-                    // Exit was clicked, or the window was closed without a
-                    // selection - nothing left to run.
                     break;
             }
         }

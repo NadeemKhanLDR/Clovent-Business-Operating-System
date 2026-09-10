@@ -5,6 +5,7 @@ using Clovent.Catalog.Application.Categories.Queries;
 using Clovent.Catalog.Application.Prices.Commands;
 using Clovent.Catalog.Application.Prices.Queries;
 using Clovent.Catalog.Application.Products.Commands;
+using Clovent.Catalog.Application.Products.Queries;
 using Clovent.Catalog.Application.UnitsOfMeasure.Queries;
 using Clovent.Catalog.Application.Variants.Commands;
 using Clovent.Catalog.Application.Variants.Queries;
@@ -396,6 +397,8 @@ public sealed partial class MenuItemsForm : BaseForm
     private async Task<IReadOnlyList<MenuItemRow>> LoadItemsAsync()
     {
         var variants = await _mediator.Send(new ListProductVariantsQuery());
+        var products = await _mediator.Send(new ListProductsQuery());
+        var productNamesById = products.ToDictionary(p => p.ProductId, p => p.Name);
         var categories = await _mediator.Send(new ListProductCategoriesQuery());
         var categoryNamesById = categories.ToDictionary(c => c.ProductCategoryId, c => c.Name);
 
@@ -409,26 +412,32 @@ public sealed partial class MenuItemsForm : BaseForm
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.EffectiveFromUtc).First());
 
         var rows = new List<MenuItemRow>();
-        foreach (var variant in variants)
+        var variantsByProduct = variants.GroupBy(v => v.ProductId);
+        foreach (var group in variantsByProduct)
         {
-            var sellingPrice = newestSellingPriceByVariantId.GetValueOrDefault(variant.ProductVariantId);
+            var productVariants = group.ToList();
+            var sortedVariants = productVariants.OrderBy(v => v.SortOrder).ThenBy(v => v.Name).ToList();
+            var primaryVariant = sortedVariants.First();
+            var sellingPrice = newestSellingPriceByVariantId.GetValueOrDefault(primaryVariant.ProductVariantId);
 
-            if (!_imagesByProductId.ContainsKey(variant.ProductId) && MenuItemImageStore.Load(variant.ProductId) is { } photo)
+            if (!_imagesByProductId.ContainsKey(primaryVariant.ProductId) && MenuItemImageStore.Load(primaryVariant.ProductId) is { } photo)
             {
-                _imagesByProductId[variant.ProductId] = photo;
+                _imagesByProductId[primaryVariant.ProductId] = photo;
             }
 
+            var productName = productNamesById.GetValueOrDefault(primaryVariant.ProductId, primaryVariant.Name);
+
             rows.Add(new MenuItemRow(
-                variant.ProductId,
-                variant.ProductVariantId,
+                primaryVariant.ProductId,
+                primaryVariant.ProductVariantId,
                 sellingPrice?.ProductPriceId,
-                variant.Name,
-                variant.ProductCategoryId is { } categoryId ? categoryNamesById.GetValueOrDefault(categoryId, "(none)") : "(none)",
-                variant.ProductCategoryId,
+                productName,
+                primaryVariant.ProductCategoryId is { } categoryId ? categoryNamesById.GetValueOrDefault(categoryId, "(none)") : "(none)",
+                primaryVariant.ProductCategoryId,
                 sellingPrice?.Amount ?? 0m,
-                variant.Status,
-                _imagesByProductId.GetValueOrDefault(variant.ProductId),
-                variant.SortOrder));
+                primaryVariant.Status,
+                _imagesByProductId.GetValueOrDefault(primaryVariant.ProductId),
+                primaryVariant.SortOrder));
         }
 
         return [.. rows.OrderBy(r => r.SortOrder).ThenBy(r => r.Name)];
@@ -483,11 +492,6 @@ public sealed partial class MenuItemsForm : BaseForm
             return null;
         }
 
-        // "Save & New" (MasterDataEditFormBase.EnableSaveAndNew) reopens a
-        // fresh dialog immediately for the next item instead of returning to
-        // the grid - a restaurant owner keying in a whole menu section
-        // (every Curry, every Drink) shouldn't have to reopen "New Menu
-        // Item" from the command panel after every single item.
         bool saveAndNew;
         do
         {
@@ -497,31 +501,79 @@ public sealed partial class MenuItemsForm : BaseForm
                 return null;
             }
 
-            var product = await _mediator.Send(new CreateProductWithPriceCommand(
-                form.NameValue,
-                form.CategoryId,
-                form.SellingPrice,
-                currencies.First().CurrencyId,
-                units[0].Id,
-                form.ItemIsActive));
+            Guid productId;
 
-            var variants = await _mediator.Send(new ListProductVariantsByProductQuery(product.ProductId));
-            if (variants.Count > 0)
+            if (!form.HasVariants)
             {
-                var variantId = variants.First().ProductVariantId;
-                await SaveMenuItemBarcodesAsync(variantId, form.Barcode1, form.Barcode2, form.Barcode3);
+                var product = await _mediator.Send(new CreateProductWithPriceCommand(
+                    form.NameValue,
+                    form.CategoryId,
+                    form.SellingPrice,
+                    currencies.First().CurrencyId,
+                    units[0].Id,
+                    form.ItemIsActive));
+                
+                productId = product.ProductId;
+
+                var variants = await _mediator.Send(new ListProductVariantsByProductQuery(productId));
+                if (variants.Count > 0)
+                {
+                    var variantId = variants.First().ProductVariantId;
+                    await SaveMenuItemBarcodesAsync(variantId, form.Barcode1, form.Barcode2, form.Barcode3);
+                }
+            }
+            else
+            {
+                var firstVariant = form.Variants[0];
+                var product = await _mediator.Send(new CreateProductWithPriceCommand(
+                    form.NameValue,
+                    form.CategoryId,
+                    firstVariant.Price,
+                    currencies.First().CurrencyId,
+                    units[0].Id,
+                    form.ItemIsActive));
+
+                productId = product.ProductId;
+
+                var dbVariants = await _mediator.Send(new ListProductVariantsByProductQuery(productId));
+                if (dbVariants.Count > 0)
+                {
+                    var defaultVariant = dbVariants.First();
+                    await _mediator.Send(new RenameProductVariantCommand(defaultVariant.ProductVariantId, firstVariant.Name));
+                    await SaveMenuItemBarcodesAsync(defaultVariant.ProductVariantId, firstVariant.Barcode1, firstVariant.Barcode2, firstVariant.Barcode3);
+                    if (!firstVariant.IsActive || !form.ItemIsActive)
+                    {
+                        await _mediator.Send(new DeactivateProductVariantCommand(defaultVariant.ProductVariantId));
+                    }
+                }
+
+                for (int i = 1; i < form.Variants.Count; i++)
+                {
+                    var ev = form.Variants[i];
+                    var variantSku = $"{product.Sku}-" + new string(ev.Name.ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+                    if (variantSku.Length > 40) variantSku = variantSku[..40];
+
+                    var newVar = await _mediator.Send(new CreateProductVariantCommand(productId, ev.Name, variantSku, units[0].Id));
+                    await _mediator.Send(new CreateProductPriceCommand(newVar.ProductVariantId, PriceType.Selling, ev.Price, currencies.First().CurrencyId));
+                    await SaveMenuItemBarcodesAsync(newVar.ProductVariantId, ev.Barcode1, ev.Barcode2, ev.Barcode3);
+
+                    if (!ev.IsActive || !form.ItemIsActive)
+                    {
+                        await _mediator.Send(new DeactivateProductVariantCommand(newVar.ProductVariantId));
+                    }
+                }
             }
 
             if (form.PendingImage is not null)
             {
-                MenuItemImageStore.Save(product.ProductId, form.PendingImage);
-                _imagesByProductId[product.ProductId] = MenuItemImageStore.Load(product.ProductId);
+                MenuItemImageStore.Save(productId, form.PendingImage);
+                _imagesByProductId[productId] = MenuItemImageStore.Load(productId);
             }
 
             saveAndNew = form.IsSaveAndNew;
             if (!saveAndNew)
             {
-                return product.ProductId;
+                return productId;
             }
         }
         while (saveAndNew);
@@ -531,25 +583,45 @@ public sealed partial class MenuItemsForm : BaseForm
 
     private async Task EditAsync(MenuItemRow row)
     {
-        var existingBarcodes = await _mediator.Send(new ListBarcodesByVariantQuery(row.ProductVariantId));
-        var barcodeList = existingBarcodes.OrderBy(b => b.CreatedAtUtc).ToList();
-        var bc1 = barcodeList.Count > 0 ? barcodeList[0].Value : null;
-        var bc2 = barcodeList.Count > 1 ? barcodeList[1].Value : null;
-        var bc3 = barcodeList.Count > 2 ? barcodeList[2].Value : null;
+        var dbVariants = await _mediator.Send(new ListProductVariantsByProductQuery(row.ProductId));
+        var variantRows = new List<MenuItemVariantEditRow>();
 
+        foreach (var v in dbVariants)
+        {
+            var prices = await _mediator.Send(new ListProductPricesByVariantQuery(v.ProductVariantId));
+            var sellingPrice = prices.Where(p => string.Equals(p.PriceType, nameof(PriceType.Selling), StringComparison.OrdinalIgnoreCase)).OrderByDescending(p => p.EffectiveFromUtc).FirstOrDefault();
+
+            var barcodes = await _mediator.Send(new ListBarcodesByVariantQuery(v.ProductVariantId));
+            var barcodeList = barcodes.OrderBy(b => b.CreatedAtUtc).ToList();
+
+            variantRows.Add(new MenuItemVariantEditRow
+            {
+                ProductVariantId = v.ProductVariantId,
+                Name = v.Name,
+                Price = sellingPrice?.Amount ?? 0m,
+                Barcode1 = barcodeList.Count > 0 ? barcodeList[0].Value : null,
+                Barcode2 = barcodeList.Count > 1 ? barcodeList[1].Value : null,
+                Barcode3 = barcodeList.Count > 2 ? barcodeList[2].Value : null,
+                IsNew = false,
+                IsActive = v.Status == "Active"
+            });
+        }
+
+        var primaryVarRow = variantRows.FirstOrDefault();
         using var existingImage = MenuItemImageStore.Load(row.ProductId);
         using var form = new MenuItemEditForm(
             "Edit Menu Item",
             await LoadCategoryOptionsAsync(),
             row.Name,
             row.CategoryId,
-            row.Price,
+            primaryVarRow?.Price ?? row.Price,
             row.Status == "Active",
             existingImage,
-            bc1,
-            bc2,
-            bc3,
-            checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(row.ProductVariantId, val));
+            primaryVarRow?.Barcode1,
+            primaryVarRow?.Barcode2,
+            primaryVarRow?.Barcode3,
+            checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(row.ProductVariantId, val),
+            variants: variantRows);
 
         if (form.ShowDialog(this) != DialogResult.OK)
         {
@@ -557,31 +629,104 @@ public sealed partial class MenuItemsForm : BaseForm
         }
 
         await _mediator.Send(new RenameProductCommand(row.ProductId, form.NameValue));
-        await _mediator.Send(new RenameProductVariantCommand(row.ProductVariantId, form.NameValue));
         await _mediator.Send(new SetProductCategoryCommand(row.ProductId, form.CategoryId));
-        await SaveMenuItemBarcodesAsync(row.ProductVariantId, form.Barcode1, form.Barcode2, form.Barcode3);
 
-        if (row.ProductPriceId is { } priceId)
+        var currencies = await _mediator.Send(new ListCurrenciesQuery());
+        var units = await LoadUnitOptionsAsync();
+
+        if (!form.HasVariants)
         {
-            await _mediator.Send(new UpdateProductPriceAmountCommand(priceId, form.SellingPrice));
+            var primaryVariant = dbVariants.OrderBy(v => v.SortOrder).ThenBy(v => v.Name).First();
+            await _mediator.Send(new RenameProductVariantCommand(primaryVariant.ProductVariantId, form.NameValue));
+            await SaveMenuItemBarcodesAsync(primaryVariant.ProductVariantId, form.Barcode1, form.Barcode2, form.Barcode3);
+
+            var prices = await _mediator.Send(new ListProductPricesByVariantQuery(primaryVariant.ProductVariantId));
+            var sellingPrice = prices.Where(p => string.Equals(p.PriceType, nameof(PriceType.Selling), StringComparison.OrdinalIgnoreCase)).OrderByDescending(p => p.EffectiveFromUtc).FirstOrDefault();
+            if (sellingPrice is not null)
+            {
+                await _mediator.Send(new UpdateProductPriceAmountCommand(sellingPrice.ProductPriceId, form.SellingPrice));
+            }
+            else if (currencies.Count > 0)
+            {
+                await _mediator.Send(new CreateProductPriceCommand(primaryVariant.ProductVariantId, PriceType.Selling, form.SellingPrice, currencies.First().CurrencyId));
+            }
+
+            foreach (var v in dbVariants.Where(x => x.ProductVariantId != primaryVariant.ProductVariantId && x.Status == "Active"))
+            {
+                await _mediator.Send(new DeactivateProductVariantCommand(v.ProductVariantId));
+            }
         }
         else
         {
-            var currencies = await _mediator.Send(new ListCurrenciesQuery());
-            if (currencies.Count > 0)
+            var editedVariants = form.Variants;
+            var editedIds = editedVariants.Select(v => v.ProductVariantId).ToList();
+
+            foreach (var v in dbVariants.Where(x => x.Status == "Active" && !editedIds.Contains(x.ProductVariantId)))
             {
-                await _mediator.Send(new CreateProductPriceCommand(row.ProductVariantId, PriceType.Selling, form.SellingPrice, currencies.First().CurrencyId));
+                await _mediator.Send(new DeactivateProductVariantCommand(v.ProductVariantId));
+            }
+
+            foreach (var ev in editedVariants)
+            {
+                var existing = dbVariants.FirstOrDefault(x => x.ProductVariantId == ev.ProductVariantId);
+                if (existing is null || ev.IsNew)
+                {
+                    var productInfo = await _mediator.Send(new GetProductVariantByIdQuery(row.ProductVariantId));
+                    var skuBase = productInfo?.Sku ?? "VAR";
+                    var variantSku = $"{skuBase}-" + new string(ev.Name.ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+                    if (variantSku.Length > 40) variantSku = variantSku[..40];
+
+                    var newVar = await _mediator.Send(new CreateProductVariantCommand(row.ProductId, ev.Name, variantSku, units[0].Id));
+                    await _mediator.Send(new CreateProductPriceCommand(newVar.ProductVariantId, PriceType.Selling, ev.Price, currencies.First().CurrencyId));
+                    await SaveMenuItemBarcodesAsync(newVar.ProductVariantId, ev.Barcode1, ev.Barcode2, ev.Barcode3);
+                    if (!ev.IsActive || !form.ItemIsActive)
+                    {
+                        await _mediator.Send(new DeactivateProductVariantCommand(newVar.ProductVariantId));
+                    }
+                }
+                else
+                {
+                    await _mediator.Send(new RenameProductVariantCommand(ev.ProductVariantId, ev.Name));
+                    await SaveMenuItemBarcodesAsync(ev.ProductVariantId, ev.Barcode1, ev.Barcode2, ev.Barcode3);
+
+                    if (ev.IsActive && form.ItemIsActive)
+                    {
+                        if (existing.Status != "Active")
+                        {
+                            await _mediator.Send(new ActivateProductVariantCommand(ev.ProductVariantId));
+                        }
+                    }
+                    else
+                    {
+                        if (existing.Status == "Active")
+                        {
+                            await _mediator.Send(new DeactivateProductVariantCommand(ev.ProductVariantId));
+                        }
+                    }
+
+                    var prices = await _mediator.Send(new ListProductPricesByVariantQuery(ev.ProductVariantId));
+                    var sellingPrice = prices.Where(p => string.Equals(p.PriceType, nameof(PriceType.Selling), StringComparison.OrdinalIgnoreCase)).OrderByDescending(p => p.EffectiveFromUtc).FirstOrDefault();
+                    if (sellingPrice is not null)
+                    {
+                        await _mediator.Send(new UpdateProductPriceAmountCommand(sellingPrice.ProductPriceId, ev.Price));
+                    }
+                    else if (currencies.Count > 0)
+                    {
+                        await _mediator.Send(new CreateProductPriceCommand(ev.ProductVariantId, PriceType.Selling, ev.Price, currencies.First().CurrencyId));
+                    }
+                }
             }
         }
 
+        var primaryVar = dbVariants.OrderBy(v => v.SortOrder).ThenBy(v => v.Name).First();
         var wasActive = row.Status == "Active";
         if (form.ItemIsActive && !wasActive)
         {
-            await _mediator.Send(new ActivateProductVariantCommand(row.ProductVariantId));
+            await _mediator.Send(new ActivateProductVariantCommand(primaryVar.ProductVariantId));
         }
         else if (!form.ItemIsActive && wasActive)
         {
-            await _mediator.Send(new DeactivateProductVariantCommand(row.ProductVariantId));
+            await _mediator.Send(new DeactivateProductVariantCommand(primaryVar.ProductVariantId));
         }
 
         if (form.ImageCleared)

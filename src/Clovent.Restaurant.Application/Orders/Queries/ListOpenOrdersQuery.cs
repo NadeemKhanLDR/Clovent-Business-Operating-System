@@ -14,6 +14,6 @@ public sealed class ListOpenOrdersQueryHandler(IOrderRepository repository) : IR
     public async Task<IReadOnlyCollection<OrderDto>> Handle(ListOpenOrdersQuery request, CancellationToken cancellationToken)
     {
         var orders = await repository.GetOpenAsync(cancellationToken);
-        return [.. orders.Select(OrderDto.FromDomain)];
+        return [.. orders.Where(o => o.OrderLineIds.Count > 0).Select(OrderDto.FromDomain)];
     }
 }

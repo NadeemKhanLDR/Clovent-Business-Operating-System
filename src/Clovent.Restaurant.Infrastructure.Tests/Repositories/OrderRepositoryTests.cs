@@ -96,6 +96,16 @@ public class OrderRepositoryTests : SqliteTestBase
     {
         var open = Order.Create(OrderType.TakeAway, WarehouseId.New());
         var held = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        // Zero-line open orders are placeholders, not actionable bills, so
+        // they must not surface as open/held.
+        var empty = Order.Create(OrderType.TakeAway, WarehouseId.New());
+
+        var openLine = Clovent.Restaurant.OrderLines.OrderLine.Create(
+            open.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1m, 10m, 0m, true);
+        open.AddOrderLine(openLine.Id);
+        var heldLine = Clovent.Restaurant.OrderLines.OrderLine.Create(
+            held.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 2m, 5m, 0m, true);
+        held.AddOrderLine(heldLine.Id);
         held.Hold();
 
         await using (var writeContext = CreateContext())
@@ -103,6 +113,9 @@ public class OrderRepositoryTests : SqliteTestBase
             var repository = new OrderRepository(writeContext);
             await repository.AddAsync(open);
             await repository.AddAsync(held);
+            await repository.AddAsync(empty);
+            writeContext.OrderLines.Add(openLine);
+            writeContext.OrderLines.Add(heldLine);
             await writeContext.SaveChangesAsync();
         }
 
@@ -112,7 +125,9 @@ public class OrderRepositoryTests : SqliteTestBase
         var heldResults = await repo.GetHeldAsync();
 
         Assert.Single(openResults);
+        Assert.Equal(open.Id, openResults.First().Id);
         Assert.Single(heldResults);
+        Assert.Equal(held.Id, heldResults.First().Id);
     }
 
     [Fact]

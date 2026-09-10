@@ -1,0 +1,1360 @@
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 11:20:26.744
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=990}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=1254,Width=2972,Height=362}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 11:23:27.792
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=990}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=1254,Width=2972,Height=362}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 11:52:00.865
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=990}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=1254,Width=2972,Height=362}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 11:52:36.390
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=990}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=1254,Width=2972,Height=362}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:01.178
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:04.718
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:07.578
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:10.473
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:13.406
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:16.361
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:19.288
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:22.159
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:20:57.099
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:05.394
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:09.275
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:12.191
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:15.132
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:18.018
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:20.979
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:23.896
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:42:26.822
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:48:53.158
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 12:57:43.824
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:44.862
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:47.974
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:49.516
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:51.226
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:52.875
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:54.533
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:55.932
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-08 21:48:57.186
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 09:18:33.477
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 09:27:00.343
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 09:30:26.562
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:06:55.137
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=802}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:14:59.181
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:19:16.727
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1771
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=807}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1621,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:34.540
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:37.017
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:38.417
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:39.862
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:41.320
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:43.144
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:44.670
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 10:20:46.192
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:41.766
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:43.291
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:46.224
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:49.160
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:52.073
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:54.986
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:30:57.893
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:00.840
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:11.141
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=950,Height=640}
+Dialog Size: 950x640
+Dialog ClientSize: 948x608
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=924,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=924,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=924,Height=202}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=892,Height=133}
+FooterBar Bounds: {X=12,Y=542,Width=924,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:14.636
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1140,Height=680}
+Dialog Size: 1140x680
+Dialog ClientSize: 1138x648
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1114,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1114,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1114,Height=242}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1082,Height=173}
+FooterBar Bounds: {X=12,Y=582,Width=1114,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:17.622
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:20.551
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Open Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:23.491
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:26.448
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=170,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=390,Width=1174,Height=252}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=183}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('View') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:29.390
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: True
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-09 13:31:32.319
+Screen Bounds: 1536x960
+Screen WorkingArea: 1536x912
+Device DPI: 96
+DPI Scale Factor: 1.00x
+Dialog Bounds: {X=10,Y=10,Width=1200,Height=740}
+Dialog Size: 1200x740
+Dialog ClientSize: 1198x708
+Dialog Location: {X=10,Y=10}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=1174,Height=48}
+GridHost Bounds: {X=12,Y=120,Width=1174,Height=220}
+OrdersGridView RowHeight: 36, ColumnPanelRowHeight: 34
+PreviewPanel Bounds: {X=12,Y=340,Width=1174,Height=302}
+PreviewItemsGrid Bounds: {X=16,Y=63,Width=1142,Height=233}
+FooterBar Bounds: {X=12,Y=642,Width=1174,Height=56}
+ActionButton ('Recall Order') Bounds: {X=145,Y=8,Width=180,Height=40}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=130,Height=40}
+================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-10 12:06:10.933
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=802}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================

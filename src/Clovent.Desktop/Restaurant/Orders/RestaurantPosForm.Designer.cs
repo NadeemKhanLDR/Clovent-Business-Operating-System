@@ -117,6 +117,8 @@ partial class RestaurantPosForm
         _cancelOrderButton = new SimpleButton();
         _holdButton = new SimpleButton();
         _resumeButton = new SimpleButton();
+        _recallButton = new SimpleButton();
+        _clearButton = new SimpleButton();
         _sendToKitchenButton = new SimpleButton();
         _completeButton = new SimpleButton();
         _voidOrderButton = new SimpleButton();
@@ -128,7 +130,7 @@ partial class RestaurantPosForm
         _newCustomerButton = new SimpleButton();
         _customerDetailsLabel = new LabelControl();
         pnlProducts = new PanelControl();
-        _productTilesFlow = new FlowLayoutPanel();
+        _productTilesFlow = new TableLayoutPanel();
         _tilesEmptyLabel = new LabelControl();
         pnlSearch = new Panel();
         tlpSearch = new TableLayoutPanel();
@@ -1101,7 +1103,7 @@ partial class RestaurantPosForm
         _lineGridColumnName.OptionsColumn.ReadOnly = true;
         _lineGridColumnName.Visible = true;
         _lineGridColumnName.VisibleIndex = 0;
-        _lineGridColumnName.Width = 118;
+        _lineGridColumnName.Width = 160;
         // 
         // _lineGridColumnQuantity
         // 
@@ -1460,7 +1462,7 @@ partial class RestaurantPosForm
         _cancelOrderButton.Padding = new Padding(10, 5, 10, 5);
         _cancelOrderButton.Size = new Size(70, 32);
         _cancelOrderButton.TabIndex = 0;
-        _cancelOrderButton.Text = "🗑  Clear";
+        _cancelOrderButton.Text = "✕ Cancel Order";
         _cancelOrderButton.Click += CancelOrderButton_Click;
         // 
         // _holdButton
@@ -1647,7 +1649,7 @@ partial class RestaurantPosForm
         // 
         // _productTilesFlow
         // 
-        _productTilesFlow.AutoScroll = true;
+        _productTilesFlow.AutoScroll = false;
         _productTilesFlow.Controls.Add(_tilesEmptyLabel);
         _productTilesFlow.Dock = DockStyle.Fill;
         _productTilesFlow.Location = new Point(0, 82);
@@ -2171,7 +2173,7 @@ partial class RestaurantPosForm
     private TextEdit _barcodeEdit;
     private SimpleButton _addByBarcodeButton;
     private TextEdit _productSearchEdit;
-    private FlowLayoutPanel _productTilesFlow;
+    private TableLayoutPanel _productTilesFlow;
     private LabelControl _tilesEmptyLabel;
     private FlowLayoutPanel _categorySortFlow;
     private SimpleButton _sortByNameButton;
@@ -2227,6 +2229,8 @@ partial class RestaurantPosForm
     private SimpleButton _cancelOrderButton;
     private SimpleButton _holdButton;
     private SimpleButton _resumeButton;
+    private SimpleButton _recallButton;
+    private SimpleButton _clearButton;
     private SimpleButton _sendToKitchenButton;
     private SimpleButton _completeButton;
     private SimpleButton _voidOrderButton;

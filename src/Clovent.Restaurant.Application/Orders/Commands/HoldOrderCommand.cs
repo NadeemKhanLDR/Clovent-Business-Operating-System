@@ -16,6 +16,9 @@ public sealed class HoldOrderCommandHandler(IOrderRepository repository) : IRequ
         var order = await repository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
 
+        if (order.OrderLineIds.Count == 0)
+            throw RestaurantDomainException.EmptyOrderCannotBeHeld(order.Id);
+
         order.Hold();
         return OrderDto.FromDomain(order);
     }

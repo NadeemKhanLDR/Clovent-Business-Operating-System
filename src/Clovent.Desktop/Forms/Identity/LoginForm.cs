@@ -149,6 +149,15 @@ public sealed partial class LoginForm : XtraForm
         txtPassword.Properties.UseSystemPasswordChar = true;
         txtPin.Properties.UseSystemPasswordChar = true;
 
+#if DEBUG
+        // Development-only convenience: pre-fill demo credentials for fast local workflow
+        if (string.IsNullOrWhiteSpace(txtUsername.Text))
+        {
+            txtUsername.Text = "Admin";
+            txtPassword.Text = "Admin123!";
+        }
+#endif
+
         cmbLanguage.SelectedIndexChanged += CmbLanguage_SelectedIndexChanged;
     }
 
@@ -316,6 +325,16 @@ public sealed partial class LoginForm : XtraForm
                 CardBackOffice_Click(sender, EventArgs.Empty);
             }
         }
+    }
+
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if (keyData == Keys.Enter)
+        {
+            CardPos_Click(this, EventArgs.Empty);
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     /// <summary>

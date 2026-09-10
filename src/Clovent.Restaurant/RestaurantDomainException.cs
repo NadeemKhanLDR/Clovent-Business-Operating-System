@@ -81,6 +81,10 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException OrderNotHeld(OrderId orderId) =>
         new($"Order '{orderId}' is not held.");
 
+    /// <summary>Order.Hold() was attempted with no items on the order.</summary>
+    public static RestaurantDomainException EmptyOrderCannotBeHeld(OrderId orderId) =>
+        new($"Order '{orderId}' has no items and cannot be held.");
+
     /// <summary>Order.Void() was attempted while already Voided or Cancelled.</summary>
     public static RestaurantDomainException OrderCannotBeVoided(OrderId orderId, OrderStatus status) =>
         new($"Order '{orderId}' cannot be voided while {status}.");

@@ -1,6 +1,46 @@
+using System.ComponentModel;
 using Clovent.Desktop.MasterData;
 
 namespace Clovent.Desktop.Forms.Restaurant.MenuItems;
+
+public sealed class MenuItemVariantEditRow
+{
+    public Guid ProductVariantId { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public string? Barcode1 { get; set; }
+    public string? Barcode2 { get; set; }
+    public string? Barcode3 { get; set; }
+    public bool IsNew { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    // Helper properties for UI binding
+    public string PortionName
+    {
+        get
+        {
+            int idx = Name.IndexOf('|');
+            return idx >= 0 ? Name.Substring(0, idx) : Name;
+        }
+        set
+        {
+            Name = value + "|" + PosLabel;
+        }
+    }
+
+    public string PosLabel
+    {
+        get
+        {
+            int idx = Name.IndexOf('|');
+            return idx >= 0 ? Name.Substring(idx + 1) : "";
+        }
+        set
+        {
+            Name = PortionName + "|" + value;
+        }
+    }
+}
 
 /// <summary>
 /// The only screen a Restaurant owner ever fills in to define a menu item:
@@ -20,9 +60,9 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
     private const int PhotoBoxSize = 120;
 
     private readonly Dictionary<string, Guid?> _categoriesByDisplay;
-
     private readonly Func<string, Task<bool>>? _checkBarcodeExists;
     private Image? _pendingImage;
+    private readonly BindingList<MenuItemVariantEditRow> _variantsList = [];
 
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
@@ -55,7 +95,8 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         string? barcode1 = null,
         string? barcode2 = null,
         string? barcode3 = null,
-        Func<string, Task<bool>>? checkBarcodeExists = null) : base(title)
+        Func<string, Task<bool>>? checkBarcodeExists = null,
+        List<MenuItemVariantEditRow>? variants = null) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -81,7 +122,79 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         _priceEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _priceEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
         _priceEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
+
+        // Initialize and bind variants list
+        if (variants != null && variants.Count > 0)
+        {
+            foreach (var v in variants)
+            {
+                _variantsList.Add(v);
+            }
+
+            // If we have custom variant names (not matching the product name or empty), turn on the toggle
+            var hasCustomPortions = variants.Count > 1 || 
+                                    (variants.Count == 1 && !string.Equals(variants[0].PortionName, name, StringComparison.OrdinalIgnoreCase));
+            _hasVariantsEdit.Checked = hasCustomPortions;
+        }
+        else
+        {
+            _hasVariantsEdit.Checked = false;
+        }
+
+        _variantsGrid.DataSource = _variantsList;
+
+        // Configure Grid Columns
+        _variantsGridView.Columns.Clear();
+
+        var colPortionName = _variantsGridView.Columns.AddVisible("PortionName", "Portion Name");
+        colPortionName.VisibleIndex = 0;
+
+        var colPosLabel = _variantsGridView.Columns.AddVisible("PosLabel", "POS Label");
+        colPosLabel.VisibleIndex = 1;
+
+        var colPrice = _variantsGridView.Columns.AddVisible("Price", "Selling Price");
+        colPrice.VisibleIndex = 2;
+
+        var colActive = _variantsGridView.Columns.AddVisible("IsActive", "Active");
+        colActive.VisibleIndex = 3;
+
+        var colB1 = _variantsGridView.Columns.AddVisible("Barcode1", "Barcode 1");
+        colB1.VisibleIndex = 4;
+
+        var colB2 = _variantsGridView.Columns.AddVisible("Barcode2", "Barcode 2");
+        colB2.VisibleIndex = 5;
+
+        var colB3 = _variantsGridView.Columns.AddVisible("Barcode3", "Barcode 3");
+        colB3.VisibleIndex = 6;
+
+        // Configure Price Editor with decimals
+        var gridPriceEditor = new DevExpress.XtraEditors.Repository.RepositoryItemSpinEdit();
+        gridPriceEditor.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        gridPriceEditor.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
+        gridPriceEditor.Mask.UseMaskAsDisplayFormat = true;
+        gridPriceEditor.MinValue = 0.01m;
+        gridPriceEditor.MaxValue = 1_000_000m;
+        _variantsGrid.RepositoryItems.Add(gridPriceEditor);
+        colPrice.ColumnEdit = gridPriceEditor;
+
+        // Ensure newly added rows have unique Guid and are marked IsNew
+        _variantsList.ListChanged += (s, ev) =>
+        {
+            if (ev.ListChangedType == ListChangedType.ItemAdded)
+            {
+                var item = _variantsList[ev.NewIndex];
+                if (item.ProductVariantId == Guid.Empty)
+                {
+                    item.ProductVariantId = Guid.NewGuid();
+                    item.IsNew = true;
+                }
+            }
+        };
+
+        _hasVariantsEdit.CheckedChanged += (s, ev) => ToggleVariantLayout();
+        ToggleVariantLayout();
     }
+
     /// <summary>The entered item name.</summary>
     public string NameValue => _nameEdit.Text.Trim();
 
@@ -111,6 +224,44 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
 
     /// <summary>Whether the user explicitly cleared the photo (distinct from simply not choosing a new one).</summary>
     public bool ImageCleared { get; private set; }
+
+    /// <summary>Whether the user wants multiple portions/variants.</summary>
+    public bool HasVariants => _hasVariantsEdit.Checked;
+
+    /// <summary>List of variants defined for the menu item.</summary>
+    public List<MenuItemVariantEditRow> Variants => [.. _variantsList];
+
+    private void ToggleVariantLayout()
+    {
+        bool hasVariants = _hasVariantsEdit.Checked;
+
+        // Hide/show single price fields
+        label3.Visible = !hasVariants;
+        _priceEdit.Visible = !hasVariants;
+
+        // Hide/show single barcode fields
+        labelBarcodesHeader.Visible = !hasVariants;
+        labelBarcode1.Visible = !hasVariants;
+        _barcode1Edit.Visible = !hasVariants;
+        labelBarcode2.Visible = !hasVariants;
+        _barcode2Edit.Visible = !hasVariants;
+        labelBarcode3.Visible = !hasVariants;
+        _barcode3Edit.Visible = !hasVariants;
+
+        // Hide/show variants grid
+        _variantsGrid.Visible = hasVariants;
+
+        if (hasVariants && _variantsList.Count == 0)
+        {
+            _variantsList.Add(new MenuItemVariantEditRow
+            {
+                ProductVariantId = Guid.NewGuid(),
+                Name = "Regular Plate",
+                Price = _priceEdit.Value > 0 ? _priceEdit.Value : 250m,
+                IsNew = true
+            });
+        }
+    }
 
     private void ChooseImageButton_Click(object? sender, EventArgs e)
     {
@@ -171,54 +322,128 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
             return false;
         }
 
-        if (_priceEdit.Value <= 0)
+        if (!_hasVariantsEdit.Checked)
         {
-            error = "Enter a selling price greater than 0.";
-            return false;
-        }
-
-        var barcodes = new List<(string Name, string Value)>
-        {
-            ("Barcode 1", Barcode1),
-            ("Barcode 2", Barcode2),
-            ("Barcode 3", Barcode3)
-        };
-
-        var activeBarcodes = barcodes.Where(b => !string.IsNullOrEmpty(b.Value)).ToList();
-        
-        // 1. Format/Length checking
-        foreach (var (name, value) in activeBarcodes)
-        {
-            if (!System.Text.RegularExpressions.Regex.IsMatch(value, "^[0-9]{8,14}$"))
+            if (_priceEdit.Value <= 0)
             {
-                error = $"{name} must contain only digits (8 to 14 digits).";
+                error = "Enter a selling price greater than 0.";
                 return false;
             }
-        }
 
-        // 2. Uniqueness among themselves
-        for (int i = 0; i < activeBarcodes.Count; i++)
-        {
-            for (int j = i + 1; j < activeBarcodes.Count; j++)
+            var barcodes = new List<(string Name, string Value)>
             {
-                if (activeBarcodes[i].Value == activeBarcodes[j].Value)
+                ("Barcode 1", Barcode1),
+                ("Barcode 2", Barcode2),
+                ("Barcode 3", Barcode3)
+            };
+
+            var activeBarcodes = barcodes.Where(b => !string.IsNullOrEmpty(b.Value)).ToList();
+            
+            // 1. Format/Length checking
+            foreach (var (name, value) in activeBarcodes)
+            {
+                if (!System.Text.RegularExpressions.Regex.IsMatch(value, "^[0-9]{8,14}$"))
                 {
-                    error = $"{activeBarcodes[i].Name} and {activeBarcodes[j].Name} cannot have the same barcode value.";
+                    error = $"{name} must contain only digits (8 to 14 digits).";
                     return false;
                 }
             }
-        }
 
-        // 3. Global uniqueness check
-        if (_checkBarcodeExists is not null)
-        {
-            foreach (var (name, value) in activeBarcodes)
+            // 2. Uniqueness among themselves
+            for (int i = 0; i < activeBarcodes.Count; i++)
             {
-                var exists = Task.Run(async () => await _checkBarcodeExists(value)).GetAwaiter().GetResult();
-                if (exists)
+                for (int j = i + 1; j < activeBarcodes.Count; j++)
                 {
-                    error = $"Barcode '{value}' is already in use by another item.";
+                    if (activeBarcodes[i].Value == activeBarcodes[j].Value)
+                    {
+                        error = $"{activeBarcodes[i].Name} and {activeBarcodes[j].Name} cannot have the same barcode value.";
+                        return false;
+                    }
+                }
+            }
+
+            // 3. Global uniqueness check
+            if (_checkBarcodeExists is not null)
+            {
+                foreach (var (name, value) in activeBarcodes)
+                {
+                    var exists = Task.Run(async () => await _checkBarcodeExists(value)).GetAwaiter().GetResult();
+                    if (exists)
+                    {
+                        error = $"Barcode '{value}' is already in use by another item.";
+                        return false;
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (_variantsList.Count == 0)
+            {
+                error = "Please add at least one portion/variant.";
+                return false;
+            }
+
+            var activeBarcodes = new List<(string Portion, string BarcodeColumn, string Value)>();
+
+            foreach (var variant in _variantsList)
+            {
+                if (string.IsNullOrWhiteSpace(variant.Name))
+                {
+                    error = "Portion Name cannot be empty.";
                     return false;
+                }
+
+                if (variant.Price <= 0)
+                {
+                    error = $"Portion '{variant.Name}' must have a selling price greater than 0.";
+                    return false;
+                }
+
+                var bList = new[] {
+                    ("Barcode 1", variant.Barcode1),
+                    ("Barcode 2", variant.Barcode2),
+                    ("Barcode 3", variant.Barcode3)
+                };
+
+                foreach (var (bName, bVal) in bList)
+                {
+                    if (!string.IsNullOrEmpty(bVal))
+                    {
+                        if (!System.Text.RegularExpressions.Regex.IsMatch(bVal, "^[0-9]{8,14}$"))
+                        {
+                            error = $"Portion '{variant.Name}' {bName} must contain only digits (8 to 14 digits).";
+                            return false;
+                        }
+                        activeBarcodes.Add((variant.Name, bName, bVal));
+                    }
+                }
+            }
+
+            // Internal uniqueness check across all variants
+            for (int i = 0; i < activeBarcodes.Count; i++)
+            {
+                for (int j = i + 1; j < activeBarcodes.Count; j++)
+                {
+                    if (activeBarcodes[i].Value == activeBarcodes[j].Value)
+                    {
+                        error = $"Portion '{activeBarcodes[i].Portion}' ({activeBarcodes[i].BarcodeColumn}) and Portion '{activeBarcodes[j].Portion}' ({activeBarcodes[j].BarcodeColumn}) cannot have the same barcode value '{activeBarcodes[i].Value}'.";
+                        return false;
+                    }
+                }
+            }
+
+            // Global uniqueness check
+            if (_checkBarcodeExists is not null)
+            {
+                foreach (var (portion, bName, value) in activeBarcodes)
+                {
+                    var exists = Task.Run(async () => await _checkBarcodeExists(value)).GetAwaiter().GetResult();
+                    if (exists)
+                    {
+                        error = $"Barcode '{value}' used by Portion '{portion}' is already in use by another item.";
+                        return false;
+                    }
                 }
             }
         }
@@ -226,5 +451,4 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         error = string.Empty;
         return true;
     }
-
-    }
+}

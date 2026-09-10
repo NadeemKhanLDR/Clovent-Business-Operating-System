@@ -18,11 +18,15 @@ public sealed class OrderRepository(RestaurantDbContext dbContext) : IOrderRepos
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Order>> GetOpenAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Orders.Where(o => o.Status == OrderStatus.Open).ToListAsync(cancellationToken);
+        await dbContext.Orders
+            .Where(o => o.Status == OrderStatus.Open && dbContext.OrderLines.Any(l => l.OrderId == o.Id && !l.IsVoided && l.Quantity > 0))
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Order>> GetHeldAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Orders.Where(o => o.Status == OrderStatus.Held).ToListAsync(cancellationToken);
+        await dbContext.Orders
+            .Where(o => o.Status == OrderStatus.Held && dbContext.OrderLines.Any(l => l.OrderId == o.Id && !l.IsVoided && l.Quantity > 0))
+            .ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>

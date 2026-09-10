@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Drawing.Imaging;
 
 namespace Clovent.Desktop.Forms.Restaurant.MenuItems;
@@ -30,8 +31,39 @@ internal static class MenuItemImageStore
     public static void Save(Guid productId, Image image)
     {
         Directory.CreateDirectory(RootDirectory);
-        using var bitmap = new Bitmap(image);
-        bitmap.Save(GetPath(productId), ImageFormat.Png);
+        using var processed = CropAndResizeToSquare(image, 200);
+        processed.Save(GetPath(productId), ImageFormat.Png);
+    }
+
+    private static Image CropAndResizeToSquare(Image image, int targetSize)
+    {
+        int originalWidth = image.Width;
+        int originalHeight = image.Height;
+
+        // Calculate crop bounds for a centered square
+        int cropSize = Math.Min(originalWidth, originalHeight);
+        int cropX = (originalWidth - cropSize) / 2;
+        int cropY = (originalHeight - cropSize) / 2;
+
+        var targetBitmap = new Bitmap(targetSize, targetSize, PixelFormat.Format32bppArgb);
+        targetBitmap.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+        using (var graphics = Graphics.FromImage(targetBitmap))
+        {
+            graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+            using (var wrapMode = new ImageAttributes())
+            {
+                wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+                var destRect = new Rectangle(0, 0, targetSize, targetSize);
+                graphics.DrawImage(image, destRect, cropX, cropY, cropSize, cropSize, GraphicsUnit.Pixel, wrapMode);
+            }
+        }
+        return targetBitmap;
     }
 
     /// <summary>Removes <paramref name="productId"/>'s photo, if any. A no-op if none exists.</summary>

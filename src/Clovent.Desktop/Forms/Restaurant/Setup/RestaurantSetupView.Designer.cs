@@ -18,6 +18,12 @@ partial class RestaurantSetupView
     private readonly SimpleButton _saveLanguageButton = new() { Text = "Save Language" };
     private readonly LabelControl _languageStatusLabel = new();
 
+    private readonly ComboBoxEdit _itemsPerRowCombo = new();
+    private readonly RadioGroup _activeOrdersRadioGroup = new();
+    private readonly ComboBoxEdit _defaultPaymentMethodCombo = new();
+    private readonly SimpleButton _savePosButton = new() { Text = "Save POS Settings" };
+    private readonly LabelControl _posStatusLabel = new();
+
     #region Component Designer generated code
 
     /// <summary>
@@ -28,6 +34,9 @@ partial class RestaurantSetupView
     {
         ((System.ComponentModel.ISupportInitialize)_startingNumberEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_languageCombo.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_itemsPerRowCombo.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_activeOrdersRadioGroup.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_defaultPaymentMethodCombo.Properties).BeginInit();
         SuspendLayout();
 
         Dock = DockStyle.Fill;
@@ -37,9 +46,13 @@ partial class RestaurantSetupView
         //
         _prefixEdit.Name = "_prefixEdit";
         _prefixEdit.Width = 150;
+        _prefixEdit.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _prefixEdit.Properties.Appearance.Options.UseFont = true;
         _prefixEdit.EditValueChanged += PrefixEdit_EditValueChanged;
         _startingNumberEdit.Name = "_startingNumberEdit";
         _startingNumberEdit.Width = 150;
+        _startingNumberEdit.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _startingNumberEdit.Properties.Appearance.Options.UseFont = true;
         _startingNumberEdit.EditValueChanged += StartingNumberEdit_EditValueChanged;
         _saveButton.AutoSize = true;
         _saveButton.Name = "_saveButton";
@@ -94,6 +107,10 @@ partial class RestaurantSetupView
         _languageCombo.Name = "_languageCombo";
         _languageCombo.Width = 260;
         _languageCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _languageCombo.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _languageCombo.Properties.Appearance.Options.UseFont = true;
+        _languageCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 10F);
+        _languageCombo.Properties.AppearanceDropDown.Options.UseFont = true;
         _saveLanguageButton.AutoSize = true;
         _saveLanguageButton.Name = "_saveLanguageButton";
         _saveLanguageButton.Click += SaveLanguageButton_Click;
@@ -136,32 +153,115 @@ partial class RestaurantSetupView
         languageCard.Controls.Add(languageCardLayout);
 
         //
+        // POS Layout Settings Card
+        //
+        _itemsPerRowCombo.Name = "_itemsPerRowCombo";
+        _itemsPerRowCombo.Width = 120;
+        _itemsPerRowCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _itemsPerRowCombo.Properties.AutoHeight = true;
+        _itemsPerRowCombo.Properties.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+        _itemsPerRowCombo.Properties.Appearance.Options.UseFont = true;
+        _itemsPerRowCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 10F);
+        _itemsPerRowCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        for (int i = 4; i <= 8; i++)
+        {
+            _itemsPerRowCombo.Properties.Items.Add(i);
+        }
+
+        _activeOrdersRadioGroup.Name = "_activeOrdersRadioGroup";
+        _activeOrdersRadioGroup.Width = 280;
+        _activeOrdersRadioGroup.Height = 32;
+        _activeOrdersRadioGroup.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
+        _activeOrdersRadioGroup.Properties.Appearance.Options.UseFont = true;
+        _activeOrdersRadioGroup.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        _activeOrdersRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(false, "Show Active Orders"));
+        _activeOrdersRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem(true, "Hide Active Orders"));
+
+        _defaultPaymentMethodCombo.Name = "_defaultPaymentMethodCombo";
+        _defaultPaymentMethodCombo.Width = 180;
+        _defaultPaymentMethodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _defaultPaymentMethodCombo.Properties.AutoHeight = true;
+        _defaultPaymentMethodCombo.Properties.Appearance.Font = new Font("Segoe UI", 10F);
+        _defaultPaymentMethodCombo.Properties.Appearance.Options.UseFont = true;
+        _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 10F);
+        _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+
+        _savePosButton.AutoSize = true;
+        _savePosButton.Name = "_savePosButton";
+        _savePosButton.Click += SavePosButton_Click;
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_savePosButton, Clovent.Desktop.Forms.Base.DesktopIcons.Save);
+        _posStatusLabel.Name = "_posStatusLabel";
+
+        var posCard = BuildCard("POS Layout Settings");
+        var posCardLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 4,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink
+        };
+        posCardLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        posCardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        posCardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        posCardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        posCardLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var posForm = BuildFieldTable();
+        AddRow(posForm, "Items Per Row:", _itemsPerRowCombo);
+        AddRow(posForm, "Active Orders:", _activeOrdersRadioGroup);
+        AddRow(posForm, "Default Payment:", _defaultPaymentMethodCombo);
+
+        var posButtonRow = BuildButtonRow();
+        _posStatusLabel.Margin = new Padding(12, 8, 12, 0);
+        posButtonRow.Controls.Add(_posStatusLabel);
+        posButtonRow.Controls.Add(_savePosButton);
+
+        var posNote = BuildNote("Controls how many menu items are displayed in each row of the POS Grid view (4–8), whether Active Orders starts visible, and the default tender method.");
+        posNote.Dock = DockStyle.Fill;
+        var posInfoNote = BuildNote("The system also synchronizes Active Orders and Grid/List preferences automatically when toggled in the POS screen.");
+        posInfoNote.Dock = DockStyle.Fill;
+
+        posForm.Dock = DockStyle.Fill;
+        posButtonRow.Dock = DockStyle.Fill;
+
+        posCardLayout.Controls.Add(posForm, 0, 0);
+        posCardLayout.Controls.Add(posButtonRow, 0, 1);
+        posCardLayout.Controls.Add(posNote, 0, 2);
+        posCardLayout.Controls.Add(posInfoNote, 0, 3);
+        posCard.Controls.Add(posCardLayout);
+
+        //
         // RestaurantSetupView
         //
-        // Reverse add-order (bottom-most content added first) - the same
-        // convention this codebase's Dock-based layouts use throughout, so
-        // the Display Language card renders below Order Numbering.
         var layoutContainer = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
-            ColumnCount = 1,
+            ColumnCount = 2,
             RowCount = 2,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Padding = new Padding(16),
             Name = "layoutContainer"
         };
-        layoutContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        layoutContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        layoutContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
         layoutContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layoutContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         numberingCard.Dock = DockStyle.Fill;
-        numberingCard.Margin = new Padding(0, 0, 0, 16);
+        numberingCard.Margin = new Padding(0, 0, 8, 8);
         languageCard.Dock = DockStyle.Fill;
-        languageCard.Margin = new Padding(0);
+        languageCard.Margin = new Padding(8, 0, 0, 8);
+        posCard.Dock = DockStyle.Fill;
+        posCard.Margin = new Padding(8, 8, 0, 0);
 
         layoutContainer.Controls.Add(numberingCard, 0, 0);
-        layoutContainer.Controls.Add(languageCard, 0, 1);
+        layoutContainer.SetRowSpan(numberingCard, 2);
+        layoutContainer.Controls.Add(languageCard, 1, 0);
+        layoutContainer.Controls.Add(posCard, 1, 1);
 
         Controls.Add(layoutContainer);
         Name = "RestaurantSetupView";
@@ -172,6 +272,9 @@ partial class RestaurantSetupView
 
         ((System.ComponentModel.ISupportInitialize)_startingNumberEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_languageCombo.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_itemsPerRowCombo.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_activeOrdersRadioGroup.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_defaultPaymentMethodCombo.Properties).EndInit();
         ResumeLayout(false);
     }
 

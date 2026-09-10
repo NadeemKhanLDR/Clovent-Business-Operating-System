@@ -4,6 +4,7 @@ using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
 using Clovent.Restaurant.DiningAreas;
+using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
 using Xunit;
@@ -227,6 +228,7 @@ public class OrderHandlerTests
     {
         var repository = new FakeOrderRepository();
         var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        order.AddOrderLine(OrderLineId.New());
         repository.Add(order);
 
         var held = await new HoldOrderCommandHandler(repository).Handle(new HoldOrderCommand(order.Id.Value), CancellationToken.None);
@@ -234,6 +236,18 @@ public class OrderHandlerTests
 
         var resumed = await new ResumeOrderCommandHandler(repository).Handle(new ResumeOrderCommand(order.Id.Value), CancellationToken.None);
         Assert.Equal("Open", resumed.Status);
+    }
+
+    [Fact]
+    public async Task HoldOrderCommandHandler_EmptyOrder_ThrowsRestaurantDomainException()
+    {
+        var repository = new FakeOrderRepository();
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        repository.Add(order);
+
+        var handler = new HoldOrderCommandHandler(repository);
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() => handler.Handle(new HoldOrderCommand(order.Id.Value), CancellationToken.None));
+        Assert.Contains("has no items", ex.Message);
     }
 
     [Fact]
@@ -343,8 +357,12 @@ public class OrderHandlerTests
     public async Task ListOpenOrdersQueryHandler_FiltersToOpen()
     {
         var repository = new FakeOrderRepository();
-        repository.Add(Order.Create(OrderType.TakeAway, WarehouseId.New()));
+        var open = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        open.AddOrderLine(OrderLineId.New());
+        repository.Add(open);
+
         var held = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        held.AddOrderLine(OrderLineId.New());
         held.Hold();
         repository.Add(held);
 
@@ -357,8 +375,12 @@ public class OrderHandlerTests
     public async Task ListHeldOrdersQueryHandler_FiltersToHeld()
     {
         var repository = new FakeOrderRepository();
-        repository.Add(Order.Create(OrderType.TakeAway, WarehouseId.New()));
+        var open = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        open.AddOrderLine(OrderLineId.New());
+        repository.Add(open);
+
         var held = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        held.AddOrderLine(OrderLineId.New());
         held.Hold();
         repository.Add(held);
 
