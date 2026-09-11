@@ -77,6 +77,7 @@ public sealed partial class MainForm
         ("restaurantsetup", "Restaurant", "Setup", "Restaurant Setup"),
         ("paymentmethods", "Restaurant", "Setup", "Payment Methods"),
         ("activitylog", "Restaurant", "Closing", "Activity Log"),
+        ("shifts", "Restaurant", "Closing", "Shift History"),
         ("appearance", "Restaurant", "Setup", "Appearance"),
     ];
 

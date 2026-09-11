@@ -164,6 +164,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<PaymentMethodsView>();
         services.TryAddTransient<ActivityLogView>();
         services.TryAddTransient<AppearanceSettingsView>();
+        services.TryAddTransient<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>();
 
         return services;
     }

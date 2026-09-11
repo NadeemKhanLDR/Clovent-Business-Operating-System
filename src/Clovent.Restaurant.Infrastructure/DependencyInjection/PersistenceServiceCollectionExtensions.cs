@@ -13,6 +13,7 @@ using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
+using Clovent.Restaurant.Shifts;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -56,6 +57,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IActivityLogEntryRepository, ActivityLogEntryRepository>();
         services.TryAddScoped<ICustomerRepository, CustomerRepository>();
         services.TryAddScoped<ICustomerLedgerEntryRepository, CustomerLedgerEntryRepository>();
+        services.TryAddScoped<IShiftRepository, ShiftRepository>();
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 

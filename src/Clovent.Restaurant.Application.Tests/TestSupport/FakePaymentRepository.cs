@@ -15,6 +15,9 @@ internal sealed class FakePaymentRepository : IPaymentRepository
     public Task<IReadOnlyCollection<Payment>> GetByOrderIdAsync(OrderId orderId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Payment>>([.. _payments.Values.Where(p => p.OrderId == orderId)]);
 
+    public Task<IReadOnlyCollection<Payment>> GetByShiftIdAsync(Clovent.Restaurant.Shifts.ShiftId shiftId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<Payment>>([.. _payments.Values.Where(p => p.ShiftId == shiftId)]);
+
     public Task AddAsync(Payment payment, CancellationToken cancellationToken = default)
     {
         _payments[payment.Id] = payment;

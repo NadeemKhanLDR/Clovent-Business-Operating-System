@@ -1,4 +1,5 @@
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Shifts;
 
 namespace Clovent.Restaurant.Payments;
 
@@ -10,6 +11,9 @@ public interface IPaymentRepository
 
     /// <summary>Retrieves every payment recorded against an order.</summary>
     Task<IReadOnlyCollection<Payment>> GetByOrderIdAsync(OrderId orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves every payment recorded against a shift session.</summary>
+    Task<IReadOnlyCollection<Payment>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default);
 
     /// <summary>Adds a newly-recorded payment.</summary>
     Task AddAsync(Payment payment, CancellationToken cancellationToken = default);

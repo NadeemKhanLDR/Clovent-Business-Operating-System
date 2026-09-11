@@ -2,6 +2,7 @@ using Clovent.Domain;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments.Events;
+using Clovent.Restaurant.Shifts;
 
 namespace Clovent.Restaurant.Payments;
 
@@ -29,11 +30,14 @@ public sealed class Payment : AggregateRoot<PaymentId>
     /// <summary>Whether this payment has been voided - excluded from the order's paid total, but never physically removed once recorded.</summary>
     public bool IsVoided { get; private set; }
 
+    /// <summary>The shift session this payment was recorded in, if associated with an active shift.</summary>
+    public ShiftId? ShiftId { get; private set; }
+
     /// <summary>UTC instant this payment was recorded.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private Payment(PaymentId id, OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, bool isVoided, DateTimeOffset createdAtUtc)
+    private Payment(PaymentId id, OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, bool isVoided, DateTimeOffset createdAtUtc, ShiftId? shiftId = null)
     {
         Id = id;
         OrderId = orderId;
@@ -41,17 +45,18 @@ public sealed class Payment : AggregateRoot<PaymentId>
         Amount = amount;
         IsVoided = isVoided;
         CreatedAtUtc = createdAtUtc;
+        ShiftId = shiftId;
     }
 
     /// <summary>Records a new payment against the given order.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="amount"/> is not positive.</exception>
-    public static Payment Create(OrderId orderId, PaymentMethodId paymentMethodId, decimal amount)
+    public static Payment Create(OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, ShiftId? shiftId = null)
     {
         if (amount <= 0)
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Payment amount must be positive.");
 
         var now = DateTimeOffset.UtcNow;
-        var payment = new Payment(PaymentId.New(), orderId, paymentMethodId, amount, false, now);
+        var payment = new Payment(PaymentId.New(), orderId, paymentMethodId, amount, false, now, shiftId);
         payment.AddDomainEvent(new PaymentCreated(payment.Id, payment.OrderId, payment.PaymentMethodId, payment.Amount, now));
         return payment;
     }

@@ -17,6 +17,10 @@ public sealed class PaymentRepository(RestaurantDbContext dbContext) : IPaymentR
         await dbContext.Payments.Where(p => p.OrderId == orderId).ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
+    public async Task<IReadOnlyCollection<Payment>> GetByShiftIdAsync(Clovent.Restaurant.Shifts.ShiftId shiftId, CancellationToken cancellationToken = default) =>
+        await dbContext.Payments.Where(p => p.ShiftId == shiftId).ToListAsync(cancellationToken);
+
+    /// <inheritdoc/>
     public async Task AddAsync(Payment payment, CancellationToken cancellationToken = default) =>
         await dbContext.Payments.AddAsync(payment, cancellationToken);
 }

@@ -79,6 +79,9 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Customers management screen
         "customers",
+
+        // Shift management & register balancing
+        "shifts",
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
@@ -137,6 +140,9 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Customer management
         ("customers", ["create", "edit", "activate", "deactivate", "viewledger", "payment"]),
+
+        // Shift management & register balancing
+        ("shifts", ["open", "close", "cashmovement", "history", "viewdetails", "overridevariance"]),
     ];
 
     /// <inheritdoc/>

@@ -9,6 +9,7 @@ using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
+using Clovent.Restaurant.Shifts;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,6 +64,12 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
 
     /// <summary>CustomerLedgerEntry aggregates.</summary>
     public DbSet<CustomerLedgerEntry> CustomerLedgerEntries => Set<CustomerLedgerEntry>();
+
+    /// <summary>Shift aggregates.</summary>
+    public DbSet<Shift> Shifts => Set<Shift>();
+
+    /// <summary>CashMovement entities.</summary>
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

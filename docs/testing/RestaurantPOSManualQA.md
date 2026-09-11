@@ -216,9 +216,37 @@ This module's forms all load and behave correctly at actual runtime. All local f
 
 ---
 
+## 🕒 Shift Management & Cash Register Balancing (SHIFT-01 — SHIFT-20)
+
+| Test Case | Description | Expected Result | Status |
+|---|---|---|---|
+| **SHIFT-01** | **Open Shift Dialog Rendering** | Open `OpenShiftDialog` from Back Office ribbon or POS prompt. | Form renders terminal name, cashier name, starting cash float field, notes text edit, and Open Shift button cleanly with no clipping. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-02** | **Open Shift Execution** | Enter starting float 200.00, notes "Morning Shift", click Open Shift. | Creates new open `Shift` record, generates next sequential shift number (e.g. #1001), logs `ShiftOpened` activity record. | **PASS — AUTOMATED TEST** |
+| **SHIFT-03** | **Terminal Single Shift Guard** | Attempt to open a 2nd shift on the same terminal while a shift is open. | Blocked: "Terminal is already in use by active Shift #1001 opened by Cashier." | **PASS — AUTOMATED TEST** |
+| **SHIFT-04** | **Cashier Single Shift Guard** | Attempt to open a 2nd shift for the same cashier user on another terminal. | Blocked: "Cashier 'Name' already has an active Shift #1001 open on another terminal." | **PASS — AUTOMATED TEST** |
+| **SHIFT-05** | **POS Active Shift Check** | Record payment on POS when no active shift is open for current terminal/cashier. | Prompts cashier to open a shift; opens `OpenShiftDialog` and resumes payment flow upon opening. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-06** | **Payment Shift Association** | Record payment during active shift. | Payment record captures non-null `ShiftId`; ties payment to active shift session. | **PASS — AUTOMATED TEST** |
+| **SHIFT-07** | **Cash Movement Dialog Rendering** | Click "Cash Movement" in Shift History or POS. | Opens `CashMovementDialog` with CashIn / CashOut radio selection, amount spinner, reason combo/text, and Save button. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-08** | **Record CashIn Movement** | Record CashIn deposit of 50.00 with reason "Petty Cash Top-up". | Appends CashIn movement to active shift; updates drawer total; records `CashIn` activity log. | **PASS — AUTOMATED TEST** |
+| **SHIFT-09** | **Record CashOut Movement** | Record CashOut withdrawal of 30.00 with reason "Vendor Payout Drop". | Appends CashOut movement to active shift; updates drawer total; records `CashOut` activity log. | **PASS — AUTOMATED TEST** |
+| **SHIFT-10** | **Cash Movement Closed Shift Guard** | Attempt cash movement on a closed shift. | Blocked: "Cannot add cash movements to Shift #1001 because it is Closed." | **PASS — AUTOMATED TEST** |
+| **SHIFT-11** | **Shift Summary Calculation** | Query shift summary via `GetShiftSummaryQuery`. | Correctly computes $\text{Expected Cash} = \text{Starting Cash} + \text{CashIn} - \text{CashOut} + \text{Cash Sales}$ (excluding voided payments). | **PASS — AUTOMATED TEST** |
+| **SHIFT-12** | **Close Shift Dialog & Blind Count** | Click "Close Shift" on active shift session. | Opens `CloseShiftDialog` in Blind Cash Count mode (expected cash hidden); requires physical cash count entry. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-13** | **Balanced Shift Close** | Enter counted cash exactly equal to expected cash (0 variance). | Shift status transitions to `Closed`; `CashVariance = 0.00`; `VarianceReason` not required; logs `ShiftClosed` activity. | **PASS — AUTOMATED TEST** |
+| **SHIFT-14** | **Over/Short Shift Close with Variance** | Enter counted cash differing from expected cash (-10.00 shortage or +15.00 surplus). | Calculates variance (`Counted - Expected`); requires `VarianceReason`; saves reason and variance to shift. | **PASS — AUTOMATED TEST** |
+| **SHIFT-15** | **Close Shift Missing Variance Reason Guard** | Attempt to close shift with non-zero variance without providing variance reason. | Blocked: "Variance reason is required when counted cash differs from expected cash." | **PASS — AUTOMATED TEST** |
+| **SHIFT-16** | **Shift Status & Lifecycle Transition** | Verify shift after closing. | Status is `Closed`; `ClosedAtUtc` timestamp populated; shift cannot be closed again or modified. | **PASS — AUTOMATED TEST** |
+| **SHIFT-17** | **POS Post-Close Shift Check** | Attempt to record payment after shift closure. | Active shift check fails; prompts cashier to open a new shift for the new session. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-18** | **Shift History View & Filtering** | Navigate to Shift History in Back Office (Restaurant -> Closing -> Shift History). | Displays XtraGrid with shift list; filters by Date Range and Status (All / Open / Closed); Search box works. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-19** | **Shift Detail Inspection** | Double-click shift row in Shift History or click "View Details". | Opens `ShiftDetailDialog` displaying read-only shift metadata, financial breakdown cards, and cash movements grid. | **PASS — AUTOMATED TEST** (Live UI: PENDING MANUAL ACCEPTANCE) |
+| **SHIFT-20** | **Shift Management Authorization** | Verify menu key `"shifts"` and operations (`open`, `close`, `cashmovement`, `history`, `viewdetails`, `overridevariance`). | Gated by CBOS authorization system; permissions correctly seed in development startup task. | **PASS — AUTOMATED TEST** |
+
+---
+
 ## 🚀 Manual User Acceptance Pass (2026-09-11)
 
 All 30 core Restaurant POS workflows (Login, New Order, Product/Variant, Quantity, Notes, Duplicate Behavior, Delete, Void, Customer Association, Hold/Recall, Clear Cart, Dine-In, Take Away, Active Orders Rail, Animation Visibility, Cancel Order, Payment Methods, Amount Tendered, Keypad, Quick Cash, Record Payment, Split Payment, Print Bill Preview, Place Order/Complete, Sales History, Restart Persistence, 1024x768, 1366x768, Maximized, and Recall Dialog) were manually tested by the developer/user through the actual running desktop application and confirmed working.
 
 **MANUAL USER ACCEPTANCE STATUS: PASS**
+
 

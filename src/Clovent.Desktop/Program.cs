@@ -207,6 +207,7 @@ internal static class Program
             navigationService.Register("paymentmethods", () => host.Services.GetRequiredService<PaymentMethodsView>());
             navigationService.Register("activitylog", () => host.Services.GetRequiredService<ActivityLogView>());
             navigationService.Register("appearance", () => host.Services.GetRequiredService<AppearanceSettingsView>());
+            navigationService.Register("shifts", () => host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>());
 
             string? selectedModule = null;
             if (args.Any(a => string.Equals(a, "--pos", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-pos", StringComparison.OrdinalIgnoreCase)))

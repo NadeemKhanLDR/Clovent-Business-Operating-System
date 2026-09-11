@@ -5892,7 +5892,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                 continue;
             }
 
-            await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, false));
+            await EnsureShiftActiveOrPromptAsync();
+            await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, false, _activeShift?.ShiftId));
             remaining -= applied;
             await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName} (split)");
         }
@@ -6096,7 +6097,8 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
         }
 
-        await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved));
+        await EnsureShiftActiveOrPromptAsync();
+        await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId));
         await RefreshOrderAsync();
         await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
 
@@ -6122,6 +6124,31 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     /// <summary>Row shape for <see cref="_customerPicker"/>'s popup grid - <see cref="BalanceDisplay"/> is pre-formatted (via <see cref="CurrencyDisplay"/>) rather than a raw <see cref="decimal"/> since the popup grid has no currency-aware column type of its own.</summary>
     private sealed record CustomerPickerRow(Guid CustomerId, string Name, string Phone, string BalanceDisplay);
+
+    private Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? _activeShift;
+
+    private async Task<bool> EnsureShiftActiveOrPromptAsync()
+    {
+        var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        _activeShift = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(CashierId: cashierId));
+        if (_activeShift != null)
+        {
+            return true;
+        }
+
+        var branchId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var termId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var warehouseId = _warehousePicker.SelectedId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+
+        using var openDlg = new Clovent.Desktop.Restaurant.Shifts.OpenShiftDialog(_mediator, _currentSession, branchId, warehouseId, termId);
+        if (openDlg.ShowDialog(this) == DialogResult.OK && openDlg.OpenedShift != null)
+        {
+            _activeShift = openDlg.OpenedShift;
+            return true;
+        }
+
+        return false;
+    }
 
     private sealed record OrderLineRow(
         Guid OrderLineId,

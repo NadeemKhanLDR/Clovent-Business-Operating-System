@@ -9,6 +9,7 @@ using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.ServiceCharges;
+using Clovent.Restaurant.Shifts;
 using Clovent.Restaurant.Customers;
 using MediatR;
 
@@ -21,7 +22,7 @@ namespace Clovent.Restaurant.Application.Payments.Commands;
 /// doc comment - so this one command covers all three, not a special
 /// "split bill" command.
 /// </summary>
-public sealed record RecordPaymentCommand(Guid OrderId, Guid PaymentMethodId, decimal Amount, bool ExceedCreditLimitApproved = false) : IRequest<PaymentDto>;
+public sealed record RecordPaymentCommand(Guid OrderId, Guid PaymentMethodId, decimal Amount, bool ExceedCreditLimitApproved = false, Guid? ShiftId = null) : IRequest<PaymentDto>;
 
 /// <summary>Handles <see cref="RecordPaymentCommand"/>.</summary>
 public sealed class RecordPaymentCommandHandler(
@@ -98,7 +99,8 @@ public sealed class RecordPaymentCommandHandler(
             await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
         }
 
-        var payment = Payment.Create(orderId, paymentMethodId, request.Amount);
+        ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+        var payment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId);
         order.RecordPayment(payment.Id);
 
         await paymentRepository.AddAsync(payment, cancellationToken);

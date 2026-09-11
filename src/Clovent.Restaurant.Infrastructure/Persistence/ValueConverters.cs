@@ -182,4 +182,24 @@ internal static class ValueConverters
     /// <summary><see cref="CustomerLedgerEntryId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<CustomerLedgerEntryId, Guid> CustomerLedgerEntryIdConverter =
         new(id => id.Value, value => new CustomerLedgerEntryId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.Shifts.ShiftId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Shifts.ShiftId, Guid> ShiftIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.Shifts.ShiftId(value));
+
+    /// <summary>Nullable <see cref="Clovent.Restaurant.Shifts.ShiftId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Shifts.ShiftId?, Guid?> NullableShiftIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new Clovent.Restaurant.Shifts.ShiftId(value.Value));
+
+    /// <summary><see cref="Clovent.Restaurant.Shifts.CashMovementId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Shifts.CashMovementId, Guid> CashMovementIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.Shifts.CashMovementId(value));
+
+    /// <summary><see cref="Clovent.MasterData.Terminals.TerminalId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.MasterData.Terminals.TerminalId, Guid> TerminalIdConverter =
+        new(id => id.Value, value => new Clovent.MasterData.Terminals.TerminalId(value));
+
+    /// <summary><see cref="Clovent.Identity.Users.UserId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Identity.Users.UserId, Guid> UserIdConverter =
+        new(id => id.Value, value => new Clovent.Identity.Users.UserId(value));
 }
