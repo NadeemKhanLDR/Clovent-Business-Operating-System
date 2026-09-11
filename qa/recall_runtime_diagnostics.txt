@@ -1358,3 +1358,25 @@ FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
 ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
 CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
 ================================================
+=== RECALL ORDER DIALOG RUNTIME DIAGNOSTICS ===
+Timestamp: 2026-09-11 09:27:51.525
+Screen Bounds: 3840x2400
+Screen WorkingArea: 3840x2280
+Device DPI: 240
+DPI Scale Factor: 2.50x
+Dialog Bounds: {X=420,Y=215,Width=3000,Height=1850}
+Dialog Size: 3000x1850
+Dialog ClientSize: 2996x1766
+Dialog Location: {X=420,Y=215}
+Dialog AutoScaleMode: None
+Dialog FormBorderStyle: Sizable
+Dialog Font: Segoe UI 9pt
+SearchBar Bounds: {X=0,Y=0,Width=2972,Height=120}
+GridHost Bounds: {X=12,Y=264,Width=2972,Height=550}
+OrdersGridView RowHeight: 90, ColumnPanelRowHeight: 85
+PreviewPanel Bounds: {X=12,Y=814,Width=2972,Height=802}
+PreviewItemsGrid Bounds: {X=0,Y=0,Width=400,Height=200}
+FooterBar Bounds: {X=12,Y=1616,Width=2972,Height=140}
+ActionButton ('Recall Order') Bounds: {X=362,Y=8,Width=450,Height=100}, Enabled: False
+CloseButton Bounds: {X=6,Y=8,Width=325,Height=100}
+================================================

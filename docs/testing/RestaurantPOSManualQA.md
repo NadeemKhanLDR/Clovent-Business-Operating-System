@@ -213,3 +213,12 @@ This module's forms all load and behave correctly at actual runtime. All local f
 - [x] **Open all dialogs and forms in Visual Studio Designer** — Designer-safe by source refactoring (no lambdas, local functions, or custom method calls inside `InitializeComponent()`, parameterless constructors present); interactive Visual Studio Designer verification pending.
 
 **FINAL STATUS: NOT READY FOR FINAL UI SIGN-OFF**
+
+---
+
+## 🚀 Manual User Acceptance Pass (2026-09-11)
+
+All 30 core Restaurant POS workflows (Login, New Order, Product/Variant, Quantity, Notes, Duplicate Behavior, Delete, Void, Customer Association, Hold/Recall, Clear Cart, Dine-In, Take Away, Active Orders Rail, Animation Visibility, Cancel Order, Payment Methods, Amount Tendered, Keypad, Quick Cash, Record Payment, Split Payment, Print Bill Preview, Place Order/Complete, Sales History, Restart Persistence, 1024x768, 1366x768, Maximized, and Recall Dialog) were manually tested by the developer/user through the actual running desktop application and confirmed working.
+
+**MANUAL USER ACCEPTANCE STATUS: PASS**
+

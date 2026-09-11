@@ -35,6 +35,13 @@ This document lists identified technical debt, legacy references, hardcoded layo
 - **Risk/Impact:** SQLite does not strictly enforce column precisions (e.g., `HasPrecision(18, 4)` is ignored) and handles case-insensitivity differently, leading to potential differences in query behavior.
 - **Remediation Plan:** Maintain identical EF Core database providers or run nightly integration builds against a test SQL Server database instance.
 
+### 6. DailySalesSequence Concurrency & Multi-Terminal Locking
+- **Description:** `DailySalesSequence` generates per-day, per-warehouse sequential invoice numbers upon completed sales.
+- **Context:** Sequential gapless numbering relies on single-terminal database sequence increments without distributed pessimistic row locks.
+- **Risk/Impact:** Under high-concurrency multi-terminal simultaneous order completions, sequence collision or locking contention may occur.
+- **Remediation Plan:** Introduce a dedicated distributed locking sequence generator or database sproc-based sequence generator for high-concurrency multi-terminal environments.
+
+
 ---
 
 ## Resolved Debt (Moved to History)
