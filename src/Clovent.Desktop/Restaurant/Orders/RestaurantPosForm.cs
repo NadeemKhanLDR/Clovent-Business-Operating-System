@@ -4720,6 +4720,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             "Void",
             $"Voided order {_currentOrder.OrderNumber}. Reason: {form.Value}. " +
             $"Approved by manager '{authorization.ManagerDisplayName}'.");
+        await ReloadTablesAsync();
         await RefreshOrderAsync();
         await RefreshActiveOrdersAsync();
     }
@@ -4779,6 +4780,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             _currentOrder = null;
             _tablePicker.SelectId(null);
             _addQuantityEdit.Value = 1;
+            await ReloadTablesAsync();
             await RefreshOrderAsync();
             await RefreshActiveOrdersAsync();
             await ReloadMenuItemsAsync();

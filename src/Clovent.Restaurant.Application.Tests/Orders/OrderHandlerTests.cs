@@ -290,6 +290,68 @@ public class OrderHandlerTests
     }
 
     [Fact]
+    public async Task CancelOrderCommandHandler_DineIn_KeepsTableOccupied_WhenAnotherActiveOrderExists()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 4);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var order1 = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        var order2 = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepository.Add(order1);
+        orderRepository.Add(order2);
+
+        var result = await new CancelOrderCommandHandler(orderRepository, tableRepository)
+            .Handle(new CancelOrderCommand(order1.Id.Value, "Cancel Order 1"), CancellationToken.None);
+
+        Assert.Equal("Cancelled", result.Status);
+        Assert.Equal("Occupied", table.OccupancyStatus.ToString());
+    }
+
+    [Fact]
+    public async Task VoidOrderCommandHandler_DineIn_KeepsTableOccupied_WhenAnotherActiveOrderExists()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-03"), 4);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var order1 = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        var order2 = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepository.Add(order1);
+        orderRepository.Add(order2);
+
+        var paymentRepository = new FakePaymentRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var ledgerRepository = new FakeCustomerLedgerEntryRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+
+        var result = await new VoidOrderCommandHandler(orderRepository, tableRepository, paymentRepository, customerRepository, ledgerRepository, paymentMethodRepository)
+            .Handle(new VoidOrderCommand(order1.Id.Value, "Void Order 1"), CancellationToken.None);
+
+        Assert.Equal("Voided", result.Status);
+        Assert.Equal("Occupied", table.OccupancyStatus.ToString());
+    }
+
+    [Fact]
+    public async Task TakeAwayOrder_DoesNotOccupyTable()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        tableRepository.Add(table);
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        orderRepository.Add(order);
+
+        Assert.Null(order.TableId);
+        Assert.Equal("Available", table.OccupancyStatus.ToString());
+    }
+
+    [Fact]
     public async Task ReopenOrderCommandHandler_DineIn_ReoccupiesTable()
     {
         var orderRepository = new FakeOrderRepository();

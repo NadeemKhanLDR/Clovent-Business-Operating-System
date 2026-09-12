@@ -22,8 +22,12 @@ public sealed class CancelOrderCommandHandler(IOrderRepository orderRepository, 
 
         if (order.TableId is { } tableId)
         {
-            var table = await tableRepository.GetByIdAsync(tableId, cancellationToken);
-            table?.Vacate();
+            var activeOrders = await orderRepository.GetOpenOrHeldByTableIdAsync(tableId, cancellationToken);
+            if (!activeOrders.Any(o => o.Id != order.Id))
+            {
+                var table = await tableRepository.GetByIdAsync(tableId, cancellationToken);
+                table?.Vacate();
+            }
         }
 
         return OrderDto.FromDomain(order);

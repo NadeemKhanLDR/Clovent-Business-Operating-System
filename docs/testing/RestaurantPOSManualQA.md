@@ -250,3 +250,37 @@ All 30 core Restaurant POS workflows (Login, New Order, Product/Variant, Quantit
 **MANUAL USER ACCEPTANCE STATUS: PASS**
 
 
+
+---
+
+## 🔐 POS PIN Login (2026-09-12)
+
+PIN login lets a cashier open Restaurant POS with only a PIN. Configure via Back Office → Administration → Users → Set PIN. See "POS PIN Login" in `12 Restaurant POS/12.01 Restaurant POS Overview.md`.
+
+| ID | Scenario | Steps | Expected | Status |
+|---|---|---|---|---|
+| PIN-01 | Configure PIN | Users → select cashier → Set PIN → enter/confirm valid PIN | Success message; PIN stored hashed (never displayed again) | PENDING |
+| PIN-02 | Valid PIN POS login | Sign out → leave Username/Password empty → enter PIN → click POS | Restaurant POS opens | PENDING |
+| PIN-03 | Invalid PIN | Enter a PIN not assigned to anyone → click POS | Stays on Sign In with generic invalid-credentials error | PENDING |
+| PIN-04 | Inactive user | Deactivate a user with a PIN → attempt PIN login | Authentication refused | PENDING |
+| PIN-05 | Duplicate PIN | Assign a PIN already used by another user | Blocked with "already in use" error | PENDING |
+| PIN-06 | Username/Password regression | Sign in conventionally (username+password) | Works exactly as before | PENDING |
+| PIN-07 | Session identity | After PIN login, check POS cashier display | Shows the PIN's actual user (not Administrator) | PENDING |
+| PIN-08 | Permission preservation | PIN-login a cashier without Back Office permissions → click BACK OFFICE | Denied with no-permission error | PENDING |
+| PIN-09 | Shift identity | PIN-login cashier → open/observe shift | Shift records the authenticated cashier | PENDING |
+| PIN-10 | Restart / persistence | Restart app → PIN login again | PIN still valid (stored hash persists) | PENDING |
+
+---
+
+## 🪑 Table Occupancy State & Cancellation QA (2026-09-12)
+
+| ID | Scenario | Steps | Expected Result | Status |
+|---|---|---|---|---|
+| TABLE-01 | Dine-In Active Seating | Open POS → Select Dine-In → Select T-03 → Add item. | Table T-03 occupancy status updates to `Occupied` in DB and UI (`T-03 (Occupied)`). | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| TABLE-02 | Dine-In Order Cancellation | Create Dine-In order on T-03 → Cancel Order → Confirm cancellation. | Order status becomes `Cancelled`; table T-03 occupancy status becomes `Available`; table picker UI immediately reloads and shows `T-03 (Available)`. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| TABLE-03 | Order Completion | Create Dine-In order on T-01 → Record payment → Complete order. | Order status becomes `Completed`; table T-01 becomes `Available`; table picker shows `T-01 (Available)`. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| TABLE-04 | Order Voiding | Create Dine-In order on T-02 → Void Order → Provide reason & authorization. | Order status becomes `Voided`; table T-02 becomes `Available`; table picker shows `T-02 (Available)`. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| TABLE-05 | Take Away Order | Open POS → Select Take Away. | Table picker is disabled (`Table: None`); no table occupancy is modified or assigned. | PASS — AUTOMATED TEST |
+| TABLE-06 | Multi-Order Protection | Create Order A on T-03 and Order B on T-03 → Cancel Order A. | T-03 remains `Occupied` because Order B is still active on T-03. | PASS — AUTOMATED TEST |
+| TABLE-07 | Restart & Persistence | Cancel order on T-03 → Restart application → Re-open POS. | T-03 remains `Available` in database and UI upon reopening POS. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+
