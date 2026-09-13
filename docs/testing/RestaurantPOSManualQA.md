@@ -284,3 +284,23 @@ PIN login lets a cashier open Restaurant POS with only a PIN. Configure via Back
 | TABLE-06 | Multi-Order Protection | Create Order A on T-03 and Order B on T-03 → Cancel Order A. | T-03 remains `Occupied` because Order B is still active on T-03. | PASS — AUTOMATED TEST |
 | TABLE-07 | Restart & Persistence | Cancel order on T-03 → Restart application → Re-open POS. | T-03 remains `Available` in database and UI upon reopening POS. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
 
+---
+
+## 🍽️ POS Menu Item Eligibility & Category Count Reconciliation QA (2026-09-13)
+
+| ID | Scenario | Steps | Expected Result | Status |
+|---|---|---|---|---|
+| MENU-COUNT-01 | All Menu Count | Launch Restaurant POS → Observe All Menu tile button count. | All Menu count equals total eligible active products with active variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-02 | Beverages Count | Click Beverages category button. | Beverages count matches active eligible items in Beverages category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-03 | Bread Count | Click Bread category button. | Bread count matches active eligible items in Bread category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-04 | Chicken Count | Click Chicken category button. | Chicken count matches active eligible items in Chicken category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-05 | Karahi Count | Click Karahi category button. | Karahi count matches active eligible items in Karahi category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-06 | Snacks Count | Click Snacks category button. | Snacks count matches active eligible items in Snacks category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-07 | Uncategorized / Other Handling | Observe Uncategorized category tab if items with no category exist. | Displays Uncategorized tab with correct item count; sum of visible categories equals All Menu count. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-08 | Inactive Item Handling | Deactivate a product or variant in Back Office → Refresh POS. | Inactive item is excluded from both All Menu count and category counts. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-09 | Pagination Consistency | Switch pages on All Menu or Category view using Next/Previous. | Total item count remains constant across page switches; items match page bounds. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-10 | Search Filtering | Type search query in POS search box. | Filtered count matches eligible items containing search text; no inactive items returned. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-11 | Back Office vs POS Reconciliation | Compare master data active items in Back Office vs POS All Menu. | All active items in Back Office are fully accounted for by POS category tabs. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| MENU-COUNT-12 | Category Switching | Click between Beverages, Bread, Main Course, and All Menu. | Grid refreshes immediately with correct items for selected category; no stale items. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+
+

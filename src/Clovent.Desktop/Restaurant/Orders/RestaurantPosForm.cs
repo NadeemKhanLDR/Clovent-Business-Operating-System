@@ -3226,7 +3226,18 @@ public sealed partial class RestaurantPosForm : XtraForm
         // re-entered RefreshOrderAsync and looped, rebinding the grid and totals
         // repeatedly (the runtime blinking). Same guard CustomerPicker_SelectionChanged
         // already uses.
-        if (_isRefreshingOrder) return;
+        if (_isRefreshingOrder)
+        {
+            // A genuine user click that landed inside a refresh window must not
+            // leave the dropdown showing a table the order was never moved to -
+            // snap the display back to the table the current order occupies. The
+            // in-flight refresh's own SelectId then re-affirms it.
+            if (_currentOrder?.TableId is { } tableId && _tablePicker.SelectedId != tableId)
+            {
+                _tablePicker.SelectId(tableId);
+            }
+            return;
+        }
 
         await TryRunAsync(OnTableSelectedAsync, "select this table");
     }
@@ -3508,7 +3519,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _variantsById[variant.ProductVariantId] = variant;
         }
-        _activeVariants = [.. variants.Where(v => v.Status == "Active").OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
+        _activeVariants = [.. variants.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active")).OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
 
         var products = await _mediator.Send(new ListProductsQuery());
         _productNamesById.Clear();
@@ -3560,11 +3571,25 @@ public sealed partial class RestaurantPosForm : XtraForm
             ? _loadedCategories.OrderBy(c => c.ColorHex ?? "zzz").ThenBy(c => c.SortOrder).ThenBy(c => c.Name)
             : _loadedCategories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name);
 
+        var activeCategoryIds = _loadedCategories.Select(c => c.ProductCategoryId).ToHashSet();
+
         foreach (var category in ordered)
         {
             int count = _activeVariants.Where(v => v.ProductCategoryId == category.ProductCategoryId).Select(v => v.ProductId).Distinct().Count();
             var card = BuildCategoryCard(category.ProductCategoryId, category.Name, CategoryIcon(category.Name), count);
             _categoryButtonsPanel.Controls.Add(card);
+        }
+
+        int uncategorizedCount = _activeVariants
+            .Where(v => !v.ProductCategoryId.HasValue || !activeCategoryIds.Contains(v.ProductCategoryId.Value))
+            .Select(v => v.ProductId)
+            .Distinct()
+            .Count();
+
+        if (uncategorizedCount > 0)
+        {
+            var uncategorizedCard = BuildCategoryCard(Guid.Empty, "Uncategorized", "🏷️", uncategorizedCount);
+            _categoryButtonsPanel.Controls.Add(uncategorizedCard);
         }
 
         _categoryButtonsPanel.ResumeLayout(true);
@@ -3784,11 +3809,19 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         var searchText = _productSearchEdit.Text?.Trim();
 
-        IEnumerable<ProductVariantDto> filtered = _variantsById.Values;
+        IEnumerable<ProductVariantDto> filtered = _variantsById.Values.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active"));
 
         if (_selectedCategoryId.HasValue)
         {
-            filtered = filtered.Where(v => v.ProductCategoryId == _selectedCategoryId.Value);
+            if (_selectedCategoryId.Value == Guid.Empty)
+            {
+                var activeCategoryIds = _loadedCategories.Select(c => c.ProductCategoryId).ToHashSet();
+                filtered = filtered.Where(v => !v.ProductCategoryId.HasValue || !activeCategoryIds.Contains(v.ProductCategoryId.Value));
+            }
+            else
+            {
+                filtered = filtered.Where(v => v.ProductCategoryId == _selectedCategoryId.Value);
+            }
         }
 
         if (!string.IsNullOrEmpty(searchText))
@@ -4473,16 +4506,37 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Table has NO order seated (it is Available):
         if (_currentOrder != null && _currentOrder.OrderType == "DineIn" && _currentOrder.TableId != tableId)
         {
+            // Only Reserved/OutOfService block the transfer here. A persisted
+            // "Occupied" flag with no live order is drift (the orders are the
+            // authority - see CreateOrderCommandHandler); the transfer command
+            // self-heals that flag, so blocking on it is what produced the
+            // "Table Unavailable" flip-flop between picker and header.
             var tables = await _mediator.Send(new ListAllTablesQuery());
             var targetTable = tables.FirstOrDefault(t => t.TableId == tableId);
-            if (targetTable != null && targetTable.OccupancyStatus != "Available")
+            if (targetTable != null && targetTable.OccupancyStatus is "Reserved" or "OutOfService")
             {
                 XtraMessageBox.Show(this, $"Table {targetTable.Code} is {targetTable.OccupancyStatus} and cannot receive this order.", "Table Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 _tablePicker.SelectId(_currentOrder.TableId);
                 return;
             }
 
-            _currentOrder = await _mediator.Send(new TransferOrderTableCommand(_currentOrder.OrderId, tableId));
+            try
+            {
+                _currentOrder = await _mediator.Send(new TransferOrderTableCommand(_currentOrder.OrderId, tableId));
+            }
+            catch (Exception ex)
+            {
+                // The command rejected the switch (occupied table, closed order,
+                // out-of-service table). Nothing was persisted - snap the picker
+                // back to the table the order still occupies so the header and
+                // the dropdown cannot disagree.
+                _logger.LogError(ex, "Table switch rejected for order {OrderId} to table {TableId}", _currentOrder.OrderId, tableId);
+                XtraMessageBox.Show(this, ex.Message, "Table Switch Rejected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                await ReloadTablesAsync();
+                _tablePicker.SelectId(_currentOrder.TableId);
+                return;
+            }
+
             await RefreshOrderAsync();
             return;
         }
@@ -4849,7 +4903,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             _currentOrder = await _mediator.Send(new TransferOrderTableCommand(_currentOrder!.OrderId, form.NewTableId!.Value));
-            _tablePicker.SelectId(_currentOrder.TableId);
+            // RefreshOrderAsync ends with ReloadTablesAsync, which reloads the
+            // picker's items (now showing the new occupancy) and selects the
+            // order's new table - selecting here first would render against a
+            // stale item list.
             await RefreshOrderAsync();
         }
     }
