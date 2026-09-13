@@ -195,7 +195,7 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         await SeedMultiVariantProductAsync(
             "Chicken Karahi",
             "CHICKEN-KARAHI",
-            "Main Course",
+            "Karahi",
             "Desi-Chicken-Karahi.jpg",
             [("Standard", 1200m, "STD", "888888880000")], // keep standard barcode 0001 or standard 0000
             each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
@@ -258,7 +258,7 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         await SeedMultiVariantProductAsync(
             "Chicken Koyla Karahi",
             "CHICKEN-KOYLA-KARAHI",
-            "Main Course",
+            "Karahi",
             "Desi-Chicken-Karahi.jpg", // closest appropriate existing image
             [
                 ("Half Plate", 350m, "HALF", "888888880015"),
@@ -282,7 +282,7 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         await SeedMultiVariantProductAsync(
             "Salad",
             "SALAD",
-            "Main Course",
+            "Salads",
             "SALAD-RAITA.jpg",
             [("Standard", 30m, "STD", "888888880019")],
             each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);

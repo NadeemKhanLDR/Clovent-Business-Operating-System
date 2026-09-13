@@ -303,4 +303,24 @@ PIN login lets a cashier open Restaurant POS with only a PIN. Configure via Back
 | MENU-COUNT-11 | Back Office vs POS Reconciliation | Compare master data active items in Back Office vs POS All Menu. | All active items in Back Office are fully accounted for by POS category tabs. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
 | MENU-COUNT-12 | Category Switching | Click between Beverages, Bread, Main Course, and All Menu. | Grid refreshes immediately with correct items for selected category; no stale items. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
 
+---
+
+## 🍲 Restaurant POS Menu Category Assignment QA (2026-09-13)
+
+| ID | Scenario | Steps | Expected Result | Status |
+|---|---|---|---|---|
+| CATEGORY-ASSIGN-01 | Chicken Karahi Assignment | Open POS → Click Karahi category tab. | Chicken Karahi is listed under Karahi tab with standard price (1200). | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-02 | Chicken Koyla Karahi Assignment | Open POS → Click Karahi category tab. | Chicken Koyla Karahi is listed under Karahi tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-03 | Salad Assignment | Open POS → Click Salads category tab. | Salad is listed under Salads tab with price (30). | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-04 | White Daal Mash Assignment | Open POS → Click Main Course category tab. | White Daal Mash is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-05 | Aloo Chicken Qorma Assignment | Open POS → Click Main Course category tab. | Aloo Chicken Qorma is listed under Main Course tab. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-06 | Chicken Biryani Assignment | Open POS → Click Main Course category tab. | Chicken Biryani is listed under Main Course tab. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-07 | Chicken Haleem Assignment | Open POS → Click Main Course category tab. | Chicken Haleem is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-08 | Murgh Chanay Assignment | Open POS → Click Main Course category tab. | Murgh Chanay is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-09 | Aloo Gobi Assignment | Open POS → Click Main Course category tab. | Aloo Gobi is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-10 | Uncategorized Tab Count | Open POS → Observe category rail tabs. | Uncategorized item count is 0; Uncategorized tab is not displayed. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-11 | Multi-Variant Preservation | Open POS → Inspect Half/Full variants for Daal, Haleem, Murgh Chanay, Koyla Karahi, Aloo Gobi. | All 2 variants for each multi-variant item are preserved under assigned category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-ASSIGN-12 | Category Total Reconciliation | Open POS → Sum visible category counts: Beverages (2) + Bread (3) + Snacks (1) + Karahi (2) + Main Course (6) + Salads (1). | Category count sum equals 15, matching All Menu total. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+
+
 
