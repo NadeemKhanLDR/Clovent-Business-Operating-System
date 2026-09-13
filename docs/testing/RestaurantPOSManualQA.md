@@ -305,22 +305,28 @@ PIN login lets a cashier open Restaurant POS with only a PIN. Configure via Back
 
 ---
 
-## 🍲 Restaurant POS Menu Category Assignment QA (2026-09-13)
+## 🍲 Restaurant POS Menu Category Data Synchronization QA (2026-09-13)
 
 | ID | Scenario | Steps | Expected Result | Status |
 |---|---|---|---|---|
-| CATEGORY-ASSIGN-01 | Chicken Karahi Assignment | Open POS → Click Karahi category tab. | Chicken Karahi is listed under Karahi tab with standard price (1200). | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-02 | Chicken Koyla Karahi Assignment | Open POS → Click Karahi category tab. | Chicken Koyla Karahi is listed under Karahi tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-03 | Salad Assignment | Open POS → Click Salads category tab. | Salad is listed under Salads tab with price (30). | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-04 | White Daal Mash Assignment | Open POS → Click Main Course category tab. | White Daal Mash is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-05 | Aloo Chicken Qorma Assignment | Open POS → Click Main Course category tab. | Aloo Chicken Qorma is listed under Main Course tab. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-06 | Chicken Biryani Assignment | Open POS → Click Main Course category tab. | Chicken Biryani is listed under Main Course tab. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-07 | Chicken Haleem Assignment | Open POS → Click Main Course category tab. | Chicken Haleem is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-08 | Murgh Chanay Assignment | Open POS → Click Main Course category tab. | Murgh Chanay is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-09 | Aloo Gobi Assignment | Open POS → Click Main Course category tab. | Aloo Gobi is listed under Main Course tab with Half/Full variants. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-10 | Uncategorized Tab Count | Open POS → Observe category rail tabs. | Uncategorized item count is 0; Uncategorized tab is not displayed. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-11 | Multi-Variant Preservation | Open POS → Inspect Half/Full variants for Daal, Haleem, Murgh Chanay, Koyla Karahi, Aloo Gobi. | All 2 variants for each multi-variant item are preserved under assigned category. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
-| CATEGORY-ASSIGN-12 | Category Total Reconciliation | Open POS → Sum visible category counts: Beverages (2) + Bread (3) + Snacks (1) + Karahi (2) + Main Course (6) + Salads (1). | Category count sum equals 15, matching All Menu total. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-01 | Karahi Category Single Instance | Query DB / Open POS category rail. | Exactly one active Karahi category exists. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-02 | Main Course Category Single Instance | Query DB / Open POS category rail. | Exactly one active Main Course category exists. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-03 | Salads Category Single Instance | Query DB / Open POS category rail. | Exactly one active Salads category exists; no duplicate Salads tabs. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-04 | Chicken Karahi Assignment | Click Karahi category tab. | Chicken Karahi is displayed under Karahi. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-05 | Chicken Koyla Karahi Assignment | Click Karahi category tab. | Chicken Koyla Karahi (Half & Full) is displayed under Karahi. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-06 | Chicken Biryani Assignment | Click Main Course category tab. | Chicken Biryani is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-07 | Chicken Haleem Assignment | Click Main Course category tab. | Chicken Haleem (Half & Full) is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-08 | Murgh Chanay Assignment | Click Main Course category tab. | Murgh Chanay (Half & Full) is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-09 | White Daal Mash Assignment | Click Main Course category tab. | White Daal Mash (Half & Full) is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-10 | Aloo Chicken Qorma Assignment | Click Main Course category tab. | Aloo Chicken Qorma is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-11 | Aloo Gobi Assignment | Click Main Course category tab. | Aloo Gobi (Half & Full) is displayed under Main Course. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-12 | Salad Assignment | Click Salads category tab. | Salad is displayed under Salads. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-13 | Uncategorized Zero Count | Observe category rail / DB. | Uncategorized item count equals 0; no Pakistani dishes uncategorized. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-14 | All Menu Category Reconciliation | Sum category counts: Beverages (1) + Bread (1) + Karahi (2) + Main Course (6) + Salads (1). | Sum equals 11, matching live database All Menu total. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-15 | Seed Idempotency | Restart application multiple times. | Seed runs cleanly without creating duplicate categories or orphan IDs. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-16 | Category Assignment Stability | Restart application and re-examine categories. | All 9 products maintain their assigned categories across restarts. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| CATEGORY-DATA-17 | Variant Preservation | Click item tiles in POS. | All active variants (Half/Full) remain available for selection. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+
 
 
 

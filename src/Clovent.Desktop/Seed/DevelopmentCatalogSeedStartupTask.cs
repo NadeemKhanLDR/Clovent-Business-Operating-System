@@ -179,15 +179,10 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         }
         await catalogDbContext.SaveChangesAsync(cancellationToken);
 
-        // Create Main Course Category if not exists
-        var mainCourseCategory = (await categoryRepository.GetAllAsync(cancellationToken))
-            .FirstOrDefault(c => string.Equals(c.Name.Value, "Main Course", StringComparison.OrdinalIgnoreCase))
-            ?? ProductCategory.Create(ProductCategoryName.Create("Main Course"));
-        if (mainCourseCategory.Id.Value == Guid.Empty)
-        {
-            await categoryRepository.AddAsync(mainCourseCategory, cancellationToken);
-            await catalogDbContext.SaveChangesAsync(cancellationToken);
-        }
+        // Resolve or create canonical target categories cleanly and idempotently
+        var mainCourseCategory = await GetOrCreateCategoryAsync("Main Course", cancellationToken);
+        var karahiCategory = await GetOrCreateCategoryAsync("Karahi", cancellationToken);
+        var saladsCategory = await GetOrCreateCategoryAsync("Salads", cancellationToken);
 
         // Seed/Update target menu items
 
@@ -195,107 +190,141 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         await SeedMultiVariantProductAsync(
             "Chicken Karahi",
             "CHICKEN-KARAHI",
-            "Karahi",
+            karahiCategory,
             "Desi-Chicken-Karahi.jpg",
-            [("Standard", 1200m, "STD", "888888880000")], // keep standard barcode 0001 or standard 0000
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            [("Standard", 1200m, "STD", "888888880000")],
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 2. White Daal Mash (Half: 220, Full: 340)
         await SeedMultiVariantProductAsync(
             "White Daal Mash",
             "WHITE-DAAL-MASH",
-            "Main Course",
+            mainCourseCategory,
             "WHITE-DAAL-MASH.jpg",
             [
                 ("Half Plate", 220m, "HALF", "888888880002"),
                 ("Full Plate", 340m, "FULL", "888888880003")
             ],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 3. Aloo Chicken Qorma (Standard: 650)
         await SeedMultiVariantProductAsync(
             "Aloo Chicken Qorma",
             "ALOO-CHICKEN-QORMA",
-            "Main Course",
+            mainCourseCategory,
             "ALOO-CHICKEN-QORMA.jpg",
             [("Standard", 650m, "STD", "888888880004")],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 4. Chicken Biryani (Standard: 450)
         await SeedMultiVariantProductAsync(
             "Chicken Biryani",
             "CHICKEN-BIRYANI",
-            "Main Course",
+            mainCourseCategory,
             "CHICKEN-BIRYANI.jpg",
             [("Standard", 450m, "STD", "888888880005")],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 5. Chicken Haleem (Half: 260, Full: 420)
         await SeedMultiVariantProductAsync(
             "Chicken Haleem",
             "CHICKEN-HALEEM",
-            "Main Course",
+            mainCourseCategory,
             "Chicken-Haleem.jpg",
             [
                 ("Half Plate", 260m, "HALF", "888888880011"),
                 ("Full Plate", 420m, "FULL", "888888880012")
             ],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 6. Murgh Chanay (Half: 260, Full: 400)
         await SeedMultiVariantProductAsync(
             "Murgh Chanay",
             "MURGH-CHANAY",
-            "Main Course",
+            mainCourseCategory,
             "MURGH-CHANAY.jpg",
             [
                 ("Half Plate", 260m, "HALF", "888888880013"),
                 ("Full Plate", 400m, "FULL", "888888880014")
             ],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 7. Chicken Koyla Karahi (Half: 350, Full: 550)
         await SeedMultiVariantProductAsync(
             "Chicken Koyla Karahi",
             "CHICKEN-KOYLA-KARAHI",
-            "Karahi",
-            "Desi-Chicken-Karahi.jpg", // closest appropriate existing image
+            karahiCategory,
+            "Desi-Chicken-Karahi.jpg",
             [
                 ("Half Plate", 350m, "HALF", "888888880015"),
                 ("Full Plate", 550m, "FULL", "888888880016")
             ],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 8. Aloo Gobi (Half: 250, Full: 380)
         await SeedMultiVariantProductAsync(
             "Aloo Gobi",
             "ALOO-GOBI",
-            "Main Course",
-            "", // no genuinely suitable image
+            mainCourseCategory,
+            "",
             [
                 ("Half Plate", 250m, "HALF", "888888880017"),
                 ("Full Plate", 380m, "FULL", "888888880018")
             ],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
 
         // 9. Salad (Price: 30)
         await SeedMultiVariantProductAsync(
             "Salad",
             "SALAD",
-            "Salads",
+            saladsCategory,
             "SALAD-RAITA.jpg",
             [("Standard", 30m, "STD", "888888880019")],
-            each, mainCourseCategory, group, brand, currency, existingProducts, cancellationToken);
+            each, group, brand, currency, existingProducts, cancellationToken);
+    }
+
+    private async Task<ProductCategory> GetOrCreateCategoryAsync(string categoryName, CancellationToken cancellationToken)
+    {
+        var cats = await categoryRepository.GetAllAsync(cancellationToken);
+        var canonical = cats.FirstOrDefault(c => string.Equals(c.Name.Value, categoryName, StringComparison.OrdinalIgnoreCase));
+        if (canonical is null)
+        {
+            canonical = ProductCategory.Create(ProductCategoryName.Create(categoryName));
+            await categoryRepository.AddAsync(canonical, cancellationToken);
+            await catalogDbContext.SaveChangesAsync(cancellationToken);
+        }
+        else
+        {
+            // Deduplicate if multiple active categories with the same name exist in DB
+            var duplicates = cats
+                .Where(c => c.Id != canonical.Id && c.Status == CatalogStatus.Active && string.Equals(c.Name.Value, categoryName, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (duplicates.Count > 0)
+            {
+                var allProducts = await productRepository.GetAllAsync(cancellationToken);
+                foreach (var dup in duplicates)
+                {
+                    var dupProducts = allProducts.Where(p => p.CategoryId == dup.Id).ToList();
+                    foreach (var p in dupProducts)
+                    {
+                        p.SetCategory(canonical.Id);
+                    }
+                    dup.Deactivate();
+                }
+                await catalogDbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
+        return canonical;
     }
 
     private async Task SeedMultiVariantProductAsync(
         string productName,
         string sku,
-        string categoryName,
+        ProductCategory category,
         string imageName,
         (string Name, decimal Price, string SkuSuffix, string Barcode)[] portions,
         UnitOfMeasure each,
-        ProductCategory defaultCategory,
         ProductGroup group,
         Brand brand,
         Currency currency,
@@ -307,20 +336,6 @@ public sealed class DevelopmentCatalogSeedStartupTask(
             p.Sku.Value == "DAAL-MASH" && sku == "WHITE-DAAL-MASH" ||
             string.Equals(p.Name.Value, productName, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(p.Name.Value, "Daal Mash", StringComparison.OrdinalIgnoreCase) && productName == "White Daal Mash");
-
-        ProductCategory category = defaultCategory;
-        if (categoryName != "Main Course")
-        {
-            var cats = await categoryRepository.GetAllAsync(cancellationToken);
-            category = cats.FirstOrDefault(c => string.Equals(c.Name.Value, categoryName, StringComparison.OrdinalIgnoreCase))
-                ?? ProductCategory.Create(ProductCategoryName.Create(categoryName));
-            
-            if (category.Id.Value == Guid.Empty || !cats.Contains(category))
-            {
-                await categoryRepository.AddAsync(category, cancellationToken);
-                await catalogDbContext.SaveChangesAsync(cancellationToken);
-            }
-        }
 
         if (product is null)
         {

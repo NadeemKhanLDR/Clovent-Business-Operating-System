@@ -3571,11 +3571,26 @@ public sealed partial class RestaurantPosForm : XtraForm
             ? _loadedCategories.OrderBy(c => c.ColorHex ?? "zzz").ThenBy(c => c.SortOrder).ThenBy(c => c.Name)
             : _loadedCategories.OrderBy(c => c.SortOrder).ThenBy(c => c.Name);
 
+        var distinctCategories = ordered
+            .GroupBy(c => c.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+
         var activeCategoryIds = _loadedCategories.Select(c => c.ProductCategoryId).ToHashSet();
 
-        foreach (var category in ordered)
+        foreach (var category in distinctCategories)
         {
-            int count = _activeVariants.Where(v => v.ProductCategoryId == category.ProductCategoryId).Select(v => v.ProductId).Distinct().Count();
+            var matchingCategoryIds = _loadedCategories
+                .Where(c => string.Equals(c.Name.Trim(), category.Name.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(c => c.ProductCategoryId)
+                .ToHashSet();
+
+            int count = _activeVariants
+                .Where(v => v.ProductCategoryId.HasValue && matchingCategoryIds.Contains(v.ProductCategoryId.Value))
+                .Select(v => v.ProductId)
+                .Distinct()
+                .Count();
+
             var card = BuildCategoryCard(category.ProductCategoryId, category.Name, CategoryIcon(category.Name), count);
             _categoryButtonsPanel.Controls.Add(card);
         }

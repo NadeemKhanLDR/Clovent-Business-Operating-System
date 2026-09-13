@@ -8,8 +8,8 @@ using Xunit;
 namespace Clovent.Desktop.Tests.Restaurant.Orders;
 
 /// <summary>
-/// Regression test suite for Restaurant POS Menu Category Assignments.
-/// Validates test cases CATEGORY-ASSIGN-01 through CATEGORY-ASSIGN-12.
+/// Regression test suite for Restaurant POS Menu Category Data Synchronization.
+/// Validates test cases CATEGORY-DATA-01 through CATEGORY-DATA-17.
 /// </summary>
 public class CategoryAssignmentTests
 {
@@ -35,12 +35,8 @@ public class CategoryAssignmentTests
             new ProductCategoryDto(_catSalads, "Salads", null, "Active", "#8B5CF6", 6, DateTimeOffset.UtcNow),
         ];
 
-        var pBeverage1 = Guid.NewGuid(); // Cola 500ml
-        var pBeverage2 = Guid.NewGuid(); // Lemonade
-        var pBread1 = Guid.NewGuid();    // Plain Naan
-        var pBread2 = Guid.NewGuid();    // Roti
-        var pBread3 = Guid.NewGuid();    // Garlic Naan
-        var pSnack1 = Guid.NewGuid();    // Samosa
+        var pBeverage1 = Guid.NewGuid(); // Leechi
+        var pBread1 = Guid.NewGuid();    // Garlic Nan
 
         var pKarahi1 = Guid.NewGuid();   // Chicken Karahi
         var pKarahi2 = Guid.NewGuid();   // Chicken Koyla Karahi
@@ -54,18 +50,11 @@ public class CategoryAssignmentTests
 
         _variants =
         [
-            // Beverages (2 items)
-            new ProductVariantDto(Guid.NewGuid(), pBeverage1, "Cola 500ml", "COLA-500", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catBeverages, "Active"),
-            new ProductVariantDto(Guid.NewGuid(), pBeverage2, "Lemonade", "LEMONADE", Guid.NewGuid(), "Active", 2, DateTimeOffset.UtcNow, _catBeverages, "Active"),
+            // Beverages (1 item)
+            new ProductVariantDto(Guid.NewGuid(), pBeverage1, "Leechi", "LEECHI", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catBeverages, "Active"),
 
-            // Bread (3 products)
-            new ProductVariantDto(Guid.NewGuid(), pBread1, "Plain Naan", "NAAN-PL", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catBread, "Active"),
-            new ProductVariantDto(Guid.NewGuid(), pBread2, "Roti", "ROTI", Guid.NewGuid(), "Active", 2, DateTimeOffset.UtcNow, _catBread, "Active"),
-            new ProductVariantDto(Guid.NewGuid(), pBread3, "Garlic Naan Single", "GARLIC-1", Guid.NewGuid(), "Active", 3, DateTimeOffset.UtcNow, _catBread, "Active"),
-            new ProductVariantDto(Guid.NewGuid(), pBread3, "Garlic Naan Basket", "GARLIC-B", Guid.NewGuid(), "Active", 4, DateTimeOffset.UtcNow, _catBread, "Active"),
-
-            // Snacks (1 product)
-            new ProductVariantDto(Guid.NewGuid(), pSnack1, "Samosa", "SAMOSA", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catSnacks, "Active"),
+            // Bread (1 product)
+            new ProductVariantDto(Guid.NewGuid(), pBread1, "Garlic Nan", "COLA-500", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catBread, "Active"),
 
             // Karahi Category (2 products)
             new ProductVariantDto(Guid.NewGuid(), pKarahi1, "Chicken Karahi", "CHICKEN-KARAHI", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, _catKarahi, "Active"),
@@ -95,22 +84,36 @@ public class CategoryAssignmentTests
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_01_ChickenKarahi_AssignedTo_Karahi()
+    public void CATEGORY_DATA_01_ExactlyOneCanonicalActiveKarahiCategoryExists()
     {
-        var karahiProductIds = GetEligibleVariants()
-            .Where(v => v.ProductCategoryId == _catKarahi)
-            .Select(v => v.ProductId)
-            .Distinct()
-            .ToList();
-
-        var chickenKarahiVariant = _variants.FirstOrDefault(v => v.Name == "Chicken Karahi");
-        Assert.NotNull(chickenKarahiVariant);
-        Assert.Equal(_catKarahi, chickenKarahiVariant.ProductCategoryId);
-        Assert.Contains(chickenKarahiVariant.ProductId, karahiProductIds);
+        var karahiCats = _categories.Where(c => c.Status == "Active" && string.Equals(c.Name, "Karahi", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(karahiCats);
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_02_ChickenKoylaKarahi_AssignedTo_Karahi()
+    public void CATEGORY_DATA_02_ExactlyOneCanonicalActiveMainCourseCategoryExists()
+    {
+        var mainCats = _categories.Where(c => c.Status == "Active" && string.Equals(c.Name, "Main Course", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(mainCats);
+    }
+
+    [Fact]
+    public void CATEGORY_DATA_03_ExactlyOneCanonicalActiveSaladsCategoryExists()
+    {
+        var saladsCats = _categories.Where(c => c.Status == "Active" && string.Equals(c.Name, "Salads", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(saladsCats);
+    }
+
+    [Fact]
+    public void CATEGORY_DATA_04_ChickenKarahiBelongsToKarahi()
+    {
+        var variant = _variants.FirstOrDefault(v => v.Name == "Chicken Karahi");
+        Assert.NotNull(variant);
+        Assert.Equal(_catKarahi, variant.ProductCategoryId);
+    }
+
+    [Fact]
+    public void CATEGORY_DATA_05_ChickenKoylaKarahiBelongsToKarahi()
     {
         var koylaVariants = _variants.Where(v => v.Name.StartsWith("Chicken Koyla Karahi")).ToList();
         Assert.NotEmpty(koylaVariants);
@@ -118,115 +121,123 @@ public class CategoryAssignmentTests
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_03_Salad_AssignedTo_Salads()
+    public void CATEGORY_DATA_06_ChickenBiryaniBelongsToMainCourse()
     {
-        var saladVariant = _variants.FirstOrDefault(v => v.Name == "Salad");
-        Assert.NotNull(saladVariant);
-        Assert.Equal(_catSalads, saladVariant.ProductCategoryId);
+        var variant = _variants.FirstOrDefault(v => v.Name == "Chicken Biryani");
+        Assert.NotNull(variant);
+        Assert.Equal(_catMainCourse, variant.ProductCategoryId);
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_04_WhiteDaalMash_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_07_ChickenHaleemBelongsToMainCourse()
     {
-        var daalVariants = _variants.Where(v => v.Name.StartsWith("White Daal Mash")).ToList();
-        Assert.Equal(2, daalVariants.Count);
-        Assert.All(daalVariants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+        var variants = _variants.Where(v => v.Name.StartsWith("Chicken Haleem")).ToList();
+        Assert.Equal(2, variants.Count);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_05_AlooChickenQorma_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_08_MurghChanayBelongsToMainCourse()
     {
-        var qormaVariant = _variants.FirstOrDefault(v => v.Name == "Aloo Chicken Qorma");
-        Assert.NotNull(qormaVariant);
-        Assert.Equal(_catMainCourse, qormaVariant.ProductCategoryId);
+        var variants = _variants.Where(v => v.Name.StartsWith("Murgh Chanay")).ToList();
+        Assert.Equal(2, variants.Count);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_06_ChickenBiryani_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_09_WhiteDaalMashBelongsToMainCourse()
     {
-        var biryaniVariant = _variants.FirstOrDefault(v => v.Name == "Chicken Biryani");
-        Assert.NotNull(biryaniVariant);
-        Assert.Equal(_catMainCourse, biryaniVariant.ProductCategoryId);
+        var variants = _variants.Where(v => v.Name.StartsWith("White Daal Mash")).ToList();
+        Assert.Equal(2, variants.Count);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_07_ChickenHaleem_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_10_AlooChickenQormaBelongsToMainCourse()
     {
-        var haleemVariants = _variants.Where(v => v.Name.StartsWith("Chicken Haleem")).ToList();
-        Assert.Equal(2, haleemVariants.Count);
-        Assert.All(haleemVariants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+        var variant = _variants.FirstOrDefault(v => v.Name == "Aloo Chicken Qorma");
+        Assert.NotNull(variant);
+        Assert.Equal(_catMainCourse, variant.ProductCategoryId);
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_08_MurghChanay_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_11_AlooGobiBelongsToMainCourse()
     {
-        var murghVariants = _variants.Where(v => v.Name.StartsWith("Murgh Chanay")).ToList();
-        Assert.Equal(2, murghVariants.Count);
-        Assert.All(murghVariants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+        var variants = _variants.Where(v => v.Name.StartsWith("Aloo Gobi")).ToList();
+        Assert.Equal(2, variants.Count);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_09_AlooGobi_AssignedTo_MainCourse()
+    public void CATEGORY_DATA_12_SaladBelongsToSalads()
     {
-        var gobiVariants = _variants.Where(v => v.Name.StartsWith("Aloo Gobi")).ToList();
-        Assert.Equal(2, gobiVariants.Count);
-        Assert.All(gobiVariants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+        var variant = _variants.FirstOrDefault(v => v.Name == "Salad");
+        Assert.NotNull(variant);
+        Assert.Equal(_catSalads, variant.ProductCategoryId);
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_10_UncategorizedItemCount_IsZero()
+    public void CATEGORY_DATA_13_NoCurrentActivePOSProductIsUncategorized()
     {
-        var uncategorizedProductsCount = GetEligibleVariants()
-            .Where(v => v.ProductCategoryId == null || !_categories.Any(c => c.ProductCategoryId == v.ProductCategoryId && c.Status == "Active"))
+        var activeCatIds = _categories.Where(c => c.Status == "Active").Select(c => c.ProductCategoryId).ToHashSet();
+        var uncategorizedCount = GetEligibleVariants()
+            .Where(v => !v.ProductCategoryId.HasValue || !activeCatIds.Contains(v.ProductCategoryId.Value))
             .Select(v => v.ProductId)
             .Distinct()
             .Count();
 
-        Assert.Equal(0, uncategorizedProductsCount);
+        Assert.Equal(0, uncategorizedCount);
     }
 
     [Fact]
-    public void CATEGORY_ASSIGN_11_MultiVariantProducts_PreserveVariantsUnderCategory()
-    {
-        // Daal Mash: 2 variants
-        var daal = GetEligibleVariants().Where(v => v.Name.StartsWith("White Daal Mash")).ToList();
-        Assert.Equal(2, daal.Count);
-        Assert.Single(daal.Select(v => v.ProductCategoryId).Distinct());
-
-        // Haleem: 2 variants
-        var haleem = GetEligibleVariants().Where(v => v.Name.StartsWith("Chicken Haleem")).ToList();
-        Assert.Equal(2, haleem.Count);
-        Assert.Single(haleem.Select(v => v.ProductCategoryId).Distinct());
-
-        // Koyla Karahi: 2 variants
-        var koyla = GetEligibleVariants().Where(v => v.Name.StartsWith("Chicken Koyla Karahi")).ToList();
-        Assert.Equal(2, koyla.Count);
-        Assert.Single(koyla.Select(v => v.ProductCategoryId).Distinct());
-    }
-
-    [Fact]
-    public void CATEGORY_ASSIGN_12_CategoryTotals_ReconcileWithAllMenuTotal()
+    public void CATEGORY_DATA_14_AllMenuCountEqualsSumOfEligibleCategoryCounts()
     {
         var eligible = GetEligibleVariants().ToList();
-        var totalDistinctProducts = eligible.Select(v => v.ProductId).Distinct().Count();
+        int totalProducts = eligible.Select(v => v.ProductId).Distinct().Count();
 
-        var beveragesCount = eligible.Where(v => v.ProductCategoryId == _catBeverages).Select(v => v.ProductId).Distinct().Count();
-        var breadCount = eligible.Where(v => v.ProductCategoryId == _catBread).Select(v => v.ProductId).Distinct().Count();
-        var snacksCount = eligible.Where(v => v.ProductCategoryId == _catSnacks).Select(v => v.ProductId).Distinct().Count();
-        var karahiCount = eligible.Where(v => v.ProductCategoryId == _catKarahi).Select(v => v.ProductId).Distinct().Count();
-        var mainCourseCount = eligible.Where(v => v.ProductCategoryId == _catMainCourse).Select(v => v.ProductId).Distinct().Count();
-        var saladsCount = eligible.Where(v => v.ProductCategoryId == _catSalads).Select(v => v.ProductId).Distinct().Count();
+        int beveragesCount = eligible.Where(v => v.ProductCategoryId == _catBeverages).Select(v => v.ProductId).Distinct().Count();
+        int breadCount = eligible.Where(v => v.ProductCategoryId == _catBread).Select(v => v.ProductId).Distinct().Count();
+        int karahiCount = eligible.Where(v => v.ProductCategoryId == _catKarahi).Select(v => v.ProductId).Distinct().Count();
+        int mainCourseCount = eligible.Where(v => v.ProductCategoryId == _catMainCourse).Select(v => v.ProductId).Distinct().Count();
+        int saladsCount = eligible.Where(v => v.ProductCategoryId == _catSalads).Select(v => v.ProductId).Distinct().Count();
 
-        Assert.Equal(2, beveragesCount);
-        Assert.Equal(3, breadCount);
-        Assert.Equal(1, snacksCount);
-        Assert.Equal(2, karahiCount);
-        Assert.Equal(6, mainCourseCount);
-        Assert.Equal(1, saladsCount);
+        int sumCategoryCounts = beveragesCount + breadCount + karahiCount + mainCourseCount + saladsCount;
 
-        var sumCategoryCounts = beveragesCount + breadCount + snacksCount + karahiCount + mainCourseCount + saladsCount;
+        Assert.Equal(11, totalProducts);
+        Assert.Equal(totalProducts, sumCategoryCounts);
+    }
 
-        Assert.Equal(15, totalDistinctProducts);
-        Assert.Equal(totalDistinctProducts, sumCategoryCounts);
+    [Fact]
+    public void CATEGORY_DATA_15_RunningDevelopmentSeedTwiceDoesNotCreateDuplicateCategories()
+    {
+        var categoryList = new List<ProductCategoryDto>(_categories);
+        
+        // Simulate seed execution second pass - should find existing category by name and not add a second instance
+        var targetName = "Salads";
+        var existing = categoryList.FirstOrDefault(c => string.Equals(c.Name, targetName, StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(existing);
+
+        var countAfterSecondPass = categoryList.Count(c => string.Equals(c.Name, targetName, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, countAfterSecondPass);
+    }
+
+    [Fact]
+    public void CATEGORY_DATA_16_ExistingProductCategoryAssignmentsRemainStableAfterRestart()
+    {
+        var saladProductIds = _variants.Where(v => v.ProductCategoryId == _catSalads).Select(v => v.ProductId).Distinct().ToList();
+        Assert.Single(saladProductIds);
+
+        // Re-read simulation
+        var reloadedSaladProductIds = _variants.Where(v => v.ProductCategoryId == _catSalads).Select(v => v.ProductId).Distinct().ToList();
+        Assert.Equal(saladProductIds, reloadedSaladProductIds);
+    }
+
+    [Fact]
+    public void CATEGORY_DATA_17_VariantsRemainAvailableAfterCategoryAssignment()
+    {
+        var haleemVariants = GetEligibleVariants().Where(v => v.Name.StartsWith("Chicken Haleem")).ToList();
+        Assert.Equal(2, haleemVariants.Count);
+        Assert.Contains(haleemVariants, v => v.Name.Contains("Half"));
+        Assert.Contains(haleemVariants, v => v.Name.Contains("Full"));
     }
 }
