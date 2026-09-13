@@ -72,6 +72,9 @@ public sealed class DevelopmentCatalogSeedStartupTask(
     /// <inheritdoc/>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
+        // Unconditionally enforce target category assignments on application startup
+        await EnsurePakistaniCuisineCategoryAssignmentsAsync(cancellationToken);
+
         if (options.Value.SeedDevelopmentCatalogData)
         {
             var existingProducts = await productRepository.GetAllAsync(cancellationToken);
@@ -131,8 +134,54 @@ public sealed class DevelopmentCatalogSeedStartupTask(
             }
         }
 
-        // Seed/Update target Pakistani dishes UNCONDITIONALLY on startup!
         await SeedPakistaniCuisineDishesAsync(cancellationToken);
+    }
+
+    private async Task EnsurePakistaniCuisineCategoryAssignmentsAsync(CancellationToken cancellationToken)
+    {
+        var mainCourseCategory = await GetOrCreateCategoryAsync("Main Course", cancellationToken);
+        var karahiCategory = await GetOrCreateCategoryAsync("Karahi", cancellationToken);
+        var saladsCategory = await GetOrCreateCategoryAsync("Salads", cancellationToken);
+
+        var existingProducts = await productRepository.GetAllAsync(cancellationToken);
+
+        var targetAssignments = new (string ProductName, string Sku, ProductCategory Category)[]
+        {
+            ("Chicken Karahi", "CHICKEN-KARAHI", karahiCategory),
+            ("Chicken Koyla Karahi", "CHICKEN-KOYLA-KARAHI", karahiCategory),
+            ("White Daal Mash", "WHITE-DAAL-MASH", mainCourseCategory),
+            ("Aloo Chicken Qorma", "ALOO-CHICKEN-QORMA", mainCourseCategory),
+            ("Chicken Biryani", "CHICKEN-BIRYANI", mainCourseCategory),
+            ("Chicken Haleem", "CHICKEN-HALEEM", mainCourseCategory),
+            ("Murgh Chanay", "MURGH-CHANAY", mainCourseCategory),
+            ("Aloo Gobi", "ALOO-GOBI", mainCourseCategory),
+            ("Salad", "SALAD", saladsCategory),
+        };
+
+        bool changesMade = false;
+
+        foreach (var (productName, sku, category) in targetAssignments)
+        {
+            var product = existingProducts.FirstOrDefault(p =>
+                p.Sku.Value == sku ||
+                p.Sku.Value == "DAAL-MASH" && sku == "WHITE-DAAL-MASH" ||
+                string.Equals(p.Name.Value, productName, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(p.Name.Value, "Daal Mash", StringComparison.OrdinalIgnoreCase) && productName == "White Daal Mash");
+
+            if (product is not null)
+            {
+                if (product.CategoryId != category.Id)
+                {
+                    product.SetCategory(category.Id);
+                    changesMade = true;
+                }
+            }
+        }
+
+        if (changesMade)
+        {
+            await catalogDbContext.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task SeedPakistaniCuisineDishesAsync(CancellationToken cancellationToken)

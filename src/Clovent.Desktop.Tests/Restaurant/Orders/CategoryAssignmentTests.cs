@@ -240,4 +240,124 @@ public class CategoryAssignmentTests
         Assert.Contains(haleemVariants, v => v.Name.Contains("Half"));
         Assert.Contains(haleemVariants, v => v.Name.Contains("Full"));
     }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_01_ChickenKarahiAssignedToKarahiCategory()
+    {
+        var variant = _variants.FirstOrDefault(v => v.Name == "Chicken Karahi");
+        Assert.NotNull(variant);
+        Assert.Equal(_catKarahi, variant.ProductCategoryId);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_02_ChickenKoylaKarahiAssignedToKarahiCategory()
+    {
+        var koylaVariants = _variants.Where(v => v.Name.StartsWith("Chicken Koyla Karahi")).ToList();
+        Assert.NotEmpty(koylaVariants);
+        Assert.All(koylaVariants, v => Assert.Equal(_catKarahi, v.ProductCategoryId));
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_03_WhiteDaalMashAssignedToMainCourseCategory()
+    {
+        var variants = _variants.Where(v => v.Name.StartsWith("White Daal Mash")).ToList();
+        Assert.NotEmpty(variants);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_04_AlooChickenQormaAssignedToMainCourseCategory()
+    {
+        var variant = _variants.FirstOrDefault(v => v.Name == "Aloo Chicken Qorma");
+        Assert.NotNull(variant);
+        Assert.Equal(_catMainCourse, variant.ProductCategoryId);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_05_ChickenBiryaniAssignedToMainCourseCategory()
+    {
+        var variant = _variants.FirstOrDefault(v => v.Name == "Chicken Biryani");
+        Assert.NotNull(variant);
+        Assert.Equal(_catMainCourse, variant.ProductCategoryId);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_06_ChickenHaleemAssignedToMainCourseCategory()
+    {
+        var variants = _variants.Where(v => v.Name.StartsWith("Chicken Haleem")).ToList();
+        Assert.NotEmpty(variants);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_07_MurghChanayAssignedToMainCourseCategory()
+    {
+        var variants = _variants.Where(v => v.Name.StartsWith("Murgh Chanay")).ToList();
+        Assert.NotEmpty(variants);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_08_AlooGobiAssignedToMainCourseCategory()
+    {
+        var variants = _variants.Where(v => v.Name.StartsWith("Aloo Gobi")).ToList();
+        Assert.NotEmpty(variants);
+        Assert.All(variants, v => Assert.Equal(_catMainCourse, v.ProductCategoryId));
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_09_SaladAssignedToSaladsCategory()
+    {
+        var variant = _variants.FirstOrDefault(v => v.Name == "Salad");
+        Assert.NotNull(variant);
+        Assert.Equal(_catSalads, variant.ProductCategoryId);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_10_KarahiCategoryCountEqualsTwo()
+    {
+        var count = GetEligibleVariants().Where(v => v.ProductCategoryId == _catKarahi).Select(v => v.ProductId).Distinct().Count();
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_11_MainCourseCategoryCountEqualsSix()
+    {
+        var count = GetEligibleVariants().Where(v => v.ProductCategoryId == _catMainCourse).Select(v => v.ProductId).Distinct().Count();
+        Assert.Equal(6, count);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_12_SaladsCategoryCountEqualsOne()
+    {
+        var count = GetEligibleVariants().Where(v => v.ProductCategoryId == _catSalads).Select(v => v.ProductId).Distinct().Count();
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_13_UncategorizedCategoryCountEqualsZero()
+    {
+        var activeCatIds = _categories.Where(c => c.Status == "Active").Select(c => c.ProductCategoryId).ToHashSet();
+        var count = GetEligibleVariants().Where(v => !v.ProductCategoryId.HasValue || !activeCatIds.Contains(v.ProductCategoryId.Value)).Select(v => v.ProductId).Distinct().Count();
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_14_AllMenuCountEqualsEleven()
+    {
+        var count = GetEligibleVariants().Select(v => v.ProductId).Distinct().Count();
+        Assert.Equal(11, count);
+    }
+
+    [Fact]
+    public void CATEGORY_REGRESSION_15_SeedTaskIsIdempotentAcrossMultipleStarts()
+    {
+        var categoryList = new List<ProductCategoryDto>(_categories);
+        var targetName = "Karahi";
+        var existing = categoryList.FirstOrDefault(c => string.Equals(c.Name, targetName, StringComparison.OrdinalIgnoreCase));
+        Assert.NotNull(existing);
+
+        var countAfterSecondPass = categoryList.Count(c => string.Equals(c.Name, targetName, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(1, countAfterSecondPass);
+    }
 }
