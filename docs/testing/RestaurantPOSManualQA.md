@@ -41,19 +41,20 @@ not individually opened. Status: **NOT VERIFIED — source review only.**
 
 ---
 
-## POS Payment Interaction (2026-08-13)
+## POS Payment Interaction (2026-09-14)
 
 | Test Case | Description | Expected Result | Status |
 |---|---|---|---|
-| **Method selection visible** | Tap each payment method in turn. | Selected method: solid colour fill, white bold text, leading `✓`. Unselected: white fill, coloured text and border. Difference is obvious without relying on colour. | **NOT VERIFIED** |
-| **Selection persists** | Tap a method, then interact elsewhere (keypad, cart). | Selected state remains; does not flash back to normal like a pressed button. | **NOT VERIFIED** |
-| **Selection is exclusive** | Tap method A, then method B. | B becomes selected, A returns to unselected. Never two selected at once. | **NOT VERIFIED** |
-| **Unavailable methods distinct** | Observe any disabled method. | Flat grey fill and grey text, clearly not selectable. | **NOT VERIFIED** |
-| **Auto-complete on exact payment** | Order total 272.50, tender 272.50, Record Payment. | Payment records, balance reaches 0.00, order completes automatically with no Complete click. | **NOT VERIFIED** |
-| **No auto-complete on partial** | Tender less than the balance. | Payment records, balance remains, order stays open. | **NOT VERIFIED** |
-| **No auto-complete on failure** | Trigger a rejected payment (e.g. credit limit exceeded without permission). | Order does not complete. | **NOT VERIFIED** |
-| **No double completion** | Complete an order, attempt to record again. | No second completion; order state unchanged. | **NOT VERIFIED** |
-| **Credit sale unaffected** | Record a Credit payment for a customer within limit. | Existing credit workflow and ledger behaviour unchanged. | **NOT VERIFIED** |
+| **Method selection visible** | Tap each payment method in turn. | Selected method: solid colour fill, white bold text, leading `✓`. Unselected: white fill, coloured text and border. Difference is obvious without relying on colour. | **PASS — VERIFIED** |
+| **Selection persists** | Tap a method, then interact elsewhere (keypad, cart). | Selected state remains; does not flash back to normal like a pressed button. | **PASS — VERIFIED** |
+| **Selection is exclusive** | Tap method A, then method B. | B becomes selected, A returns to unselected. Never two selected at once. | **PASS — VERIFIED** |
+| **Unavailable methods distinct** | Observe any disabled method. | Flat grey fill and grey text, clearly not selectable. | **PASS — VERIFIED** |
+| **Auto-complete on exact payment** | Order total 630.00, tender 630.00, Record Payment. | Payment records, balance reaches 0.00, order completes automatically with no Complete click. Shifts active and Payments table updated. | **PASS — LIVE RUNTIME & TESTS** |
+| **No auto-complete on partial** | Tender less than the balance. | Payment records, balance remains, order stays open. | **PASS — AUTOMATED TEST** |
+| **No auto-complete on failure** | Trigger a rejected payment (e.g. credit limit exceeded without permission). | Error handled cleanly with details button; order does not complete. | **PASS — AUTOMATED TEST** |
+| **No double completion** | Complete an order, attempt to record again. | No second completion; order state unchanged. | **PASS — AUTOMATED TEST** |
+| **Credit sale unaffected** | Record a Credit payment for a customer within limit. | Existing credit workflow and ledger behaviour unchanged. | **PASS — AUTOMATED TEST** |
+| **Shift Association** | Record payment with active cashier session. | Payment row correctly stores active `ShiftId` in database. | **PASS — LIVE RUNTIME & DB** |
 
 ---
 

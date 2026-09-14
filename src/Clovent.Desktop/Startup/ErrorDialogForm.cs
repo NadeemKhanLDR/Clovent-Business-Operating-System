@@ -25,7 +25,8 @@ public sealed partial class ErrorDialogForm : XtraForm
     /// <summary>Builds the dialog for the given exception.</summary>
     /// <param name="exception">The exception to display.</param>
     /// <param name="context">Optional short description of where the exception was caught.</param>
-    public ErrorDialogForm(Exception exception, string? context) : base()
+    /// <param name="customMessage">Optional custom friendly message to display in the main label.</param>
+    public ErrorDialogForm(Exception exception, string? context, string? customMessage = null) : base()
     {
         InitializeComponent();
 
@@ -36,11 +37,18 @@ public sealed partial class ErrorDialogForm : XtraForm
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
-        var summary = context is null
-            ? "An unexpected error occurred."
-            : $"An unexpected error occurred ({context}).";
+        if (!string.IsNullOrWhiteSpace(customMessage))
+        {
+            _messageLabel.Text = customMessage;
+        }
+        else
+        {
+            var summary = context is null
+                ? "An unexpected error occurred."
+                : $"An unexpected error occurred ({context}).";
 
-        _messageLabel.Text = $"{summary}\n\n{exception.Message}";
+            _messageLabel.Text = $"{summary}\n\n{exception.Message}";
+        }
         _detailsMemo.Text = exception.ToString();
     }
 

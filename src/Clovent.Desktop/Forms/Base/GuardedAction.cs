@@ -36,12 +36,20 @@ public static class GuardedAction
         {
             logger.LogError(ex, "Action failed: {Action}", actionDescription);
 
-            XtraMessageBox.Show(
-                owner,
-                $"Unable to {actionDescription}.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nPlease try again.",
-                "Action Failed",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
+            var message = $"Unable to {actionDescription}.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nPlease try again.";
+            using (var dlg = new ErrorDialogForm(ex, null, message))
+            {
+                dlg.Text = "Action Failed";
+                if (owner is Form ownerForm && !ownerForm.IsDisposed && ownerForm.IsHandleCreated)
+                {
+                    dlg.ShowDialog(ownerForm);
+                }
+                else
+                {
+                    dlg.StartPosition = FormStartPosition.CenterScreen;
+                    dlg.ShowDialog();
+                }
+            }
 
             if (onFailureResync is null)
             {

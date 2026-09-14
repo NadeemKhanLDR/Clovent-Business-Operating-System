@@ -136,4 +136,127 @@ public sealed class RuntimeVerificationTests
             Assert.True(svg is not null, $"Icon URI '{uri}' did not resolve to an SVG image.");
         }
     }
+
+    [Fact]
+    public async Task RestaurantPos_LoadQueries_SucceedsWithoutException()
+    {
+        var (mediator, session) = await ConnectAsAdminAsync();
+        
+        await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(mediator);
+        var warehouses = await mediator.Send(new Clovent.MasterData.Application.Warehouses.Queries.ListAllWarehousesQuery());
+        Assert.NotNull(warehouses);
+
+        var variants = await mediator.Send(new Clovent.Catalog.Application.Variants.Queries.ListProductVariantsQuery());
+        Assert.NotNull(variants);
+
+        var products = await mediator.Send(new Clovent.Catalog.Application.Products.Queries.ListProductsQuery());
+        Assert.NotNull(products);
+
+        var prices = await mediator.Send(new Clovent.Catalog.Application.Prices.Queries.ListActiveProductPricesByTypeQuery(Clovent.Catalog.Prices.PriceType.Selling));
+        Assert.NotNull(prices);
+
+        var categories = await mediator.Send(new Clovent.Catalog.Application.Categories.Queries.ListProductCategoriesQuery());
+        Assert.NotNull(categories);
+
+        var tables = await mediator.Send(new Clovent.Restaurant.Application.Tables.Queries.ListAllTablesQuery());
+        Assert.NotNull(tables);
+
+        var customers = await mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.ListCustomersQuery());
+        Assert.NotNull(customers);
+
+        var openOrders = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.ListOpenOrdersQuery());
+        Assert.NotNull(openOrders);
+
+        var heldOrders = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.ListHeldOrdersQuery());
+        Assert.NotNull(heldOrders);
+    }
+
+    [Fact]
+    public async Task RestaurantPos_DineIn_RecordPayment_ExactCash_RealDatabase_CompletesSuccessfully()
+    {
+        var (mediator, session) = await ConnectAsAdminAsync();
+
+        // 1. Get warehouse
+        var warehouses = await mediator.Send(new Clovent.MasterData.Application.Warehouses.Queries.ListAllWarehousesQuery());
+        var warehouseId = warehouses.First().WarehouseId;
+
+        // 2. Get Table T-01
+        var tables = await mediator.Send(new Clovent.Restaurant.Application.Tables.Queries.ListAllTablesQuery());
+        var tableT01 = tables.FirstOrDefault(t => t.Name == "T-01") ?? tables.First();
+
+        // 3. Ensure Table T-01 is available or reset if needed
+        var existingOrders = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.ListOpenOrdersQuery());
+        foreach (var order in existingOrders.Where(o => o.TableId == tableT01.TableId))
+        {
+            await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.CancelOrderCommand(order.OrderId, "Reset for QA"));
+        }
+
+        // 4. Create Dine-In order for Table T-01
+        var createdOrder = await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.CreateOrderCommand(
+            Clovent.Restaurant.Orders.OrderType.DineIn, warehouseId, tableT01.TableId));
+        Assert.NotNull(createdOrder);
+        Assert.Equal("DineIn", createdOrder.OrderType);
+        Assert.Equal(tableT01.TableId, createdOrder.TableId);
+
+        // 5. Find Aloo Gobi - Full (380.00) and Half (250.00)
+        var variants = await mediator.Send(new Clovent.Catalog.Application.Variants.Queries.ListProductVariantsQuery());
+        var fullVariant = variants.FirstOrDefault(v => v.Name.Contains("Aloo Gobi") && v.Name.Contains("Full")) ?? variants.ElementAt(0);
+        var halfVariant = variants.FirstOrDefault(v => v.Name.Contains("Aloo Gobi") && v.Name.Contains("Half")) ?? variants.ElementAt(1);
+
+        await mediator.Send(new Clovent.Restaurant.Application.OrderLines.Commands.AddOrderLineCommand(createdOrder.OrderId, fullVariant.ProductVariantId, 1m));
+        await mediator.Send(new Clovent.Restaurant.Application.OrderLines.Commands.AddOrderLineCommand(createdOrder.OrderId, halfVariant.ProductVariantId, 1m));
+
+        var summary = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.GetOrderSummaryQuery(createdOrder.OrderId));
+        Assert.True(summary.GrandTotal > 0);
+
+        // 6. Ensure active shift for the cashier (same query EnsureShiftActiveOrPromptAsync uses)
+        var activeShift = await mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(CashierId: session.UserId!.Value));
+        Guid shiftId;
+        if (activeShift == null)
+        {
+            var openShiftResult = await mediator.Send(new Clovent.Restaurant.Application.Shifts.Commands.OpenShiftCommand(
+                BranchId: Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                WarehouseId: warehouseId,
+                TerminalId: Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                CashierId: session.UserId.Value,
+                CashierName: session.DisplayName ?? "Administrator",
+                StartingCash: 500.00m,
+                Notes: "QA Shift"));
+            shiftId = openShiftResult.ShiftId;
+        }
+        else
+        {
+            shiftId = activeShift.ShiftId;
+        }
+
+        // 7. Get Cash payment method
+        var paymentMethods = await mediator.Send(new Clovent.Restaurant.Application.PaymentMethods.Queries.ListPaymentMethodsQuery());
+        var cashMethod = paymentMethods.First(m => m.Name.Equals("Cash", StringComparison.OrdinalIgnoreCase));
+
+        // 8. Record Payment (Exact amount with ShiftId)
+        var paymentResult = await mediator.Send(new Clovent.Restaurant.Application.Payments.Commands.RecordPaymentCommand(
+            createdOrder.OrderId, cashMethod.PaymentMethodId, summary.GrandTotal, false, shiftId));
+        Assert.NotNull(paymentResult);
+        Assert.Equal(summary.GrandTotal, paymentResult.Amount);
+        Assert.Equal(shiftId, paymentResult.ShiftId);
+
+        // 9. Verify order balance is 0 and complete order
+        var postPaySummary = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.GetOrderSummaryQuery(createdOrder.OrderId));
+        Assert.Equal(0m, postPaySummary.Balance);
+
+        var completedOrder = await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.CompleteOrderCommand(createdOrder.OrderId));
+        Assert.Equal("Completed", completedOrder.Status);
+
+        // 10. Verify DB persistence directly in Clovent_Restaurant
+        var host = Host.Value;
+        using var scope = host.Services.CreateScope();
+        var restDb = scope.ServiceProvider.GetRequiredService<Clovent.Restaurant.Infrastructure.Persistence.RestaurantDbContext>();
+        var dbOrder = restDb.Orders.FirstOrDefault(o => o.Id == new Clovent.Restaurant.Orders.OrderId(createdOrder.OrderId));
+        Assert.NotNull(dbOrder);
+        Assert.Equal(Clovent.Restaurant.Orders.OrderStatus.Completed, dbOrder.Status);
+
+        var dbPayment = restDb.Payments.FirstOrDefault(p => p.Id == new Clovent.Restaurant.Payments.PaymentId(paymentResult.PaymentId));
+        Assert.NotNull(dbPayment);
+        Assert.Equal(shiftId, dbPayment.ShiftId?.Value);
+    }
 }

@@ -3509,6 +3509,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         await RefreshActiveOrdersAsync();
 
         AppearanceManager.Apply(this, "Restaurant", nameof(RestaurantPosForm));
+        UpdateCategoryButtonSelection();
     }
 
     private async Task ReloadMenuItemsAsync()
@@ -3556,9 +3557,19 @@ public sealed partial class RestaurantPosForm : XtraForm
         ApplyProductFilter();
     }
 
+    private sealed record CategoryTag(Guid? CategoryId);
+
     private void BuildCategoryButtons()
     {
         if (_categoryButtonsPanel is null) return;
+
+        if (_selectedCategoryId.HasValue && _selectedCategoryId.Value != Guid.Empty)
+        {
+            if (!_loadedCategories.Any(c => c.ProductCategoryId == _selectedCategoryId.Value))
+            {
+                _selectedCategoryId = null;
+            }
+        }
 
         _categoryButtonsPanel.SuspendLayout();
         _categoryButtonsPanel.Controls.Clear();
@@ -3614,22 +3625,15 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private Control BuildCategoryCard(Guid? categoryId, string name, string icon, int count)
     {
-        bool isSelected = _selectedCategoryId == categoryId;
-        
         var card = new DevExpress.XtraEditors.PanelControl
         {
             Width = 140,
             Height = 44,
             Padding = new Padding(4),
             Cursor = Cursors.Hand,
-            Margin = new Padding(0, 0, 8, 0)
+            Margin = new Padding(0, 0, 8, 0),
+            Tag = new CategoryTag(categoryId)
         };
-
-        card.Appearance.BackColor = isSelected ? Color.FromArgb(204, 251, 241) : Color.White;
-        card.Appearance.Options.UseBackColor = true;
-        card.Appearance.BorderColor = isSelected ? Color.FromArgb(13, 148, 136) : Color.FromArgb(226, 232, 240);
-        card.Appearance.Options.UseBorderColor = true;
-        card.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
 
         var layout = new TableLayoutPanel
         {
@@ -3663,7 +3667,6 @@ public sealed partial class RestaurantPosForm : XtraForm
             AutoSizeMode = LabelAutoSizeMode.None
         };
         lblName.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        lblName.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
         lblName.Appearance.Options.UseFont = true;
         lblName.Appearance.Options.UseForeColor = true;
         lblName.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
@@ -3674,10 +3677,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             Text = $"{count} items",
             Dock = DockStyle.Fill,
-            AutoSizeMode = LabelAutoSizeMode.None
+            AutoSizeMode = LabelAutoSizeMode.None,
+            Tag = "count"
         };
         lblCount.Appearance.Font = new Font("Segoe UI", 7.5F, FontStyle.Regular);
-        lblCount.Appearance.ForeColor = Color.FromArgb(100, 116, 139);
         lblCount.Appearance.Options.UseFont = true;
         lblCount.Appearance.Options.UseForeColor = true;
         lblCount.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
@@ -3691,10 +3694,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         card.Controls.Add(layout);
 
+        bool isSelected = IsCategorySelected(categoryId);
+        StyleCategoryCard(card, isSelected);
+
         void ClickAction()
         {
             SelectCategory(categoryId);
-            BuildCategoryButtons();
         }
 
         card.Click += (s, e) => ClickAction();
@@ -3703,6 +3708,53 @@ public sealed partial class RestaurantPosForm : XtraForm
         lblCount.Click += (s, e) => ClickAction();
 
         return card;
+    }
+
+    private bool IsCategorySelected(Guid? categoryId)
+    {
+        if (_selectedCategoryId is null)
+        {
+            return categoryId is null;
+        }
+
+        return _selectedCategoryId == categoryId;
+    }
+
+    private void StyleCategoryCard(DevExpress.XtraEditors.PanelControl card, bool isSelected)
+    {
+        card.LookAndFeel.UseDefaultLookAndFeel = false;
+        card.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+
+        var bg = isSelected ? AccentColor : Color.White;
+        var border = isSelected ? Color.FromArgb(15, 118, 110) : Color.FromArgb(226, 232, 240);
+
+        card.Appearance.BackColor = bg;
+        card.Appearance.Options.UseBackColor = true;
+        card.Appearance.BorderColor = border;
+        card.Appearance.Options.UseBorderColor = true;
+        card.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
+
+        if (card.Controls.Count > 0 && card.Controls[0] is TableLayoutPanel layout)
+        {
+            layout.BackColor = bg;
+            foreach (Control child in layout.Controls)
+            {
+                if (child is LabelControl lbl)
+                {
+                    lbl.Appearance.Options.UseForeColor = true;
+                    if (lbl.Tag is string role && role == "count")
+                    {
+                        lbl.Appearance.ForeColor = isSelected ? Color.FromArgb(204, 251, 241) : Color.FromArgb(100, 116, 139);
+                    }
+                    else
+                    {
+                        lbl.Appearance.ForeColor = isSelected ? Color.White : Color.FromArgb(15, 23, 42);
+                    }
+                }
+            }
+        }
+
+        card.Invalidate();
     }
 
     private void SortByNameButton_Click(object? sender, EventArgs e) => SetCategorySortMode(byColor: false);
@@ -3799,17 +3851,23 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void UpdateCategoryButtonSelection()
     {
-        SetCategoryButtonSelected(_allCategoriesButton, _selectedCategoryId is null, null);
+        if (_categoryButtonsPanel is null) return;
 
-        // _categoryButtonsPanel.Controls contains _categorySortFlow (a FlowLayoutPanel)
-        // in addition to the per-category SimpleButtons.  The old implicit-cast
-        // foreach broke the moment another control type was placed inside the panel.
         foreach (Control control in _categoryButtonsPanel.Controls)
         {
-            if (control is SimpleButton btn && btn.Tag is Guid id)
+            if (control is DevExpress.XtraEditors.PanelControl card && card.Tag is CategoryTag tag)
+            {
+                StyleCategoryCard(card, IsCategorySelected(tag.CategoryId));
+            }
+            else if (control is SimpleButton btn && btn.Tag is Guid id)
             {
                 SetCategoryButtonSelected(btn, _selectedCategoryId == id, id);
             }
+        }
+
+        if (_allCategoriesButton != null)
+        {
+            SetCategoryButtonSelected(_allCategoriesButton, _selectedCategoryId is null, null);
         }
     }
 
@@ -5898,20 +5956,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _amountEntryIsPreset = true;
     }
 
-    /// <summary>
-    /// Records one payment, and refuses to start a second while the first is
-    /// still in flight. <see cref="RecordPaymentAsync"/> awaits the server
-    /// several times, and every await hands the UI thread back to the message
-    /// pump with this button still live - so a double-click used to enter the
-    /// handler twice, both entries reading the same pre-payment
-    /// <c>_balance</c> and each recording a full-balance payment (a $280 bill
-    /// settled twice as $560). <c>GuardedAction</c> only catches exceptions;
-    /// it has no re-entry guard of its own, and <c>ScreenOperationGate</c>
-    /// queues the second command rather than discarding it, so the guard has
-    /// to live here. Mirrors the <c>_isRefreshingOrder</c> flag the selection
-    /// handlers already use. Belt-and-braces only: the authoritative ceiling
-    /// is <c>RecordPaymentCommandHandler</c>'s server-side balance check.
-    /// </summary>
+
     /// <summary>
     /// Opens <see cref="SplitPaymentDialog"/> and records the accepted
     /// allocations through the same <c>RecordPaymentCommand</c> the Record
@@ -5966,7 +6011,11 @@ public sealed partial class RestaurantPosForm : XtraForm
                 continue;
             }
 
-            await EnsureShiftActiveOrPromptAsync();
+            if (!await EnsureShiftActiveOrPromptAsync())
+            {
+                return;
+            }
+
             await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, false, _activeShift?.ShiftId));
             remaining -= applied;
             await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName} (split)");
@@ -6171,7 +6220,11 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
         }
 
-        await EnsureShiftActiveOrPromptAsync();
+        if (!await EnsureShiftActiveOrPromptAsync())
+        {
+            return;
+        }
+
         await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId));
         await RefreshOrderAsync();
         await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
