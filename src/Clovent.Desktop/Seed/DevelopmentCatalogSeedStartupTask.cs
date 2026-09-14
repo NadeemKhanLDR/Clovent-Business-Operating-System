@@ -233,6 +233,8 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         var karahiCategory = await GetOrCreateCategoryAsync("Karahi", cancellationToken);
         var saladsCategory = await GetOrCreateCategoryAsync("Salads", cancellationToken);
 
+        existingProducts = await productRepository.GetAllAsync(cancellationToken);
+
         // Seed/Update target menu items
 
         // 1. Chicken Karahi (Standard price: 1200)
