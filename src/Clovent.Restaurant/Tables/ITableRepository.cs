@@ -1,3 +1,4 @@
+using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.Restaurant.DiningAreas;
 
 namespace Clovent.Restaurant.Tables;
@@ -7,6 +8,9 @@ public interface ITableRepository
 {
     /// <summary>Retrieves a table by identity, or <see langword="null"/> if none exists.</summary>
     Task<Table?> GetByIdAsync(TableId id, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves a table by code within a dining area, or <see langword="null"/> if none exists.</summary>
+    Task<Table?> GetByCodeAsync(DiningAreaId diningAreaId, EntityCode code, CancellationToken cancellationToken = default);
 
     /// <summary>Retrieves every table belonging to a dining area.</summary>
     Task<IReadOnlyCollection<Table>> GetByDiningAreaIdAsync(DiningAreaId diningAreaId, CancellationToken cancellationToken = default);

@@ -1,0 +1,321 @@
+================================================================================
+SMART COMBO BUILDER VIEW - RUNTIME LAYOUT TREE DIAGNOSTIC
+================================================================================
+Control: SmartComboBuilderView [Name='SmartComboBuilderView'] Parent: Form [Name='']
+  Bounds: {X=0,Y=0,Width=1540,Height=941} ClientRect: {X=0,Y=0,Width=1540,Height=941} PreferredSize: {Width=0, Height=0} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+  Dock: Fill Anchor: Top, Left AutoSize: False Visible: True
+  Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+  Container: AutoScaleMode=Inherit AutoScaleDimensions={Width=0, Height=0} CurrentAutoScaleDimensions={Width=0, Height=0}
+  Control: TableLayoutPanel [Name=''] Parent: SmartComboBuilderView [Name='SmartComboBuilderView']
+    Bounds: {X=0,Y=0,Width=1540,Height=941} ClientRect: {X=0,Y=0,Width=1540,Height=941} PreferredSize: {Width=772, Height=479} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+    Dock: Fill Anchor: Top, Left AutoSize: False Visible: True
+    Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=16,Top=16,Right=16,Bottom=16} Font: Tahoma 8.25pt DeviceDpi: 96
+    TableLayoutPanel: Rows=5 Cols=1 AutoSizeMode=GrowOnly
+      Row[0]: SizeType=AutoSize, Height=0
+      Row[1]: SizeType=AutoSize, Height=0
+      Row[2]: SizeType=AutoSize, Height=0
+      Row[3]: SizeType=AutoSize, Height=0
+      Row[4]: SizeType=Percent, Height=100
+      Col[0]: SizeType=Percent, Width=100
+    Control: FlowLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+      Bounds: {X=16,Y=16,Width=1508,Height=51} ClientRect: {X=0,Y=0,Width=1508,Height=51} PreferredSize: {Width=440, Height=51} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+      Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+      Margin: {Left=0,Top=0,Right=0,Bottom=12} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+      InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+      FlowLayoutPanel: Direction=TopDown, Wrap=False, AutoSizeMode=GrowAndShrink
+      Control: LabelControl [Name=''] Parent: FlowLayoutPanel [Name='']
+        Bounds: {X=0,Y=0,Width=250,Height=30} ClientRect: {X=0,Y=0,Width=250,Height=30} PreferredSize: {Width=250, Height=30} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: None Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 16pt DeviceDpi: 96
+      Control: LabelControl [Name=''] Parent: FlowLayoutPanel [Name='']
+        Bounds: {X=0,Y=34,Width=440,Height=17} ClientRect: {X=0,Y=0,Width=440,Height=17} PreferredSize: {Width=440, Height=17} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: None Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9.5pt DeviceDpi: 96
+    Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+      Bounds: {X=16,Y=79,Width=1508,Height=108} ClientRect: {X=0,Y=0,Width=1508,Height=108} PreferredSize: {Width=36, Height=108} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+      Dock: Top Anchor: Top, Left AutoSize: True Visible: True
+      Margin: {Left=0,Top=0,Right=0,Bottom=12} Padding: {Left=16,Top=12,Right=16,Bottom=12} Font: Tahoma 8.25pt DeviceDpi: 96
+      InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+      Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+        Bounds: {X=18,Y=14,Width=1472,Height=80} ClientRect: {X=0,Y=0,Width=1472,Height=80} PreferredSize: {Width=704, Height=80} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: Top Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        TableLayoutPanel: Rows=3 Cols=4 AutoSizeMode=GrowAndShrink
+          Row[0]: SizeType=AutoSize, Height=0
+          Row[1]: SizeType=AutoSize, Height=0
+          Row[2]: SizeType=AutoSize, Height=0
+          Col[0]: SizeType=AutoSize, Width=0
+          Col[1]: SizeType=AutoSize, Width=0
+          Col[2]: SizeType=AutoSize, Width=0
+          Col[3]: SizeType=Percent, Width=100
+        Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=0,Y=0,Width=82,Height=15} ClientRect: {X=0,Y=0,Width=82,Height=15} PreferredSize: {Width=82, Height=15} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=16,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9pt DeviceDpi: 96
+          InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+        Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=196,Y=0,Width=121,Height=15} ClientRect: {X=0,Y=0,Width=121,Height=15} PreferredSize: {Width=121, Height=15} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=16,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9pt DeviceDpi: 96
+          InParentTable: Row=0, Col=1, RowSpan=1, ColSpan=1
+        Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=512,Y=0,Width=3,Height=13} ClientRect: {X=0,Y=0,Width=3,Height=13} PreferredSize: {Width=3, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          InParentTable: Row=0, Col=2, RowSpan=1, ColSpan=1
+        Control: LookUpEdit [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=0,Y=19,Width=180,Height=36} ClientRect: {X=0,Y=0,Width=180,Height=36} PreferredSize: {Width=180, Height=36} Min: {Width=180, Height=36} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: False Visible: True
+          Margin: {Left=0,Top=0,Right=16,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+          DevExpress.BaseEdit: AutoHeight=False
+          Control: TextBoxMaskBox [Name=''] Parent: LookUpEdit [Name='']
+            Bounds: {X=0,Y=0,Width=300,Height=16} ClientRect: {X=0,Y=0,Width=296,Height=12} PreferredSize: {Width=69, Height=14} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: False Visible: False
+            Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: LookUpEdit [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=196,Y=19,Width=300,Height=36} ClientRect: {X=0,Y=0,Width=300,Height=36} PreferredSize: {Width=300, Height=36} Min: {Width=280, Height=36} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: False Visible: True
+          Margin: {Left=0,Top=0,Right=16,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          InParentTable: Row=1, Col=1, RowSpan=1, ColSpan=1
+          DevExpress.BaseEdit: AutoHeight=False
+          Control: TextBoxMaskBox [Name=''] Parent: LookUpEdit [Name='']
+            Bounds: {X=0,Y=0,Width=300,Height=16} ClientRect: {X=0,Y=0,Width=296,Height=12} PreferredSize: {Width=0, Height=14} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: False Visible: False
+            Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: SimpleButton [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=512,Y=19,Width=192,Height=36} ClientRect: {X=0,Y=0,Width=192,Height=36} PreferredSize: {Width=192, Height=36} Min: {Width=192, Height=36} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: False Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9pt DeviceDpi: 96
+          InParentTable: Row=1, Col=2, RowSpan=1, ColSpan=1
+        Control: FlowLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+          Bounds: {X=0,Y=63,Width=1472,Height=17} ClientRect: {X=0,Y=0,Width=1472,Height=17} PreferredSize: {Width=174, Height=17} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=8,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=4
+          FlowLayoutPanel: Direction=TopDown, Wrap=False, AutoSizeMode=GrowAndShrink
+          Control: LabelControl [Name=''] Parent: FlowLayoutPanel [Name='']
+            Bounds: {X=0,Y=0,Width=174,Height=13} ClientRect: {X=0,Y=0,Width=174,Height=13} PreferredSize: {Width=174, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.5pt DeviceDpi: 96
+          Control: MarqueeProgressBarControl [Name=''] Parent: FlowLayoutPanel [Name='']
+            Bounds: {X=0,Y=17,Width=320,Height=3} ClientRect: {X=0,Y=0,Width=320,Height=3} PreferredSize: {Width=320, Height=3} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: False Visible: False
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+            DevExpress.BaseEdit: AutoHeight=False
+    Control: TableLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+      Bounds: {X=16,Y=199,Width=1508,Height=99} ClientRect: {X=0,Y=0,Width=1508,Height=99} PreferredSize: {Width=740, Height=99} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+      Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+      Margin: {Left=0,Top=0,Right=0,Bottom=12} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+      TableLayoutPanel: Rows=1 Cols=4 AutoSizeMode=GrowAndShrink
+        Row[0]: SizeType=AutoSize, Height=0
+        Col[0]: SizeType=Percent, Width=25
+        Col[1]: SizeType=Percent, Width=25
+        Col[2]: SizeType=Percent, Width=25
+        Col[3]: SizeType=Percent, Width=25
+      InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+      Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=0,Y=0,Width=373,Height=99} ClientRect: {X=0,Y=0,Width=373,Height=99} PreferredSize: {Width=164, Height=99} Min: {Width=0, Height=95} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=0,Top=0,Right=4,Bottom=0} Padding: {Left=16,Top=12,Right=16,Bottom=12} Font: Tahoma 8.25pt DeviceDpi: 96
+        InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+        Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+          Bounds: {X=18,Y=14,Width=337,Height=71} ClientRect: {X=0,Y=0,Width=337,Height=71} PreferredSize: {Width=128, Height=71} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          TableLayoutPanel: Rows=3 Cols=1 AutoSizeMode=GrowAndShrink
+            Row[0]: SizeType=AutoSize, Height=0
+            Row[1]: SizeType=AutoSize, Height=0
+            Row[2]: SizeType=AutoSize, Height=0
+            Col[0]: SizeType=Percent, Width=100
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=0,Width=128,Height=13} ClientRect: {X=0,Y=0,Width=128,Height=13} PreferredSize: {Width=128, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=17,Width=16,Height=37} ClientRect: {X=0,Y=0,Width=16,Height=37} PreferredSize: {Width=16, Height=37} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 20pt DeviceDpi: 96
+            InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=58,Width=96,Height=13} ClientRect: {X=0,Y=0,Width=96,Height=13} PreferredSize: {Width=96, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+      Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=381,Y=0,Width=369,Height=99} ClientRect: {X=0,Y=0,Width=369,Height=99} PreferredSize: {Width=176, Height=99} Min: {Width=0, Height=95} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=4,Top=0,Right=4,Bottom=0} Padding: {Left=16,Top=12,Right=16,Bottom=12} Font: Tahoma 8.25pt DeviceDpi: 96
+        InParentTable: Row=0, Col=1, RowSpan=1, ColSpan=1
+        Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+          Bounds: {X=18,Y=14,Width=333,Height=71} ClientRect: {X=0,Y=0,Width=333,Height=71} PreferredSize: {Width=140, Height=71} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          TableLayoutPanel: Rows=3 Cols=1 AutoSizeMode=GrowAndShrink
+            Row[0]: SizeType=AutoSize, Height=0
+            Row[1]: SizeType=AutoSize, Height=0
+            Row[2]: SizeType=AutoSize, Height=0
+            Col[0]: SizeType=Percent, Width=100
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=0,Width=80,Height=13} ClientRect: {X=0,Y=0,Width=80,Height=13} PreferredSize: {Width=80, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=17,Width=16,Height=37} ClientRect: {X=0,Y=0,Width=16,Height=37} PreferredSize: {Width=16, Height=37} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 20pt DeviceDpi: 96
+            InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=58,Width=140,Height=13} ClientRect: {X=0,Y=0,Width=140,Height=13} PreferredSize: {Width=140, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+      Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=758,Y=0,Width=369,Height=99} ClientRect: {X=0,Y=0,Width=369,Height=99} PreferredSize: {Width=177, Height=99} Min: {Width=0, Height=95} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=4,Top=0,Right=4,Bottom=0} Padding: {Left=16,Top=12,Right=16,Bottom=12} Font: Tahoma 8.25pt DeviceDpi: 96
+        InParentTable: Row=0, Col=2, RowSpan=1, ColSpan=1
+        Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+          Bounds: {X=18,Y=14,Width=333,Height=71} ClientRect: {X=0,Y=0,Width=333,Height=71} PreferredSize: {Width=141, Height=71} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          TableLayoutPanel: Rows=3 Cols=1 AutoSizeMode=GrowAndShrink
+            Row[0]: SizeType=AutoSize, Height=0
+            Row[1]: SizeType=AutoSize, Height=0
+            Row[2]: SizeType=AutoSize, Height=0
+            Col[0]: SizeType=Percent, Width=100
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=0,Width=101,Height=13} ClientRect: {X=0,Y=0,Width=101,Height=13} PreferredSize: {Width=101, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=17,Width=16,Height=37} ClientRect: {X=0,Y=0,Width=16,Height=37} PreferredSize: {Width=16, Height=37} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 20pt DeviceDpi: 96
+            InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=58,Width=141,Height=13} ClientRect: {X=0,Y=0,Width=141,Height=13} PreferredSize: {Width=141, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+      Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=1135,Y=0,Width=373,Height=99} ClientRect: {X=0,Y=0,Width=373,Height=99} PreferredSize: {Width=143, Height=99} Min: {Width=0, Height=95} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=4,Top=0,Right=0,Bottom=0} Padding: {Left=16,Top=12,Right=16,Bottom=12} Font: Tahoma 8.25pt DeviceDpi: 96
+        InParentTable: Row=0, Col=3, RowSpan=1, ColSpan=1
+        Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+          Bounds: {X=18,Y=14,Width=337,Height=71} ClientRect: {X=0,Y=0,Width=337,Height=71} PreferredSize: {Width=107, Height=71} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          TableLayoutPanel: Rows=3 Cols=1 AutoSizeMode=GrowAndShrink
+            Row[0]: SizeType=AutoSize, Height=0
+            Row[1]: SizeType=AutoSize, Height=0
+            Row[2]: SizeType=AutoSize, Height=0
+            Col[0]: SizeType=Percent, Width=100
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=0,Width=102,Height=13} ClientRect: {X=0,Y=0,Width=102,Height=13} PreferredSize: {Width=102, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=17,Width=27,Height=37} ClientRect: {X=0,Y=0,Width=27,Height=37} PreferredSize: {Width=27, Height=37} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=4} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 20pt DeviceDpi: 96
+            InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+          Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=0,Y=58,Width=107,Height=13} ClientRect: {X=0,Y=0,Width=107,Height=13} PreferredSize: {Width=107, Height=13} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.25pt DeviceDpi: 96
+            InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+    Control: TableLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+      Bounds: {X=16,Y=310,Width=1508,Height=45} ClientRect: {X=0,Y=0,Width=1508,Height=45} PreferredSize: {Width=441, Height=45} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+      Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+      Margin: {Left=0,Top=0,Right=0,Bottom=8} Padding: {Left=0,Top=4,Right=0,Bottom=4} Font: Tahoma 8.25pt DeviceDpi: 96
+      TableLayoutPanel: Rows=1 Cols=2 AutoSizeMode=GrowAndShrink
+        Row[0]: SizeType=AutoSize, Height=0
+        Col[0]: SizeType=Percent, Width=100
+        Col[1]: SizeType=AutoSize, Width=0
+      InParentTable: Row=3, Col=0, RowSpan=1, ColSpan=1
+      Control: FlowLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=0,Y=4,Width=1360,Height=37} ClientRect: {X=0,Y=0,Width=1360,Height=37} PreferredSize: {Width=293, Height=37} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: True Visible: True
+        Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+        FlowLayoutPanel: Direction=TopDown, Wrap=False, AutoSizeMode=GrowAndShrink
+        Control: LabelControl [Name=''] Parent: FlowLayoutPanel [Name='']
+          Bounds: {X=0,Y=0,Width=176,Height=20} ClientRect: {X=0,Y=0,Width=176,Height=20} PreferredSize: {Width=176, Height=20} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=2} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 11pt DeviceDpi: 96
+        Control: LabelControl [Name=''] Parent: FlowLayoutPanel [Name='']
+          Bounds: {X=0,Y=22,Width=293,Height=15} ClientRect: {X=0,Y=0,Width=293,Height=15} PreferredSize: {Width=293, Height=15} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: True Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 8.75pt DeviceDpi: 96
+      Control: SimpleButton [Name=''] Parent: TableLayoutPanel [Name='']
+        Bounds: {X=1372,Y=5,Width=136,Height=34} ClientRect: {X=0,Y=0,Width=136,Height=34} PreferredSize: {Width=136, Height=34} Min: {Width=136, Height=34} Max: {Width=0, Height=0}
+        Dock: None Anchor: Right AutoSize: False Visible: True
+        Margin: {Left=12,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9pt DeviceDpi: 96
+        InParentTable: Row=0, Col=1, RowSpan=1, ColSpan=1
+    Control: PanelControl [Name=''] Parent: TableLayoutPanel [Name='']
+      Bounds: {X=16,Y=363,Width=1508,Height=562} ClientRect: {X=0,Y=0,Width=1508,Height=562} PreferredSize: {Width=4, Height=4} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+      Dock: Fill Anchor: Top, Left AutoSize: False Visible: True
+      Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+      InParentTable: Row=4, Col=0, RowSpan=1, ColSpan=1
+      Control: PanelControl [Name=''] Parent: PanelControl [Name='']
+        Bounds: {X=2,Y=2,Width=1504,Height=558} ClientRect: {X=0,Y=0,Width=1504,Height=558} PreferredSize: {Width=0, Height=0} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: False Visible: True
+        Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: TableLayoutPanel [Name=''] Parent: PanelControl [Name='']
+          Bounds: {X=0,Y=0,Width=1504,Height=558} ClientRect: {X=0,Y=0,Width=1504,Height=558} PreferredSize: {Width=540, Height=120} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: Fill Anchor: Top, Left AutoSize: False Visible: True
+          Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+          TableLayoutPanel: Rows=3 Cols=3 AutoSizeMode=GrowOnly
+            Row[0]: SizeType=Percent, Height=50
+            Row[1]: SizeType=AutoSize, Height=0
+            Row[2]: SizeType=Percent, Height=50
+            Col[0]: SizeType=Percent, Width=50
+            Col[1]: SizeType=AutoSize, Width=0
+            Col[2]: SizeType=Percent, Width=50
+          Control: TableLayoutPanel [Name=''] Parent: TableLayoutPanel [Name='']
+            Bounds: {X=482,Y=219,Width=540,Height=120} ClientRect: {X=0,Y=0,Width=540,Height=120} PreferredSize: {Width=540, Height=120} Min: {Width=540, Height=120} Max: {Width=620, Height=0}
+            Dock: None Anchor: Top, Left AutoSize: True Visible: True
+            Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=24,Top=24,Right=24,Bottom=24} Font: Tahoma 8.25pt DeviceDpi: 96
+            TableLayoutPanel: Rows=3 Cols=1 AutoSizeMode=GrowAndShrink
+              Row[0]: SizeType=AutoSize, Height=0
+              Row[1]: SizeType=AutoSize, Height=0
+              Row[2]: SizeType=AutoSize, Height=0
+              Col[0]: SizeType=Percent, Width=100
+            InParentTable: Row=1, Col=1, RowSpan=1, ColSpan=1
+            Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+              Bounds: {X=24,Y=24,Width=195,Height=25} ClientRect: {X=0,Y=0,Width=195,Height=25} PreferredSize: {Width=195, Height=25} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+              Dock: Top Anchor: Top, Left AutoSize: True Visible: True
+              Margin: {Left=0,Top=0,Right=0,Bottom=8} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 14pt DeviceDpi: 96
+              InParentTable: Row=0, Col=0, RowSpan=1, ColSpan=1
+            Control: LabelControl [Name=''] Parent: TableLayoutPanel [Name='']
+              Bounds: {X=24,Y=57,Width=492,Height=34} ClientRect: {X=0,Y=0,Width=492,Height=34} PreferredSize: {Width=0, Height=34} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+              Dock: Top Anchor: Top, Left AutoSize: True Visible: True
+              Margin: {Left=0,Top=0,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9.5pt DeviceDpi: 96
+              InParentTable: Row=1, Col=0, RowSpan=1, ColSpan=1
+            Control: SimpleButton [Name=''] Parent: TableLayoutPanel [Name='']
+              Bounds: {X=0,Y=0,Width=130,Height=32} ClientRect: {X=0,Y=0,Width=130,Height=32} PreferredSize: {Width=84, Height=22} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+              Dock: None Anchor: None AutoSize: False Visible: False
+              Margin: {Left=0,Top=14,Right=0,Bottom=0} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Segoe UI 9pt DeviceDpi: 96
+              InParentTable: Row=2, Col=0, RowSpan=1, ColSpan=1
+      Control: GridControl [Name=''] Parent: PanelControl [Name='']
+        Bounds: {X=2,Y=2,Width=1504,Height=555} ClientRect: {X=0,Y=0,Width=1504,Height=555} PreferredSize: {Width=400, Height=200} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+        Dock: Fill Anchor: Top, Left AutoSize: False Visible: False
+        Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: HCrkScrollBar [Name=''] Parent: GridControl [Name='']
+          Bounds: {X=0,Y=0,Width=80,Height=17} ClientRect: {X=0,Y=0,Width=80,Height=17} PreferredSize: {Width=80, Height=17} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: None AutoSize: False Visible: False
+          Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: VCrkScrollBar [Name=''] Parent: GridControl [Name='']
+          Bounds: {X=0,Y=0,Width=17,Height=80} ClientRect: {X=0,Y=0,Width=17,Height=80} PreferredSize: {Width=17, Height=80} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: None AutoSize: False Visible: False
+          Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96
+        Control: GridControlNavigator [Name=''] Parent: GridControl [Name='']
+          Bounds: {X=0,Y=0,Width=160,Height=24} ClientRect: {X=0,Y=0,Width=160,Height=24} PreferredSize: {Width=160, Height=24} Min: {Width=0, Height=0} Max: {Width=0, Height=0}
+          Dock: None Anchor: Top, Left AutoSize: False Visible: False
+          Margin: {Left=3,Top=3,Right=3,Bottom=3} Padding: {Left=0,Top=0,Right=0,Bottom=0} Font: Tahoma 8.25pt DeviceDpi: 96

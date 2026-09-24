@@ -9,14 +9,14 @@ namespace Clovent.MasterData.Infrastructure.Repositories;
 public sealed class TerminalRepository(MasterDataDbContext dbContext) : ITerminalRepository
 {
     /// <inheritdoc/>
-    public Task<Terminal?> GetByIdAsync(TerminalId id, CancellationToken cancellationToken = default) =>
-        dbContext.Terminals.FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+    public async Task<Terminal?> GetByIdAsync(TerminalId id, CancellationToken cancellationToken = default) =>
+        await dbContext.Terminals.FirstOrDefaultAsync(t => t.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Terminal>> GetByBranchIdAsync(BranchId branchId, CancellationToken cancellationToken = default) =>
-        await dbContext.Terminals.Where(t => t.BranchId == branchId).ToListAsync(cancellationToken);
+        await dbContext.Terminals.Where(t => t.BranchId == branchId).ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Terminal terminal, CancellationToken cancellationToken = default) =>
-        await dbContext.Terminals.AddAsync(terminal, cancellationToken);
+        await dbContext.Terminals.AddAsync(terminal, cancellationToken).ConfigureAwait(false);
 }

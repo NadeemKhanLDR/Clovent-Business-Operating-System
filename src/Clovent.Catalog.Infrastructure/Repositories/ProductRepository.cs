@@ -9,18 +9,18 @@ namespace Clovent.Catalog.Infrastructure.Repositories;
 public sealed class ProductRepository(CatalogDbContext dbContext) : IProductRepository
 {
     /// <inheritdoc/>
-    public Task<Product?> GetByIdAsync(ProductId id, CancellationToken cancellationToken = default) =>
-        dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    public async Task<Product?> GetByIdAsync(ProductId id, CancellationToken cancellationToken = default) =>
+        await dbContext.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
-    public Task<Product?> GetBySkuAsync(Sku sku, CancellationToken cancellationToken = default) =>
-        dbContext.Products.FirstOrDefaultAsync(p => p.Sku == sku, cancellationToken);
+    public async Task<Product?> GetBySkuAsync(Sku sku, CancellationToken cancellationToken = default) =>
+        await dbContext.Products.FirstOrDefaultAsync(p => p.Sku == sku, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Product>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Products.ToListAsync(cancellationToken);
+        await dbContext.Products.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Product product, CancellationToken cancellationToken = default) =>
-        await dbContext.Products.AddAsync(product, cancellationToken);
+        await dbContext.Products.AddAsync(product, cancellationToken).ConfigureAwait(false);
 }

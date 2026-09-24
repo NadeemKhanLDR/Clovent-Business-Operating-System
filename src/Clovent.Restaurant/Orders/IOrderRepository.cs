@@ -11,6 +11,9 @@ public interface IOrderRepository
     /// <summary>Retrieves every order currently open or held at the given table (in practice zero or one).</summary>
     Task<IReadOnlyCollection<Order>> GetOpenOrHeldByTableIdAsync(TableId tableId, CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves identities of all tables that currently have an open or held dine-in order.</summary>
+    Task<IReadOnlySet<TableId>> GetActiveTableIdsAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Retrieves every order whose status is <see cref="OrderStatus.Open"/> - the Running Orders screen's data source.</summary>
     Task<IReadOnlyCollection<Order>> GetOpenAsync(CancellationToken cancellationToken = default);
 

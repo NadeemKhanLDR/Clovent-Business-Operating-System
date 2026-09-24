@@ -15,6 +15,11 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
 
+        services.AddScoped<Clovent.Restaurant.Application.SmartCombos.SmartComboService>();
+        services.AddSingleton<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider, Clovent.Restaurant.Application.Shifts.Services.BusinessDateProvider>();
+        services.AddScoped<Clovent.Restaurant.Application.Shifts.Services.IPosShiftAccessService, Clovent.Restaurant.Application.Shifts.Services.PosShiftAccessService>();
+        services.AddScoped<Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService, Clovent.Restaurant.Application.Attendance.Services.AttendanceAccessService>();
         return services;
     }
 }
+

@@ -1,0 +1,20 @@
+Total products: 18
+Total active variants: 20
+Total distinct products among active variants (All Menu count): 15
+Total active categories: 5 (Karahi, BREAD, Chicken, SNACKS, BEVERAGES)
+Prod: 'Chicken Biryani' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Chicken Haleem' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Salad' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Chicken Karahi' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'QA Test 2' (Status: Inactive), Category: SNACKS (Active), MatchedActiveCategory: True
+Prod: 'Murgh Chanay' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'White Daal Mash' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Leechi' (Status: Active), Category: BEVERAGES (Active), MatchedActiveCategory: True
+Prod: 'Aloo Gobi' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Chicken Koyla Karahi' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Prod: 'Garlic Nan' (Status: Active), Category: BREAD (Active), MatchedActiveCategory: True
+Prod: 'QA Test 1' (Status: Inactive), Category: BREAD (Active), MatchedActiveCategory: True
+Prod: 'QA Test 6' (Status: Inactive), Category: BREAD (Active), MatchedActiveCategory: True
+Prod: 'QA Test 3' (Status: Inactive), Category: BEVERAGES (Active), MatchedActiveCategory: True
+Prod: 'Aloo Chicken Qorma' (Status: Active), Category: Unknown ID 5dd20aed-bac7-422f-a7c8-407a912f07a8, MatchedActiveCategory: False
+Categorized in active categories count: 6

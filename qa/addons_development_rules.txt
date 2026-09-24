@@ -1,0 +1,9 @@
+TriggerItem|Item|Portion|IsActive|Priority|StartTime|EndTime|DaysOfWeek|Amount|PriceType|Status
+-----------|----|-------|--------|--------|---------|-------|----------|------|---------|------
+Chicken Karahi|Garlic Nan|Garlic Nan|1|1|NULL|NULL|NULL|50.00|Selling|Active
+White Daal Mash|Salad|Standard|1|1|NULL|NULL|NULL|30.00|Selling|Active
+Chicken Biryani|Salad|Standard|1|1|NULL|NULL|NULL|30.00|Selling|Active
+Murgh Chanay|Garlic Nan|Garlic Nan|1|1|NULL|NULL|NULL|50.00|Selling|Active
+Chicken Haleem|Garlic Nan|Garlic Nan|1|1|NULL|NULL|NULL|50.00|Selling|Active
+Chicken Biryani|Leechi|Leechi|1|2|NULL|NULL|NULL|50.00|Selling|Active
+Any basket|Salad|Standard|1|10|NULL|NULL|NULL|30.00|Selling|Active

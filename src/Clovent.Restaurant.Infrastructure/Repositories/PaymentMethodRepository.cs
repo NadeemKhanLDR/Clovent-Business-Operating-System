@@ -8,14 +8,14 @@ namespace Clovent.Restaurant.Infrastructure.Repositories;
 public sealed class PaymentMethodRepository(RestaurantDbContext dbContext) : IPaymentMethodRepository
 {
     /// <inheritdoc/>
-    public Task<PaymentMethod?> GetByIdAsync(PaymentMethodId id, CancellationToken cancellationToken = default) =>
-        dbContext.PaymentMethods.FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+    public async Task<PaymentMethod?> GetByIdAsync(PaymentMethodId id, CancellationToken cancellationToken = default) =>
+        await dbContext.PaymentMethods.FirstOrDefaultAsync(m => m.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<PaymentMethod>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.PaymentMethods.ToListAsync(cancellationToken);
+        await dbContext.PaymentMethods.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(PaymentMethod paymentMethod, CancellationToken cancellationToken = default) =>
-        await dbContext.PaymentMethods.AddAsync(paymentMethod, cancellationToken);
+        await dbContext.PaymentMethods.AddAsync(paymentMethod, cancellationToken).ConfigureAwait(false);
 }

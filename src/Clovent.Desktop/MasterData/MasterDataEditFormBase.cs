@@ -95,6 +95,15 @@ public partial class MasterDataEditFormBase : XtraForm
 
     private void SaveAndNewButton_Click(object? sender, EventArgs e) => TryClose(savedAndNew: true);
 
+    /// <summary>Access to the primary OK/Save button for subclasses customizing caption or styling.</summary>
+    protected SimpleButton DialogOkButton => _okButton;
+
+    /// <summary>Access to the Cancel button for subclasses customizing caption or styling.</summary>
+    protected SimpleButton DialogCancelButton => _cancelButton;
+
+    /// <summary>Access to the bottom button panel for subclasses customizing button order.</summary>
+    protected FlowLayoutPanel DialogButtonPanel => _buttonPanel;
+
     /// <summary>
     /// Adds a labelled field row to the content area. <paramref name="fixedHeight"/>
     /// forces the row to an explicit height instead of the default AutoSize -
@@ -110,7 +119,8 @@ public partial class MasterDataEditFormBase : XtraForm
     protected void AddField(string label, Control editor, int? fixedHeight = null)
     {
         _contentPanel.RowCount = _rowCount + 1;
-        _contentPanel.RowStyles.Add(fixedHeight is { } height ? new RowStyle(SizeType.Absolute, height) : new RowStyle(SizeType.AutoSize));
+        var scaledFixedHeight = fixedHeight is { } fh ? (int?)Clovent.Desktop.Forms.Base.DesktopDpi.Scale(fh, this) : null;
+        _contentPanel.RowStyles.Add(scaledFixedHeight is { } height ? new RowStyle(SizeType.Absolute, height) : new RowStyle(SizeType.AutoSize));
 
         var labelControl = new LabelControl { Text = label, Padding = new Padding(0, 6, 8, 0) };
         // CheckEdit's own caption (not the row's label, usually empty for a
@@ -122,15 +132,15 @@ public partial class MasterDataEditFormBase : XtraForm
         if (editor is CheckEdit checkEdit)
         {
             var textWidth = TextRenderer.MeasureText(checkEdit.Text, checkEdit.Font).Width;
-            checkEdit.Width = textWidth + 40;
+            checkEdit.Width = textWidth + Clovent.Desktop.Forms.Base.DesktopDpi.Scale(40, this);
         }
         else
         {
-            editor.Width = 260;
+            editor.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
         }
 
         editor.Margin = new Padding(0, 3, 0, 3);
-        if (fixedHeight is { } fixedH)
+        if (scaledFixedHeight is { } fixedH)
         {
             editor.Height = fixedH - editor.Margin.Vertical;
             editor.Dock = DockStyle.Fill;
@@ -159,8 +169,9 @@ public partial class MasterDataEditFormBase : XtraForm
             return;
         }
 
-        _contentPanel.RowStyles[row] = new RowStyle(SizeType.Absolute, height);
-        editor.Height = height - editor.Margin.Vertical;
+        var scaledHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(height, this);
+        _contentPanel.RowStyles[row] = new RowStyle(SizeType.Absolute, scaledHeight);
+        editor.Height = scaledHeight - editor.Margin.Vertical;
         editor.Dock = DockStyle.Fill;
     }
 
@@ -224,7 +235,7 @@ public partial class MasterDataEditFormBase : XtraForm
         this.PerformLayout();
 
         var labelColumnWidth = 0;
-        var maxEditorWidth = 260;
+        var maxEditorWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
         var maxSpan2Width = 0;
 
         foreach (Control control in _contentPanel.Controls)

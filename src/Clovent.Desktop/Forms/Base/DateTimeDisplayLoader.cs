@@ -4,7 +4,9 @@ using System.Threading.Tasks;
 using Clovent.Identity.Application.Organizations.Queries;
 using Clovent.MasterData.Application.Settings.Queries;
 using Clovent.MasterData.Application.TimeZones.Queries;
+using Clovent.Restaurant.Application.Shifts.Services;
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Clovent.Desktop.Forms.Base;
 
@@ -14,22 +16,21 @@ namespace Clovent.Desktop.Forms.Base;
 public static class DateTimeDisplayLoader
 {
     /// <summary>Loads active timezone and date/time format configurations.</summary>
-    public static async Task ConfigureAsync(ISender mediator)
+    public static async Task ConfigureAsync(ISender mediator, IServiceProvider? serviceProvider = null)
     {
         try
         {
-            var organizations = await mediator.Send(new ListOrganizationsQuery());
+            var organizations = await mediator.Send(new ListOrganizationsQuery()).ConfigureAwait(false);
             if (organizations.Count == 0)
             {
-                DateTimeDisplay.Configure(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm");
+                ApplyConfiguration(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm", serviceProvider);
                 return;
             }
 
-            var settings = await mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizations.First().OrganizationId));
+            var settings = await mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizations.First().OrganizationId)).ConfigureAwait(false);
+            var tz = await mediator.Send(new GetTimeZoneEntryByIdQuery(settings.DefaultTimeZoneId)).ConfigureAwait(false);
             
-            var tz = await mediator.Send(new GetTimeZoneEntryByIdQuery(settings.DefaultTimeZoneId));
-            
-            TimeZoneInfo timeZoneInfo = null;
+            TimeZoneInfo? timeZoneInfo = null;
             try
             {
                 timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(tz.IanaId);
@@ -65,11 +66,33 @@ public static class DateTimeDisplayLoader
                 }
             }
 
-            DateTimeDisplay.Configure(timeZoneInfo, settings.DateFormat);
+            timeZoneInfo ??= TimeZoneInfo.Utc;
+            ApplyConfiguration(timeZoneInfo, settings.DateFormat, serviceProvider);
         }
         catch (Exception)
         {
-            DateTimeDisplay.Configure(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm");
+            ApplyConfiguration(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm", serviceProvider);
+        }
+    }
+
+    private static void ApplyConfiguration(TimeZoneInfo timeZone, string dateFormat, IServiceProvider? serviceProvider)
+    {
+        DateTimeDisplay.Configure(timeZone, dateFormat);
+
+        if (serviceProvider != null)
+        {
+            try
+            {
+                var dtService = serviceProvider.GetService<IBusinessDateTimeService>();
+                dtService?.Configure(timeZone, dateFormat);
+
+                var dateProvider = serviceProvider.GetService<IBusinessDateProvider>() as BusinessDateProvider;
+                dateProvider?.SetBusinessTimeZone(timeZone);
+            }
+            catch
+            {
+                // Best effort provider synchronization
+            }
         }
     }
 }

@@ -1,0 +1,16 @@
+================================================================================
+CBOS RUNTIME APPLICATION BUILD IDENTITY
+================================================================================
+Timestamp: 2026-09-24 21:06:49.213
+Process ID: 32148
+Process Name: Clovent.Desktop
+Process MainModule: D:\Clovent Business Operating System\src\Clovent.Desktop\bin\Debug\net10.0-windows\Clovent.Desktop.exe
+Assembly Location: D:\Clovent Business Operating System\src\Clovent.Desktop\bin\Debug\net10.0-windows\Clovent.Desktop.dll
+Assembly LastWriteTime: 2026-09-24 16:58:02
+FileVersion: 1.0.0.0
+ProductVersion: 1.0.0+fd620b940d744388edb189d8c61bd01241bfa32b
+AppContext.BaseDirectory: D:\Clovent Business Operating System\src\Clovent.Desktop\bin\Debug\net10.0-windows\
+CurrentDirectory: D:\Clovent Business Operating System\src\Clovent.Desktop\bin\Debug\net10.0-windows
+OS Version: Microsoft Windows NT 10.0.26200.0
+Is64BitProcess: True
+Screen '\\.\DISPLAY1': Bounds={X=0,Y=0,Width=3840,Height=2400}, WorkingArea={X=0,Y=0,Width=3840,Height=2280}, Primary=True, BitsPerPixel=32

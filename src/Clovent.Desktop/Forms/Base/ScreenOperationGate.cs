@@ -16,10 +16,10 @@ public sealed class ScreenOperationGate : IDisposable
     /// <summary>Runs <paramref name="operation"/> once every earlier caller through this gate has finished.</summary>
     public async Task<TResult> RunAsync<TResult>(Func<Task<TResult>> operation, CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await operation();
+            return await operation().ConfigureAwait(false);
         }
         finally
         {
@@ -30,10 +30,10 @@ public sealed class ScreenOperationGate : IDisposable
     /// <summary>Runs <paramref name="operation"/> once every earlier caller through this gate has finished.</summary>
     public async Task RunAsync(Func<Task> operation, CancellationToken cancellationToken = default)
     {
-        await _gate.WaitAsync(cancellationToken);
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await operation();
+            await operation().ConfigureAwait(false);
         }
         finally
         {

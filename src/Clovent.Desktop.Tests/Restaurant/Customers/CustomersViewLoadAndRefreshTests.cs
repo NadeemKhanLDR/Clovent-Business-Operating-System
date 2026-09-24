@@ -112,7 +112,7 @@ public class CustomersViewLoadAndRefreshTests
         public IServiceScope CreateScope() => new FakeServiceScope(serviceProvider);
     }
 
-    private static CustomerDto Customer(string code, string name, decimal outstanding) => new(
+    private static CustomerDto Customer(string code, string name, decimal outstanding, bool isDefault = false) => new(
         CustomerId: Guid.NewGuid(),
         Code: code,
         Name: name,
@@ -125,7 +125,8 @@ public class CustomersViewLoadAndRefreshTests
         IsActive: true,
         Notes: null,
         CreatedAtUtc: DateTimeOffset.UtcNow,
-        UpdatedAtUtc: DateTimeOffset.UtcNow);
+        UpdatedAtUtc: DateTimeOffset.UtcNow,
+        IsDefault: isDefault);
 
     private static (CustomersView View, CountingMediator Mediator) CreateView()
     {
@@ -245,6 +246,36 @@ public class CustomersViewLoadAndRefreshTests
                 .GetValue(view)!;
 
             Assert.Contains("999.99", label.Text);
+        }
+    }
+
+    [Fact]
+    public void Grid_DisplaysDefaultCustomerIndicator()
+    {
+        var (view, mediator) = CreateView();
+        using (view)
+        {
+            mediator.Customers =
+            [
+                Customer("C000", "Walk-in Customer", 0m, isDefault: true),
+                Customer("C001", "Jane Doe", 50m, isDefault: false)
+            ];
+            RaiseLoad(view);
+
+            var rows = GridRows(view);
+            Assert.Equal(2, rows.Count);
+
+            var row0 = rows[0];
+            var isDefault0 = (bool)row0.GetType().GetProperty("IsDefault")!.GetValue(row0)!;
+            var isDefaultText0 = (string)row0.GetType().GetProperty("IsDefaultText")!.GetValue(row0)!;
+            Assert.True(isDefault0);
+            Assert.Equal("YES", isDefaultText0);
+
+            var row1 = rows[1];
+            var isDefault1 = (bool)row1.GetType().GetProperty("IsDefault")!.GetValue(row1)!;
+            var isDefaultText1 = (string)row1.GetType().GetProperty("IsDefaultText")!.GetValue(row1)!;
+            Assert.False(isDefault1);
+            Assert.Equal("", isDefaultText1);
         }
     }
 

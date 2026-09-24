@@ -40,7 +40,7 @@ namespace Clovent.Desktop.Tests;
 
 public class LiveAcceptanceQaRun
 {
-    private static readonly Lazy<IHost> Host = new(() =>
+    internal static readonly Lazy<IHost> Host = new(() =>
     {
         var bootstrapper = ApplicationBootstrapper
             .Create(basePath: AppContext.BaseDirectory)
@@ -266,6 +266,9 @@ public class LiveAcceptanceQaRun
                 var takeAwayOrder = mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId)).GetAwaiter().GetResult();
                 Assert.Equal("TakeAway", takeAwayOrder.OrderType);
                 Assert.Null(takeAwayOrder.TableId);
+
+                mediator.Send(new CancelOrderCommand(dineInOrder.OrderId, "QA test cleanup")).GetAwaiter().GetResult();
+                mediator.Send(new CancelOrderCommand(takeAwayOrder.OrderId, "QA test cleanup")).GetAwaiter().GetResult();
             }
             CaptureForm(posForm, Path.Combine(qaDir, "live_08_dinein_table.png"));
 

@@ -275,6 +275,7 @@ public sealed class RecallOrderDialogTests
             ["OrderNumber"] = 90,
             ["TypeDisplay"] = 85,
             ["TableDisplay"] = 70,
+            ["CustomerCode"] = 90,
             ["CustomerName"] = 140,
             ["ItemCount"] = 60,
             ["TotalDisplay"] = 95,

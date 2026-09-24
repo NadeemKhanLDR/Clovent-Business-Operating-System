@@ -1,0 +1,1 @@
+PASS: manager command -> canonical template -> existing scoped Quick Orders query; exact total and 3 unit components; other warehouse excluded. Transaction rolled back; no deal published.

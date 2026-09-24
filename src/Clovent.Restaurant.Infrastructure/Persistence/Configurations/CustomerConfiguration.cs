@@ -30,6 +30,7 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.Property(c => c.CreditLimit).HasPrecision(18, 2);
         builder.Property(c => c.OutstandingBalance).HasPrecision(18, 2);
         builder.Property(c => c.IsActive).IsRequired();
+        builder.Property(c => c.IsDefault).HasDefaultValue(false).IsRequired();
         builder.Property(c => c.Notes).HasMaxLength(1000);
         builder.Property(c => c.ShopNo).HasMaxLength(100);
         builder.Property(c => c.Mobile2).HasMaxLength(20);

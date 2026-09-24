@@ -43,4 +43,16 @@ public sealed class AuthenticationDomainException : DomainException
     /// <summary>A self-service password change supplied a current password that does not match the stored hash.</summary>
     public static AuthenticationDomainException CurrentPasswordIncorrect() =>
         new("The current password is incorrect.");
+
+    /// <summary>A candidate PIN failed <see cref="Pins.PinPolicy"/> evaluation.</summary>
+    public static AuthenticationDomainException PinPolicyViolated(IReadOnlyList<string> violations) =>
+        new(string.Join(" ", violations));
+
+    /// <summary>
+    /// A candidate PIN is already in use by another user. PINs are unique
+    /// across users because PIN-only sign-in resolves the user FROM the PIN -
+    /// a duplicate would make authentication ambiguous.
+    /// </summary>
+    public static AuthenticationDomainException PinAlreadyInUse() =>
+        new("This PIN is already in use by another user. Choose a different PIN.");
 }

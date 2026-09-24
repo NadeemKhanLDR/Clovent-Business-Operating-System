@@ -55,27 +55,23 @@ public sealed class CashMovementDialog : XtraForm
     private void BuildUi()
     {
         Text = "Record Cash In / Cash Out";
-        ClientSize = new Size(460, 380);
-        StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
-        MinimizeBox = false;
+        DesktopDialogSizing.Apply(this, 520, 440, 460, 380, null, false);
 
         var panel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(20),
+            Padding = new Padding(DesktopDpi.Scale(16, this)),
             RowCount = 5,
             ColumnCount = 2
         };
 
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 120f));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(140, this)));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40f));
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f));
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f));
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 100f));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(45, this)));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(45, this)));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(45, this)));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(90, this)));
         panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
 
         var lblType = new LabelControl { Text = "Movement Type:", Anchor = AnchorStyles.Left };
@@ -93,13 +89,15 @@ public sealed class CashMovementDialog : XtraForm
         };
         _rgType.SelectedIndex = 0;
 
-        var lblAmount = new LabelControl { Text = "Amount:", Anchor = AnchorStyles.Left };
+        var lblAmount = new LabelControl { Text = $"Amount ({CurrencyDisplay.SymbolOrCode}):", Anchor = AnchorStyles.Left };
         _spnAmount = new SpinEdit
         {
             Dock = DockStyle.Fill,
             Value = 10m
         };
-        _spnAmount.Properties.Mask.EditMask = "c2";
+        _spnAmount.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _spnAmount.Properties.Mask.EditMask = "n2";
+        _spnAmount.Properties.Mask.UseMaskAsDisplayFormat = true;
         _spnAmount.Properties.MinValue = 0.01m;
         _spnAmount.Properties.MaxValue = 1000000;
 
@@ -113,16 +111,20 @@ public sealed class CashMovementDialog : XtraForm
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(0, 10, 0, 0)
+            Padding = new Padding(0, DesktopDpi.Scale(8, this), 0, 0)
         };
 
-        _btnCancel = new SimpleButton { Text = "Cancel", DialogResult = DialogResult.Cancel, Size = new Size(100, 38) };
+        _btnCancel = new SimpleButton { Text = "Cancel", DialogResult = DialogResult.Cancel, Size = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(38, this)) };
         _btnSave = new SimpleButton
         {
             Text = "Save Movement",
-            Size = new Size(130, 38),
-            Appearance = { Font = new Font(Font.FontFamily, 10f, FontStyle.Bold) }
+            Size = new Size(DesktopDpi.Scale(140, this), DesktopDpi.Scale(38, this)),
+            Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) }
         };
+        _btnSave.Appearance.BackColor = Color.FromArgb(13, 148, 136);
+        _btnSave.Appearance.ForeColor = Color.White;
+        _btnSave.Appearance.Options.UseBackColor = true;
+        _btnSave.Appearance.Options.UseForeColor = true;
         _btnSave.Click += BtnSave_Click;
 
         btnPanel.Controls.Add(_btnCancel);

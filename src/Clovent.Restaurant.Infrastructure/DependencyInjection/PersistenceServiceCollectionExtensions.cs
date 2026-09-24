@@ -11,9 +11,11 @@ using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.QuickOrderTemplates;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Shifts;
+using Clovent.Restaurant.SmartRecommendations;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -41,7 +43,9 @@ public static class PersistenceServiceCollectionExtensions
             ?? throw new InvalidOperationException(
                 $"Missing required connection string 'ConnectionStrings:{ConnectionStringName}'.");
 
-        services.AddDbContext<RestaurantDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContext<RestaurantDbContext>(options =>
+            options.UseSqlServer(connectionString)
+                   .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<IDiningAreaRepository, DiningAreaRepository>();
         services.TryAddScoped<ITableRepository, TableRepository>();
@@ -58,7 +62,13 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<ICustomerRepository, CustomerRepository>();
         services.TryAddScoped<ICustomerLedgerEntryRepository, CustomerLedgerEntryRepository>();
         services.TryAddScoped<IShiftRepository, ShiftRepository>();
+        services.TryAddScoped<Clovent.Restaurant.Attendance.IAttendanceSessionRepository, AttendanceSessionRepository>();
+        services.TryAddScoped<IRecommendationRuleRepository, RecommendationRuleRepository>();
+        services.TryAddScoped<ISuggestionEventRepository, SuggestionEventRepository>();
+        services.TryAddScoped<IQuickOrderTemplateRepository, QuickOrderTemplateRepository>();
+        services.TryAddScoped<Clovent.Restaurant.DayClose.IBusinessDayCloseRepository, BusinessDayCloseRepository>();
 
+        services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboStore, SmartComboStore>();
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 
         services.AddScoped<IPersistenceInitializer, RestaurantPersistenceInitializer>();
@@ -66,3 +76,4 @@ public static class PersistenceServiceCollectionExtensions
         return services;
     }
 }
+

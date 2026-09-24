@@ -263,6 +263,35 @@ public sealed partial class UsersForm : BaseForm
         }
     }
 
+    private async void BtnSetPin_Click(object? sender, EventArgs e)
+    {
+        if (GetFocusedItem() is { } item)
+        {
+            await SetPinAsync(item);
+        }
+    }
+
+    private async void BtnClearPin_Click(object? sender, EventArgs e)
+    {
+        if (GetFocusedItem() is { } item && XtraMessageBox.Show(
+                this,
+                $"Remove the POS sign-in PIN for {item.UserName}? They will no longer be able to sign in with just a PIN.",
+                "Clear PIN",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question) == DialogResult.Yes)
+        {
+            try
+            {
+                await _mediator.Send(new SetPinCommand(item.UserId, null));
+                XtraMessageBox.Show(this, "PIN has been removed.", "Clear PIN", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Clovent.Authentication.AuthenticationDomainException ex)
+            {
+                XtraMessageBox.Show(this, ex.Message, "Clear PIN", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+    }
+
     private async void BtnUnlock_Click(object? sender, EventArgs e)
     {
         if (GetFocusedItem() is { } item)
@@ -384,6 +413,31 @@ public sealed partial class UsersForm : BaseForm
         }
     }
 
+    /// <summary>
+    /// Assigns the focused user's POS sign-in PIN via <see cref="PinPromptForm"/>.
+    /// The stored PIN is never displayed - only ever replaced (here) or
+    /// removed (BtnClearPin_Click maps to SetPinCommand's null-PIN path), so
+    /// a user cannot be left with a guessable empty PIN.
+    /// </summary>
+    private async Task SetPinAsync(UserRow row)
+    {
+        using var form = new PinPromptForm($"Set PIN - {row.UserName}");
+        if (form.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            await _mediator.Send(new SetPinCommand(row.UserId, form.NewPin));
+            XtraMessageBox.Show(this, "PIN has been set. The user can now sign in to the POS with just this PIN.", "Set PIN", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Clovent.Authentication.AuthenticationDomainException ex)
+        {
+            XtraMessageBox.Show(this, ex.Message, "Set PIN", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     private async Task ResetPasswordAsync(UserRow row)
     {
         using var form = new PasswordPromptForm($"Reset Password - {row.UserName}", requireCurrentPassword: false);
@@ -409,6 +463,8 @@ public sealed partial class UsersForm : BaseForm
         btnActivate.Tag = await CanUseFeatureAsync("activate");
         btnDeactivate.Tag = await CanUseFeatureAsync("deactivate");
         btnResetPassword.Tag = await CanUseFeatureAsync("resetpassword");
+        btnSetPin.Tag = await CanUseFeatureAsync("setpin");
+        btnClearPin.Tag = btnSetPin.Tag;
         btnUnlock.Tag = await CanUseFeatureAsync("unlock");
     }
 
@@ -423,6 +479,8 @@ public sealed partial class UsersForm : BaseForm
         btnActivate.Enabled = (selectedCount > 0) && (btnActivate.Tag as bool? ?? true);
         btnDeactivate.Enabled = (selectedCount > 0) && (btnDeactivate.Tag as bool? ?? true);
         btnResetPassword.Enabled = (selectedCount == 1) && hasFocusedRow && (btnResetPassword.Tag as bool? ?? true);
+        btnSetPin.Enabled = (selectedCount == 1) && hasFocusedRow && (btnSetPin.Tag as bool? ?? true);
+        btnClearPin.Enabled = (selectedCount == 1) && hasFocusedRow && (btnClearPin.Tag as bool? ?? true);
         btnUnlock.Enabled = (selectedCount == 1) && hasFocusedRow && (btnUnlock.Tag as bool? ?? true) && status == "Locked";
     }
 

@@ -1,31 +1,26 @@
 using System;
+using System.Globalization;
 
 namespace Clovent.Desktop.Forms.Base;
 
 /// <summary>
 /// Centralized display helper for DateTimes. Converts UTC timestamps to the configured
 /// business time zone and formats them using the selected Date and Time format string.
+/// Backed by <see cref="BusinessDateTimeService.Instance"/>.
 /// </summary>
 public static class DateTimeDisplay
 {
-    private static TimeZoneInfo _businessTimeZone = TimeZoneInfo.Utc;
-    private static string _dateTimeFormat = "dd/MM/yyyy HH:mm"; // fallback default
-
     /// <summary>Configures the process-wide timezone and format string.</summary>
     public static void Configure(TimeZoneInfo timeZone, string dateTimeFormat)
     {
-        _businessTimeZone = timeZone ?? TimeZoneInfo.Utc;
-        if (!string.IsNullOrWhiteSpace(dateTimeFormat))
-        {
-            _dateTimeFormat = dateTimeFormat;
-        }
+        BusinessDateTimeService.Instance.Configure(timeZone, dateTimeFormat);
     }
 
     /// <summary>Gets the configured business timezone.</summary>
-    public static TimeZoneInfo BusinessTimeZone => _businessTimeZone;
+    public static TimeZoneInfo BusinessTimeZone => BusinessDateTimeService.Instance.BusinessTimeZone;
 
     /// <summary>Gets the configured date and time format string.</summary>
-    public static string FormatString => _dateTimeFormat;
+    public static string FormatString => BusinessDateTimeService.Instance.DateTimeFormat;
 
     /// <summary>
     /// Formats a DateTimeOffset value by first converting it to the configured business timezone,
@@ -33,27 +28,42 @@ public static class DateTimeDisplay
     /// </summary>
     public static string Format(DateTimeOffset? value)
     {
-        if (value == null) return "-";
-        
-        // Convert UTC/any offset to configured business timezone
-        var localTime = TimeZoneInfo.ConvertTime(value.Value, _businessTimeZone);
-        return localTime.ToString(_dateTimeFormat);
+        return BusinessDateTimeService.Instance.FormatDateTime(value);
     }
 
     /// <summary>
-    /// Formats a DateTime value (assumed to be in UTC if not specified, or just converted) by first converting it to the configured business timezone,
+    /// Formats a DateTime value by first converting it to the configured business timezone,
     /// and then formatting it according to the configured Date and Time Format.
     /// </summary>
     public static string Format(DateTime? value)
     {
+        return BusinessDateTimeService.Instance.FormatDateTime(value);
+    }
+
+    /// <summary>Formats a DateOnly value using the date portion of the configured format.</summary>
+    public static string FormatDate(DateOnly? value)
+    {
         if (value == null) return "-";
-        
-        DateTime utcDateTime = value.Value;
-        if (utcDateTime.Kind != DateTimeKind.Utc)
-        {
-            utcDateTime = DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc);
-        }
-        var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcDateTime, _businessTimeZone);
-        return localTime.ToString(_dateTimeFormat);
+        return BusinessDateTimeService.Instance.FormatDate(value.Value);
+    }
+
+    /// <summary>Formats the date portion of a DateTimeOffset in the configured business timezone.</summary>
+    public static string FormatDate(DateTimeOffset? value)
+    {
+        if (value == null) return "-";
+        var localTime = BusinessDateTimeService.Instance.ConvertUtcToBusinessTime(value.Value);
+        return BusinessDateTimeService.Instance.FormatDate(DateOnly.FromDateTime(localTime.DateTime));
+    }
+
+    /// <summary>Formats the time portion of a timestamp in the configured business timezone ("hh:mm tt").</summary>
+    public static string FormatTime(DateTimeOffset? value)
+    {
+        return BusinessDateTimeService.Instance.FormatTime(value);
+    }
+
+    /// <summary>Gets the current operational business date derived from the configured business timezone.</summary>
+    public static DateOnly GetCurrentBusinessDate()
+    {
+        return BusinessDateTimeService.Instance.GetCurrentBusinessDate();
     }
 }

@@ -270,4 +270,98 @@ public class CustomerHandlerTests
         Assert.NotNull(dto.LastTransactionDate);
         Assert.Equal(date, dto.LastTransactionDate.Value);
     }
+
+    [Fact]
+    public async Task CreateCustomer_WithIsDefault_UnsetsPreviousDefault()
+    {
+        var customerRepo = new FakeCustomerRepository();
+        var ledgerRepo = new FakeCustomerLedgerEntryRepository();
+        var createHandler = new CreateCustomerCommandHandler(customerRepo, ledgerRepo);
+
+        // Customer 1 created as default
+        var c1 = await createHandler.Handle(new CreateCustomerCommand("C001", "Customer One", "111", "Addr 1", null, 0m, 0m, null, null, null, null, IsDefault: true), CancellationToken.None);
+        Assert.True(c1.IsDefault);
+
+        // Customer 2 created as default
+        var c2 = await createHandler.Handle(new CreateCustomerCommand("C002", "Customer Two", "222", "Addr 2", null, 0m, 0m, null, null, null, null, IsDefault: true), CancellationToken.None);
+        Assert.True(c2.IsDefault);
+
+        // Customer 1 must have IsDefault unset
+        var reloadedC1 = await customerRepo.GetByIdAsync(new CustomerId(c1.CustomerId));
+        Assert.NotNull(reloadedC1);
+        Assert.False(reloadedC1.IsDefault);
+    }
+
+    [Fact]
+    public async Task SetDefaultCustomerCommand_SetsTargetAndUnsetsPrevious()
+    {
+        var customerRepo = new FakeCustomerRepository();
+        var c1 = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"), "Customer One", "111", "Addr 1", null, 0m, 0m, null, isDefault: true);
+        var c2 = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C002"), "Customer Two", "222", "Addr 2", null, 0m, 0m, null, isDefault: false);
+        await customerRepo.AddAsync(c1);
+        await customerRepo.AddAsync(c2);
+
+        var handler = new SetDefaultCustomerCommandHandler(customerRepo);
+        var res = await handler.Handle(new SetDefaultCustomerCommand(c2.Id.Value), CancellationToken.None);
+
+        Assert.True(res.IsDefault);
+        Assert.Equal(c2.Id.Value, res.CustomerId);
+
+        var reloadedC1 = await customerRepo.GetByIdAsync(c1.Id);
+        var reloadedC2 = await customerRepo.GetByIdAsync(c2.Id);
+
+        Assert.NotNull(reloadedC1);
+        Assert.NotNull(reloadedC2);
+        Assert.False(reloadedC1.IsDefault);
+        Assert.True(reloadedC2.IsDefault);
+    }
+
+    [Fact]
+    public async Task SetDefaultCustomerCommand_InactiveCustomer_Throws()
+    {
+        var customerRepo = new FakeCustomerRepository();
+        var customer = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"), "Customer One", "111", "Addr 1", null, 0m, 0m, null, isDefault: false);
+        customer.SetStatus(false);
+        await customerRepo.AddAsync(customer);
+
+        var handler = new SetDefaultCustomerCommandHandler(customerRepo);
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new SetDefaultCustomerCommand(customer.Id.Value), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task DeactivatingDefaultCustomer_AutomaticallyUnsetsDefault()
+    {
+        var customerRepo = new FakeCustomerRepository();
+        var customer = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"), "Customer One", "111", "Addr 1", null, 0m, 0m, null, isDefault: true);
+        await customerRepo.AddAsync(customer);
+
+        var statusHandler = new SetCustomerStatusCommandHandler(customerRepo);
+        var res = await statusHandler.Handle(new SetCustomerStatusCommand(customer.Id.Value, false), CancellationToken.None);
+
+        Assert.False(res.IsActive);
+        Assert.False(res.IsDefault);
+
+        var reloaded = await customerRepo.GetByIdAsync(customer.Id);
+        Assert.NotNull(reloaded);
+        Assert.False(reloaded.IsActive);
+        Assert.False(reloaded.IsDefault);
+    }
+
+    [Fact]
+    public async Task GetDefaultCustomerQuery_ReturnsDesignatedDefault()
+    {
+        var customerRepo = new FakeCustomerRepository();
+        var c1 = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C001"), "Customer One", "111", "Addr 1", null, 0m, 0m, null, isDefault: false);
+        var c2 = Customer.Create(Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("C002"), "Customer Two", "222", "Addr 2", null, 0m, 0m, null, isDefault: true);
+        await customerRepo.AddAsync(c1);
+        await customerRepo.AddAsync(c2);
+
+        var handler = new GetDefaultCustomerQueryHandler(customerRepo);
+        var def = await handler.Handle(new GetDefaultCustomerQuery(), CancellationToken.None);
+
+        Assert.NotNull(def);
+        Assert.Equal(c2.Id.Value, def.CustomerId);
+        Assert.True(def.IsDefault);
+    }
 }

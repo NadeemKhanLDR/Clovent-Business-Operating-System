@@ -200,4 +200,73 @@ public class LoginServiceTests
         Assert.False(result.Succeeded);
         Assert.Empty(fixture.LoginAttempts.All);
     }
+    [Fact]
+    public async Task LoginAsync_PinOnly_NoUsername_ResolvesUserFromPinAndSucceeds()
+    {
+        var fixture = BuildFixture();
+        var (user, _) = await CreateActiveUserWithPinAsync(fixture, "bob", "482913");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("", null, "482913", RememberMe: false));
+
+        Assert.True(result.Succeeded);
+        Assert.True(fixture.CurrentSession.IsAuthenticated);
+        Assert.Equal(user.Id.Value, fixture.CurrentSession.UserId);
+    }
+
+    [Fact]
+    public async Task LoginAsync_PinOnly_UnknownPin_FailsWithGenericMessage()
+    {
+        var fixture = BuildFixture();
+        await CreateActiveUserWithPinAsync(fixture, "bob", "482913");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("", null, "999999", RememberMe: false));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Invalid username or password.", result.ErrorMessage);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task LoginAsync_PinOnly_InactiveUser_Fails()
+    {
+        var fixture = BuildFixture();
+        var (user, _) = await CreateActiveUserWithPinAsync(fixture, "bob", "482913");
+        user.Deactivate();
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("", null, "482913", RememberMe: false));
+
+        Assert.False(result.Succeeded);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task LoginAsync_PinOnly_TwoUsers_ResolvesOnlyTheMatchingUser()
+    {
+        var fixture = BuildFixture();
+        var (bob, _) = await CreateActiveUserWithPinAsync(fixture, "bob", "482913");
+        await CreateActiveUserWithPinAsync(fixture, "carol", "570246");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("", null, "570246", RememberMe: false));
+
+        Assert.True(result.Succeeded);
+        Assert.DoesNotContain(fixture.LoginAttempts.All, a => a.Outcome == LoginOutcome.Succeeded && a.UserId?.Value == bob.Id.Value);
+
+        var carol = await fixture.Users.GetByUserNameAsync(UserName.Create("carol"));
+        Assert.Equal(carol!.Id.Value, fixture.CurrentSession.UserId);
+    }
+
+    private static async Task<(User user, UserCredentials credentials)> CreateActiveUserWithPinAsync(
+        Fixture fixture, string userName, string pin)
+    {
+        var user = User.Create(Email.Create($"{userName}@example.com"), UserName.Create(userName), DisplayName.Create(userName));
+        user.Activate();
+        fixture.Users.Add(user);
+
+        var pinHasher = new Pbkdf2PinHasher();
+        var credentials = UserCredentials.Create(user.Id, DateTimeOffset.UtcNow);
+        credentials.SetPin(PinHash.Create(pinHasher.Hash(pin)), DateTimeOffset.UtcNow);
+        await fixture.Credentials.AddAsync(credentials);
+
+        return (user, credentials);
+    }
 }

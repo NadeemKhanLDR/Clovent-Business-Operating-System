@@ -18,17 +18,29 @@ public static class CurrencyDisplayLoader
     /// <summary>Sets the process-wide currency from the organization's configured default.</summary>
     public static async Task ConfigureAsync(ISender mediator)
     {
-        var currencies = await mediator.Send(new ListCurrenciesQuery());
-
-        var preferredCurrencyId = await TryGetDefaultCurrencyIdAsync(mediator);
-        var currency = preferredCurrencyId is { } id
-            ? currencies.FirstOrDefault(c => c.CurrencyId == id)
-            : null;
-
-        currency ??= currencies.FirstOrDefault();
-        if (currency is not null)
+        try
         {
-            CurrencyDisplay.Configure(currency.Symbol, currency.DecimalPlaces);
+            var currencies = await mediator.Send(new ListCurrenciesQuery()).ConfigureAwait(false);
+
+            var preferredCurrencyId = await TryGetDefaultCurrencyIdAsync(mediator).ConfigureAwait(false);
+            var currency = preferredCurrencyId is { } id
+                ? currencies.FirstOrDefault(c => c.CurrencyId == id)
+                : null;
+
+            currency ??= currencies.FirstOrDefault();
+            if (currency is not null)
+            {
+                CurrencyDisplay.Configure(currency.Code, currency.Symbol, currency.DecimalPlaces);
+            }
+            else
+            {
+                CurrencyDisplay.Configure("PKR", "Rs.", 2);
+            }
+        }
+        catch
+        {
+            // Resilient fallback: ensure currency display is always initialized even if query fails
+            CurrencyDisplay.Configure("PKR", "Rs.", 2);
         }
     }
 
@@ -36,18 +48,18 @@ public static class CurrencyDisplayLoader
     {
         try
         {
-            var organizations = await mediator.Send(new ListOrganizationsQuery());
+            var organizations = await mediator.Send(new ListOrganizationsQuery()).ConfigureAwait(false);
             if (organizations.Count == 0)
             {
                 return null;
             }
 
-            var settings = await mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizations.First().OrganizationId));
+            var settings = await mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizations.First().OrganizationId)).ConfigureAwait(false);
             return settings.DefaultCurrencyId;
         }
-        catch (Clovent.MasterData.Application.NotFoundException)
+        catch (Exception)
         {
-            // No business settings record yet - fall back to the first currency.
+            // Business settings record absent or query failed - fall back to the first currency.
             return null;
         }
     }

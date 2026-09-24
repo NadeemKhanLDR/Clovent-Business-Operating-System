@@ -202,4 +202,33 @@ internal static class ValueConverters
     /// <summary><see cref="Clovent.Identity.Users.UserId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<Clovent.Identity.Users.UserId, Guid> UserIdConverter =
         new(id => id.Value, value => new Clovent.Identity.Users.UserId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.SmartRecommendations.RecommendationRuleId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.SmartRecommendations.RecommendationRuleId, Guid> RecommendationRuleIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.SmartRecommendations.RecommendationRuleId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.SmartRecommendations.SuggestionEventId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.SmartRecommendations.SuggestionEventId, Guid> SuggestionEventIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.SmartRecommendations.SuggestionEventId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateId, Guid> QuickOrderTemplateIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateItemId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateItemId, Guid> QuickOrderTemplateItemIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplateItemId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.DayClose.BusinessDayCloseId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.DayClose.BusinessDayCloseId, Guid> BusinessDayCloseIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.DayClose.BusinessDayCloseId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.Attendance.AttendanceSessionId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Attendance.AttendanceSessionId, Guid> AttendanceSessionIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.Attendance.AttendanceSessionId(value));
+
+    /// <summary>Nullable <see cref="Clovent.MasterData.Terminals.TerminalId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.MasterData.Terminals.TerminalId?, Guid?> NullableTerminalIdConverter =
+        new(id => id.HasValue ? id.Value.Value : null, value => value.HasValue ? new Clovent.MasterData.Terminals.TerminalId(value.Value) : null);
 }
+

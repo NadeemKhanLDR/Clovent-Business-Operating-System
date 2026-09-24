@@ -31,11 +31,19 @@ internal sealed class ShiftConfiguration : IEntityTypeConfiguration<Shift>
             .HasConversion(ValueConverters.TerminalIdConverter)
             .IsRequired();
         builder.HasIndex(s => s.TerminalId);
+        builder.HasIndex(s => s.TerminalId)
+            .HasDatabaseName("IX_Shifts_TerminalId_Active")
+            .HasFilter("[Status] = 'Open'")
+            .IsUnique();
 
         builder.Property(s => s.CashierId)
             .HasConversion(ValueConverters.UserIdConverter)
             .IsRequired();
         builder.HasIndex(s => s.CashierId);
+        builder.HasIndex(s => s.CashierId)
+            .HasDatabaseName("IX_Shifts_CashierId_Active")
+            .HasFilter("[Status] = 'Open'")
+            .IsUnique();
 
         builder.Property(s => s.CashierName).HasMaxLength(150).IsRequired();
 

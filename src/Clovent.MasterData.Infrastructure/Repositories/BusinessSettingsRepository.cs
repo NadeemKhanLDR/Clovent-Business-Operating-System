@@ -9,14 +9,14 @@ namespace Clovent.MasterData.Infrastructure.Repositories;
 public sealed class BusinessSettingsRepository(MasterDataDbContext dbContext) : IBusinessSettingsRepository
 {
     /// <inheritdoc/>
-    public Task<BusinessSettings?> GetByIdAsync(BusinessSettingsId id, CancellationToken cancellationToken = default) =>
-        dbContext.BusinessSettings.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+    public async Task<BusinessSettings?> GetByIdAsync(BusinessSettingsId id, CancellationToken cancellationToken = default) =>
+        await dbContext.BusinessSettings.FirstOrDefaultAsync(s => s.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
-    public Task<BusinessSettings?> GetByOrganizationIdAsync(OrganizationId organizationId, CancellationToken cancellationToken = default) =>
-        dbContext.BusinessSettings.FirstOrDefaultAsync(s => s.OrganizationId == organizationId, cancellationToken);
+    public async Task<BusinessSettings?> GetByOrganizationIdAsync(OrganizationId organizationId, CancellationToken cancellationToken = default) =>
+        await dbContext.BusinessSettings.FirstOrDefaultAsync(s => s.OrganizationId == organizationId, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(BusinessSettings settings, CancellationToken cancellationToken = default) =>
-        await dbContext.BusinessSettings.AddAsync(settings, cancellationToken);
+        await dbContext.BusinessSettings.AddAsync(settings, cancellationToken).ConfigureAwait(false);
 }

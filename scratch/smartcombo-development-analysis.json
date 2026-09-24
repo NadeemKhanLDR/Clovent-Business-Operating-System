@@ -1,0 +1,192 @@
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-23rf-6693-g89p
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-g8r8-53c2-pm3f
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-mmjf-rqrv-855v
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-23rf-6693-g89p
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-8q5v-6pqq-x66h
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-cvvh-rhrc-wg4q
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-g8r8-53c2-pm3f
+D:\Clovent Business Operating System\scratch\SmartComboCheck\SmartComboCheck.csproj : warning NU1903: Package 'System.Security.Cryptography.Xml' 8.0.3 has a known high severity vulnerability, https://github.com/advisories/GHSA-mmjf-rqrv-855v
+warn: Microsoft.EntityFrameworkCore.Model.Validation[30000]
+      No store type was specified for the decimal property 'AcceptedQuantity' on entity type 'SuggestionEvent'. This will cause values to be silently truncated if they do not fit in the default precision and scale. Explicitly specify the SQL server column type that can accommodate all the values in 'OnModelCreating' using 'HasColumnType', specify precision and scale using 'HasPrecision', or configure a value converter using 'HasConversion'.
+warn: Microsoft.EntityFrameworkCore.Model.Validation[30000]
+      No store type was specified for the decimal property 'AcceptedUnitAmount' on entity type 'SuggestionEvent'. This will cause values to be silently truncated if they do not fit in the default precision and scale. Explicitly specify the SQL server column type that can accommodate all the values in 'OnModelCreating' using 'HasColumnType', specify precision and scale using 'HasPrecision', or configure a value converter using 'HasConversion'.
+{
+  "Location": "Main Warehouse",
+  "Analysis": {
+    "WarehouseId": "b5cb31e4-303b-4bf5-ba53-214f7fa14c4a",
+    "FromUtc": "2026-08-22T07:37:25.7327397+00:00",
+    "ToUtc": "2026-09-21T07:37:25.7327397+00:00",
+    "EligibleOrders": 118,
+    "OversizedBaskets": 0,
+    "ConvertedCount": 0,
+    "Opportunities": [
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|a6ef7092dab14e73a60327001bd6d85d",
+        "Name": "Leechi Combo",
+        "Items": [
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 118,
+        "Support": 0.0508474576271186440677966102,
+        "AttachRate": 0.5454545454545454545454545455,
+        "Lift": 6.4363636363636363636363636406,
+        "Antecedent": "Leechi - Leechi",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 80.00,
+        "SuggestedPrice": 76.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 80.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "a6ef7092dab14e73a60327001bd6d85d|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 118,
+        "Support": 0.0508474576271186440677966102,
+        "AttachRate": 0.1153846153846153846153846154,
+        "Lift": 1.3615384615384615384615384625,
+        "Antecedent": "Chicken Biryani - Standard",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 480.00,
+        "SuggestedPrice": 456.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 480.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 118,
+        "Support": 0.0508474576271186440677966102,
+        "AttachRate": 0.1153846153846153846153846154,
+        "Lift": 1.2377622377622377622377622385,
+        "Antecedent": "Chicken Biryani - Standard",
+        "Consequent": "Leechi - Leechi",
+        "NormalPrice": 500.00,
+        "SuggestedPrice": 475.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 500.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|a6ef7092dab14e73a60327001bd6d85d|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 5,
+        "EligibleOrders": 118,
+        "Support": 0.0423728813559322033898305085,
+        "AttachRate": 0.8333333333333333333333333333,
+        "Lift": 9.833333333333333333333333339,
+        "Antecedent": "Leechi - Leechi \u002B Chicken Biryani - Standard",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 530.00,
+        "SuggestedPrice": 503.50,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 530.00,
+        "GrossProfit": null,
+        "Margin": null
+      }
+    ]
+  }
+}

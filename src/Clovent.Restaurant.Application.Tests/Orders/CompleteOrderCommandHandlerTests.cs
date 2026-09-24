@@ -467,4 +467,23 @@ public class CompleteOrderCommandHandlerTests
         Assert.Equal("Completed", result.Status);
         Assert.Empty(fixture.Inventory.IssuedCalls);
     }
+
+    [Fact]
+    public async Task CompleteOrderCommandHandler_DineIn_VacatesTable()
+    {
+        var fixture = new Fixture();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        table.Occupy();
+        fixture.Tables.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        fixture.Orders.Add(order);
+        fixture.AddLine(order, quantity: 1, unitPrice: 50m);
+        fixture.PayInFull(order, 50m);
+
+        var result = await fixture.CreateHandler().Handle(new CompleteOrderCommand(order.Id.Value), CancellationToken.None);
+
+        Assert.Equal("Completed", result.Status);
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
 }

@@ -72,7 +72,16 @@ public sealed class Shift : AggregateRoot<ShiftId>
     /// <summary>Cash in/out movements recorded during this shift.</summary>
     public IReadOnlyCollection<CashMovement> CashMovements => _cashMovements.AsReadOnly();
 
-    /// <summary>Constructor for EF Core persistence.</summary>
+    /// <summary>
+    /// Constructor for EF Core persistence. Deliberately has no
+    /// <c>cashMovements</c> parameter: EF Core cannot bind navigation
+    /// properties through constructor parameters, and a parameter named after
+    /// a mapped navigation makes every <c>Shift</c> query fail at model
+    /// validation ("No suitable constructor was found"). The
+    /// <see cref="CashMovements"/> navigation is populated through the
+    /// <c>_cashMovements</c> backing field instead (see
+    /// <c>ShiftConfiguration</c>'s <c>UsePropertyAccessMode(Field)</c>).
+    /// </summary>
     private Shift(
         ShiftId id,
         int shiftNumber,
@@ -91,8 +100,7 @@ public sealed class Shift : AggregateRoot<ShiftId>
         string? varianceReason,
         string? notes,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset updatedAtUtc,
-        List<CashMovement>? cashMovements = null)
+        DateTimeOffset updatedAtUtc)
     {
         Id = id;
         ShiftNumber = shiftNumber;
@@ -112,10 +120,6 @@ public sealed class Shift : AggregateRoot<ShiftId>
         Notes = notes;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
-        if (cashMovements != null)
-        {
-            _cashMovements.AddRange(cashMovements);
-        }
     }
 
     /// <summary>Opens a new active shift session.</summary>

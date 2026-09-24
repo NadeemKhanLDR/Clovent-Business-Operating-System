@@ -1,4 +1,5 @@
-﻿using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Catalog.Application.Products.Queries;
+using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.Restaurant.Orders;
@@ -13,6 +14,7 @@ using Clovent.MasterData.Application.Warehouses.Queries;
 using Clovent.Restaurant.Application.EndOfDay.Dtos;
 using Clovent.Restaurant.Application.EndOfDay.Queries;
 using DevExpress.XtraEditors;
+using DevExpress.XtraGrid;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -23,16 +25,7 @@ namespace Clovent.Desktop.Restaurant.EndOfDay;
 /// layer still calls the Day-End / Z-report (<c>GetEndOfDayReportQuery</c>,
 /// unchanged): Total Bills, Total Sales, Cash, Card, Top Selling Items,
 /// Bills, plus Inventory Movement and Stock Remaining composed from
-/// <c>Clovent.Inventory.Application</c>'s existing queries. Only this
-/// presentation layer's captions changed for the Restaurant UX refinement -
-/// every figure, query, and command underneath is exactly what
-/// <c>RestaurantPOSArchitecture.md</c> already documents. One tab per
-/// section so each grid keeps its own native DevExpress Preview/Print/Export
-/// PDF/Export Excel actions - see this screen's own commit/architecture note
-/// for why a single combined print document was not attempted. Feature-gated
-/// per <c>endofday.view</c> (the feature code itself was left unchanged -
-/// renaming it would have no user-visible effect and would only add churn to
-/// every seeded permission referencing it).
+/// <c>Clovent.Inventory.Application</c>'s existing queries.
 /// </summary>
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed partial class EndOfDayReportView : XtraUserControl
@@ -45,8 +38,9 @@ public sealed partial class EndOfDayReportView : XtraUserControl
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
 
-    private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
+    private Dictionary<Guid, (string Sku, string VariantName, string ProductName)> _variantsById = [];
     private string _summaryText = string.Empty;
+    private bool _isUpdatingPeriod;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public EndOfDayReportView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -59,28 +53,166 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         AppearanceManager.Changed += AppearanceManager_Changed;
 
         InitializeComponent();
+        ConfigureReportPeriodOptions();
+    }
+
+    private void ConfigureReportPeriodOptions()
+    {
+        if (DesignModeHelper.IsInDesignMode) return;
+        _periodCombo.Properties.Items.Clear();
+        foreach (var (_, name) in ReportPeriodCalculator.GetAllOptions())
+        {
+            _periodCombo.Properties.Items.Add(name);
+        }
+        _periodCombo.SelectedIndex = -1;
+        _periodCombo.SelectedItem = "Today";
     }
 
     private void AppearanceManager_Changed(object? sender, EventArgs e) => AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
 
-    private async void TodayButton_Click(object? sender, EventArgs e) => await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date, DateTime.UtcNow.Date);
+    private void PeriodCombo_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingPeriod) return;
 
-    private async void YesterdayButton_Click(object? sender, EventArgs e) => await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date.AddDays(-1), DateTime.UtcNow.Date.AddDays(-1));
+        var periodName = _periodCombo.SelectedItem?.ToString();
+        var period = ReportPeriodCalculator.ParseDisplayName(periodName);
+        if (period == ReportPeriod.Custom) return;
+
+        _isUpdatingPeriod = true;
+        try
+        {
+            var range = ReportPeriodCalculator.CalculateRange(period, DateOnly.FromDateTime(DateTime.Today));
+            _fromDateEdit.EditValue = range.From.ToDateTime(TimeOnly.MinValue);
+            _toDateEdit.EditValue = range.To.ToDateTime(TimeOnly.MinValue);
+        }
+        finally
+        {
+            _isUpdatingPeriod = false;
+        }
+    }
+
+    private void DateEdit_EditValueChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingPeriod) return;
+
+        if (_periodCombo.SelectedItem?.ToString() != "Custom")
+        {
+            _isUpdatingPeriod = true;
+            try
+            {
+                _periodCombo.SelectedItem = "Custom";
+            }
+            finally
+            {
+                _isUpdatingPeriod = false;
+            }
+        }
+    }
 
     private async void GenerateButton_Click(object? sender, EventArgs e) => await GenerateAsync();
 
     private void PrintSummaryButton_Click(object? sender, EventArgs e) => PrintSummary();
 
+    private void TabControl_SelectedPageChanged(object? sender, DevExpress.XtraTab.TabPageChangedEventArgs e) =>
+        UpdateActionEnablement();
+
+    private void UpdateActionEnablement()
+    {
+        bool hasReport = !string.IsNullOrEmpty(_summaryText);
+        _printSummaryButton.Enabled = hasReport;
+
+        if (_tabControl == null) return;
+
+        if (_tabControl.SelectedTabPageIndex == 0)
+        {
+            _previewButton.Enabled = hasReport;
+            _printButton.Enabled = hasReport;
+            _exportPdfButton.Enabled = false;
+            _exportExcelButton.Enabled = false;
+        }
+        else
+        {
+            var grid = GetCurrentTabGrid();
+            var view = grid?.MainView as DevExpress.XtraGrid.Views.Grid.GridView;
+            bool hasRows = view != null && view.RowCount > 0;
+            _previewButton.Enabled = hasRows;
+            _printButton.Enabled = hasRows;
+            _exportPdfButton.Enabled = hasRows;
+            _exportExcelButton.Enabled = hasRows;
+        }
+    }
+
+    private GridControl? GetCurrentTabGrid() => _tabControl.SelectedTabPageIndex switch
+    {
+        1 => _itemsSoldGrid,
+        2 => _cashSummaryGrid,
+        3 => _billsGrid,
+        4 => _inventoryMovementGrid,
+        5 => _stockRemainingGrid,
+        _ => null
+    };
+
+    private string GetCurrentTabExportName() => _tabControl.SelectedTabPageIndex switch
+    {
+        1 => "TopSellingItems",
+        2 => "CashSummary",
+        3 => "Bills",
+        4 => "InventoryMovement",
+        5 => "StockRemaining",
+        _ => "SalesSummary"
+    };
+
+    private void PreviewButton_Click(object? sender, EventArgs e)
+    {
+        if (_tabControl.SelectedTabPageIndex == 0)
+        {
+            PrintSummary();
+            return;
+        }
+
+        GetCurrentTabGrid()?.ShowPrintPreview();
+    }
+
+    private void PrintButton_Click(object? sender, EventArgs e)
+    {
+        if (_tabControl.SelectedTabPageIndex == 0)
+        {
+            PrintSummary();
+            return;
+        }
+
+        GetCurrentTabGrid()?.ShowRibbonPrintPreview();
+    }
+
+    private void ExportPdfButton_Click(object? sender, EventArgs e)
+    {
+        var grid = GetCurrentTabGrid();
+        if (grid is null) return;
+        var name = GetCurrentTabExportName();
+        ExportGrid(grid, "PDF files (*.pdf)|*.pdf", $"{name}.pdf", (g, path) => g.ExportToPdf(path));
+    }
+
+    private void ExportExcelButton_Click(object? sender, EventArgs e)
+    {
+        var grid = GetCurrentTabGrid();
+        if (grid is null) return;
+        var name = GetCurrentTabExportName();
+        ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{name}.xlsx", (g, path) => g.ExportToXlsx(path));
+    }
+
     private async void EndOfDayReportView_Load(object? sender, EventArgs e)
     {
-        // The Designer's fixed DateEdit minimum width (145) and Generate
-        // button minimum width (110) are 96-DPI logical values - scale them
-        // now that the view has its real device DPI so the date editors and
-        // the Generate button don't clip at above-100% DPI.
-        _fromDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this), 0);
-        _toDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this), 0);
-        _generateButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(110, this), 34);
+        _periodCombo.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(130, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
+        _fromDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(135, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
+        _toDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(135, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
+        _generateButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(110, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
+        _previewButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(80, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
+        _printButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(70, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
+        _exportPdfButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(95, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
+        _exportExcelButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(100, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
+        _printSummaryButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(130, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
 
+        UpdateActionEnablement();
         AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
         await LoadAndShowTodayAsync();
     }
@@ -108,8 +240,16 @@ public sealed partial class EndOfDayReportView : XtraUserControl
     /// <summary>Sets both date edits and regenerates - backs the Today/Yesterday one-click quick filters.</summary>
     private async Task SetDateRangeAndGenerateAsync(DateTime from, DateTime to)
     {
-        _fromDateEdit.EditValue = from;
-        _toDateEdit.EditValue = to;
+        _isUpdatingPeriod = true;
+        try
+        {
+            _fromDateEdit.EditValue = from;
+            _toDateEdit.EditValue = to;
+        }
+        finally
+        {
+            _isUpdatingPeriod = false;
+        }
         await GenerateAsync();
     }
 
@@ -130,8 +270,11 @@ public sealed partial class EndOfDayReportView : XtraUserControl
     private async Task LoadWarehousesAsync()
     {
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
-        _warehousePicker.Visible = warehouses.Count > 1;
+        if (warehouses != null)
+        {
+            _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
+            _warehousePicker.Visible = warehouses.Count > 1;
+        }
     }
 
     private async Task GenerateAsync()
@@ -167,7 +310,15 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         await CurrencyDisplayLoader.ConfigureAsync(_mediator);
 
         var variants = await _mediator.Send(new ListProductVariantsQuery());
-        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
+        var products = await _mediator.Send(new ListProductsQuery());
+        var productNameByProductId = products.ToDictionary(p => p.ProductId, p => p.Name);
+        _variantsById = variants.ToDictionary(
+            v => v.ProductVariantId,
+            v => (
+                v.Sku,
+                v.Name,
+                productNameByProductId.GetValueOrDefault(v.ProductId, string.Empty)
+            ));
 
         var report = await _mediator.Send(new GetEndOfDayReportQuery(warehouseId, fromDate, toDate));
 
@@ -208,6 +359,8 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         _stockRemainingGrid.DataSource = stocks
             .Select(s => new StockRow(ResolveSku(s.ProductVariantId), ResolveName(s.ProductVariantId), s.QuantityOnHand, s.QuantityAvailable))
             .ToList();
+
+        UpdateActionEnablement();
     }
 
     private void PrintSummary()
@@ -248,7 +401,33 @@ public sealed partial class EndOfDayReportView : XtraUserControl
 
     private string ResolveSku(Guid variantId) => _variantsById.TryGetValue(variantId, out var v) ? v.Sku : "(unknown)";
 
-    private string ResolveName(Guid variantId) => _variantsById.TryGetValue(variantId, out var v) ? v.Name : "(unknown)";
+    private string ResolveName(Guid variantId)
+    {
+        if (!_variantsById.TryGetValue(variantId, out var info))
+        {
+            return "(unknown)";
+        }
+
+        var (_, variantName, productName) = info;
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            return string.IsNullOrWhiteSpace(variantName) ? "(unknown)" : variantName;
+        }
+
+        if (string.IsNullOrWhiteSpace(variantName) ||
+            variantName.Equals(productName, StringComparison.OrdinalIgnoreCase) ||
+            variantName == "-")
+        {
+            return productName;
+        }
+
+        if (variantName.StartsWith(productName, StringComparison.OrdinalIgnoreCase))
+        {
+            return variantName;
+        }
+
+        return $"{productName} - {variantName}";
+    }
 
     private sealed record ItemSoldRow(string Sku, string Name, decimal Quantity, decimal Total);
 

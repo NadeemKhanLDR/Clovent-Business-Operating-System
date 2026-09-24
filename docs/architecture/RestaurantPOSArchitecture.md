@@ -139,7 +139,7 @@ Dining Area and Table Management reuse `MasterDataListView<TDto>`/`OrganizationH
 Phase 1 of the Desktop UI rebuild (see `DesktopBootstrap.md` Section 8 for the Shell/Ribbon half of this phase) replaced `RestaurantPosView`'s Section 9 layout - a generic entity-CRUD shape (a product *grid* on the left, a flat seventeen-button column on the right) - with a purpose-built selling screen. No Application/Domain/Infrastructure code changed; every `IMediator` command/query call, every feature-authorization check, and `PaymentForm`/`TableTransferDialog`/`MergeTablesDialog`/`BillSplitDialog`/`DiscountDialog`/`ServiceChargeDialog`/`TextPromptForm`/`SelectionPromptForm`/`QuantityPromptForm` are all reused exactly as Section 9 already documents - this section covers presentation only.
 
 **Layout, top to bottom/left to right:**
-- **Top context bar** (full width): screen title, cashier name (`ICurrentSession.DisplayName`), the Warehouse/Table `EntityPicker`s, prominent accent-colored **NEW DINE-IN**/**NEW TAKE AWAY** buttons, and the current order's status badge (`{OrderNumber} • {OrderType} • {Status}`).
+- **Top context bar** (full width): screen title, cashier name (`ICurrentSession.DisplayName`), the Warehouse/Table `EntityPicker`s, the **+ TAKE AWAY** button (the former **+ DINE-IN** button was removed 2026-09-15: selecting a table in the table picker now starts the Dine-In order automatically - table selection is Dine-In intent; see `TableSelectionDineInPolicy`), and the current order's status badge (`{OrderNumber} • {OrderType} • {Status}`).
 - **Left: product discovery** - a category button strip (from `ListProductCategoriesQuery`, unchanged), a search box, and a wrapping panel of tappable product tile cards (name/SKU/selling price) in place of the old read-only grid, plus the barcode-scan row at the bottom.
 - **Center: the running order** - the order-lines grid (unchanged columns/behavior) with its compact edit-qty/notes/void/remove/refresh toolbar directly beneath it.
 - **Right: grouped action rail** - the same lifecycle/table/adjustment/notes actions Section 9 already lists, now organized into four headed, two-column groups (Order; Table; Adjustments; Notes) inside a scrollable panel, instead of one flat seventeen-item column.
@@ -687,4 +687,389 @@ We expanded the unit tests under `Clovent.Desktop.Tests` (`DesignerSafetyTests.c
 - D24 error-dialog ownership has not been live exercised.
 - Interactive Visual Studio Designer and live runtime verification of all refactored forms remain PENDING.
 
+---
+
+## 23. CBOS Smart Restaurant POS Architecture
+
+Milestone enhancements introduce intelligent decision support and fast checkout capabilities to the Restaurant POS without altering existing core transaction flows:
+
+### 23.1 Domain & Aggregate Extensions
+- **`RecommendationRule`** (`Clovent.Restaurant.SmartRecommendations`):
+  Stores deterministic upsell rules. Evaluated against active cart variant IDs and optional customer context. Supports priority-based ranking, active toggle, daily time windows (`StartTime`/`EndTime`), and day-of-week bitmask filters.
+- **`QuickOrderTemplate` & `QuickOrderTemplateItem`** (`Clovent.Restaurant.QuickOrderTemplates`):
+  Predefined multi-item bundles. Expanding a template invokes the standard `AddProductToCurrentOrder` command pipeline, ensuring stock, price, and modifier invariants are strictly maintained.
+
+### 23.2 Application Services & Query Layer
+- **`GetBasketRecommendationsQuery`**:
+  Computes contextual recommendations with rule-based, popular, and frequent-pair heuristics. As of 2026-09-17 it also enforces catalog availability: a recommended product or variant whose `CatalogStatus` is not `Active` is never returned (applies to configured rules and the "popular today" fallback).
+- **`RecordSuggestionEventCommand`** / `GetUpsellPerformanceQuery` (2026-09-17):
+  Analytics for the upsell engine. The POS appends immutable `SuggestionEvent` rows (`Offered` / `Accepted` / `Dismissed`) fire-and-forget; `Accepted` is written only when the item was added through the suggestion strip and snapshots the added line's quantity and unit amount, so upsell revenue is attributed solely to genuine suggestion interactions. `GetUpsellPerformanceQuery` aggregates offers/accepts/dismissals/conversion/attributed revenue per recommended variant for the Back Office Upsell Performance grid, resolving names from the live catalog read model.
+- **`IOrderHealthService`** / `OrderHealthEvaluator`:
+  Evaluates elapsed time on open/held orders against configurable thresholds (default 0-10m Normal, 10-20m Waiting, 20m+ Warning).
+- **`IUniversalPosSearchService`** / `UniversalPosSearchQuery`:
+  Executes debounced prefix and full-text searches across products, customer codes, customer names/phones, order numbers, and tables.
+- **`IRestaurantPulseService`** / `GetRestaurantPulseQuery`:
+  Aggregates today's operational KPIs (sales, orders, average order value, top revenue item, best seller, average fulfillment duration, and beverage add-on opportunity) directly from persisted orders.
+- **`ICustomerReorderService`** / `GetCustomerLastOrderQuery`:
+  Retrieves a customer's prior completed order items and validates each line against the current active catalog.
+
+### 23.3 Desktop POS UI Integration
+- **Compact Trigger & Dropdown Overlay Suggested Add-ons (2026-09-18):** Compact DevExpress `PopupContainerEdit` docked Top in the cart container (`_pnlOrderedItemsContainer`), paired with a temporary `PopupContainerControl` dropdown overlay housing a checked DevExpress `GridControl`/`GridView`. Replaces the permanently expanded embedded grid with a professional overlay pattern that never permanently displaces the cart.
+  - **Compact Trigger:** 0 suggestions = completely hidden (`Height = 0`, `Visible = false`); 1+ suggestions = compact single control row (~28px) showing DevExpress lightbulb SVG (`actions_idea.svg`), exact label `"Suggested Add-ons"`, and `[ N suggestions ▼ ]`. Clicking the bulb icon or the label immediately triggers the popup.
+  - **Dropdown Overlay (`PopupContainerControl`):** Sized to ~430px width (`Scale(430, this)`), 1–4 items height-scaled, capped at 4 with vertical scrolling for 5+. Floats temporarily above the screen on click; closes on outside click, Escape, or item addition.
+  - **Checked Grid Column Specifications:** Multi-select DevExpress `GridControl`/`GridView` configured with:
+    - `selectCol` (Checkbox): `FixedWidth = true`, `AllowSize = false`, `Width = 38px`.
+    - `itemCol` (Item Name): `MinWidth = 180px`, expands automatically via `ColumnAutoWidth = true` across the remaining ~210px+ available space, preventing truncation or ellipses.
+    - `portionCol` (Portion): `FixedWidth = true`, `AllowSize = false`, `Width = 75px`.
+    - `priceCol` (Price): `FixedWidth = true`, `AllowSize = false`, `Width = 85px`, right-aligned.
+  - **Footer:** `[☐ Select All]` checkbox and `[Add Selected (N)]` action button (disabled when N=0; dynamic count update; teal accent styling).
+  - **Cart Layout Integrity:** The cart begins at essentially the exact same Y position as before suggestions existed. Adding selected items reuses the canonical `AddProductToCurrentOrderCoreAsync` pipeline, tracks `SuggestionEvent` (`Accepted` and `Offered`), and refreshes cart/totals immediately.
+- **Quick Orders Strip:** Collapsible strip with one-click buttons for active order templates.
+- **Rush Mode (⚡):** Presentation mode toggle via More menu; suppresses heavy animations and popups during peak hours.
+- **Universal Search Dropdown:** Keyboard-navigable dropdown docked under POS search box with distinct categorized sections.
+- **Customer Code & Concealment:** Enforces visible customer code formatting (`[C001] Name`) while strictly hiding internal GUIDs from cashiers.
+
+### 23.4 Table Occupancy Lifecycle & Self-Healing Architecture
+- **Table Code Uniqueness:** Tables are strictly unique by code within each dining area. This is enforced at the database level via a unique index `IX_Tables_DiningAreaId_Code` on `[Restaurant].[Tables]([DiningAreaId], [Code])`, and in the Application layer via `CreateTableCommandHandler` invoking `ITableRepository.GetByCodeAsync`.
+- **Authoritative Vacate on Lifecycle Events:** Tables are promptly vacated back to `TableOccupancyStatus.Available` on order completion (`CompleteOrderCommandHandler`), order cancellation (`CancelOrderCommandHandler`), and order voiding (`VoidOrderCommandHandler`).
+- **Self-Healing Reconciliation Engine (`ReconcileTableOccupancyCommand`):**
+  - Avoids naive "vacate all on boot" antipatterns. Instead, cross-references all tables against the live set of active order tables (`SELECT DISTINCT TableId FROM Restaurant.Orders WHERE TableId IS NOT NULL AND (Status = 'Open' OR Status = 'Held')`).
+  - Tables marked `Occupied` without an active order are transitioned to `Available`.
+  - Tables marked `Available` with an active order are transitioned to `Occupied`.
+  - Tables marked `OutOfService` or `Reserved` are explicitly preserved.
+  - Runs automatically on application startup via `TableOccupancyReconciliationStartupTask` (registered as an `IStartupTask`) and whenever table lists are loaded (`ListAllTablesQueryHandler`, `ListTablesByDiningAreaQueryHandler`), persisting corrections via `UnitOfWorkBehavior`.
+
 # NOT READY FOR FINAL UI SIGN-OFF
+*(Manual UI Acceptance Required by Operator)*
+
+## 24. Smart Combo Builder (2026-09-21)
+
+The new manager-only Smart Combo Builder extends the existing Restaurant intelligence ecosystem. Bounded SQL history projection feeds deterministic pair/triple basket analysis; manager decisions persist separately from analytical candidates. Approved opportunities use the existing QuickOrderTemplate creation handler and POS Deal Preview. Templates now optionally carry a warehouse scope; legacy null-scoped templates retain their existing behavior. No historical orders are changed during analysis.
+
+The complete algorithm, formulas, eligibility, pricing/cost, company/branch authorization, permissions, auditing, atomic conversion, dismissal policy, migrations, performance bounds and known limitations are documented in [SmartComboBuilder.md](SmartComboBuilder.md). Exact automated results and separate live/manual acceptance status are in [SmartComboBuilderImplementationReport.md](../testing/SmartComboBuilderImplementationReport.md). Restaurant Pulse, RecommendationRules and SuggestionEvents remain intact. Existing DailySalesSequence and other documented concerns are not marked resolved.
+
+### 24.1 Back Office Management & Layout Rebuild (2026-09-21)
+- **Smart Combo Builder Layout Rebuild:** Completely replaced rigid fixed-height vertical regions with an `AutoSize Top Sections + Filling Results Region` root TableLayoutPanel architecture (Page Header AutoSize, Filter Card AutoSize with labels above controls, 4 KPI Cards AutoSize at 25% width with minimum 95px height, Results Header AutoSize, and Results Region Percent 100%). Results area features horizontal scrolling or proportional auto-fit, generous minimum column widths (Suggested Price widened and scaled to prevent truncation with filter icon), plus a full-fill empty state centered via a 3x3 TableLayoutPanel (`50% / AutoSize / 50%`). Visual acceptance is PENDING USER MANUAL VERIFICATION.
+- **Smart Combo Opportunity Popup Rebuild:** Completely redesigned modal presentation into a modern, sizable DPI-scaled dialog (`SmartComboPreviewDialog`, ~760x650 scaled, min 680x580). Features structured read-only DevExpress `GridControl` for items with `ColumnAutoWidth = true`, right-aligned `Normal Total`, 6-metric Sales Evidence card, clean Deal Settings with live two-way Deal Price / Discount calculation, cost warning note, full-width Dismiss Reason dropdown, and unclipped action buttons.
+- **Quick Order Templates Management:** Redesigned main view (`QuickOrderTemplatesView`) with uncluttered header/toolbar hierarchy, full title visibility, and configured currency grid formatting. Rebuilt `QuickOrderTemplateEditForm` as a professional resizable commercial dialog (~960x660 scaled, min 840x540). Items grid now uses `ColumnAutoWidth = true` across the full dialog width with intentional column weight distribution (Product 28%, Variant 22%, Qty 10%, Deal Price 13%, Catalog Price 13%, Line Total 14%), eliminating truncated headers and unused whitespace.
+- **Shell & Branding:** Replaced debug title string with clean `Clovent Business Operating System` and configured multi-resolution application icon (`cbos.ico`) for Windows shell and taskbar. Removed temporary build watermarks.
+
+## 25. Quick Order Modal Reopen Bug Fix & Restaurant Setup Redesign (2026-09-22)
+
+### 25.1 Quick Order Templates Modal Reopen Bug Fix
+- **Root Cause Analysis:** `QuickOrderTemplatesView.Designer.cs` registered duplicate double-click event subscriptions on `_gridView`: both `_gridView.RowCellClick` (checking `e.Clicks == 2`) and `_gridView.DoubleClick` were mapped to `EditTemplateAsync`. When a row cell was double-clicked, `RowCellClick` fired first, displaying the modal `QuickOrderTemplateEditForm.ShowDialog(this)` blocking the message loop. The pending `DoubleClick` message was retained in the Windows/DevExpress message queue and immediately dispatched upon the dialog closing via the top-right Windows 'X' button or Cancel, triggering a second `ShowDialog` invocation.
+- **Remediation & Centralization:**
+  - Removed duplicate `RowCellClick` subscription entirely.
+  - Implemented hit-testing in `_gridView.DoubleClick` via `_gridView.CalcHitInfo(...)` checking `info.InRow && info.RowHandle >= 0` to prevent unintended activations when double-clicking headers, group panels, or empty areas.
+  - Centralized modal opening into `OpenSelectedTemplateForEditAsync()` and `CreateNewTemplateAsync()`.
+  - Added strict modal lifecycle reentrancy guard (`_isEditDialogOpen`) with guaranteed release in a `finally` block.
+  - Removed queued `BeginInvoke(async () => { await Task.Delay(100); ... })` and lifecycle telemetry from `QuickOrderTemplateEditForm`.
+  - Configured discrete quantity display formatting (`0.##` numeric format + `CustomColumnDisplayText` fallback) so whole quantities display as `1`, `2`, `4` rather than `1.000`, `2.000`, `4.000`.
+
+### 25.2 Restaurant Setup Screen Redesign & Unified Save Settings
+- **Visual & Structural Defect Remediation:**
+  - Replaced the fragmented two-column card layout with a clean, vertically stacked enterprise settings architecture (`_numberingCard`, `_languageCard`, `_posCard`) housed inside an `XtraScrollableControl` with a max-content width of `DesktopDpi.Scale(840, this)` to eliminate excessive horizontal whitespace on wide displays.
+  - Unified label column widths across all three cards (`DesktopDpi.Scale(200, this)`) for perfect vertical field alignment.
+  - Rebuilt the POS Layout card to match the visual quality of the Order Numbering benchmark: generous vertical padding (`Padding(0, 6, 0, 6)` per row), clean separation between controls, unclipped 2-column `"Show"`/`"Hide"` radio group (`220x38` scaled), clear margin above helper text (`Padding(0, 12, 0, 6)`), and dynamic runtime height calculation ensuring zero control-clipping across all screen resolutions and DPI scaling factors.
+- **Single Unified Save Action & Authorization:**
+  - Removed the three disjointed Save buttons (`_saveButton`, `_saveLanguageButton`, `_savePosButton`) and their oversized floppy disk icons.
+  - Replaced with a single primary `[ Save Settings ]` button (`150x38` scaled, brand teal styling `#0D9488`, bold text) located in a dedicated footer panel alongside a consolidated status notification label.
+  - Coordinated atomic multi-store persistence across `ConfigureOrderNumberSequenceCommand` (Order Numbering), `LanguagePreferenceStore` (Display Language + Thread UICulture update), and `PosSettingsStore` (Items Per Row, Active Orders visibility, and Default Payment Method).
+  - Validation: Enforces required prefix (1–20 characters), valid starting number ($\ge 1$), and supported options before executing any persistence.
+
+### 25.3 Authorization Architecture & Idempotent Database Upgrade
+- **Strict RBAC Model (Model B):** CBOS enforces explicit RBAC assignments via `AuthorizationService`. There is deliberately no superuser bypass (no `admin` username check or `DEBUG` bypass). Every user action requires explicit role-permission assignment in the database.
+- **Canonical Feature Permission Identifier:** The canonical feature permission code in the identity catalog and database is `feature.restaurantsetup.edit` (with navigation permission `menu.restaurantsetup`). UI screens invoke `_featurePolicy.CanUseFeatureAsync(userId, "restaurantsetup.edit")`, where `FeatureAuthorizationPolicy` automatically prepends `feature.`, resolving `feature.restaurantsetup.edit`.
+- **Idempotent Startup Seeding & Database Upgrade:** `DevelopmentAuthorizationSeedStartupTask` was refactored so that permission catalog synchronization and `Administrator` role assignment happen unconditionally on application startup for existing SQLite databases without requiring manual SQL execution or database deletion, ensuring seamless upgrades across environments (`SeedDevelopmentUser: false`).
+
+### 25.4 Shift History Screen Redesign & Responsive DPI Layout
+- **Responsive Layout Rebuild:** Completely eliminated the legacy fixed 50px/45px row styles in `ShiftHistoryView`. Replaced with a responsive `TableLayoutPanel` container where the header/filter area and action bar use `SizeType.AutoSize`, while the `GridControl` takes `SizeType.Percent, 100f`, guaranteeing the action bar is never pushed below the visible viewport across 1024x768, 1366x768, and 1920x1080 resolutions.
+- **Header & Filter Panel:**
+  - Period dropdown (`_cboPeriod`) offering 11 QuickBooks-style presets (Today, Yesterday, This Week, Last Week, This Month, Last Month, This Quarter, Last Quarter, This Year, Last Year, Custom), defaulting to `"This Month"`.
+  - Date editors (`From` and `To`) with two-way synchronization: selecting a period preset recalculates dates; manual date editing automatically switches the period combo to `"Custom"`.
+  - Status dropdown (`All`, `Open`, `Closed`, `Cancelled`), Search, and `Clear Filters` button resetting to default period and status.
+- **Bottom Action Bar:**
+  - Standardized action buttons (`Open Shift`, `Cash In / Cash Out`, `Close Shift`, `View Details`) with `DesktopDpi.Scale` minimum sizes, eliminating truncated captions (specifically fixing `"Cash In / Out"` to the unabbreviated `"Cash In / Cash Out"`).
+- **Empty-State Graphic:** Native `CustomDrawEmptyForeground` event handler on `GridView` rendering centered message `"No shifts found for the selected period."` whenever the grid has zero shift records.
+
+### 25.5 Sales Summary View & Shared Report Period Architecture
+- **Ribbon Trace:** Traced Ribbon control `("endofday", "Restaurant", "Closing", "Sales Summary")` to `Program.cs` navigation registry and concrete implementation `EndOfDayReportView`.
+- **Shared Date Range & Period Calculator:**
+  - Created `Clovent.Desktop.Forms.Base.DateRange` (immutable record struct) providing business-local date computation, validation, and UTC conversions: `StartOfFromUtc` (`00:00:00.000` UTC) and `EndOfToUtcInclusive` (`23:59:59.9999999` UTC).
+  - Created `Clovent.Desktop.Forms.Base.ReportPeriod` enum and `ReportPeriodCalculator` providing deterministic calculation for all 11 presets relative to an explicit reference date, with leap year and quarter-boundary edge cases fully covered by unit tests.
+  - Integrated `ReportPeriodCalculator` into both `ShiftHistoryView` and `EndOfDayReportView`, keeping `Today` and `Yesterday` quick buttons synchronized with the period dropdown.
+
+### 25.6 Restaurant Setup & Sales Summary UI/UX Polish & Regression Pass (2026-09-22)
+- **Active Orders Row Polish:**
+  - Replaced the tall white RadioGroup box with a borderless, transparent-background control (`BackColor = Color.Transparent`, `Appearance.BackColor = Color.Transparent`, `AppearanceFocused.BackColor = Color.Transparent`, `Padding = 0`) at a compact height of `26px` scaled.
+  - Configured 2 horizontal columns for `Show` and `Hide` options.
+  - Restored identical vertical rhythm across `Items Per Row`, `Active Orders`, and `Default Payment Method`, eliminating white card-like background artifacts.
+- **Restaurant Setup Vertical Rhythm & Scrollbars:**
+  - Compacted `_headerPanel.Height = 54` with padding `(24, 10, 24, 4)`.
+  - Tightened `_scrollContainer.Padding = (24, 4, 24, 12)`, `_actionsPanel.Margin = (0, 10, 0, 10)`, and card margins to `(0, 0, 0, 10)`.
+  - On a standard 1080p maximized display at standard scaling, the entire Restaurant Setup screen fits inside the client area without triggering vertical scrollbars.
+- **Sales Summary Filter Bar Optimization:**
+  - Removed redundant `[ Today ]` and `[ Yesterday ]` shortcut buttons.
+  - Centralized all date preset selection into the `Report Period` dropdown (`_periodCombo`), which handles Today, Yesterday, This Week, Last Week, This Month, Last Month, This Quarter, Last Quarter, This Year, Last Year, and Custom.
+  - Arranged filter bar controls in a single unified horizontal row: `Location -> Report Period -> From -> To -> [ Generate ] [ Print Summary ]`.
+  - Styled `_generateButton` with teal primary button treatment (`#0D9488`, bold text, white foreground) and `_printSummaryButton` with secondary button treatment.
+- **Sales Summary Currency & Metric Presentation:**
+  - Confirmed canonical `CurrencyDisplay` usage: KPI cards use `CurrencyDisplay.Format(decimal)` and grid columns use `CurrencyDisplay.FormatPlain(decimal)`.
+  - Formatted secondary statistics strip (`VOIDED ORDERS` and `AVERAGE SALE`) with Segoe UI typography and clean `32px` separation.
+
+### 25.7 Customer Ledger, Sales Summary & Upsell Quality Pass (2026-09-22)
+- **Customer Ledger Functional & High-DPI Resolution:**
+  - Resolved filter bar clipping by transitioning `filterPanel` to a 2-row layout with `AutoSize` row styles and adding a dedicated `Report Period` preset dropdown (`Today`, `Yesterday`, `This Week`, `Last Week`, `This Month`, `Last Month`, `This Quarter`, `Last Quarter`, `This Year`, `Last Year`, `Last 7 Days`, `Last 30 Days`, `Custom`), defaulting to `This Month`.
+  - Fixed query boundary logic to include the full end-of-day period via `range.EndOfToUtcInclusive` (`23:59:59.9999999` UTC).
+  - Added user feedback during query execution: disabled `[ Load Ledger ]`, updated cursor to `WaitCursor`, and introduced `_lblStatus` indicating loading progress and record count (`"{count} transactions loaded"`).
+  - Enforced consistent baseline and button heights across `Load Ledger`, `Clear`, `Print`, `PDF`, and `Excel`.
+  - Clarified Walk-in Guest (`C000`) ledger semantics: walk-in retail transactions settle directly to cash/tender and do not generate customer credit ledger entries, rendering 0.00 balances as designed.
+- **Sales Summary Main Action Bar Consolidation:**
+  - Removed duplicate per-tab toolbars from `Top Selling Items`, `Cash Summary`, `Bills`, `Inventory Movement`, and `Stock Remaining`.
+  - Consolidated report actions (`Preview`, `Print`, `Export PDF`, `Export Excel`) directly into the main action bar preceding `[ Print Summary ]`.
+  - Actions dynamically route commands to the currently active tab grid, with buttons enabled/disabled depending on whether the selected tab contains an exportable grid.
+  - Formally distinguished `Print` (DevExpress print preview for the current tab grid) from `Print Summary` (full session receipt statement dialog).
+- **Top Selling Items Product-Variant Display:**
+  - Resolved bare variant captions ("Standard", "Half Plate") by querying `ListProductsQuery()` alongside variants and enriching item captions into `$"{productName} - {variantName}"` (e.g. `Chicken Biryani - Standard`, `Chicken Haleem - Half Plate`).
+- **Upsell Performance Modernization:**
+  - Upgraded screen presentation with enterprise page header (`UPSELL PERFORMANCE` + subtitle) matching back-office design standards.
+  - Replaced custom toolbar with canonical `Report Period` selector defaulting to `Last 30 Days`.
+  - Applied empty-state handling and unified `CurrencyDisplay.FormatPlain` formatting across revenue metrics.
+- **Restaurant Setup Micro-Alignment:**
+  - Shifted `Active Orders` row downward by 4 logical pixels in `RestaurantSetupView` to align precisely with neighboring field labels and controls.
+- **Canonical Report Period Presets:**
+### 25.8 Customer Ledger & Back Office Final Polish (2026-09-22)
+- **Dedicated Status Feedback Strip (`_statusPanel`):**
+  - Moved `_lblStatus` out of `filterPanel` entirely and assigned it to a dedicated AutoSize row (Row 3 of `root`) positioned directly between `filterPanel` and `_ledgerGrid`.
+  - Left-aligned italic caption (`Segoe UI`, 9pt, slate-600 color) ensures feedback messages (such as `"Loading ledger transactions..."`, `"Opening balance brought forward: 20,000.00"`, `"{count} transactions loaded"`) are completely visible and can never overlap or be obscured by filters, buttons, or editors under any window size or DPI scaling.
+- **Root Cause & Mathematical Running Balance Reconciliation:**
+  - Resolved the empty grid issue when clicking "Load Ledger" for customers with outstanding balances (John Smith `272.50`, Jazib `500.00`, Rafiq `20,000.00`).
+  - Traced root cause: existing ledger records in SQL Server were dated in August 2026 (`2026-08-12` and `2026-08-22`), whereas default dialog date range was `This Month` (September 2026). Without an Opening Balance Brought Forward calculation, date filtering excluded prior transactions and produced 0 rows despite non-zero balances.
+  - Implemented standard accounting Opening Balance Brought Forward calculation: all historical entries prior to `fromUtc` are summed (`priorDebits - priorCredits`). If non-zero or prior transactions exist, an initial row (`Date: fromUtc`, `Reference: "OPENING"`, `Description: "Balance Brought Forward"`, `Debit/Credit`, `RunningBalance = openingBalance`, `IsOpeningRow = true`) is generated.
+  - Chained period transactions to this starting balance: `currentRunning += (Debit - Credit)`. The ending running balance reconciles mathematically with the customer's total outstanding balance.
+  - Added `"All Time"` preset and updated `BtnClear_Click` to reset to `"All Time"`, allowing operators to inspect all customer transactions across all dates with a single click.
+- **Walk-in Guest (`C000`) Ledger Semantics:**
+  - Walk-in retail transactions pay cash or other counter tender directly at sale completion, legitimately bypassing the accounts receivable credit ledger.
+  - Replaced generic empty message with domain-specific feedback for Walk-in Guest: `"Walk-in guest has no credit ledger transactions. Counter sales are settled immediately upon payment."`
+- **Customer Ledger Grid & Filter Bar Layout Polish:**
+  - Restructured `filterPanel` into 5 clean AutoSize rows: Row 0 & 1 for Top Filters (`Report Period | From | To | Transactions`), Row 2 for Search label, Row 3 for full-width `_txtSearchRef`, and Row 4 for full-width `toolsPanel`.
+  - Inside `toolsPanel`, query actions (`[ Load Ledger ]` in primary teal `#0D9488` and `[ Clear ]`) are docked left; export actions (`[ Print ]`, `[ PDF ]`, `[ Excel ]`) are docked right.
+  - Configured `_ledgerGridView.HorzScrollVisibility = Auto` and scaled column minimum widths (`Date`: 110, `Reference`: 90, `Description`: 160, `Debit`: 95, `Credit`: 95, `RunningBalance`: 115) to guarantee `Running Balance` is never clipped or cramped even on narrower dialog sizes.
+  - Enabled/disabled `Print`, `PDF`, and `Excel` buttons dynamically based on row count (`list.Count > 0`).
+- **Customers Screen Visible Columns Cleanup:**
+  - Removed duplicate and confusing phone columns from `CustomersView`. Kept primary contact `colMobile` (`MobileNumber`, caption `"Mobile"`) and `colPhone` (`Phone`, caption `"Phone"`).
+  - Moved `colMobile2` (`Mobile2`, caption `"Alt. Mobile"`) and `colShopNo` (`ShopNo`, caption `"Shop No"`) to hidden columns (`Visible = false`) accessible through DevExpress Column Chooser.
+  - Added scaled minimum width for `colPhone` in `ScaleLayoutAtRuntime()`.
+- **Reentrancy & Asynchronous Concurrency Protection:**
+  - Added `_isLedgerDialogOpen` guard in `CustomersView.cs` preventing duplicate modal instances on rapid double-clicking.
+  - Added `_isLoading` guard in `CustomerLedgerDialog.cs` wrapped in `try/catch/finally` to prevent duplicate parallel query execution.
+- **Status:** READY FOR USER MANUAL RETEST (LIVE UI = NOT EXECUTED).
+
+---
+
+## 26. Single-Window Navigation & POS Operations Menu Architecture (2026-09-23)
+
+### 26.1 Architectural Goals & Constraints
+1. **Single Top-Level Window Rule:** Exactly ONE main application top-level window exists and remains active at runtime. Switching between Restaurant POS (`RestaurantPosForm`) and Back Office shell (`MainForm`) cleanly closes and disposes the prior form. No hidden, inactive, or orphaned windows remain in memory (`Application.OpenForms.OfType<Form>().Count(f => f is MainForm or RestaurantPosForm) == 1`).
+2. **Process Lifetime Decoupled from Window Lifetime:** The application process is managed by `CbosApplicationContext : ApplicationContext`, registered as a singleton in DI. The process exits when the operator explicitly clicks the window close ('X') button on the active window or calls `ExitApplication()`. During navigation transitions, the context suppresses thread termination while the prior window is disposed and the target window is presented.
+3. **Transient Cart Navigation Guard:** Navigating from Restaurant POS to Back Office checks for an in-progress, unheld order with items. If present, it intercepts the navigation with `PosNavigationGuardDialog`, allowing the cashier to choose **"Hold & Open Back Office"** (which calls `HoldOrderCommand`, refreshes state, and proceeds) or **"Stay in POS"** (which cancels navigation, keeping the cart untouched). Empty carts or held orders transition directly with zero friction.
+4. **State Persistence Across Window Boundaries:** The user's active login session (`ICurrentSession`), open restaurant shifts (`Shift`), held orders (`Held`), active orders, and table occupancy statuses persist reliably across navigation transitions because they reside in canonical domain repositories / database state, not form-local fields.
+5. **POS Header Operations Menu (`Operations ▾`):** Replaces clutter in the POS header with an extensible DevExpress `DropDownButton` + `DXPopupMenu` command menu. Initial commands:
+   - **Back Office:** Permission-gated via canonical menu permissions (`menu.dashboard` or administrative role). Triggers `IApplicationModeNavigator.OpenBackOfficeAsync()`.
+   - **Refund / Return:** Extension point. CBOS currently only provides payment voiding on open/history orders; there is no domain workflow for partial or completed order merchandise returns. To prevent exposing dangerous non-functional stub actions, this command remains hidden until a complete domain refund aggregate/workflow is introduced.
+   - **Future Extension Points:** Cleanly accommodates `Customer Balance`, `Customer History`, `Reprint Receipt`, `Price Check`, `Cash Movement`, and `Shift Information`.
+
+### 26.2 Core Navigation Components
+- **`IApplicationModeNavigator` (`src/Clovent.Desktop/Navigation/IApplicationModeNavigator.cs`):** Defines the mode-switching contract: `OpenPosAsync()`, `OpenBackOfficeAsync()`, `ExitApplication()`, and properties `CurrentForm`, `CurrentWorkspaceHost`, `IsTransitioning`, `ApplicationContext`.
+- **`CbosApplicationContext` (`src/Clovent.Desktop/Navigation/CbosApplicationContext.cs`):** Specializes `System.Windows.Forms.ApplicationContext` to intercept `OnMainFormClosed` and prevent process termination when `IsTransitioning == true`.
+- **`ApplicationModeNavigator` (`src/Clovent.Desktop/Navigation/ApplicationModeNavigator.cs`):** Coordinates DI resolution of target forms, sets active form in context, executes safe control/view activation, cleans up previous form with error logging, and resets transition guards.
+- **`PosNavigationGuardDialog` (`src/Clovent.Desktop/Restaurant/Orders/PosNavigationGuardDialog.cs`):** High-DPI, accessible modal dialog with warm amber warning styling (`DialogResult.Yes` for Hold & Proceed; `DialogResult.Cancel` for Stay in POS).
+
+### 26.3 High-DPI and Multi-Resolution Compatibility
+The `Operations` dropdown button and `PosNavigationGuardDialog` conform to CBOS enterprise UI standards:
+- DPI-aware scaling via `DesktopDpi.Scale(...)`.
+- Auto-sized and responsive button heights (`44px` scaled minimum height).
+- Clean Segoe UI typography and DevExpress styling.
+- Responsive under 1024×768, 1366×768, and 1920×1080 @ 250% scale.
+
+### 26.4 Automated Test Suite
+- `ApplicationModeNavigatorTests.cs`: Verifies clean window disposal, single form active in `CbosApplicationContext`, reentrancy protection, and target view routing.
+- `PosOperationsMenuTests.cs`: Verifies `Operations` dropdown button existence, caption, styling, permission gating for Back Office, suppression of unfunctional refund commands, and command execution.
+- `CartNavigationGuardTests.cs`: Verifies `HasInProgressOrder` detection, direct transition on empty carts, and `PosNavigationGuardDialog` button semantics.
+
+### 26.6 Control Pattern Alignment: Exact Reuse of More Actions Architecture (2026-09-23)
+- **Problem Statement & Root Cause:** Real user manual testing on high-DPI touch displays (1920×1080 @ 250% scaling, DeviceDpi ~240) revealed that `More ▼` opened reliably 100% of the time, while `Operations ▼` (built with `DevExpress.XtraEditors.DropDownButton` + `DXPopupMenu`) suffered intermittent opening failures ("dead clicks") despite synthetic focus and debounce fixes.
+- **Architectural Solution - Strict Reuse of Proven Control Pattern:**
+  - Replaced `DropDownButton` with `DevExpress.XtraEditors.SimpleButton`.
+  - Replaced `DXPopupMenu` with standard `System.Windows.Forms.ContextMenuStrip`.
+  - Replaced `DXMenuItem` with `System.Windows.Forms.ToolStripMenuItem` and `ToolStripSeparator`.
+  - Replaced complex dropdown activation hacks (`ActAsDropDown`, `DropDownArrowStyle`, dual `Click`/`ArrowButtonClick` handlers, `ShowDropDown()`, 250ms close debounces) with the exact, proven single-line invocation used by More:
+    `_operationsMenu.Show(_operationsButton, new Point(0, _operationsButton.Height));`
+  - **Compact Professional Vector Glyph:** Added a small, professional vector SVG gear icon (`svgimages/setup/properties.svg`) sized explicitly to `new Size(14, 14)` unscaled with `ImageAlignToText.LeftCenter`, `ImageToTextIndent = 5`, and `AllowGlyphSkinning = DefaultBoolean.True` (rendering in pure white). Unscaled logical bounds prevent the high-DPI scaling multiplication bug, ensuring the glyph supports rather than dominates the caption.
+  - Maintained CBOS signature Primary Teal prominence (`#0D9488`) with bold white text, hover (`#0F766E`), pressed (`#115E59`), scaled margins, and `AllowFocus = false`.
+  - Preserved all domain logic: canonical RBAC permission gating (`menu.dashboard`), hidden `Refund / Return` extension point, transient cart navigation guard dialog, and `IApplicationModeNavigator` single-window lifecycle.
+
+---
+
+## 27. Restaurant POS Shift, Cash Drawer & Business Day Close Architecture (2026-09-23)
+
+### 27.1 Architecture & Separation of Concerns
+1. **Shift vs Business Day Close Decoupling:**
+   - A **Shift** (`Shift` aggregate) represents a cashier-terminal-specific session of cash accountability. A business date can have multiple shifts across morning, evening, and night, or across multiple POS terminals.
+   - A **Business Day Close** (`BusinessDayClose` aggregate) represents an explicit manager operational checkpoint summarizing all terminal shifts, orders, and payments for that business date at that branch.
+   - Closing a shift does NOT close the business day. Multiple shifts may open and close on the same business date.
+   - Day Close is an atomic managerial action that permanently records an immutable snapshot of total shifts, sales, tender breakdown, cash movements, and variance for the business date.
+2. **Business Date Determination (`IBusinessDateProvider`):**
+   - Business date is explicitly managed by `IBusinessDateProvider` / `BusinessDateProvider`. It returns the current operational date for the branch, supporting cutoff hour logic (e.g. shifts extending past midnight remain on the opening business date until operational cutoff).
+3. **Terminal Awareness (`ITerminalResolutionService`):**
+   - Workstations resolve terminal identities deterministically using `TerminalResolutionService`, checking environment variables (`CBOS_TERMINAL_ID`), POS settings (`PosSettingsStore`), and falling back to sanitized machine name.
+4. **Gated POS Entry (`IPosEntryGateCoordinator`):**
+   - Navigating to POS from Back Office navigation, module dispatch, or document activation invokes `PosEntryGateCoordinator`.
+   - The coordinator calls `GetActiveShiftQuery(branchId, cashierId, terminalId)`.
+   - If an active shift exists, it passes it to `IApplicationModeNavigator.OpenPosAsync(shift)`.
+   - If no active shift exists, it opens `OpenShiftDialog` with branch, terminal, and business date metadata.
+   - If the user cancels the dialog, navigation aborts safely with no window leakage.
+5. **Authoritative Expected Cash Formula:**
+   $$\text{ExpectedCash} = \text{StartingCash} + \text{CashPayments} + \text{PayIns} - \text{PayOuts} - \text{CashRefunds}$$
+   $$\text{Variance} = \text{CountedCash} - \text{ExpectedCash}$$
+   - Shift closing uses **blind cash counting**: the cashier enters physical cash counted without the system revealing the expected cash beforehand.
+6. **Day Close Safety Invariants:**
+   - Day Close requires permission `endofday.close`.
+   - Precondition check: `GetBusinessDaySummaryQuery` evaluates all shifts for the branch and business date. If any shift remains `Open`, `HasOpenShifts` is `true`.
+   - `CloseBusinessDayCommand` strictly rejects closure if open shifts exist, throwing `InvalidOperationException`.
+   - In UI, `EndOfDayCloseDialog` displays an amber warning banner and disables the `[ Confirm Day Close ]` button while shifts remain open.
+7. **Reprint Last Receipt Scoping:**
+   - `GetLastCompletedOrderForShiftQuery` scopes the query to `ShiftId` and `TerminalId`, preventing cashiers from inadvertently printing receipts from other terminals or shifts.
+
+---
+
+## 28. POS Shift Auto-Resume & Deterministic Terminal Identity Correction (2026-09-23)
+
+### 28.1 Root Cause & Resolution
+- **Problem Statement:** Re-entering Restaurant POS from Back Office on the same physical workstation intermittently reported `"Active Shift on Another Terminal"` instead of resuming the open shift.
+- **Root Cause Analysis:**
+  1. A hardcoded placeholder terminal GUID (`00000000-0000-0000-0000-000000000001`) was present on legacy shifts, whereas MasterData registered the canonical active terminal `A1B44D54-17F5-444A-974E-7743C6689C09` (`Front Counter`, `T-001`).
+  2. When resolving the terminal upon re-entry, `TerminalResolutionService` resolved `A1B44D54-17F5-444A-974E-7743C6689C09`.
+  3. `GetActiveShiftForTerminalAsync` returned null (since the shift had the placeholder GUID), but `GetActiveShiftForCashierAsync` found the open shift with the placeholder GUID. Because the terminal IDs differed, the gate incorrectly reported an active shift on another terminal.
+- **Remediation:**
+  1. **Canonical Terminal Resolution Engine (`TerminalResolutionService`):**
+     Evaluates terminal identity with strict 5-tier precedence:
+     - `CBOS_TERMINAL_ID` environment variable (Guid, Code, or Name).
+     - Persisted workstation store (`PosSettingsStore.LoadTerminalId()`) validated against active MasterData terminals (stale/deleted IDs are automatically pruned).
+     - Workstation hostname (`Environment.MachineName`) matched case-insensitively against active terminals.
+     - Single active branch terminal auto-binding.
+     - Multiple active branch terminals deterministic fallback (`OrderBy(t => t.Code.Value)`).
+  2. **Deterministic Shift Access Evaluation (`PosShiftAccessService`):**
+     - Case A: Same User + Same Terminal + Open Shift -> `ExistingOwnShift` (immediate auto-resume, 0 extra clicks).
+     - Case B: No Open Shift -> `ShiftRequired` (`OpenShiftDialog`).
+     - Case C: Different User + Same Terminal + Open Shift -> `TerminalOccupiedByAnotherUser` (`"Terminal Shift Already Open"` dialog).
+     - Case D: Same User + Different Terminal + Open Shift -> `UserHasShiftOnAnotherTerminal` (`"Active Shift on Another Terminal"` dialog with current and occupying terminal names and codes).
+  3. **Self-Healing Persistence Migration:**
+     `RestaurantPersistenceInitializer` runs an idempotent startup migration that remaps any active shifts pointing to placeholder GUIDs to the canonical active terminal.
+  4. **Scoped DI Architecture:**
+     Registered `TerminalResolutionService` and `PosEntryGateCoordinator` as `Scoped` to maintain proper EF Core context lifetimes with zero captive dependency or scope validation hazards.
+
+
+
+
+
+---
+
+## 29. Visual Studio Designer Compatibility & Deterministic Startup Invariants (2026-09-24)
+
+### 29.1 Designer Compatibility & Procedural Code Eviction
+- **CodeDOM Parser Invariant:** Visual Studio's Windows Forms Designer uses a CodeDOM-based parser that evaluates only standard component declarations and simple property assignments within InitializeComponent(). Advanced C# features such as tuple deconstructions (oreach (var (_, name) in ReportPeriodCalculator.GetAllOptions())) fail CodeDOM parsing and cause catastrophic design-time loading failures.
+- **Eviction to Runtime Synchronization:** In CustomerLedgerDialog.Designer.cs and EndOfDayReportView.Designer.cs, procedural loops were replaced with static designer item assignments (AddRange(new object[] { ... })). A dedicated runtime synchronization method (ConfigureReportPeriodOptions()) runs in OnLoad / constructor to guarantee runtime freshness without compromising designer tooling.
+- **Automated Regression Guard:** DesignerSafetyTests scans designer files for forbidden constructs (ReportPeriodCalculator, oreach, while) and instantiates parameterless form constructors in automated test runs.
+
+### 29.2 High-DPI and 96-DPI Layout Hardening
+- **Button Dimension Collapse Remediation:** Setting AutoSize = true without an explicit MinimumSize on standard buttons in container controls caused buttons to collapse to minimal text bounding boxes (25x20px for "OK"). MasterDataEditFormBase.Designer.cs and CustomerEditForm.Designer.cs now enforce MinimumSize = new Size(85, 28) for action buttons and explicit dialog margins (12px row spacing, 100px label columns), ensuring visual fidelity across 96 DPI, 150%, and 250% scaling.
+
+### 29.3 Global Splash Decommissioning & Non-Blocking Async Startup
+- **Single Window & Input Modality Rule:** The global DevExpress SplashScreenManager top-level wait form (Clovent Loading...) has been decommissioned from the POS workflow. All global splash wait forms are unconditionally closed by LoginForm before launching POS or Back Office forms.
+- **Elimination of Blocking White Overlays:** The legacy blocking full-screen white panel overlay has been removed. The real POS layout renders immediately upon show, providing non-blocking status updates in the header order status label (`_orderStatusLabel`) with responsive cursor feedback while asynchronous startup queries execute in the background.
+- **Resilient Pre-Startup Dependencies:** Pre-startup configuration steps such as CurrencyDisplayLoader.ConfigureAsync are wrapped in defensive try/catch blocks with sensible defaults (Rs., 2 decimals), preventing database hiccups from hanging or aborting POS UI rendering.
+
+---
+
+## 30. POS Startup Lifecycle, Single-Window Ownership & Graceful Recovery (2026-09-24)
+
+### 30.1 Root Cause of Startup White Freeze & Auto-Close
+- **The 10–15s White Freeze:** `RestaurantPosForm.SetPosLoading(true)` previously mounted an opaque, full-screen white panel overlay docked across the entire form viewport. Concurrently, `LoadCoreAsync()` executed 20+ sequential database roundtrips on the UI thread (currencies, warehouses, 20+ permission checks, variants, prices, categories, quick order templates, tables, customers, orders). On cold database caches, this took 10–15s, during which cashiers observed an unresponsive white/skeleton window.
+- **Automatic Window Close & Zombie Process Lock:**
+  1. An orphaned headless instance of `Clovent.Desktop` held an exclusive write lock on `clovent-2026-09-24.log` due to `FileShare.Read` sharing mode, silently swallowing logs.
+  2. `RestaurantPosForm.OnFormClosed` previously had an unconditional call: `_applicationModeNavigator.ExitApplication()`. Any closure of `RestaurantPosForm` usurped application lifetime ownership and terminated the process message loop.
+  3. `MainForm.OpenRestaurantPosWithGateAsync` lacked re-entrancy protection, allowing double-activation of POS entry gates.
+
+### 30.2 Window Lifetime Invariant & ApplicationModeNavigator Ownership
+- **Single Owner Invariant:** The process message loop lifetime is owned exclusively by `CbosApplicationContext` and orchestrated by `IApplicationModeNavigator`.
+- **Mode-Switch vs. User Window Close:** `RestaurantPosForm` tracks close intent via `PosCloseInitiator` (`UserWindowClose`, `ModeSwitchToBackOffice`, `StartupFailureFallback`, `SessionSignOut`). Only explicit user clicking of the 'X' button triggers `_applicationModeNavigator.ExitApplication()`. Mode switches and fallback transitions dispose the POS form and transfer the message loop safely to `MainForm` without terminating CBOS.
+- **Re-Entrancy Guard:** `MainForm.OpenRestaurantPosWithGateAsync` utilizes an atomic `_isOpeningPos` guard that prevents re-entrant navigation while gate evaluation is in flight.
+
+### 30.3 Graceful Startup Failure Recovery
+- When POS initialization queries fail, `HandleStartupFailureAsync` captures the diagnostic exception and displays a friendly recovery dialog with `MessageBoxButtons.RetryCancel`.
+- If the cashier chooses **Retry**, initialization safely re-executes.
+- If the cashier chooses **Cancel**, POS marks `PosCloseInitiator.StartupFailureFallback`, safely navigates back to the Back Office shell (`OpenBackOfficeAsync()`), and disposes the POS form without closing CBOS.
+
+### 30.4 Structured Lifecycle Telemetry
+- Diagnostic logging traces every lifecycle phase:
+  - `POS_FORM_CONSTRUCTED`: Runtime constructor completed.
+  - `POS_FORM_LOAD`: Form loaded event fired.
+  - `POS_INIT_STARTED`: Core initialization beginning.
+  - `POS_INIT_01..08`: Incremental milestones (currencies, warehouses, permissions, variants, templates, active orders rail).
+  - `POS_INIT_READY`: Initialization complete; POS fully interactive.
+  - `POS_INIT_FAILED`: Caught error with full exception details.
+  - `POS_FORM_CLOSING`: Form closing event with CloseReason and Initiator.
+  - `POS_FORM_CLOSED`: Form closed event with CloseReason and Initiator.
+  - `NAVIGATOR_MODE_SWITCH_START / SUCCESS / FAILED`: Mode transitions between POS and Back Office.
+  - `APPLICATION_EXIT_REQUESTED`: Explicit user exit request with initiator context.
+
+---
+
+## 31. BackOffice-to-POS Mode Switch Architecture, UI-Thread Marshalling & Lifetime Invariants (2026-09-24)
+
+### 31.1 Real User Failure vs Direct Startup Contrast
+- **Direct Startup (`--pos`):** Initiated directly from `Program.cs` on the main STA UI thread (Thread 1) where `WindowsFormsSynchronizationContext` is active. It initializes `RestaurantPosForm` directly without any preceding form or asynchronous gate hops, successfully reaching `POS_INIT_READY`.
+- **Real User Workflow (`Login -> Back Office -> Restaurant POS button`):**
+  1. Cashier clicks "Restaurant POS" navigation item on `MainForm`.
+  2. `MainForm.OpenRestaurantPosWithGateAsync` calls `PosEntryGateCoordinator.EnsureShiftAndOpenPosAsync(this)`.
+  3. `EnsureShiftAndOpenPosAsync` awaits asynchronous domain queries (`TerminalResolutionService` and `PosShiftAccessService`), whose underlying database queries resume on ThreadPool worker threads via `.ConfigureAwait(false)`.
+  4. The continuation of `EnsureShiftAndOpenPosAsync` invokes `ApplicationModeNavigator.OpenPosAsync(shift)` from the ThreadPool worker thread.
+  5. In `ApplicationModeNavigator`, `_uiSyncContext` was captured during DI instantiation before `WindowsFormsSynchronizationContext` was set on the UI thread, leaving `_uiSyncContext` null.
+  6. Consequently, `OpenPosCoreAsync` ran directly on the ThreadPool worker thread, instantiating `RestaurantPosForm` and calling `freshPosForm.Show()` on a worker thread with no Win32 message pump (`Application.Run` pumps messages exclusively for the UI thread).
+  7. The window appeared as a frozen white/skeleton window. When the worker thread timed out or was recycled by the thread pool 15–20 seconds later, Windows automatically destroyed all HWNDs belonging to that thread, causing POS to close automatically.
+
+### 31.2 UI-Thread Marshalling & SynchronizationContext Invariants
+- **UI-Thread Invariant:** All top-level WinForms windows (`MainForm`, `RestaurantPosForm`, and any child dialogs) must be instantiated, have their HWND handles created, and be displayed strictly on the primary STA UI thread (`_uiThreadId == 1`).
+- **Dynamic Context Resolution & Multi-Tier Fallback:**
+  `ApplicationModeNavigator` dynamically resolves `SynchronizationContext.Current` or accepts explicit injection via `SetUiSynchronizationContext(syncContext)`.
+  When `OpenPosAsync` or `OpenBackOfficeAsync` is invoked from a thread other than `_uiThreadId`, `MarshalToUiThreadAsync` marshals execution:
+  1. Primary: `_uiSyncContext.Post(...)` to dispatch work to the UI thread message queue.
+  2. Secondary: `_currentForm.BeginInvoke(...)` if the current form has a valid handle.
+  3. Tertiary: `Application.OpenForms[0].BeginInvoke(...)` if any open form exists.
+- `Program.cs` explicitly installs and sets `WindowsFormsSynchronizationContext` immediately after `ApplicationConfiguration.Initialize()` and again after `LoginForm.ShowDialog()`, registering it with `ApplicationModeNavigator`.
+
+### 31.3 CbosApplicationContext & MainForm Ownership
+- **Single Context Invariant:** `CbosApplicationContext` owns the process message loop lifetime throughout the entire application lifecycle.
+- **Form Ownership Transfer:** During mode transition (`OpenPosCoreAsync` or `OpenBackOfficeCoreAsync`):
+  1. `_isTransitioning` is set to `true` on both `ApplicationModeNavigator` and `CbosApplicationContext`.
+  2. The new destination form is instantiated and configured (`SetActiveShift`).
+  3. `_appContext.SetActiveForm(newForm)` sets `MainForm = newForm` **before** the old form is closed.
+  4. `newForm.Show()` and `newForm.Activate()` are called.
+  5. `previousForm.Close()` and `previousForm.Dispose()` are called.
+  6. In `CbosApplicationContext.OnMainFormClosed`, closing of `previousForm` is safely ignored:
+     `if (sender != null && MainForm != null && !ReferenceEquals(sender, MainForm)) return;`
+     and if `_isTransitioning` is true, thread exit is suppressed.
+  7. `_isTransitioning` is reset to `false`.
+
+### 31.4 Form Ownership & DI Mode Scope Isolation
+- **Form Hierarchy Rule:** `RestaurantPosForm` is a top-level form (`Owner == null`), NOT an owned modal dialog of `MainForm`.
+- **Mode Scope Lifetime:** `RestaurantPosForm` creates and owns its own `IServiceScope` (`_scope = scopeFactory.CreateScope()`), ensuring that the disposal of `MainForm` or the transient gate scope never disposes any POS services or dependencies.
+- **Cancellation Tokens:** POS startup queries execute under an independent lifecycle token; they are never bound to Back Office's cancellation tokens.
+
+### 31.5 Close Intent & Application Exit Protocol
+- `RestaurantPosForm` tracks close intent via `PosCloseInitiator`:
+  - `UserWindowClose`: User clicked the Windows 'X' button or Alt+F4. If an order is in progress, prompts for confirmation. Upon close, calls `_applicationModeNavigator.ExitApplication("UserWindowClose")`.
+  - `ModeSwitchToBackOffice`: User clicked Operations > Back Office or Shift Closed. Form closes cleanly without exiting CBOS; `ApplicationModeNavigator.OpenBackOfficeAsync()` opens `MainForm`.
+  - `StartupFailureFallback`: Startup failure was cancelled; returns to Back Office without exiting CBOS.
+- In `CbosApplicationContext`, only genuine active `MainForm` close events outside transition trigger `ExitThreadCore()`.

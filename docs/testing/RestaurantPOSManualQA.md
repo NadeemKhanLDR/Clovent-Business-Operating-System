@@ -284,6 +284,11 @@ PIN login lets a cashier open Restaurant POS with only a PIN. Configure via Back
 | TABLE-05 | Take Away Order | Open POS → Select Take Away. | Table picker is disabled (`Table: None`); no table occupancy is modified or assigned. | PASS — AUTOMATED TEST |
 | TABLE-06 | Multi-Order Protection | Create Order A on T-03 and Order B on T-03 → Cancel Order A. | T-03 remains `Occupied` because Order B is still active on T-03. | PASS — AUTOMATED TEST |
 | TABLE-07 | Restart & Persistence | Cancel order on T-03 → Restart application → Re-open POS. | T-03 remains `Available` in database and UI upon reopening POS. | PASS — AUTOMATED TEST (Live UI: PENDING MANUAL ACCEPTANCE) |
+| TABLE-08 | Auto Dine-In Seating | In POS with no active order, select available table T-01 from dropdown. | Dine-In working order auto-starts; table T-01 is marked `Occupied`; UI shows `T-01 (Occupied)`. | PASS — AUTOMATED TEST & LIVE RUNTIME |
+| TABLE-09 | Empty Draft Clear | Auto-start Dine-In on T-01 without adding items; click [Clear]. | Empty draft order is cancelled via domain pipeline; table T-01 is vacated; UI dropdown immediately reloads to `T-01 (Available)`. | PASS — AUTOMATED TEST & LIVE RUNTIME |
+| TABLE-10 | Order With Items Clear | Auto-start Dine-In on T-01, add item, click [Clear]. | User is prompted for confirmation; order is not silently destroyed in DB; order remains Open or prompt dismisses. | PASS — AUTOMATED TEST & LIVE RUNTIME |
+| TABLE-11 | Held Order Occupancy | Auto-start Dine-In on T-01, add item, click [Hold]. | Order status becomes `Held`; table T-01 remains `Occupied` in DB and UI. | PASS — AUTOMATED TEST & LIVE RUNTIME |
+| TABLE-12 | Recalled Order Table Preservation | Click [Recall], select held order on T-01, click [Resume]. | Order status becomes `Open`; table T-01 remains associated and `Occupied`. | PASS — AUTOMATED TEST & LIVE RUNTIME |
 
 ---
 

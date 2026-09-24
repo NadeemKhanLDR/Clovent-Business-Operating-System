@@ -15,7 +15,8 @@ public sealed record UpdateCustomerCommand(
     string? Notes,
     string? ShopNo = null,
     string? Mobile2 = null,
-    string? Phone = null) : IRequest<CustomerDto>;
+    string? Phone = null,
+    bool? IsDefault = null) : IRequest<CustomerDto>;
 
 /// <summary>Handles <see cref="UpdateCustomerCommand"/>.</summary>
 public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository) : IRequestHandler<UpdateCustomerCommand, CustomerDto>
@@ -36,6 +37,28 @@ public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository)
             request.ShopNo,
             request.Mobile2,
             request.Phone);
+
+        if (request.IsDefault is { } makeDefault)
+        {
+            if (makeDefault && !customer.IsDefault)
+            {
+                var allCustomers = await repository.GetAllAsync(cancellationToken);
+                foreach (var c in allCustomers.Where(c => c.IsDefault && c.Id != customer.Id))
+                {
+                    var tracked = await repository.GetByIdAsync(c.Id, cancellationToken);
+                    if (tracked is not null && tracked.IsDefault)
+                    {
+                        tracked.SetDefault(false);
+                        await repository.UpdateAsync(tracked, cancellationToken);
+                    }
+                }
+                customer.SetDefault(true);
+            }
+            else if (!makeDefault && customer.IsDefault)
+            {
+                customer.SetDefault(false);
+            }
+        }
 
         await repository.UpdateAsync(customer, cancellationToken);
 

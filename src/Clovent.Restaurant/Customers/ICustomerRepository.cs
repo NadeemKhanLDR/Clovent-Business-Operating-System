@@ -21,8 +21,8 @@ public interface ICustomerRepository
     Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Persists <em>only</em> <see cref="Customer.IsActive"/> (and the audit
-    /// timestamp that goes with it), never any other column.
+    /// Persists <em>only</em> <see cref="Customer.IsActive"/>, <see cref="Customer.IsDefault"/> (and the audit
+    /// timestamp that goes with them), never any other column.
     /// </summary>
     /// <remarks>
     /// Activating or deactivating an account is a status change, not a

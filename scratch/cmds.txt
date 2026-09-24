@@ -1,0 +1,2 @@
+sos dumpheap -stat
+sos dumpheap -type Task

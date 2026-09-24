@@ -153,9 +153,7 @@ public sealed class SplitPaymentDialog : XtraForm
         AcceptButton = okButton;
         CancelButton = cancelButton;
 
-        AutoScaleMode = AutoScaleMode.Dpi;
-        ClientSize = new Size(500, 420);
-        MinimumSize = new Size(460, 320);
+        DesktopDialogSizing.Apply(this, 540, 460, 480, 360, null, true);
         PerformLayout();
     }
 

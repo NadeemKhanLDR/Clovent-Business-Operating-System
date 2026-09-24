@@ -24,6 +24,8 @@ public sealed partial class CustomerLedgerDialog : XtraForm
     private readonly CustomerDto _customer;
 
     private List<CustomerLedgerEntryDto> _allEntries = [];
+    private bool _isUpdatingPeriod;
+    private bool _isLoading;
 
     /// <summary>Design-time-only constructor for Visual Studio Designer.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
@@ -56,14 +58,45 @@ public sealed partial class CustomerLedgerDialog : XtraForm
 
         Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
         AppearanceManager.Apply(this, "Restaurant", nameof(CustomerLedgerDialog));
+        ConfigureReportPeriodOptions();
         Text = $"{_customer.Name} ({_customer.Code}) - Ledger Statement";
+        _customerLabel.Text = $"— {_customer.Name} ({_customer.Code})";
 
+        _isUpdatingPeriod = true;
+        try
+        {
+            _periodCombo.SelectedItem = "This Month";
+            var range = ReportPeriodCalculator.CalculateRange(ReportPeriod.ThisMonth, DateOnly.FromDateTime(DateTime.Today));
+            _dateFrom.EditValue = range.From.ToDateTime(TimeOnly.MinValue);
+            _dateTo.EditValue = range.To.ToDateTime(TimeOnly.MinValue);
+        }
+        finally
+        {
+            _isUpdatingPeriod = false;
+        }
+
+        DesktopDialogSizing.Apply(this, 1040, 680, 900, 560, null, true);
         await LoadLedgerAsync();
+    }
+
+    private void ConfigureReportPeriodOptions()
+    {
+        if (DesignModeHelper.IsInDesignMode) return;
+        _periodCombo.Properties.Items.Clear();
+        foreach (var (_, name) in ReportPeriodCalculator.GetAllOptions())
+        {
+            _periodCombo.Properties.Items.Add(name);
+        }
+        _periodCombo.Properties.Items.Add("All Time");
     }
 
     private async Task LoadLedgerAsync()
     {
+        if (_isLoading) return;
+        _isLoading = true;
+        _btnLoadLedger.Enabled = false;
         Cursor = Cursors.WaitCursor;
+        _lblStatus.Text = "Loading ledger transactions...";
         try
         {
             var entries = await _mediator.Send(new GetCustomerLedgerQuery(_customer.CustomerId));
@@ -81,94 +114,239 @@ public sealed partial class CustomerLedgerDialog : XtraForm
 
             ApplyFilters();
         }
+        catch (Exception ex)
+        {
+            _lblStatus.Text = $"Error loading ledger: {ex.Message}";
+        }
         finally
         {
+            _isLoading = false;
+            _btnLoadLedger.Enabled = true;
             Cursor = Cursors.Default;
         }
     }
 
     private void ApplyFilters()
     {
-        var filtered = _allEntries.AsEnumerable();
+        DateTimeOffset? fromUtc = null;
+        DateTimeOffset? toUtcExclusive = null;
 
-        // 1. Date Range Filter
-        //
-        // DateEdit.EditValue surfaces DateTime.Kind=Local (the control
-        // stitches the picked date onto DateTime.Now internally), but these
-        // filters only care about the calendar date, not a timezone - they
-        // treat it as UTC midnight to compare against CustomerLedgerEntryDto.
-        // Date (a DateTimeOffset). Kind=Local paired with the Zero offset
-        // below is otherwise rejected by DateTimeOffset's constructor
-        // whenever the machine's local UTC offset isn't zero ("The UTC
-        // Offset of the local dateTime parameter does not match the offset
-        // argument"), so Kind is normalized to Unspecified first - the only
-        // Kind DateTimeOffset accepts with an arbitrary explicit offset.
-        if (_dateFrom.EditValue is DateTime fromDate)
+        if (_dateFrom.EditValue is DateTime fromDate && _dateTo.EditValue is DateTime toDate)
         {
-            var fromUtc = new DateTimeOffset(DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Unspecified), TimeSpan.Zero);
-            filtered = filtered.Where(x => x.Date >= fromUtc);
+            var range = new DateRange(DateOnly.FromDateTime(fromDate), DateOnly.FromDateTime(toDate));
+            if (range.IsValid)
+            {
+                fromUtc = range.GetStartUtc(DateTimeDisplay.BusinessTimeZone);
+                toUtcExclusive = range.GetEndUtcExclusive(DateTimeDisplay.BusinessTimeZone);
+            }
         }
-        if (_dateTo.EditValue is DateTime toDate)
+        else
         {
-            var toUtc = new DateTimeOffset(DateTime.SpecifyKind(toDate.Date.AddDays(1).AddTicks(-1), DateTimeKind.Unspecified), TimeSpan.Zero);
-            filtered = filtered.Where(x => x.Date <= toUtc);
+            if (_dateFrom.EditValue is DateTime fDate)
+            {
+                var fDateOnly = DateOnly.FromDateTime(fDate);
+                fromUtc = new DateRange(fDateOnly, fDateOnly).GetStartUtc(DateTimeDisplay.BusinessTimeZone);
+            }
+            if (_dateTo.EditValue is DateTime tDate)
+            {
+                var tDateOnly = DateOnly.FromDateTime(tDate);
+                toUtcExclusive = new DateRange(tDateOnly, tDateOnly).GetEndUtcExclusive(DateTimeDisplay.BusinessTimeZone);
+            }
         }
 
-        // 2. Transaction Type Filter
+        // Sort entries chronologically
+        var sortedEntries = _allEntries.OrderBy(x => x.Date).ThenBy(x => x.Id).ToList();
+
+        // 1. Calculate Period Opening Balance (Balance Brought Forward)
+        decimal periodOpeningBalance = 0m;
+        List<CustomerLedgerEntryDto> priorEntries = [];
+        List<CustomerLedgerEntryDto> periodEntries = [];
+
+        if (fromUtc.HasValue)
+        {
+            priorEntries = sortedEntries.Where(x => x.Date < fromUtc.Value).ToList();
+            periodOpeningBalance = priorEntries.Sum(x => x.Debit) - priorEntries.Sum(x => x.Credit);
+
+            periodEntries = sortedEntries.Where(x => x.Date >= fromUtc.Value && (!toUtcExclusive.HasValue || x.Date < toUtcExclusive.Value)).ToList();
+        }
+        else
+        {
+            periodEntries = sortedEntries.Where(x => !toUtcExclusive.HasValue || x.Date < toUtcExclusive.Value).ToList();
+        }
+
+        // 2. Build rows with running balance
+        var displayRows = new List<LedgerRow>();
+        decimal currentRunning = periodOpeningBalance;
+
+        // Add Balance Brought Forward row if date filter starts after beginning and there is prior activity
+        if (fromUtc.HasValue && (periodOpeningBalance != 0m || priorEntries.Count > 0))
+        {
+            displayRows.Add(new LedgerRow(
+                fromUtc.Value,
+                "OPENING",
+                "Balance Brought Forward",
+                periodOpeningBalance > 0 ? periodOpeningBalance : 0m,
+                periodOpeningBalance < 0 ? Math.Abs(periodOpeningBalance) : 0m,
+                periodOpeningBalance,
+                IsOpeningRow: true));
+        }
+
+        // 3. Add period transactions
+        foreach (var entry in periodEntries)
+        {
+            currentRunning += (entry.Debit - entry.Credit);
+            displayRows.Add(new LedgerRow(
+                entry.Date,
+                entry.Reference,
+                entry.Description,
+                entry.Debit,
+                entry.Credit,
+                currentRunning,
+                IsOpeningRow: false));
+        }
+
+        // 4. Apply in-memory secondary filters (Type, Search text)
+        var filteredRows = displayRows.AsEnumerable();
+
         var typeFilter = _comboType.Text;
         if (typeFilter == "Sales (Debits)")
         {
-            filtered = filtered.Where(x => x.Debit > 0);
+            filteredRows = filteredRows.Where(x => x.Debit > 0);
         }
         else if (typeFilter == "Payments (Credits)")
         {
-            filtered = filtered.Where(x => x.Credit > 0);
+            filteredRows = filteredRows.Where(x => x.Credit > 0);
         }
         else if (typeFilter == "Opening Balance")
         {
-            filtered = filtered.Where(x => x.Reference.Equals("OPENING", StringComparison.OrdinalIgnoreCase));
+            filteredRows = filteredRows.Where(x => x.IsOpeningRow || x.Reference.Equals("OPENING", StringComparison.OrdinalIgnoreCase));
         }
 
-        // 3. Text search (Reference or Description)
         var searchText = _txtSearchRef.Text.Trim();
         if (!string.IsNullOrEmpty(searchText))
         {
-            filtered = filtered.Where(x =>
+            filteredRows = filteredRows.Where(x =>
                 x.Reference.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
                 x.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase));
         }
 
-        var list = filtered.ToList();
-        _ledgerGrid.DataSource = list.Select(x => new LedgerRow(
-            x.Date,
-            x.Reference,
-            x.Description,
-            x.Debit,
-            x.Credit,
-            x.RunningBalance)).ToList();
+        var list = filteredRows.ToList();
+        _ledgerGrid.DataSource = list;
 
-        // Recalculate totals of filtered transactions
-        var totalDebit = list.Sum(x => x.Debit);
-        var totalCredit = list.Sum(x => x.Credit);
+        // Recalculate totals of period transactions
+        var periodDebits = periodEntries.Sum(x => x.Debit);
+        var periodCredits = periodEntries.Sum(x => x.Credit);
+        _totalDebitVal.Text = CurrencyDisplay.FormatPlain(periodDebits);
+        _totalCreditVal.Text = CurrencyDisplay.FormatPlain(periodCredits);
 
-        _totalDebitVal.Text = CurrencyDisplay.FormatPlain(totalDebit);
-        _totalCreditVal.Text = CurrencyDisplay.FormatPlain(totalCredit);
+        // Update action buttons state
+        _btnPrint.Enabled = list.Count > 0;
+        _btnExportPdf.Enabled = list.Count > 0;
+        _btnExportExcel.Enabled = list.Count > 0;
+
+        // Status update
+        if (list.Count == 0)
+        {
+            _lblStatus.Text = "0 transactions loaded";
+        }
+        else if (list.Count == 1 && list[0].IsOpeningRow)
+        {
+            _lblStatus.Text = "Opening balance brought forward: " + CurrencyDisplay.FormatPlain(list[0].RunningBalance);
+        }
+        else if (list.Count == 1)
+        {
+            _lblStatus.Text = "1 transaction loaded";
+        }
+        else
+        {
+            _lblStatus.Text = $"{list.Count} transactions loaded";
+        }
     }
 
     // --- BUTTON EVENT WIRING ---
+
+    private void PeriodCombo_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingPeriod) return;
+
+        var periodName = _periodCombo.SelectedItem?.ToString();
+        if (periodName == "All Time")
+        {
+            _isUpdatingPeriod = true;
+            try
+            {
+                _dateFrom.EditValue = null;
+                _dateTo.EditValue = null;
+            }
+            finally
+            {
+                _isUpdatingPeriod = false;
+            }
+
+            ApplyFilters();
+            return;
+        }
+
+        var period = ReportPeriodCalculator.ParseDisplayName(periodName);
+        if (period == ReportPeriod.Custom) return;
+
+        _isUpdatingPeriod = true;
+        try
+        {
+            var range = ReportPeriodCalculator.CalculateRange(period, DateOnly.FromDateTime(DateTime.Today));
+            _dateFrom.EditValue = range.From.ToDateTime(TimeOnly.MinValue);
+            _dateTo.EditValue = range.To.ToDateTime(TimeOnly.MinValue);
+        }
+        finally
+        {
+            _isUpdatingPeriod = false;
+        }
+
+        ApplyFilters();
+    }
+
+    private void DateEdit_EditValueChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingPeriod) return;
+
+        if (_periodCombo.SelectedItem?.ToString() != "Custom")
+        {
+            _isUpdatingPeriod = true;
+            try
+            {
+                _periodCombo.SelectedItem = "Custom";
+            }
+            finally
+            {
+                _isUpdatingPeriod = false;
+            }
+        }
+
+        ApplyFilters();
+    }
 
     private void Filter_EditValueChanged(object? sender, EventArgs e) => ApplyFilters();
 
     private void BtnClear_Click(object? sender, EventArgs e)
     {
-        _dateFrom.EditValue = null;
-        _dateTo.EditValue = null;
+        _isUpdatingPeriod = true;
+        try
+        {
+            _periodCombo.SelectedItem = "All Time";
+            _dateFrom.EditValue = null;
+            _dateTo.EditValue = null;
+        }
+        finally
+        {
+            _isUpdatingPeriod = false;
+        }
+
         _comboType.SelectedIndex = 0; // "All Transactions"
         _txtSearchRef.Text = string.Empty;
         ApplyFilters();
     }
 
-    private async void BtnRefresh_Click(object? sender, EventArgs e) => await LoadLedgerAsync();
+    private async void BtnLoadLedger_Click(object? sender, EventArgs e) => await LoadLedgerAsync();
 
     private void BtnPrint_Click(object? sender, EventArgs e)
     {
@@ -199,26 +377,43 @@ public sealed partial class CustomerLedgerDialog : XtraForm
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        MinimumSize = LogicalToDeviceUnits(new Size(1000, 600));
-        Size = LogicalToDeviceUnits(new Size(1000, 600));
+        root.RowStyles[1] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(78, this));
+        root.RowStyles[5] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this));
 
-        root.RowStyles[0] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(85));
-        root.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(45));
-        root.RowStyles[3] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(52));
+        filterPanel.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(140, this));
+        filterPanel.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(130, this));
+        filterPanel.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(130, this));
+        filterPanel.ColumnStyles[3] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(160, this));
 
-        filterPanel.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(130));
-        filterPanel.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(130));
-        filterPanel.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(140));
-        filterPanel.ColumnStyles[3] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(160));
+        int filterBtnH = DesktopDpi.Scale(32, this);
+        _btnLoadLedger.MinimumSize = new Size(DesktopDpi.Scale(110, this), filterBtnH);
+        _btnClear.MinimumSize = new Size(DesktopDpi.Scale(70, this), filterBtnH);
+        _btnPrint.MinimumSize = new Size(DesktopDpi.Scale(70, this), filterBtnH);
+        _btnExportPdf.MinimumSize = new Size(DesktopDpi.Scale(60, this), filterBtnH);
+        _btnExportExcel.MinimumSize = new Size(DesktopDpi.Scale(65, this), filterBtnH);
 
-        _btnClear.Size = LogicalToDeviceUnits(new Size(70, 28));
-        _btnRefresh.Size = LogicalToDeviceUnits(new Size(80, 28));
-        _btnPrint.Size = LogicalToDeviceUnits(new Size(70, 28));
-        _btnExportPdf.Size = LogicalToDeviceUnits(new Size(60, 28));
-        _btnExportExcel.Size = LogicalToDeviceUnits(new Size(70, 28));
+        _closeButton.MinimumSize = new Size(DesktopDpi.Scale(120, this), DesktopDpi.Scale(36, this));
+        _ledgerGridView.RowHeight = DesktopDpi.Scale(30, this);
+        _ledgerGridView.ColumnPanelRowHeight = DesktopDpi.Scale(32, this);
 
-        _closeButton.MinimumSize = LogicalToDeviceUnits(new Size(120, 40));
-        _ledgerGridView.RowHeight = LogicalToDeviceUnits(30);
+        _ledgerGridView.Columns["Date"].MinWidth = DesktopDpi.Scale(110, this);
+        _ledgerGridView.Columns["Reference"].MinWidth = DesktopDpi.Scale(90, this);
+        _ledgerGridView.Columns["Description"].MinWidth = DesktopDpi.Scale(160, this);
+        _ledgerGridView.Columns["Debit"].MinWidth = DesktopDpi.Scale(95, this);
+        _ledgerGridView.Columns["Credit"].MinWidth = DesktopDpi.Scale(95, this);
+        _ledgerGridView.Columns["RunningBalance"].MinWidth = DesktopDpi.Scale(115, this);
+    }
+
+    private void LedgerGridView_CustomDrawEmptyForeground(object? sender, DevExpress.XtraGrid.Views.Base.CustomDrawEventArgs e)
+    {
+        if (_ledgerGridView.RowCount > 0) return;
+        string message = (_customer.Code == "C000" || _customer.IsDefault)
+            ? "Walk-in guest has no credit ledger transactions. Counter sales are settled immediately upon payment."
+            : "No ledger transactions found for the selected period.";
+        using var font = new Font("Segoe UI", 10.5F, FontStyle.Regular);
+        using var brush = new SolidBrush(Color.FromArgb(100, 116, 139));
+        using var sf = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+        e.Graphics.DrawString(message, font, brush, e.Bounds, sf);
     }
 
     private void LedgerGridView_CustomColumnDisplayText(object sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
@@ -247,5 +442,6 @@ public sealed partial class CustomerLedgerDialog : XtraForm
         string Description,
         decimal Debit,
         decimal Credit,
-        decimal RunningBalance);
+        decimal RunningBalance,
+        bool IsOpeningRow = false);
 }

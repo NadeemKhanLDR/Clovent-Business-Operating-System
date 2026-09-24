@@ -16,6 +16,8 @@ partial class UsersForm
         btnActivate = new DevExpress.XtraEditors.SimpleButton();
         btnDeactivate = new DevExpress.XtraEditors.SimpleButton();
         btnResetPassword = new DevExpress.XtraEditors.SimpleButton();
+        btnSetPin = new DevExpress.XtraEditors.SimpleButton();
+        btnClearPin = new DevExpress.XtraEditors.SimpleButton();
         btnUnlock = new DevExpress.XtraEditors.SimpleButton();
         btnRefresh = new DevExpress.XtraEditors.SimpleButton();
         gridControl = new DevExpress.XtraGrid.GridControl();
@@ -80,17 +82,31 @@ partial class UsersForm
         btnResetPassword.Text = "Reset Password";
         btnResetPassword.Click += BtnResetPassword_Click;
         //
+        // btnSetPin
+        //
+        btnSetPin.Name = "btnSetPin";
+        btnSetPin.TabIndex = 6;
+        btnSetPin.Text = "Set PIN";
+        btnSetPin.Click += BtnSetPin_Click;
+        //
+        // btnClearPin
+        //
+        btnClearPin.Name = "btnClearPin";
+        btnClearPin.TabIndex = 7;
+        btnClearPin.Text = "Clear PIN";
+        btnClearPin.Click += BtnClearPin_Click;
+        //
         // btnUnlock
         //
         btnUnlock.Name = "btnUnlock";
-        btnUnlock.TabIndex = 6;
+        btnUnlock.TabIndex = 8;
         btnUnlock.Text = "Unlock";
         btnUnlock.Click += BtnUnlock_Click;
         //
         // btnRefresh
         //
         btnRefresh.Name = "btnRefresh";
-        btnRefresh.TabIndex = 7;
+        btnRefresh.TabIndex = 9;
         btnRefresh.Text = "Refresh";
         btnRefresh.Click += BtnRefresh_Click;
         //
@@ -187,6 +203,8 @@ partial class UsersForm
         CommandPanelLayout.AddCommandButton(commandFlow, btnActivate);
         CommandPanelLayout.AddCommandButton(commandFlow, btnDeactivate);
         CommandPanelLayout.AddCommandButton(commandFlow, btnResetPassword);
+        CommandPanelLayout.AddCommandButton(commandFlow, btnSetPin);
+        CommandPanelLayout.AddCommandButton(commandFlow, btnClearPin);
         CommandPanelLayout.AddCommandButton(commandFlow, btnUnlock);
         CommandPanelLayout.AddCommandButton(commandFlow, btnRefresh);
         Name = "UsersForm";
@@ -204,6 +222,8 @@ partial class UsersForm
     private DevExpress.XtraEditors.SimpleButton btnActivate;
     private DevExpress.XtraEditors.SimpleButton btnDeactivate;
     private DevExpress.XtraEditors.SimpleButton btnResetPassword;
+    private DevExpress.XtraEditors.SimpleButton btnSetPin;
+    private DevExpress.XtraEditors.SimpleButton btnClearPin;
     private DevExpress.XtraEditors.SimpleButton btnUnlock;
     private DevExpress.XtraEditors.SimpleButton btnRefresh;
     private DevExpress.XtraGrid.GridControl gridControl;

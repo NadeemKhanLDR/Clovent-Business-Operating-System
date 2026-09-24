@@ -293,11 +293,15 @@ public sealed partial class LoginForm : XtraForm
     {
         var isValid = true;
 
-        txtUsername.ErrorText = string.IsNullOrWhiteSpace(txtUsername.Text) ? "Username is required." : string.Empty;
+        // A PIN alone is a complete credential for the POS cashier workflow:
+        // PIN-only sign-in resolves the user from the PIN itself (see
+        // LoginService.ResolveUserByPinAsync), so Username is only required
+        // when the user is signing in the conventional username+password way.
+        var hasPin = !string.IsNullOrWhiteSpace(txtPin.Text);
+        txtUsername.ErrorText = string.IsNullOrWhiteSpace(txtUsername.Text) && !hasPin ? "Username is required." : string.Empty;
         isValid &= string.IsNullOrEmpty(txtUsername.ErrorText);
 
         var hasPassword = !string.IsNullOrWhiteSpace(txtPassword.Text);
-        var hasPin = !string.IsNullOrWhiteSpace(txtPin.Text);
         var credentialError = hasPassword || hasPin ? string.Empty : "Enter your password or PIN.";
         txtPassword.ErrorText = credentialError;
         txtPin.ErrorText = credentialError;
@@ -397,16 +401,15 @@ public sealed partial class LoginForm : XtraForm
             LoginSucceeded?.Invoke(this, EventArgs.Empty);
 
             SelectedModuleKey = moduleKey;
-            shouldKeepSplash = true;
+            DialogResult = DialogResult.OK;
+            _splashScreenService.Close();
+            shouldKeepSplash = false;
             Close();
         }
         finally
         {
             SetLoading(false);
-            if (!shouldKeepSplash)
-            {
-                _splashScreenService.Close();
-            }
+            _splashScreenService.Close();
         }
     }
 
@@ -436,7 +439,11 @@ public sealed partial class LoginForm : XtraForm
             : visibleKeys.Any(key => !string.Equals(key, "pos", StringComparison.OrdinalIgnoreCase));
     }
 
-    private void BtnCancelHidden_Click(object? sender, EventArgs e) => Close();
+    private void BtnCancelHidden_Click(object? sender, EventArgs e)
+    {
+        DialogResult = DialogResult.Cancel;
+        Close();
+    }
 
     /// <summary>Keeps a module card's rounded-corner clipping region matched to its live size - a <see cref="Control.Region"/> set once at Designer time would go stale the moment the card resizes with its column. Shared by both cards' <c>Resize</c> event (wired in <c>LoginForm.Designer.cs</c>).</summary>
     private void Card_Resize(object? sender, EventArgs e)

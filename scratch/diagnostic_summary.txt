@@ -1,0 +1,10 @@
+Total orders in period: 548
+Completed in period: 120
+Orders with QA/TEST notes: 0
+DEV-SMARTCOMBO orders: 5
+Eligible orders (IncludeDevelopmentSamples=false): 115
+Eligible orders (IncludeDevelopmentSamples=true): 120
+Unique pairs generated: 130
+Pairs with freq >= 3: 6
+Unique triples generated: 429
+Triples with freq >= 3: 1

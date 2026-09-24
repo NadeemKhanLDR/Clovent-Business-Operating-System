@@ -1,0 +1,179 @@
+{
+  "Location": "Main Warehouse",
+  "ElapsedMilliseconds": 1155,
+  "Analysis": {
+    "WarehouseId": "b5cb31e4-303b-4bf5-ba53-214f7fa14c4a",
+    "FromUtc": "2026-08-22T08:03:45.393137+00:00",
+    "ToUtc": "2026-09-21T08:03:45.393137+00:00",
+    "EligibleOrders": 120,
+    "OversizedBaskets": 0,
+    "ConvertedCount": 0,
+    "Opportunities": [
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|a6ef7092dab14e73a60327001bd6d85d",
+        "Name": "Leechi Combo",
+        "Items": [
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 120,
+        "Support": 0.05,
+        "AttachRate": 0.5454545454545454545454545455,
+        "Lift": 6.5454545454545454545454545486,
+        "Antecedent": "Leechi - Leechi",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 80.00,
+        "SuggestedPrice": 76.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 80.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "a6ef7092dab14e73a60327001bd6d85d|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 120,
+        "Support": 0.05,
+        "AttachRate": 0.1132075471698113207547169811,
+        "Lift": 1.3584905660377358490566037737,
+        "Antecedent": "Chicken Biryani - Standard",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 480.00,
+        "SuggestedPrice": 456.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 480.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          }
+        ],
+        "Frequency": 6,
+        "EligibleOrders": 120,
+        "Support": 0.05,
+        "AttachRate": 0.5454545454545454545454545455,
+        "Lift": 1.2349914236706689536878216124,
+        "Antecedent": "Leechi - Leechi",
+        "Consequent": "Chicken Biryani - Standard",
+        "NormalPrice": 500.00,
+        "SuggestedPrice": 475.00,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 500.00,
+        "GrossProfit": null,
+        "Margin": null
+      },
+      {
+        "Signature": "62b73e75129e44899ad86c8c96fcb527|a6ef7092dab14e73a60327001bd6d85d|c28181e1e80c42d094021409621816f9",
+        "Name": "Chicken Biryani Combo",
+        "Items": [
+          {
+            "VariantId": "c28181e1-e80c-42d0-9402-1409621816f9",
+            "ProductName": "Chicken Biryani",
+            "VariantName": "Standard",
+            "Price": 450.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Chicken Biryani - Standard"
+          },
+          {
+            "VariantId": "62b73e75-129e-4489-9ad8-6c8c96fcb527",
+            "ProductName": "Leechi",
+            "VariantName": "Leechi",
+            "Price": 50.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Leechi - Leechi"
+          },
+          {
+            "VariantId": "a6ef7092-dab1-4e73-a603-27001bd6d85d",
+            "ProductName": "Salad",
+            "VariantName": "Standard",
+            "Price": 30.00,
+            "Cost": null,
+            "NetRevenueFactor": 1,
+            "DisplayName": "Salad - Standard"
+          }
+        ],
+        "Frequency": 5,
+        "EligibleOrders": 120,
+        "Support": 0.0416666666666666666666666667,
+        "AttachRate": 0.8333333333333333333333333333,
+        "Lift": 10.000000000000000000000000004,
+        "Antecedent": "Leechi - Leechi \u002B Chicken Biryani - Standard",
+        "Consequent": "Salad - Standard",
+        "NormalPrice": 530.00,
+        "SuggestedPrice": 503.50,
+        "Cost": null,
+        "CurrencyDecimals": 2,
+        "DiscountRate": 0.05,
+        "NormalNetRevenue": 530.00,
+        "GrossProfit": null,
+        "Margin": null
+      }
+    ]
+  }
+}

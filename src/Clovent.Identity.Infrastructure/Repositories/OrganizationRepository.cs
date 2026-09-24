@@ -8,14 +8,14 @@ namespace Clovent.Identity.Infrastructure.Repositories;
 public sealed class OrganizationRepository(IdentityDbContext dbContext) : IOrganizationRepository
 {
     /// <inheritdoc/>
-    public Task<Organization?> GetByIdAsync(OrganizationId id, CancellationToken cancellationToken = default) =>
-        dbContext.Organizations.FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
+    public async Task<Organization?> GetByIdAsync(OrganizationId id, CancellationToken cancellationToken = default) =>
+        await dbContext.Organizations.FirstOrDefaultAsync(o => o.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Organization>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Organizations.ToListAsync(cancellationToken);
+        await dbContext.Organizations.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Organization organization, CancellationToken cancellationToken = default) =>
-        await dbContext.Organizations.AddAsync(organization, cancellationToken);
+        await dbContext.Organizations.AddAsync(organization, cancellationToken).ConfigureAwait(false);
 }

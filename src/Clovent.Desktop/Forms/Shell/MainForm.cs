@@ -16,6 +16,7 @@ using DevExpress.XtraBars.Ribbon;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Clovent.Desktop.Forms.Shell;
 
@@ -47,12 +48,15 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private readonly INotificationService _notificationService;
     private readonly IRecentItemsService _recentItemsService;
     private readonly IThemeService _themeService;
+    private readonly IApplicationModeNavigator? _applicationModeNavigator;
+    private readonly Microsoft.Extensions.Logging.ILogger<MainForm>? _logger;
 
     private readonly Dictionary<string, BaseDocument> _openDocumentsByKey = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>The active document's <see cref="BaseForm"/>, if any - subscribed to <see cref="BaseForm.StatusTextChanged"/> so the status bar tracks whichever tab is active.</summary>
     private BaseForm? _activeStatusSource;
     private readonly ISplashScreenService _splashScreenService;
+    private bool _isOpeningPos;
 
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
@@ -66,6 +70,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         _recentItemsService = null!;
         _themeService = null!;
         _splashScreenService = null!;
+        _applicationModeNavigator = null;
+        _logger = null;
 
         InitializeComponent();
     }
@@ -78,7 +84,9 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         ICurrentSession currentSession,
         INotificationService notificationService,
         IRecentItemsService recentItemsService,
-        ISplashScreenService splashScreenService)
+        ISplashScreenService splashScreenService,
+        IApplicationModeNavigator? applicationModeNavigator = null,
+        Microsoft.Extensions.Logging.ILogger<MainForm>? logger = null)
     {
         _navigationService = navigationService;
         _scopeFactory = scopeFactory;
@@ -87,8 +95,30 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         _recentItemsService = recentItemsService;
         _themeService = themeService;
         _splashScreenService = splashScreenService;
+        _applicationModeNavigator = applicationModeNavigator;
+        _logger = logger;
 
         Text = "Clovent Business Operating System";
+        try
+        {
+            var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Resources", "cbos.ico");
+            if (System.IO.File.Exists(iconPath))
+            {
+                Icon = new Icon(iconPath);
+            }
+            else
+            {
+                var exePath = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
+                {
+                    Icon = Icon.ExtractAssociatedIcon(exePath);
+                }
+            }
+        }
+        catch
+        {
+            // Gracefully ignore icon loading errors
+        }
         StartPosition = FormStartPosition.CenterScreen;
         Width = 1366;
         Height = 800;
@@ -104,6 +134,9 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
     private void InitializeRuntime()
     {
+#if DEBUG
+        Clovent.Desktop.Restaurant.SmartPos.SmartPosLayoutTelemetry.LogAppBuildIdentity();
+#endif
         LocalizationHelper.LocalizeControl(this);
 
         _tabbedView.DocumentClosing += TabbedView_DocumentClosing;
@@ -141,6 +174,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             }
 
             await RefreshNavigationAsync();
+            await RefreshAttendanceStatusAsync();
         }
         finally
         {
@@ -167,6 +201,12 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             return;
         }
 
+        if (string.Equals(key, "pos", StringComparison.OrdinalIgnoreCase))
+        {
+            _ = OpenRestaurantPosWithGateAsync();
+            return;
+        }
+
         _navigationService.NavigateTo(key, e.Item.Caption);
     }
 
@@ -179,6 +219,125 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private async void ChangePasswordItem_ItemClick(object? sender, ItemClickEventArgs e) => await ChangePasswordAsync();
 
     private async void SignOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await SignOutAsync();
+
+    private async void PunchInOutButton_ItemClick(object? sender, ItemClickEventArgs e) => await ToggleOrPromptAttendanceAsync();
+
+    private async void ProfilePunchInItem_ItemClick(object? sender, ItemClickEventArgs e) => await OpenPunchInDialogAsync();
+
+    private async void ProfilePunchOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await OpenPunchOutDialogAsync();
+
+    private async void AttendanceStatusItem_ItemClick(object? sender, ItemClickEventArgs e) => await ToggleOrPromptAttendanceAsync();
+
+    private async Task ToggleOrPromptAttendanceAsync()
+    {
+        if (_currentSession.UserId is not { } userId) return;
+
+        using var scope = _scopeFactory.CreateScope();
+        var attendanceService = scope.ServiceProvider.GetRequiredService<Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService>();
+        var session = await attendanceService.GetOpenSessionAsync(userId);
+        if (session != null)
+        {
+            await OpenPunchOutDialogAsync();
+        }
+        else
+        {
+            await OpenPunchInDialogAsync();
+        }
+    }
+
+    private async Task OpenPunchInDialogAsync()
+    {
+        if (_currentSession.UserId is not { } userId) return;
+
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var terminalService = scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+
+        var terminalRes = await terminalService.ResolveCurrentTerminalAsync();
+        using var dialog = new Clovent.Desktop.Restaurant.Attendance.PunchInDialog(
+            mediator,
+            _currentSession,
+            terminalRes.BranchId ?? Guid.Empty,
+            terminalRes.BranchName,
+            terminalRes.TerminalId);
+
+        if (dialog.ShowDialog(this) == DialogResult.OK && dialog.PunchedIn)
+        {
+            await RefreshAttendanceStatusAsync();
+        }
+    }
+
+    private async Task OpenPunchOutDialogAsync()
+    {
+        if (_currentSession.UserId is not { } userId) return;
+
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var attendanceService = scope.ServiceProvider.GetRequiredService<Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService>();
+        var terminalService = scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+
+        var session = await attendanceService.GetOpenSessionAsync(userId);
+        if (session == null)
+        {
+            XtraMessageBox.Show(this, "No active attendance session found.", "Not Punched In", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            await RefreshAttendanceStatusAsync();
+            return;
+        }
+
+        var terminalRes = await terminalService.ResolveCurrentTerminalAsync();
+        using var dialog = new Clovent.Desktop.Restaurant.Attendance.PunchOutDialog(
+            mediator,
+            _currentSession,
+            attendanceService,
+            session,
+            terminalRes.TerminalId);
+
+        if (dialog.ShowDialog(this) == DialogResult.OK && dialog.PunchedOut)
+        {
+            await RefreshAttendanceStatusAsync();
+        }
+    }
+
+    public async Task RefreshAttendanceStatusAsync()
+    {
+        if (_currentSession.UserId is not { } userId)
+        {
+            _attendanceStatusItem.Caption = "○ Not Punched In";
+            _punchInOutButton.Caption = "Punch In";
+            _profilePunchInItem.Visibility = BarItemVisibility.Always;
+            _profilePunchOutItem.Visibility = BarItemVisibility.Never;
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var attendanceService = scope.ServiceProvider.GetRequiredService<Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService>();
+            var session = await attendanceService.GetOpenSessionAsync(userId);
+
+            if (session != null)
+            {
+                var localTime = session.PunchInAtUtc.ToLocalTime().ToString("hh:mm tt");
+                _attendanceStatusItem.Caption = $"● Punched In · {localTime}";
+                _punchInOutButton.Caption = "Punch Out";
+                _punchInOutButton.Hint = "Punch out from employee attendance session";
+                _profilePunchInItem.Visibility = BarItemVisibility.Never;
+                _profilePunchOutItem.Visibility = BarItemVisibility.Always;
+            }
+            else
+            {
+                _attendanceStatusItem.Caption = "○ Not Punched In";
+                _punchInOutButton.Caption = "Punch In";
+                _punchInOutButton.Hint = "Punch in for employee attendance session";
+                _profilePunchInItem.Visibility = BarItemVisibility.Always;
+                _profilePunchOutItem.Visibility = BarItemVisibility.Never;
+            }
+        }
+        catch
+        {
+            // Best effort status refresh
+        }
+    }
 
     private void ThemeEditItem_EditValueChanged(object? sender, EventArgs e)
     {
@@ -307,9 +466,16 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             return;
         }
 
+        if (string.Equals(loginForm.SelectedModuleKey, "pos", StringComparison.OrdinalIgnoreCase))
+        {
+            var opened = await OpenRestaurantPosWithGateAsync();
+            if (opened) return;
+        }
+
         _profileMenu.Caption = _currentSession.DisplayName ?? "Account";
         _userStatusItem.Caption = _currentSession.DisplayName is { } name ? $"Signed in as {name}" : "Not signed in";
         await RefreshNavigationAsync();
+        await RefreshAttendanceStatusAsync();
         RefreshRecentMenus();
         RefreshNotificationsButton();
         _navigationService.NavigateTo("dashboard", "Dashboard");
@@ -371,12 +537,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
         if (string.Equals(key, "pos", StringComparison.OrdinalIgnoreCase))
         {
-            var contentControl = contentFactory();
-            if (contentControl is Clovent.Desktop.Restaurant.Orders.RestaurantPosForm posForm)
-            {
-                posForm.Show(this);
-                return;
-            }
+            _ = OpenRestaurantPosWithGateAsync();
+            return;
         }
 
         if (!allowMultipleInstances && _openDocumentsByKey.TryGetValue(key, out var existing))
@@ -411,6 +573,10 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
         catch (Exception ex)
         {
+            if (baseForm.IsDisposed || baseForm.Disposing)
+            {
+                return;
+            }
             XtraMessageBox.Show(baseForm, ex.Message, "Refresh", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
@@ -508,7 +674,97 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
         catch (Exception ex)
         {
+            if (baseForm.IsDisposed || baseForm.Disposing)
+            {
+                return;
+            }
             XtraMessageBox.Show(baseForm, ex.Message, "Save", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private async Task<bool> OpenRestaurantPosWithGateAsync()
+    {
+        if (_isOpeningPos || IsDisposed || Disposing)
+        {
+            return false;
+        }
+
+        _isOpeningPos = true;
+        try
+        {
+            if (_scopeFactory is not null)
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var gate = scope.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.IPosEntryGateCoordinator>();
+                if (gate is not null)
+                {
+                    return await gate.EnsureShiftAndOpenPosAsync(this);
+                }
+            }
+
+            if (_applicationModeNavigator is not null)
+            {
+                await _applicationModeNavigator.OpenPosAsync();
+                return true;
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Exception occurred during OpenRestaurantPosWithGateAsync.");
+            return false;
+        }
+        finally
+        {
+            _isOpeningPos = false;
+            await RefreshAttendanceStatusAsync();
+        }
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        _logger?.LogInformation("MAINFORM_HANDLE_CREATED: Thread={ThreadId}, Handle={Handle}", Environment.CurrentManagedThreadId, Handle);
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        base.OnFormClosing(e);
+        _logger?.LogInformation("MAINFORM_CLOSING: Thread={ThreadId}, Reason={Reason}", Environment.CurrentManagedThreadId, e.CloseReason);
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        base.OnFormClosed(e);
+        _logger?.LogInformation("MAINFORM_CLOSED: Thread={ThreadId}, Reason={Reason}", Environment.CurrentManagedThreadId, e.CloseReason);
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            if (_activeStatusSource is not null)
+            {
+                _activeStatusSource.StatusTextChanged -= ActiveDocument_StatusTextChanged;
+                _activeStatusSource = null;
+            }
+
+            if (_notificationService is not null)
+            {
+                _notificationService.Changed -= NotificationService_Changed;
+            }
+
+            if (_tabbedView is not null)
+            {
+                _tabbedView.DocumentClosing -= TabbedView_DocumentClosing;
+                _tabbedView.DocumentClosed -= TabbedView_DocumentClosed;
+                _tabbedView.DocumentActivated -= TabbedView_DocumentActivated;
+            }
+            _openDocumentsByKey.Clear();
+        }
+
+        base.Dispose(disposing);
     }
 }

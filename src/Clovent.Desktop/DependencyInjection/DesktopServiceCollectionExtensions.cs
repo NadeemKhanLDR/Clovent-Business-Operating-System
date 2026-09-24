@@ -38,6 +38,7 @@ using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
+using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
 using Clovent.Desktop.Seed;
 using Clovent.Desktop.Sessions;
@@ -79,8 +80,22 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<ISplashScreenService, SplashScreenService>();
         services.TryAddSingleton<IErrorDialogService, ErrorDialogService>();
 
-        services.TryAddSingleton<MainForm>();
-        services.TryAddSingleton<IWorkspaceHost>(sp => sp.GetRequiredService<MainForm>());
+        services.TryAddSingleton<CbosApplicationContext>();
+        services.TryAddSingleton<IApplicationModeNavigator, ApplicationModeNavigator>();
+        services.TryAddScoped<Restaurant.Services.ITerminalResolutionService, Restaurant.Services.TerminalResolutionService>();
+        services.TryAddScoped<Restaurant.Services.IPosEntryGateCoordinator, Restaurant.Services.PosEntryGateCoordinator>();
+
+        services.TryAddTransient<MainForm>();
+        services.TryAddSingleton<IWorkspaceHost>(sp =>
+        {
+            var navigator = sp.GetService<IApplicationModeNavigator>();
+            if (navigator?.CurrentWorkspaceHost is { } host)
+            {
+                return host;
+            }
+
+            return sp.GetRequiredService<MainForm>();
+        });
         services.TryAddSingleton<INavigationService, NavigationService>();
         services.TryAddScoped<NavigationMenuBuilder>();
 
@@ -95,6 +110,7 @@ public static class DesktopServiceCollectionExtensions
         services.AddScoped<IStartupTask, DevelopmentMasterDataSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentCatalogSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentRestaurantSeedStartupTask>();
+        services.AddScoped<IStartupTask, TableOccupancyReconciliationStartupTask>();
         services.AddScoped<IStartupTask, WorldCurrencySeedStartupTask>();
         services.AddScoped<IStartupTask, WorldTimeZoneSeedStartupTask>();
         services.AddScoped<IStartupTask, WorldLanguageSeedStartupTask>();
@@ -154,12 +170,29 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<TableManagementView>();
         services.TryAddTransient<MenuItemsForm>();
         services.TryAddTransient<RestaurantPosForm>();
+        services.TryAddTransient<RestaurantPulseForm>();
         services.TryAddTransient<RunningOrdersView>();
         services.TryAddTransient<HoldOrdersView>();
         services.TryAddTransient<OrderHistoryView>();
         services.TryAddTransient<KitchenTicketViewerView>();
         services.TryAddTransient<EndOfDayReportView>();
         services.TryAddTransient<CustomersView>();
+        services.TryAddTransient<SmartComboBuilderView>();
+        services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboAccess, SmartComboAccess>();
+        var comboOptions = configuration.GetSection("SmartCombos").Get<Clovent.Restaurant.Application.SmartCombos.SmartComboOptions>() ?? new();
+        if (configuration.GetValue<bool>("SmartCombos:IncludeDevelopmentSamples") || string.Equals(configuration["Platform:EnvironmentName"], "Development", StringComparison.OrdinalIgnoreCase))
+        {
+            comboOptions = comboOptions with { IncludeDevelopmentSamples = true };
+        }
+        else
+        {
+            comboOptions = comboOptions with { IncludeDevelopmentSamples = false };
+        }
+        comboOptions.Validate();
+        services.AddSingleton(comboOptions);
+        services.TryAddTransient<RecommendationRulesView>();
+        services.TryAddTransient<UpsellPerformanceView>();
+        services.TryAddTransient<QuickOrderTemplatesView>();
         services.TryAddTransient<RestaurantSetupView>();
         services.TryAddTransient<PaymentMethodsView>();
         services.TryAddTransient<ActivityLogView>();
@@ -169,3 +202,5 @@ public static class DesktopServiceCollectionExtensions
         return services;
     }
 }
+
+

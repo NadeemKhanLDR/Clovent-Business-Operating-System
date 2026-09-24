@@ -30,7 +30,8 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         bool isNew = true,
         string? shopNo = null,
         string? mobile2 = null,
-        string? phone = null) : base(title)
+        string? phone = null,
+        bool isDefault = false) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -46,6 +47,7 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         _emailEdit.Text = email ?? string.Empty;
         _openingBalanceEdit.Value = openingBalance;
         _creditLimitEdit.Value = creditLimit;
+        _isDefaultCheck.Checked = isDefault;
         _notesEdit.Text = notes ?? string.Empty;
 
         _codeEdit.Properties.ReadOnly = true;
@@ -94,6 +96,9 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
 
     /// <summary>The entered notes (optional).</summary>
     public string? NotesValue => string.IsNullOrWhiteSpace(_notesEdit.Text) ? null : _notesEdit.Text.Trim();
+
+    /// <summary>Whether this customer is designated as the POS default customer.</summary>
+    public bool IsDefaultValue => _isDefaultCheck.Checked;
 
     /// <inheritdoc/>
     protected override bool ValidateFields(out string error)

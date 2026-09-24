@@ -22,6 +22,7 @@
   <ItemGroup>
     <None Include="..\Clovent.Desktop\appsettings.json" Link="Config\appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\Clovent.Desktop\appsettings.Development.json" Link="Config\appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

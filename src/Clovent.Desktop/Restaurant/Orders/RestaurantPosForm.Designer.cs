@@ -34,7 +34,6 @@ partial class RestaurantPosForm
         _logoLabel = new LabelControl();
         _cashierLabel = new LabelControl();
         _orderTypeButtonsFlow = new FlowLayoutPanel();
-        _newDineInButton = new SimpleButton();
         _newTakeAwayButton = new SimpleButton();
         _orderStatusLabel = new LabelControl();
         _actionsButtonsFlow = new FlowLayoutPanel();
@@ -42,6 +41,7 @@ partial class RestaurantPosForm
         _printBillButton = new SimpleButton();
         _paymentHistoryButton = new SimpleButton();
         _moreActionsButton = new SimpleButton();
+        _operationsButton = new SimpleButton();
         _logoutButton = new SimpleButton();
         pnlPayment = new PanelControl();
         tlpPayment = new TableLayoutPanel();
@@ -144,6 +144,7 @@ partial class RestaurantPosForm
         pnlTotalsRow2 = new TableLayoutPanel();
         _paidLabel = new LabelControl();
         _balanceLabel = new LabelControl();
+        _customerPickerColumnCode = new GridColumn();
         _customerPickerColumnName = new GridColumn();
         _customerPickerColumnPhone = new GridColumn();
         _customerPickerColumnBalance = new GridColumn();
@@ -277,7 +278,6 @@ partial class RestaurantPosForm
         _orderTypeButtonsFlow.Anchor = AnchorStyles.Left;
         _orderTypeButtonsFlow.AutoSize = true;
         _orderTypeButtonsFlow.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        _orderTypeButtonsFlow.Controls.Add(_newDineInButton);
         _orderTypeButtonsFlow.Controls.Add(_newTakeAwayButton);
         _orderTypeButtonsFlow.Location = new Point(132, 6);
         _orderTypeButtonsFlow.Margin = new Padding(0, 0, 16, 0);
@@ -285,26 +285,12 @@ partial class RestaurantPosForm
         _orderTypeButtonsFlow.Size = new Size(181, 46);
         _orderTypeButtonsFlow.TabIndex = 2;
         _orderTypeButtonsFlow.WrapContents = false;
-        // 
-        // _newDineInButton
-        // 
-        _newDineInButton.Anchor = AnchorStyles.Left;
-        _newDineInButton.AutoSize = true;
-        _newDineInButton.Location = new Point(0, 0);
-        _newDineInButton.Margin = new Padding(0, 0, 8, 0);
-        _newDineInButton.MinimumSize = new Size(0, 44);
-        _newDineInButton.Name = "_newDineInButton";
-        _newDineInButton.Padding = new Padding(18, 12, 18, 12);
-        _newDineInButton.Size = new Size(77, 46);
-        _newDineInButton.TabIndex = 2;
-        _newDineInButton.Text = "Dine In";
-        _newDineInButton.Click += NewDineInButton_Click;
-        // 
+        //
         // _newTakeAwayButton
-        // 
+        //
         _newTakeAwayButton.Anchor = AnchorStyles.Left;
         _newTakeAwayButton.AutoSize = true;
-        _newTakeAwayButton.Location = new Point(85, 0);
+        _newTakeAwayButton.Location = new Point(0, 0);
         _newTakeAwayButton.Margin = new Padding(0);
         _newTakeAwayButton.MinimumSize = new Size(0, 44);
         _newTakeAwayButton.Name = "_newTakeAwayButton";
@@ -338,6 +324,7 @@ partial class RestaurantPosForm
         _actionsButtonsFlow.Controls.Add(_printBillButton);
         _actionsButtonsFlow.Controls.Add(_paymentHistoryButton);
         _actionsButtonsFlow.Controls.Add(_moreActionsButton);
+        _actionsButtonsFlow.Controls.Add(_operationsButton);
         _actionsButtonsFlow.Controls.Add(_logoutButton);
         _actionsButtonsFlow.Location = new Point(900, 6);
         _actionsButtonsFlow.Margin = new Padding(0);
@@ -397,6 +384,21 @@ partial class RestaurantPosForm
         _moreActionsButton.TabIndex = 3;
         _moreActionsButton.Text = "More Actions ▾";
         _moreActionsButton.Click += MoreActionsButton_Click;
+        // 
+        // _operationsButton
+        // 
+        _operationsButton.Appearance.Options.UseForeColor = true;
+        _operationsButton.AutoSize = true;
+        _operationsButton.Location = new Point(300, 0);
+        _operationsButton.Margin = new Padding(0);
+        _operationsButton.MinimumSize = new Size(0, 44);
+        _operationsButton.Name = "_operationsButton";
+        _operationsButton.Padding = new Padding(18, 12, 18, 12);
+        _operationsButton.Size = new Size(114, 46);
+        _operationsButton.TabIndex = 4;
+        _operationsButton.Text = "Operations ▼";
+        _operationsButton.ToolTip = "Additional POS operations";
+        _operationsButton.Click += OperationsButton_Click;
         // 
         // _logoutButton
         // 
@@ -1863,6 +1865,16 @@ partial class RestaurantPosForm
         _balanceLabel.Size = new Size(165, 18);
         _balanceLabel.TabIndex = 1;
         // 
+        // _customerPickerColumnCode
+        // 
+        _customerPickerColumnCode.Caption = "Code";
+        _customerPickerColumnCode.FieldName = "CustomerCode";
+        _customerPickerColumnCode.MinWidth = 50;
+        _customerPickerColumnCode.Name = "_customerPickerColumnCode";
+        _customerPickerColumnCode.Visible = true;
+        _customerPickerColumnCode.VisibleIndex = 0;
+        _customerPickerColumnCode.Width = 150;
+        // 
         // _customerPickerColumnName
         // 
         _customerPickerColumnName.Caption = "Customer";
@@ -1870,8 +1882,8 @@ partial class RestaurantPosForm
         _customerPickerColumnName.MinWidth = 50;
         _customerPickerColumnName.Name = "_customerPickerColumnName";
         _customerPickerColumnName.Visible = true;
-        _customerPickerColumnName.VisibleIndex = 0;
-        _customerPickerColumnName.Width = 375;
+        _customerPickerColumnName.VisibleIndex = 1;
+        _customerPickerColumnName.Width = 320;
         // 
         // _customerPickerColumnPhone
         // 
@@ -1880,8 +1892,8 @@ partial class RestaurantPosForm
         _customerPickerColumnPhone.MinWidth = 50;
         _customerPickerColumnPhone.Name = "_customerPickerColumnPhone";
         _customerPickerColumnPhone.Visible = true;
-        _customerPickerColumnPhone.VisibleIndex = 1;
-        _customerPickerColumnPhone.Width = 250;
+        _customerPickerColumnPhone.VisibleIndex = 2;
+        _customerPickerColumnPhone.Width = 200;
         // 
         // _customerPickerColumnBalance
         // 
@@ -1890,8 +1902,8 @@ partial class RestaurantPosForm
         _customerPickerColumnBalance.MinWidth = 50;
         _customerPickerColumnBalance.Name = "_customerPickerColumnBalance";
         _customerPickerColumnBalance.Visible = true;
-        _customerPickerColumnBalance.VisibleIndex = 2;
-        _customerPickerColumnBalance.Width = 225;
+        _customerPickerColumnBalance.VisibleIndex = 3;
+        _customerPickerColumnBalance.Width = 180;
         // 
         // _categorySortFlow
         // 
@@ -2162,6 +2174,7 @@ partial class RestaurantPosForm
     private SimpleButton _printBillButton;
     private SimpleButton _paymentHistoryButton;
     private SimpleButton _moreActionsButton;
+    private SimpleButton _operationsButton;
     private SimpleButton _logoutButton;
 
     private PanelControl pnlProducts;
@@ -2184,13 +2197,13 @@ partial class RestaurantPosForm
     private TableLayoutPanel tlpOrderContext;
     private TableLayoutPanel _customerContainer;
     private DevExpress.XtraEditors.SearchLookUpEdit _customerPicker;
+    private GridColumn _customerPickerColumnCode;
     private GridColumn _customerPickerColumnName;
     private GridColumn _customerPickerColumnPhone;
     private GridColumn _customerPickerColumnBalance;
     private SimpleButton _newCustomerButton;
     private LabelControl _customerDetailsLabel;
     private FlowLayoutPanel _orderTypeButtonsFlow;
-    private SimpleButton _newDineInButton;
     private SimpleButton _newTakeAwayButton;
 
     private Panel pnlCart;

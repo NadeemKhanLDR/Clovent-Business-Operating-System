@@ -103,6 +103,18 @@ public sealed class UserCredentials : AggregateRoot<UserCredentialsId>
     }
 
     /// <summary>
+    /// Removes the PIN hash entirely and rotates <see cref="SecurityStamp"/> -
+    /// a cleared PIN is as security-relevant as a changed one, since anything
+    /// that cached the old stamp must not keep trusting the removed credential.
+    /// </summary>
+    public void ClearPin(DateTimeOffset nowUtc)
+    {
+        PinHash = null;
+        SecurityStamp = SecurityStamp.Generate();
+        AddDomainEvent(new PinCleared(Id, UserId, nowUtc));
+    }
+
+    /// <summary>
     /// Records another consecutive login failure. Routine bookkeeping - like
     /// <c>Session.Touch</c>, deliberately does not raise a domain event.
     /// </summary>

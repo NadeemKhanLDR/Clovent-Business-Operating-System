@@ -15,14 +15,15 @@ partial class EndOfDayReportView
 
     private readonly LabelControl _titleLabel = new() { Text = "Sales Summary" };
     private readonly LabelControl _subtitleLabel = new() { Text = "Sales performance and transaction overview" };
-    // Captioned "Location", not "Warehouse" - see RestaurantPosView's own
-    // _warehousePicker field comment/RestaurantPOSArchitecture.md Section 15.
     private readonly EntityPicker _warehousePicker = new("Location:");
-    private readonly SimpleButton _todayButton = new() { Text = "Today" };
-    private readonly SimpleButton _yesterdayButton = new() { Text = "Yesterday" };
-    private readonly DateEdit _fromDateEdit = new() { EditValue = DateTime.UtcNow.Date };
-    private readonly DateEdit _toDateEdit = new() { EditValue = DateTime.UtcNow.Date };
+    private readonly ComboBoxEdit _periodCombo = new();
+    private readonly DateEdit _fromDateEdit = new() { EditValue = DateTime.Today };
+    private readonly DateEdit _toDateEdit = new() { EditValue = DateTime.Today };
     private readonly SimpleButton _generateButton = new() { Text = "Generate" };
+    private readonly SimpleButton _previewButton = new() { Text = "Preview" };
+    private readonly SimpleButton _printButton = new() { Text = "Print" };
+    private readonly SimpleButton _exportPdfButton = new() { Text = "Export PDF" };
+    private readonly SimpleButton _exportExcelButton = new() { Text = "Export Excel" };
 
     private readonly LabelControl _totalBillsValueLabel = new();
     private readonly LabelControl _totalSalesValueLabel = new();
@@ -32,6 +33,8 @@ partial class EndOfDayReportView
     private readonly LabelControl _averageSaleLabel = new();
     private readonly SimpleButton _printSummaryButton = new() { Text = "Print Summary" };
     private readonly LabelControl _summaryEmptyStateLabel = new();
+
+    private XtraTabControl _tabControl = null!;
 
     private readonly GridControl _itemsSoldGrid = new() { Dock = DockStyle.Fill };
     private readonly GridView _itemsSoldGridView = new();
@@ -99,15 +102,16 @@ partial class EndOfDayReportView
             }
         };
 
-        var tabControl = new XtraTabControl { Dock = DockStyle.Fill, Padding = new Padding(12), HeaderAutoFill = DevExpress.Utils.DefaultBoolean.True };
-        tabControl.AppearancePage.Header.Font = new Font("Segoe UI", 9.5F);
-        tabControl.AppearancePage.Header.Options.UseFont = true;
-        tabControl.TabPages.Add(BuildSummaryPage());
-        tabControl.TabPages.Add(BuildGridPage("Top Selling Items", _itemsSoldGrid, "itemssold"));
-        tabControl.TabPages.Add(BuildGridPage("Cash Summary", _cashSummaryGrid, "cashsummary"));
-        tabControl.TabPages.Add(BuildGridPage("Bills", _billsGrid, "bills"));
-        tabControl.TabPages.Add(BuildGridPage("Inventory Movement", _inventoryMovementGrid, "inventorymovement"));
-        tabControl.TabPages.Add(BuildGridPage("Stock Remaining", _stockRemainingGrid, "stockremaining"));
+        _tabControl = new XtraTabControl { Dock = DockStyle.Fill, Padding = new Padding(12), HeaderAutoFill = DevExpress.Utils.DefaultBoolean.True };
+        _tabControl.AppearancePage.Header.Font = new Font("Segoe UI", 9.5F);
+        _tabControl.AppearancePage.Header.Options.UseFont = true;
+        _tabControl.TabPages.Add(BuildSummaryPage());
+        _tabControl.TabPages.Add(BuildGridPage("Top Selling Items", _itemsSoldGrid));
+        _tabControl.TabPages.Add(BuildGridPage("Cash Summary", _cashSummaryGrid));
+        _tabControl.TabPages.Add(BuildGridPage("Bills", _billsGrid));
+        _tabControl.TabPages.Add(BuildGridPage("Inventory Movement", _inventoryMovementGrid));
+        _tabControl.TabPages.Add(BuildGridPage("Stock Remaining", _stockRemainingGrid));
+        _tabControl.SelectedPageChanged += TabControl_SelectedPageChanged;
 
         // ---- Header: title + muted subtitle ----
         _titleLabel.Appearance.Font = new Font("Segoe UI", 16F, FontStyle.Bold);
@@ -133,6 +137,35 @@ partial class EndOfDayReportView
         titleBar.Controls.Add(_subtitleLabel, 0, 1);
 
         // ---- Filter toolbar: quick filters + range + Generate, Print at right ----
+        var periodLabel = new LabelControl { Text = "Report Period:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
+        periodLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        periodLabel.Appearance.Options.UseTextOptions = true;
+        periodLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        periodLabel.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
+        periodLabel.Appearance.Options.UseFont = true;
+        periodLabel.Appearance.Options.UseForeColor = true;
+        periodLabel.Padding = new Padding(0, 6, 0, 0);
+
+        _periodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _periodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
+        _periodCombo.Properties.Appearance.Options.UseFont = true;
+        _periodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        _periodCombo.Properties.Items.AddRange(new object[] {
+            "Today",
+            "Yesterday",
+            "This Week",
+            "Last Week",
+            "This Month",
+            "Last Month",
+            "This Quarter",
+            "Last Quarter",
+            "This Year",
+            "Last Year",
+            "Last 7 Days",
+            "Last 30 Days",
+            "Custom"});
+        _periodCombo.SelectedItem = "Today";
+
         var fromLabel = new LabelControl { Text = "From:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         fromLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         fromLabel.Appearance.Options.UseTextOptions = true;
@@ -148,21 +181,22 @@ partial class EndOfDayReportView
 
         _fromDateEdit.MinimumSize = new Size(145, 0);
         _toDateEdit.MinimumSize = new Size(145, 0);
-        foreach (var button in new[] { _todayButton, _yesterdayButton, _generateButton, _printSummaryButton })
+        foreach (var button in new[] { _generateButton, _previewButton, _printButton, _exportPdfButton, _exportExcelButton, _printSummaryButton })
         {
             // AutoSize buttons grow with the DPI-scaled font, so their text
-            // ("Print Summary" included) can never be clipped to a fixed width.
+            // can never be clipped to a fixed width.
             button.AutoSize = true;
             button.MinimumSize = new Size(0, 34);
-            button.Padding = new Padding(10, 4, 10, 4);
+            button.Padding = new Padding(12, 4, 12, 4);
+            button.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            button.Appearance.Options.UseFont = true;
+            button.Cursor = Cursors.Hand;
         }
         _generateButton.MinimumSize = new Size(110, 34);
-        _generateButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        _generateButton.Appearance.Options.UseFont = true;
-        _todayButton.MinimumSize = new Size(0, 34);
-        _yesterdayButton.MinimumSize = new Size(0, 34);
-        _printSummaryButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-        _printSummaryButton.Appearance.Options.UseFont = true;
+        _generateButton.Appearance.BackColor = Color.FromArgb(13, 148, 136); // Teal-600 primary action
+        _generateButton.Appearance.ForeColor = Color.White;
+        _generateButton.Appearance.Options.UseBackColor = true;
+        _generateButton.Appearance.Options.UseForeColor = true;
 
         var filterBar = new FlowLayoutPanel
         {
@@ -181,22 +215,31 @@ partial class EndOfDayReportView
         }
 
         Add(_warehousePicker);
-        Add(_todayButton);
-        Add(_yesterdayButton);
+        Add(periodLabel);
+        Add(_periodCombo);
         Add(fromLabel);
         Add(_fromDateEdit);
         Add(toLabel);
         Add(_toDateEdit);
         Add(_generateButton);
+        Add(_previewButton);
+        Add(_printButton);
+        Add(_exportPdfButton);
+        Add(_exportExcelButton);
         Add(_printSummaryButton);
 
-        Controls.Add(tabControl);
+        Controls.Add(_tabControl);
         Controls.Add(filterBar);
         Controls.Add(titleBar);
 
-        _todayButton.Click += TodayButton_Click;
-        _yesterdayButton.Click += YesterdayButton_Click;
+        _periodCombo.SelectedIndexChanged += PeriodCombo_SelectedIndexChanged;
+        _fromDateEdit.EditValueChanged += DateEdit_EditValueChanged;
+        _toDateEdit.EditValueChanged += DateEdit_EditValueChanged;
         _generateButton.Click += GenerateButton_Click;
+        _previewButton.Click += PreviewButton_Click;
+        _printButton.Click += PrintButton_Click;
+        _exportPdfButton.Click += ExportPdfButton_Click;
+        _exportExcelButton.Click += ExportExcelButton_Click;
         _printSummaryButton.Click += PrintSummaryButton_Click;
 
         Load += EndOfDayReportView_Load;
@@ -317,27 +360,25 @@ partial class EndOfDayReportView
         cardsRow.Controls.Add(BuildStatCard("CASH", _cashValueLabel, Color.FromArgb(39, 174, 96), "Cash Collected", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 2, 0);
         cardsRow.Controls.Add(BuildStatCard("CARD", _cardValueLabel, Color.FromArgb(142, 68, 173), "Card Collected", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 3, 0);
 
-        // Secondary metrics: one clean horizontal strip under the cards -
-        // caption then value, vertically centered on the same baseline, with
-        // enough trailing margin that adjacent pairs never run together.
+        // Secondary metrics: compact secondary statistics strip with clean separation
         var voidedCaption = new LabelControl { Text = "VOIDED ORDERS", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         var averageCaption = new LabelControl { Text = "AVERAGE SALE", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         foreach (var caption in new[] { voidedCaption, averageCaption })
         {
             caption.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            caption.Appearance.ForeColor = Color.Gray;
+            caption.Appearance.ForeColor = Color.FromArgb(100, 116, 139);
             caption.Appearance.Options.UseFont = true;
             caption.Appearance.Options.UseForeColor = true;
-            caption.Margin = new Padding(16, 10, 8, 10);
+            caption.Margin = new Padding(16, 8, 8, 8);
         }
 
         foreach (var label in new[] { _voidedCountLabel, _averageSaleLabel })
         {
             label.Text = "0";
-            label.Font = new Font(Font.FontFamily, 11F, FontStyle.Bold);
-            label.ForeColor = Color.FromArgb(52, 73, 94);
+            label.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            label.ForeColor = Color.FromArgb(30, 41, 59);
             label.AutoSize = true;
-            label.Margin = new Padding(0, 10, 28, 10);
+            label.Margin = new Padding(0, 7, 32, 8);
         }
 
         var secondary = new FlowLayoutPanel
@@ -347,6 +388,8 @@ partial class EndOfDayReportView
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            Padding = new Padding(16, 4, 16, 8),
+            Margin = new Padding(0)
         };
         secondary.Controls.Add(voidedCaption);
         secondary.Controls.Add(_voidedCountLabel);
@@ -414,28 +457,11 @@ partial class EndOfDayReportView
         return card;
     }
 
-    private XtraTabPage BuildGridPage(string title, GridControl grid, string featureOperation)
+    private static XtraTabPage BuildGridPage(string title, GridControl grid)
     {
         var page = new XtraTabPage { Text = title };
-
-        var previewButton = new SimpleButton { Text = "Preview" };
-        var printButton = new SimpleButton { Text = "Print" };
-        var exportPdfButton = new SimpleButton { Text = "Export PDF" };
-        var exportExcelButton = new SimpleButton { Text = "Export Excel" };
-
-        previewButton.Click += (_, _) => grid.ShowPrintPreview();
-        printButton.Click += (_, _) => grid.ShowRibbonPrintPreview();
-        exportPdfButton.Click += (_, _) => ExportGrid(grid, "PDF files (*.pdf)|*.pdf", $"{featureOperation}.pdf", (g, path) => g.ExportToPdf(path));
-        exportExcelButton.Click += (_, _) => ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{featureOperation}.xlsx", (g, path) => g.ExportToXlsx(path));
-
-        var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, WrapContents = false, Padding = new Padding(8, 6, 8, 6) };
-        toolbar.Controls.Add(previewButton);
-        toolbar.Controls.Add(printButton);
-        toolbar.Controls.Add(exportPdfButton);
-        toolbar.Controls.Add(exportExcelButton);
-
+        grid.Dock = DockStyle.Fill;
         page.Controls.Add(grid);
-        page.Controls.Add(toolbar);
         return page;
     }
 

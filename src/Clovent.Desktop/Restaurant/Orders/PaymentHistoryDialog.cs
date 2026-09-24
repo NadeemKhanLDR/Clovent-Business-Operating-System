@@ -1,4 +1,4 @@
-﻿using Clovent.Desktop.Forms.Base;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Restaurant.Application.ActivityLogs.Commands;
 using Clovent.Restaurant.Application.Orders.Queries;
@@ -77,6 +77,7 @@ public sealed partial class PaymentHistoryDialog : XtraForm
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
+        DesktopDialogSizing.Apply(this, 700, 480, 600, 400, null, true);
         await GuardedAction.RunAsync(this, _logger, LoadAsync, "load the payment history");
     }
     private Task TryRunAsync(Func<Task> action, string actionDescription) =>

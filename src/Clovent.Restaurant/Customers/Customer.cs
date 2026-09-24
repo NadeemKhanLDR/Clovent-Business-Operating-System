@@ -36,6 +36,9 @@ public sealed class Customer : AggregateRoot<CustomerId>
     /// <summary>Whether this customer is active and can receive credit sales.</summary>
     public bool IsActive { get; private set; }
 
+    /// <summary>Whether this customer is the default customer for new POS orders.</summary>
+    public bool IsDefault { get; private set; }
+
     /// <summary>General notes about the customer.</summary>
     public string? Notes { get; private set; }
 
@@ -71,7 +74,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         DateTimeOffset updatedAtUtc,
         string? shopNo,
         string? mobile2,
-        string? phone)
+        string? phone,
+        bool isDefault = false)
     {
         Id = id;
         Code = code;
@@ -83,6 +87,7 @@ public sealed class Customer : AggregateRoot<CustomerId>
         CreditLimit = creditLimit;
         OutstandingBalance = outstandingBalance;
         IsActive = isActive;
+        IsDefault = isDefault;
         Notes = notes;
         CreatedAtUtc = createdAtUtc;
         UpdatedAtUtc = updatedAtUtc;
@@ -103,7 +108,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? notes,
         string? shopNo = null,
         string? mobile2 = null,
-        string? phone = null)
+        string? phone = null,
+        bool isDefault = false)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Customer name is required.", nameof(name));
@@ -133,7 +139,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
             now,
             shopNo?.Trim(),
             mobile2?.Trim(),
-            phone?.Trim());
+            phone?.Trim(),
+            isDefault);
     }
 
     /// <summary>Updates customer information.</summary>
@@ -169,11 +176,26 @@ public sealed class Customer : AggregateRoot<CustomerId>
         Touch();
     }
 
+    /// <summary>Sets whether this customer is the default customer for POS orders.</summary>
+    public void SetDefault(bool isDefault)
+    {
+        if (isDefault && !IsActive)
+            throw RestaurantDomainException.CustomerCannotBeDefaultWhileInactive();
+
+        if (IsDefault == isDefault) return;
+        IsDefault = isDefault;
+        Touch();
+    }
+
     /// <summary>Activates or deactivates the customer account.</summary>
     public void SetStatus(bool isActive)
     {
         if (IsActive == isActive) return;
         IsActive = isActive;
+        if (!isActive && IsDefault)
+        {
+            IsDefault = false;
+        }
         Touch();
     }
 

@@ -35,7 +35,7 @@ public sealed partial class ActivityLogView : DevExpress.XtraEditors.XtraUserCon
     {
         InitializeComponent();
 
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode || scopeFactory == null)
         {
             _mediator = null!;
             _featurePolicy = null!;
@@ -112,7 +112,22 @@ public sealed partial class ActivityLogView : DevExpress.XtraEditors.XtraUserCon
 
     private async void ActivityLogView_Load(object? sender, EventArgs e)
     {
+        ScaleLayoutAtRuntime();
         await RefreshAsync();
+    }
+
+    private void ScaleLayoutAtRuntime()
+    {
+        if (DesignModeHelper.IsInDesignMode) return;
+
+        _headerPanel.Padding = new Padding(DesktopDpi.Scale(24, this), DesktopDpi.Scale(12, this), DesktopDpi.Scale(24, this), DesktopDpi.Scale(4, this));
+        _toolbar.Padding = new Padding(DesktopDpi.Scale(24, this), DesktopDpi.Scale(4, this), DesktopDpi.Scale(24, this), DesktopDpi.Scale(8, this));
+        _gridHost.Padding = new Padding(DesktopDpi.Scale(24, this), 0, DesktopDpi.Scale(24, this), DesktopDpi.Scale(16, this));
+
+        _searchEdit.Width = DesktopDpi.Scale(400, this);
+        _refreshButton.Size = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(32, this));
+        _gridView.RowHeight = DesktopDpi.Scale(32, this);
+        _gridView.ColumnPanelRowHeight = DesktopDpi.Scale(32, this);
     }
 
     private async Task RefreshAsync()

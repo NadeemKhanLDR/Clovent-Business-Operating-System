@@ -13,6 +13,9 @@ internal sealed class FakeUserCredentialsRepository : IUserCredentialsRepository
     public Task<UserCredentials?> GetByUserIdAsync(UserId userId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_byId.Values.FirstOrDefault(c => c.UserId == userId));
 
+    public Task<IReadOnlyList<UserCredentials>> GetAllAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<UserCredentials>>([.. _byId.Values]);
+
     public Task AddAsync(UserCredentials credentials, CancellationToken cancellationToken = default)
     {
         _byId[credentials.Id] = credentials;

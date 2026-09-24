@@ -7,6 +7,8 @@ using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.QuickOrderTemplates;
+using Clovent.Restaurant.SmartRecommendations;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Shifts;
@@ -70,6 +72,21 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
 
     /// <summary>CashMovement entities.</summary>
     public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+
+    /// <summary>RecommendationRule aggregates.</summary>
+    public DbSet<RecommendationRule> RecommendationRules => Set<RecommendationRule>();
+
+    /// <summary>SuggestionEvent analytics facts.</summary>
+    public DbSet<SuggestionEvent> SuggestionEvents => Set<SuggestionEvent>();
+
+    /// <summary>QuickOrderTemplate aggregates.</summary>
+    public DbSet<QuickOrderTemplate> QuickOrderTemplates => Set<QuickOrderTemplate>();
+
+    /// <summary>BusinessDayClose aggregates.</summary>
+    public DbSet<Clovent.Restaurant.DayClose.BusinessDayClose> BusinessDayCloses => Set<Clovent.Restaurant.DayClose.BusinessDayClose>();
+
+    /// <summary>EmployeeAttendanceSession aggregates.</summary>
+    public DbSet<Clovent.Restaurant.Attendance.EmployeeAttendanceSession> AttendanceSessions => Set<Clovent.Restaurant.Attendance.EmployeeAttendanceSession>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

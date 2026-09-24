@@ -19,7 +19,9 @@ using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.Forms.Base.Localization;
 using Clovent.Desktop.Forms.Restaurant.MenuItems;
 using Clovent.Desktop.Inventory.WarehouseStocks;
+using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Restaurant.Shared;
+using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Startup;
@@ -30,9 +32,20 @@ using Clovent.MasterData.Application.Currencies.Queries;
 using Clovent.MasterData.Application.Warehouses.Queries;
 using Clovent.Restaurant.Application;
 using Clovent.Restaurant.Application.ActivityLogs.Commands;
+using Clovent.Restaurant.Application.CustomerReorder.Dtos;
 using Clovent.Restaurant.Application.Discounts.Commands;
 using Clovent.Restaurant.Application.Discounts.Queries;
 using Clovent.Restaurant.Application.KitchenTickets.Commands;
+using Clovent.Restaurant.Application.OrderHealth;
+using Clovent.Restaurant.Application.QuickOrderTemplates.Dtos;
+using Clovent.Restaurant.Application.QuickOrderTemplates.Queries;
+using Clovent.Restaurant.Application.RestaurantPulse.Queries;
+using Clovent.Restaurant.Application.SmartRecommendations.Dtos;
+using Clovent.Restaurant.Application.SmartRecommendations.Commands;
+using Clovent.Restaurant.Application.SmartRecommendations.Queries;
+using Clovent.Restaurant.SmartRecommendations;
+using Clovent.Restaurant.Application.UniversalPosSearch.Dtos;
+using Clovent.Restaurant.Application.UniversalPosSearch.Queries;
 using Clovent.Restaurant.Application.OrderLines.Commands;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Queries;
@@ -48,6 +61,8 @@ using Clovent.Restaurant.Application.ServiceCharges.Queries;
 using Clovent.Restaurant.Application.Tables.Queries;
 using Clovent.Restaurant.Orders;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Repository;
+using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,6 +120,29 @@ public sealed partial class RestaurantPosForm : XtraForm
     private readonly IManagerAuthorizationService _managerAuthorization;
     private readonly ILogger<RestaurantPosForm> _logger;
     private readonly ISplashScreenService _splashScreenService;
+    private IApplicationModeNavigator? _applicationModeNavigator;
+    private readonly ContextMenuStrip _operationsMenu = new();
+    private ToolStripMenuItem _shiftMenuItem = null!;
+    private ToolStripMenuItem _openShiftMenuItem = null!;
+    private ToolStripMenuItem _currentShiftMenuItem = null!;
+    private ToolStripMenuItem _closeShiftMenuItem = null!;
+    private ToolStripMenuItem _cashMovementMenuItem = null!;
+    private ToolStripMenuItem _printLastReceiptMenuItem = null!;
+    private ToolStripMenuItem _endOfDayMenuItem = null!;
+    private ToolStripMenuItem _backOfficeMenuItem = null!;
+    private bool _canAccessBackOffice;
+    private bool _canPerformRefund;
+
+    internal enum PosCloseInitiator
+    {
+        None,
+        UserWindowClose,
+        ModeSwitchToBackOffice,
+        StartupFailureFallback,
+        SessionSignOut
+    }
+
+    private PosCloseInitiator _closeInitiator = PosCloseInitiator.None;
 
     // View Toggle controls:
     private SimpleButton _btnGridView = null!;
@@ -142,9 +180,9 @@ public sealed partial class RestaurantPosForm : XtraForm
     private bool _activeOrdersExpanded = true;
     private System.Windows.Forms.Timer? _sidebarAnimationTimer;
     private int _sidebarTargetWidth;
-    private int _sidebarCurrentWidth;
     
     private LabelControl _lblFoodiesMenuHeader = null!;
+    private TableLayoutPanel _tlpCenterRows = null!;
     private Panel _categoriesScrollContainer = null!;
     private SimpleButton _btnCategoriesScrollLeft = null!;
     private SimpleButton _btnCategoriesScrollRight = null!;
@@ -169,6 +207,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private OrderDto? _currentOrder;
     private bool _isRefreshingOrder;
+    private Guid? _defaultCustomerId;
     private readonly Dictionary<Guid, ProductVariantDto> _variantsById = [];
     private readonly Dictionary<Guid, decimal> _sellingPricesByVariantId = [];
     private readonly Dictionary<Guid, Image> _tileImagesByProductId = [];
@@ -192,6 +231,75 @@ public sealed partial class RestaurantPosForm : XtraForm
     private bool _amountEntryIsPreset = true;
     private bool _isRecordingPayment;
 
+    // ==========================================
+    // SMART POS FEATURES (suggestions, quick
+    // orders, order health, rush mode, universal
+    // search, customer reorder, restaurant pulse)
+    // ==========================================
+
+    // Smart suggestion compact strip (single row above the ordered-items list):
+    // Uses a compact trigger with a DevExpress PopupContainerEdit dropdown overlay.
+    // The actual suggestion GridControl lives inside _suggestionPopupControl so it never
+    // permanently consumes cart vertical space.
+    private Panel _suggestionPanel = null!;
+    private PictureEdit _suggestionHeaderIcon = null!;
+    private LabelControl _suggestionHeaderLabel = null!;
+    private PopupContainerEdit _suggestionPopupEdit = null!;
+    private PopupContainerControl _suggestionPopupControl = null!;
+    private GridControl _suggestionGrid = null!;
+    private GridView _suggestionGridView = null!;
+    private CheckEdit _suggestionSelectAllCheck = null!;
+    private SimpleButton _suggestionAddSelectedButton = null!;
+    private readonly List<SuggestedAddOnSelectionRow> _suggestionRows = [];
+    private bool _suggestionSyncingSelection;
+    private bool _suggestionAdding;
+    internal readonly SuggestionDismissalTracker SuggestionTracker = new();
+    private CancellationTokenSource? _suggestionCts;
+    private string? _lastSuggestionBasketKey;
+    private Guid? _suggestionOrderId;
+
+    // Full (untruncated) recommendation list currently applicable to the
+    // basket - feeds the embedded suggestion grid.
+    private IReadOnlyList<BasketRecommendationDto> _currentSuggestions = [];
+
+    // Upsell analytics: variants already counted as "offered" for the current
+    // order, so repeated strip refreshes never inflate the offer count.
+    private readonly HashSet<Guid> _recordedOfferedVariantIds = [];
+
+    // Quick Orders strip:
+    private Panel _quickOrdersStrip = null!;
+    private SimpleButton _quickOrdersToggle = null!;
+    private FlowLayoutPanel _quickOrdersFlowPanel = null!;
+    private bool _quickOrdersExpanded;
+    private IReadOnlyList<QuickOrderTemplateDto> _quickOrderTemplates = [];
+
+    // Order health on the Active Orders rail:
+    private System.Windows.Forms.Timer? _orderHealthTimer;
+    private readonly Dictionary<Guid, OrderHealthCardState> _orderHealthCards = [];
+    private OrderHealthThresholds _orderHealthThresholds = new();
+
+    // Rush mode:
+    internal readonly RushModeState RushMode = new();
+    private LabelControl _rushModeBadge = null!;
+    private TableLayoutPanel? _headerTable;
+
+    // Universal smart search on the product search edit:
+    private UniversalSearchDropdown? _searchDropdown;
+    private CancellationTokenSource? _universalSearchCts;
+    private readonly SearchResultsCache<UniversalPosSearchResultsDto> _universalSearchCache = new(TimeSpan.FromSeconds(10));
+
+    // Smart More-menu entries (built at runtime so the Designer file stays untouched):
+    private ToolStripSeparator _moreMenuSmartSeparator = null!;
+    private ToolStripMenuItem _moreQuickOrdersItem = null!;
+    private ToolStripMenuItem _moreShowSuggestionsItem = null!;
+    private ToolStripMenuItem _moreRepeatLastOrderItem = null!;
+    private ToolStripMenuItem _moreCustomerInsightsItem = null!;
+    private ToolStripMenuItem _moreRestaurantPulseItem = null!;
+    private ToolStripMenuItem _moreRushModeItem = null!;
+
+    /// <summary>Label + creation time of one live Active Orders card, for cheap health ticks.</summary>
+    private sealed record OrderHealthCardState(LabelControl StatusLabel, DateTimeOffset CreatedAtUtc, bool IsLive);
+
     /// <summary>Design-time-only constructor for Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public RestaurantPosForm()
@@ -202,13 +310,15 @@ public sealed partial class RestaurantPosForm : XtraForm
         _currentSession = null!;
         _changeNotifier = null!;
         _managerAuthorization = null!;
-        _logger = null!;
+        _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
         _splashScreenService = null!;
+        _applicationModeNavigator = null;
 
         try
         {
             InitializeComponent();
             AttachPickers();
+            BuildOperationsMenu();
             InitializeDesignTime();
         }
         catch (Exception ex)
@@ -224,7 +334,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         ICurrentSession currentSession,
         IMenuItemsChangeNotifier changeNotifier,
         IManagerAuthorizationService managerAuthorization,
-        ISplashScreenService splashScreenService)
+        ISplashScreenService splashScreenService,
+        IApplicationModeNavigator? applicationModeNavigator = null)
     {
         try
         {
@@ -232,13 +343,15 @@ public sealed partial class RestaurantPosForm : XtraForm
             _scope = scopeFactory.CreateScope();
             _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
             _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
-            _logger = _scope.ServiceProvider.GetRequiredService<ILogger<RestaurantPosForm>>();
+            _logger = _scope.ServiceProvider.GetService<ILogger<RestaurantPosForm>>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
             _currentSession = currentSession;
             _changeNotifier = changeNotifier;
             _splashScreenService = splashScreenService;
+            _applicationModeNavigator = applicationModeNavigator ?? _scope.ServiceProvider.GetService<IApplicationModeNavigator>();
 
             InitializeComponent();
             AttachPickers();
+            BuildOperationsMenu();
 
             if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             {
@@ -247,6 +360,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
 
             InitializeRuntime();
+            _logger?.LogInformation("POS_FORM_CONSTRUCTED: RestaurantPosForm constructor completed.");
         }
         catch (Exception ex)
         {
@@ -333,6 +447,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _amountEntryIsPreset = true;
         BuildMethodButtons();
         UpdateChangeDisplay();
+        BuildEmbeddedSuggestionPanel();
     }
 
     private void InitializeRuntime()
@@ -612,6 +727,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         // this method creates (_paginationPanel, _productTilesFlow, ...),
         // which don't exist until the code above has run.
         RestructureLayout();
+        InitializeSmartFeatures();
     }
 
     /// <summary>
@@ -680,9 +796,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Set Parent = null on all designer-defined controls we want to keep
         // to prevent WinForms from disposing them when parents are cleared.
         foreach (Control c in new Control[] { 
-            _logoLabel, _cashierLabel, _newDineInButton, _newTakeAwayButton, 
+            _logoLabel, _cashierLabel, _newTakeAwayButton, 
             _orderStatusLabel, _refreshButton, _printBillButton, _paymentHistoryButton, 
-            _moreActionsButton, _logoutButton, _productSearchEdit, pnlSearch, _productTilesFlow, 
+            _moreActionsButton, _operationsButton, _logoutButton, _productSearchEdit, pnlSearch, _productTilesFlow, 
             _tilesEmptyLabel, _categoryButtonsPanel, _allCategoriesButton, 
             _lineGrid, pnlCartActions, pnlTotals, pnlOrderContext, pnlPayment,
             _subtotalLabel, _discountLabel, _taxLabel, _serviceChargeLabel, 
@@ -839,6 +955,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         var tlpHeaderNew = new TableLayoutPanel
         {
+            Name = "tlpHeaderNew",
             Dock = DockStyle.Fill,
             ColumnCount = 10,
             RowCount = 1,
@@ -846,6 +963,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             BackColor = Color.White
         };
         tlpHeaderNew.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        _headerTable = tlpHeaderNew;
 
         void StyleHeaderAction(SimpleButton btn, string text, Color back, Color fore)
         {
@@ -896,24 +1014,23 @@ public sealed partial class RestaurantPosForm : XtraForm
         tlpHeaderNew.Controls.Add(lblBrand, 0, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Columns 1-2: order starters
-        StyleHeaderAction(_newDineInButton, "+ Dine In", AccentColor, Color.White);
+        // Column 1: order starters. Dine-In has no button here any more -
+        // selecting a table in the table picker starts the Dine-In order
+        // automatically (see TablePicker_SelectionChanged).
         StyleHeaderAction(_newTakeAwayButton, "+ Take Away", Color.FromArgb(15, 23, 42), Color.White);
-        tlpHeaderNew.Controls.Add(_newDineInButton, 1, 0);
-        tlpHeaderNew.Controls.Add(_newTakeAwayButton, 2, 0);
-        tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        tlpHeaderNew.Controls.Add(_newTakeAwayButton, 1, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 3: global search
+        // Column 2: global search
         _productSearchEdit.Dock = DockStyle.Fill;
         _productSearchEdit.Margin = new Padding(8, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this), 8, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this));
         _productSearchEdit.Properties.NullValuePrompt = "Search menu, orders and more...";
         _productSearchEdit.Properties.NullValuePromptShowForEmptyValue = true;
         _productSearchEdit.Properties.NullText = "";
-        tlpHeaderNew.Controls.Add(_productSearchEdit, 3, 0);
+        tlpHeaderNew.Controls.Add(_productSearchEdit, 2, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-        // Column 4: cashier identity
+        // Column 3: cashier identity
         _cashierLabel.Dock = DockStyle.Fill;
         _cashierLabel.AutoSizeMode = LabelAutoSizeMode.Horizontal;
         _cashierLabel.Margin = new Padding(8, 0, 6, 0);
@@ -924,10 +1041,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _cashierLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
         _cashierLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _cashierLabel.Appearance.Options.UseTextOptions = true;
-        tlpHeaderNew.Controls.Add(_cashierLabel, 4, 0);
+        tlpHeaderNew.Controls.Add(_cashierLabel, 3, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 5: compact order status badge
+        // Column 4: compact order status badge
         _orderStatusLabel.Dock = DockStyle.None;
         _orderStatusLabel.Anchor = AnchorStyles.None;
         _orderStatusLabel.AutoSizeMode = LabelAutoSizeMode.None;
@@ -944,10 +1061,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _orderStatusLabel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
         _orderStatusLabel.Appearance.BorderColor = Color.FromArgb(153, 246, 228);
         _orderStatusLabel.Appearance.Options.UseBorderColor = true;
-        tlpHeaderNew.Controls.Add(_orderStatusLabel, 5, 0);
+        tlpHeaderNew.Controls.Add(_orderStatusLabel, 4, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 6: Cancel Order button
+        // Column 5: Cancel Order button
         _cancelOrderButton.Parent = null;
         _cancelOrderButton.Text = "Cancel Order";
         _cancelOrderButton.Dock = DockStyle.None;
@@ -974,17 +1091,22 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Click is wired once in InitializeComponent (Designer); do NOT
         // subscribe again here - a second subscription made one click fire
         // CancelOrderButton_Click twice, showing the reason dialog twice.
-        tlpHeaderNew.Controls.Add(_cancelOrderButton, 6, 0);
+        tlpHeaderNew.Controls.Add(_cancelOrderButton, 5, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Columns 7-9: History / More Actions / Logout
+        // Columns 6-9: History / More Actions / Operations / Logout
         StyleHeaderAction(_paymentHistoryButton, "History", Color.White, Color.FromArgb(71, 85, 105));
         StyleHeaderAction(_moreActionsButton, "More ▼", Color.White, Color.FromArgb(71, 85, 105));
+
+        StyleOperationsButton();
+
         StyleHeaderAction(_logoutButton, "Logout", Color.White, Color.FromArgb(220, 38, 38));
         
-        tlpHeaderNew.Controls.Add(_paymentHistoryButton, 7, 0);
-        tlpHeaderNew.Controls.Add(_moreActionsButton, 8, 0);
+        tlpHeaderNew.Controls.Add(_paymentHistoryButton, 6, 0);
+        tlpHeaderNew.Controls.Add(_moreActionsButton, 7, 0);
+        tlpHeaderNew.Controls.Add(_operationsButton, 8, 0);
         tlpHeaderNew.Controls.Add(_logoutButton, 9, 0);
+        tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -1006,19 +1128,20 @@ public sealed partial class RestaurantPosForm : XtraForm
         pnlProducts.Appearance.BackColor = PageBackColor;
         pnlProducts.Appearance.Options.UseBackColor = true;
 
-        var tlpCenterRows = new TableLayoutPanel
+        _tlpCenterRows = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 5,
             Margin = new Padding(0),
             BackColor = Color.Transparent
         };
-        tlpCenterRows.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(36, this)));            // Row 0: Foodies Menu heading + View Toggle
-        tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(60, this)));            // Row 1: Category cards
-        tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));                                                             // Row 2: product viewport
-        tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(40, this)));            // Row 3: pagination footer
+        _tlpCenterRows.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        _tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(36, this)));            // Row 0: Foodies Menu heading + View Toggle
+        _tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(60, this)));            // Row 1: Category cards
+        _tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));                                                              // Row 2: Quick Orders collapsible strip
+        _tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));                                                             // Row 3: product viewport
+        _tlpCenterRows.RowStyles.Add(new RowStyle(SizeType.Absolute, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(40, this)));            // Row 4: pagination footer
 
         // Hide pnlSearch (barcode quick-add)
         pnlSearch.Visible = false;
@@ -1050,7 +1173,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             pnlFoodiesMenuHeader.Controls.Add(_togglePanel);
         }
         pnlFoodiesMenuHeader.Controls.Add(_lblFoodiesMenuHeader);
-        tlpCenterRows.Controls.Add(pnlFoodiesMenuHeader, 0, 0);
+        _tlpCenterRows.Controls.Add(pnlFoodiesMenuHeader, 0, 0);
 
         // Row 1: category cards with scroll arrows
         _categoriesScrollContainer = new Panel
@@ -1119,7 +1242,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _categoryButtonsPanel.Location = new Point(0, 0);
             _categoryButtonsPanel.Width = pnlCategoryButtonsWrapper.Width;
-            _categoryButtonsPanel.Height = pnlCategoryButtonsWrapper.Height + 20; // push scrollbar down
+            _categoryButtonsPanel.Height = pnlCategoryButtonsWrapper.Height + Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this); // push horizontal scrollbar below visible wrapper bounds
         };
 
         _btnCategoriesScrollLeft.Click += (s, e) =>
@@ -1137,9 +1260,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         tlpCategories.Controls.Add(pnlCategoryButtonsWrapper, 1, 0);
         tlpCategories.Controls.Add(_btnCategoriesScrollRight, 2, 0);
         _categoriesScrollContainer.Controls.Add(tlpCategories);
-        tlpCenterRows.Controls.Add(_categoriesScrollContainer, 0, 1);
+        _tlpCenterRows.Controls.Add(_categoriesScrollContainer, 0, 1);
 
-        // Row 2: the product viewport
+        // Row 3: the product viewport (Row 2 is reserved for _quickOrdersStrip)
         _productViewport.Dock = DockStyle.Fill;
         _productViewport.Margin = new Padding(0);
         
@@ -1156,13 +1279,13 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _productViewport.Controls.Add(_tilesEmptyLabel);
         }
-        tlpCenterRows.Controls.Add(_productViewport, 0, 2);
+        _tlpCenterRows.Controls.Add(_productViewport, 0, 3);
 
-        // Row 3: pagination footer
+        // Row 4: pagination footer
         _paginationPanel.Margin = new Padding(0);
-        tlpCenterRows.Controls.Add(_paginationPanel, 0, 3);
+        _tlpCenterRows.Controls.Add(_paginationPanel, 0, 4);
 
-        pnlProducts.Controls.Add(tlpCenterRows);
+        pnlProducts.Controls.Add(_tlpCenterRows);
 
         // ==========================================
         // 4. RIGHT PANEL (pnlCurrentOrder)
@@ -1313,9 +1436,12 @@ public sealed partial class RestaurantPosForm : XtraForm
         pnlCartActions.Controls.Add(tlpCartActions);
         pnlCartActions.Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this);
 
-        // Add to parent container. With Fill and Bottom docking:
-        _pnlOrderedItemsContainer.Controls.Add(pnlCartActions);
-        _pnlOrderedItemsContainer.Controls.Add(_flowOrderedItems);
+        // Add to parent container. WinForms docks children from highest index
+        // down to index 0. BuildEmbeddedSuggestionPanel() (called next) will bring
+        // _flowOrderedItems to index 0 so Fill docks LAST, after the Top-docked
+        // suggestion panel and Bottom-docked cart actions have reserved space.
+        _pnlOrderedItemsContainer.Controls.Add(pnlCartActions);     // Bottom
+        _pnlOrderedItemsContainer.Controls.Add(_flowOrderedItems);  // Fill (moved to index 0 later)
         
         _pnlOrderedItemsContainer.Resize += (s, e) =>
         {
@@ -1710,6 +1836,54 @@ public sealed partial class RestaurantPosForm : XtraForm
         _customerPicker.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
         _customerPicker.Properties.Appearance.BorderColor = Color.FromArgb(203, 213, 225);
         _customerPicker.Properties.Appearance.Options.UseBorderColor = true;
+
+        // Configure popup view columns explicitly so DevExpress does not auto-populate CustomerId (GUID)
+        var popupView = _customerPicker.Properties.PopupView;
+        if (popupView != null)
+        {
+            popupView.Columns.Clear();
+
+            var colCode = popupView.Columns.AddVisible("CustomerCode", "Customer Code");
+            colCode.Width = 120;
+            colCode.MinWidth = 80;
+
+            var colName = popupView.Columns.AddVisible("Name", "Name");
+            colName.Width = 240;
+            colName.MinWidth = 120;
+
+            var colPhone = popupView.Columns.AddVisible("Phone", "Phone");
+            colPhone.Width = 130;
+            colPhone.MinWidth = 90;
+
+            var colBalance = popupView.Columns.AddVisible("BalanceDisplay", "Balance");
+            colBalance.Width = 110;
+            colBalance.MinWidth = 80;
+            colBalance.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+            colBalance.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+
+            if (popupView is DevExpress.XtraGrid.Views.Grid.GridView gv)
+            {
+                gv.OptionsView.ShowGroupPanel = false;
+                gv.OptionsView.ShowIndicator = false;
+            }
+        }
+
+        _customerPicker.Properties.DisplayMember = "Name";
+        _customerPicker.Properties.ValueMember = "CustomerId";
+        _customerPicker.Properties.NullText = "Select Customer...";
+        _customerPicker.CustomDisplayText += (s, e) =>
+        {
+            if (e.Value is Guid custId && _customerPicker.Properties.DataSource is List<CustomerPickerRow> rows)
+            {
+                var match = rows.FirstOrDefault(r => r.CustomerId == custId);
+                if (match != null)
+                {
+                    e.DisplayText = string.IsNullOrWhiteSpace(match.CustomerCode) || match.CustomerCode == "-"
+                        ? match.Name
+                        : $"[{match.CustomerCode}] {match.Name}";
+                }
+            }
+        };
 
         _newCustomerButton.Dock = DockStyle.Fill;
         _newCustomerButton.Margin = new Padding(0);
@@ -2173,7 +2347,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         SetDoubleBuffered(_sidebarPanel);
         SetDoubleBuffered(_sidebarOrdersFlow);
         SetDoubleBuffered(pnlProducts);
-        SetDoubleBuffered(tlpCenterRows);
+        SetDoubleBuffered(_tlpCenterRows);
         SetDoubleBuffered(_productViewport);
         SetDoubleBuffered(_productTilesFlow);
         SetDoubleBuffered(_productListFlow);
@@ -2228,6 +2402,15 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         if (_tlpBody == null || _sidebarPanel == null || _cboSidebarFilter == null || _sidebarOrdersFlow == null)
             return;
+
+        // Rush mode: no animation - collapse/expand instantly.
+        if (!RushMode.AllowSidebarAnimation)
+        {
+            _activeOrdersExpanded = expand;
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveActiveOrdersCollapsed(!expand);
+            ApplyActiveOrdersState();
+            return;
+        }
 
         _activeOrdersExpanded = expand;
         Clovent.Desktop.Forms.Base.PosSettingsStore.SaveActiveOrdersCollapsed(!_activeOrdersExpanded);
@@ -2361,6 +2544,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void RenderOrderedItemsList(IReadOnlyList<OrderLineDto> lines)
     {
+        if (InvokeRequired)
+        {
+            Invoke(() => RenderOrderedItemsList(lines));
+            return;
+        }
+
         if (_flowOrderedItems is null) return;
 
         if (_lblOrderedItemsHeader is not null)
@@ -2616,95 +2805,140 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             orders = [.. orders.Where(o => o.OrderLineIds.Count > 0).DistinctBy(o => o.OrderId).OrderByDescending(o => o.CreatedAtUtc)];
 
-            // Clear current selection if it does not belong to the selected filter
-            if (_currentOrder != null)
-            {
-                bool belongs = _activeOrdersFilter switch
-                {
-                    "TakeAway" => _currentOrder.OrderType == "TakeAway" && (_currentOrder.Status == "Open" || _currentOrder.Status == "Held"),
-                    "Closed" => _currentOrder.Status == "Completed",
-                    "WaitList" => _currentOrder.Status == "Held",
-                    _ => _currentOrder.Status == "Open" || _currentOrder.Status == "Held"
-                };
-                if (!belongs)
-                {
-                    _currentOrder = null;
-                    _tablePicker.SelectId(null);
-                    await RefreshOrderAsync();
-                }
-            }
-
-            var existingCards = _sidebarOrdersFlow.Controls.OfType<DevExpress.XtraEditors.PanelControl>().Where(c => c.Tag is Guid).ToList();
-            var existingOrderIds = existingCards.Select(c => (Guid)c.Tag).ToList();
-            var newOrderIds = orders.Select(o => o.OrderId).ToList();
-
-            if (existingOrderIds.SequenceEqual(newOrderIds) && orders.Count > 0)
-            {
-                for (int i = 0; i < orders.Count; i++)
-                {
-                    var order = orders[i];
-                    var card = existingCards[i];
-                    var isSelected = _currentOrder?.OrderId == order.OrderId;
-                    card.Appearance.BorderColor = isSelected ? Color.FromArgb(13, 148, 136) : Color.FromArgb(226, 232, 240);
-                    card.Appearance.Options.UseBorderColor = true;
-
-                    var summary = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
-                    if (card.Controls.Count > 0 && card.Controls[0] is TableLayoutPanel tlp)
-                    {
-                        var lblCount = tlp.GetControlFromPosition(0, 1) as LabelControl;
-                        if (lblCount != null) lblCount.Text = $"{order.OrderLineIds.Count} items · {RelativeAge(order.CreatedAtUtc)}";
-                        var lblTotal = tlp.GetControlFromPosition(1, 1) as LabelControl;
-                        if (lblTotal != null) lblTotal.Text = CurrencyDisplay.FormatPlain(summary.GrandTotal);
-                    }
-                }
-                return;
-            }
-
-            _sidebarOrdersFlow.SuspendLayout();
-            foreach (Control card in _sidebarOrdersFlow.Controls)
-            {
-                card.Dispose();
-            }
-            _sidebarOrdersFlow.Controls.Clear();
-
+            // Prefetch summaries asynchronously before touching UI controls
+            var orderSummaries = new Dictionary<Guid, OrderTotals>();
             foreach (var order in orders)
             {
                 var summary = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
-                _sidebarOrdersFlow.Controls.Add(BuildSidebarOrderCard(order, tableCodes.GetValueOrDefault(order.TableId ?? Guid.Empty), summary));
+                orderSummaries[order.OrderId] = summary;
             }
 
-            if (orders.Count == 0)
+            void UpdateSidebarUi()
             {
-                var sidebarEmpty = new DevExpress.XtraEditors.LabelControl
+                if (IsDisposed || !IsHandleCreated) return;
+
+                // Clear current selection if it does not belong to the selected filter
+                if (_currentOrder != null)
                 {
-                    Text = _activeOrdersFilter switch
+                    bool belongs = _activeOrdersFilter switch
                     {
-                        "TakeAway" => "No take away orders.",
-                        "Closed" => "No closed orders.",
-                        "WaitList" => "No wait list orders.",
-                        _ => "No active orders."
-                    },
-                    Dock = DockStyle.Top,
-                    AutoSizeMode = LabelAutoSizeMode.None,
-                    Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(50, this),
-                    Margin = new Padding(4, 8, 4, 0)
-                };
-                sidebarEmpty.Appearance.Font = new Font("Segoe UI", 9F);
-                sidebarEmpty.Appearance.ForeColor = Color.FromArgb(100, 116, 139);
-                sidebarEmpty.Appearance.Options.UseFont = true;
-                sidebarEmpty.Appearance.Options.UseForeColor = true;
-                sidebarEmpty.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-                sidebarEmpty.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-                sidebarEmpty.Appearance.Options.UseTextOptions = true;
-                _sidebarOrdersFlow.Controls.Add(sidebarEmpty);
+                        "TakeAway" => _currentOrder.OrderType == "TakeAway" && (_currentOrder.Status == "Open" || _currentOrder.Status == "Held"),
+                        "Closed" => _currentOrder.Status == "Completed",
+                        "WaitList" => _currentOrder.Status == "Held",
+                        _ => _currentOrder.Status == "Open" || _currentOrder.Status == "Held"
+                    };
+                    if (!belongs)
+                    {
+                        _currentOrder = null;
+                        _tablePicker.SelectId(null);
+                        _ = RefreshOrderAsync();
+                    }
+                }
+
+                var existingCards = _sidebarOrdersFlow.Controls.OfType<DevExpress.XtraEditors.PanelControl>().Where(c => c.Tag is Guid).ToList();
+                var existingOrderIds = existingCards.Select(c => (Guid)c.Tag).ToList();
+                var newOrderIds = orders.Select(o => o.OrderId).ToList();
+
+                if (existingOrderIds.SequenceEqual(newOrderIds) && orders.Count > 0)
+                {
+                    for (int i = 0; i < orders.Count; i++)
+                    {
+                        var order = orders[i];
+                        var card = existingCards[i];
+                        var isSelected = _currentOrder?.OrderId == order.OrderId;
+                        card.Appearance.BorderColor = isSelected ? Color.FromArgb(13, 148, 136) : Color.FromArgb(226, 232, 240);
+                        card.Appearance.Options.UseBorderColor = true;
+
+                        var summary = orderSummaries.GetValueOrDefault(order.OrderId);
+                        if (summary != null && card.Controls.Count > 0 && card.Controls[0] is TableLayoutPanel tlp)
+                        {
+                            var lblCount = tlp.GetControlFromPosition(0, 1) as LabelControl;
+                            if (lblCount != null)
+                            {
+                                lblCount.Text = FormatSidebarCardLine2(order);
+                                RegisterOrderHealthCard(order, lblCount);
+                            }
+                            var lblTotal = tlp.GetControlFromPosition(1, 1) as LabelControl;
+                            if (lblTotal != null) lblTotal.Text = CurrencyDisplay.FormatPlain(summary.GrandTotal);
+                        }
+                    }
+                    return;
+                }
+
+                _sidebarOrdersFlow.SuspendLayout();
+                foreach (Control card in _sidebarOrdersFlow.Controls)
+                {
+                    card.Dispose();
+                }
+                _sidebarOrdersFlow.Controls.Clear();
+
+                foreach (var order in orders)
+                {
+                    if (orderSummaries.TryGetValue(order.OrderId, out var summary))
+                    {
+                        _sidebarOrdersFlow.Controls.Add(BuildSidebarOrderCard(order, tableCodes.GetValueOrDefault(order.TableId ?? Guid.Empty), summary));
+                    }
+                }
+
+                if (orders.Count == 0)
+                {
+                    var sidebarEmpty = new DevExpress.XtraEditors.LabelControl
+                    {
+                        Text = _activeOrdersFilter switch
+                        {
+                            "TakeAway" => "No take away orders.",
+                            "Closed" => "No closed orders.",
+                            "WaitList" => "No wait list orders.",
+                            _ => "No active orders."
+                        },
+                        Dock = DockStyle.Top,
+                        AutoSizeMode = LabelAutoSizeMode.None,
+                        Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(50, this),
+                        Margin = new Padding(4, 8, 4, 0)
+                    };
+                    sidebarEmpty.Appearance.Font = new Font("Segoe UI", 9F);
+                    sidebarEmpty.Appearance.ForeColor = Color.FromArgb(100, 116, 139);
+                    sidebarEmpty.Appearance.Options.UseFont = true;
+                    sidebarEmpty.Appearance.Options.UseForeColor = true;
+                    sidebarEmpty.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+                    sidebarEmpty.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+                    sidebarEmpty.Appearance.Options.UseTextOptions = true;
+                    _sidebarOrdersFlow.Controls.Add(sidebarEmpty);
+                }
+
+                _sidebarOrdersFlow.ResumeLayout(true);
+                SizeSidebarOrderCards();
             }
 
-            _sidebarOrdersFlow.ResumeLayout(true);
-            SizeSidebarOrderCards();
+            if (InvokeRequired)
+            {
+                Invoke(UpdateSidebarUi);
+            }
+            else
+            {
+                UpdateSidebarUi();
+            }
         }
         finally
         {
             _isRefreshingRail = false;
+
+            // Order health: drop entries whose card was disposed and keep the
+            // 30s ticker running only while live orders are on the rail.
+            try
+            {
+                var staleIds = _orderHealthCards.Where(kv => kv.Value.StatusLabel.IsDisposed).Select(kv => kv.Key).ToList();
+                foreach (var staleId in staleIds)
+                {
+                    _orderHealthCards.Remove(staleId);
+                }
+
+                SyncOrderHealthTimer();
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _logger?.LogError(ex, "Failed to sync the order health ticker.");
+            }
         }
     }
 
@@ -2796,8 +3030,10 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         layout.Controls.Add(title, 0, 0);
         layout.Controls.Add(pill, 1, 0);
-        layout.Controls.Add(Label($"{order.OrderLineIds.Count} items · {RelativeAge(order.CreatedAtUtc)}", 7.5F, FontStyle.Regular, Color.FromArgb(100, 116, 139)), 0, 1);
+        var line2 = Label(FormatSidebarCardLine2(order), 7.5F, FontStyle.Regular, Color.FromArgb(100, 116, 139));
+        layout.Controls.Add(line2, 0, 1);
         layout.Controls.Add(Label(CurrencyDisplay.FormatPlain(totals.GrandTotal), 9F, FontStyle.Bold, Color.FromArgb(13, 148, 136), right: true), 1, 1);
+        RegisterOrderHealthCard(order, line2);
 
         card.Controls.Add(layout);
 
@@ -2857,7 +3093,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// </summary>
     private async Task LoadOrderFromRailAsync(OrderDto order)
     {
-        if (_currentOrder != null && _currentOrder.OrderId != order.OrderId && _currentOrderLines.Count > 0)
+        if (_currentOrder != null && _currentOrder.OrderId != order.OrderId && _currentOrder.Status == "Open" && _currentOrderLines.Count > 0)
         {
             var res = XtraMessageBox.Show(this,
                 $"Order '{_currentOrder.OrderNumber}' is currently active with items. Would you like to put it on Hold before opening '{order.OrderNumber}'?",
@@ -3084,26 +3320,67 @@ public sealed partial class RestaurantPosForm : XtraForm
         _gate?.Dispose();
         _orderMutationLock?.Dispose();
 
+        // Smart features: stop timers, cancel in-flight queries.
+        // Cancel is guarded: a suggestion/search continuation that is still
+        // unwinding can have disposed its CTS on another thread, and throwing
+        // from Dispose would take down the whole test host.
+        _orderHealthTimer?.Stop();
+        _orderHealthTimer?.Dispose();
+        CancelAndDisposeQuietly(ref _suggestionCts);
+        CancelAndDisposeQuietly(ref _universalSearchCts);
+        _searchDropdown?.Dispose();
+
         foreach (var image in _tileImagesByProductId.Values)
         {
             image.Dispose();
         }
+
+        _operationsMenu?.Dispose();
     }
+
+    /// <summary>
+    /// Cancels and disposes a best-effort cancellation source without ever
+    /// throwing: the suggestion/search pipelines replace their CTS on their
+    /// own threads, so it may already be disposed by the time the form is.
+    /// </summary>
+    private static void CancelAndDisposeQuietly(ref CancellationTokenSource? cts)
+    {
+        var source = cts;
+        cts = null;
+        if (source is null)
+        {
+            return;
+        }
+
+        try
+        {
+            source.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+
+        source.Dispose();
+    }
+
+    private Task? _initializationTask;
 
     private async void RestaurantPosForm_Load(object? sender, EventArgs e)
     {
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode || _currentSession is null)
             return;
         
+        _logger?.LogInformation("POS_FORM_LOAD: RestaurantPosForm loaded event fired.");
         WindowState = FormWindowState.Maximized;
 
         try
         {
-            await LoadAsync();
+            _initializationTask = LoadAsync();
+            await _initializationTask;
         }
-        finally
+        catch (Exception ex)
         {
-            _splashScreenService.Close();
+            _logger?.LogError(ex, "Unexpected error during Restaurant POS Load.");
         }
 
         // QA hook: render the POS at an exact logical client size (e.g. POS_QA_SIZE=1366x768).
@@ -3183,7 +3460,53 @@ public sealed partial class RestaurantPosForm : XtraForm
                     _tablePicker.SelectId(match.TableId);
                     await OnTableSelectedAsync();
                     _tablePicker.Refresh();
+
+                    var qaAddItem = Environment.GetEnvironmentVariable("POS_QA_ADD_ITEM");
+                    if (!string.IsNullOrWhiteSpace(qaAddItem))
+                    {
+                        await Task.Delay(600);
+                        var variant = _variantsById.Values.FirstOrDefault(v =>
+                            v.Name.Contains(qaAddItem, StringComparison.OrdinalIgnoreCase) ||
+                            (_productNamesById.TryGetValue(v.ProductId, out var pName) && pName.Contains(qaAddItem, StringComparison.OrdinalIgnoreCase)));
+                        if (variant != null)
+                        {
+                            await ProductTileTappedAsync(variant.ProductVariantId);
+                        }
+
+                        var qaOpenSug = Environment.GetEnvironmentVariable("POS_QA_OPEN_SUGGESTIONS");
+                        if (!string.IsNullOrWhiteSpace(qaOpenSug) && bool.TryParse(qaOpenSug, out var openSug) && openSug)
+                        {
+                            await Task.Delay(4000);
+                            _suggestionPopupEdit?.Focus();
+                            _suggestionPopupEdit?.ShowPopup();
+                        }
+
+                        var qaCancel = Environment.GetEnvironmentVariable("POS_QA_CANCEL_ORDER");
+                        if (!string.IsNullOrWhiteSpace(qaCancel) && bool.TryParse(qaCancel, out var cancelOrder) && cancelOrder)
+                        {
+                            await Task.Delay(7000);
+                            if (_currentOrder != null)
+                            {
+                                await _mediator.Send(new CancelOrderCommand(_currentOrder.OrderId, "QA Test Cancel"));
+                                _currentOrder = null;
+                                _tablePicker.SelectId(null);
+                                await ReloadTablesAsync();
+                                await RefreshOrderAsync();
+                            }
+                        }
+                    }
                 }
+            });
+        }
+
+        var qaOpenTablePicker = Environment.GetEnvironmentVariable("POS_QA_OPEN_TABLE_PICKER");
+        if (!string.IsNullOrWhiteSpace(qaOpenTablePicker) && bool.TryParse(qaOpenTablePicker, out var openTp) && openTp)
+        {
+            BeginInvoke(async () =>
+            {
+                await Task.Delay(2000);
+                _tablePicker.Focus();
+                _tablePicker.ShowPopup();
             });
         }
     }
@@ -3193,7 +3516,75 @@ public sealed partial class RestaurantPosForm : XtraForm
         base.OnShown(e);
         if (!Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
-            _ = TryRunAsync(RefreshActiveOrdersAsync, "load active orders rail");
+            if (IsInitialLoadComplete)
+            {
+                _ = TryRunAsync(RefreshActiveOrdersAsync, "load active orders rail");
+            }
+        }
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        _logger?.LogInformation("POS_FORM_HANDLE_CREATED: Thread={ThreadId}, Handle={Handle}", Environment.CurrentManagedThreadId, Handle);
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        base.OnFormClosing(e);
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
+        _logger?.LogInformation(
+            "POS_FORM_CLOSING: RestaurantPosForm closing. Reason={CloseReason}, Initiator={Initiator}, Thread={ThreadId}",
+            e.CloseReason,
+            _closeInitiator,
+            Environment.CurrentManagedThreadId);
+
+        if (_closeInitiator == PosCloseInitiator.None && e.CloseReason == CloseReason.UserClosing)
+        {
+            if (HasInProgressOrder())
+            {
+                var prompt = XtraMessageBox.Show(
+                    this,
+                    "An order is currently in progress.\nClosing POS will lose unsaved items.\n\nDo you want to exit the application?",
+                    "Confirm Exit",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (prompt != DialogResult.Yes)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+            }
+
+            _closeInitiator = PosCloseInitiator.UserWindowClose;
+        }
+    }
+
+    protected override void OnFormClosed(FormClosedEventArgs e)
+    {
+        base.OnFormClosed(e);
+
+        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+            return;
+
+        _logger?.LogInformation(
+            "POS_FORM_CLOSED: RestaurantPosForm closed. Reason={CloseReason}, Initiator={Initiator}, Thread={ThreadId}",
+            e.CloseReason,
+            _closeInitiator,
+            Environment.CurrentManagedThreadId);
+
+        if (_closeInitiator == PosCloseInitiator.UserWindowClose &&
+            _applicationModeNavigator is not null &&
+            !_applicationModeNavigator.IsTransitioning)
+        {
+            if (_applicationModeNavigator.CurrentForm == this)
+            {
+                _applicationModeNavigator.ExitApplication("UserWindowClose");
+            }
         }
     }
 
@@ -3212,6 +3603,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         try
         {
             await ReloadMenuItemsAsync();
+            await ReloadQuickOrderTemplatesAsync();
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
@@ -3242,7 +3634,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         await TryRunAsync(OnTableSelectedAsync, "select this table");
     }
 
-    private async void NewDineInButton_Click(object? sender, EventArgs e) => await TryRunAsync(NewDineInAsync, "start a new dine-in order");
+    // Note: there is no "+ Dine In" header button any more. Dine-In orders are
+    // started automatically by table selection (OnTableSelectedAsync ->
+    // NewDineInAsync). NewDineInButton_Click was removed with the button.
 
     private async void NewTakeAwayButton_Click(object? sender, EventArgs e) => await TryRunAsync(NewTakeAwayAsync, "start a new take-away order");
 
@@ -3284,7 +3678,11 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async void RemoveServiceChargeButton_Click(object? sender, EventArgs e) => await TryRunAsync(RemoveServiceChargeAsync, "remove this service charge");
 
-    private void ProductSearchEdit_EditValueChanged(object? sender, EventArgs e) => ApplyProductFilter();
+    private void ProductSearchEdit_EditValueChanged(object? sender, EventArgs e)
+    {
+        ApplyProductFilter();
+        ScheduleUniversalSearch();
+    }
 
     private void AllCategoriesButton_Click(object? sender, EventArgs e) => SelectCategory(null);
 
@@ -3303,18 +3701,75 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         if (_currentOrder is null)
         {
-            XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
+            if (_activeOrdersFilter == "TakeAway")
+            {
+                XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var tables = await _mediator.Send(new ListAllTablesQuery());
+            var availableTable = TableSelectionDineInPolicy.FindFirstAvailableTable(tables, t => t.Status, t => t.OccupancyStatus);
+
+            if (availableTable is null)
+            {
+                XtraMessageBox.Show(this,
+                    "All tables are currently occupied. Please complete or clear an existing table order before starting a new Dine-In order.",
+                    "No Table Available",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            if (_warehousePicker.SelectedId is not { } warehouseId)
+            {
+                XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Select table in picker and create Dine-In order
+            _tablePicker.SelectId(availableTable.TableId);
+
+            try
+            {
+                _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, availableTable.TableId));
+                if (_defaultCustomerId is { } defaultCustId)
+                {
+                    _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
+                }
+                _hasUnsavedEdits = true;
+                await RefreshOrderAsync();
+                await RefreshActiveOrdersAsync();
+                await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Dine-In)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to auto-start Dine-In order for table {TableCode}", availableTable.Code);
+                XtraMessageBox.Show(this, $"Failed to start Dine-In order: {ex.Message}", "Order Start Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                await ReloadTablesAsync();
+                return;
+            }
         }
 
         await AddProductToCurrentOrder(variantId, _addQuantityEdit.Value);
     }
 
-    private async Task AddProductToCurrentOrder(Guid variantId, decimal quantity)
+    private async Task AddProductToCurrentOrder(Guid variantId, decimal quantity, decimal? expectedUnitPrice = null)
     {
         await _orderMutationLock.WaitAsync();
         try
         {
+            await AddProductToCurrentOrderCoreAsync(variantId, quantity, expectedUnitPrice);
+            await RefreshOrderAsync();
+        }
+        finally
+        {
+            _orderMutationLock.Release();
+        }
+    }
+
+    // Shared mutation for menu taps and suggestion batches. Caller owns the order lock.
+    private async Task<OrderLineDto> AddProductToCurrentOrderCoreAsync(Guid variantId, decimal quantity, decimal? expectedUnitPrice = null)
+    {
             await EnsureOrderResumedIfHeldAsync();
             _hasUnsavedEdits = true;
 
@@ -3323,21 +3778,22 @@ public sealed partial class RestaurantPosForm : XtraForm
                 l.ProductVariantId == variantId &&
                 string.IsNullOrEmpty(l.Notes));
 
+            OrderLineDto lineDto;
             if (existingLine is not null)
             {
-                await _mediator.Send(new SetOrderLineQuantityCommand(existingLine.OrderLineId, existingLine.Quantity + quantity));
+                lineDto = await _mediator.Send(new SetOrderLineQuantityCommand(existingLine.OrderLineId, existingLine.Quantity + quantity));
             }
             else
             {
-                await _mediator.Send(new AddOrderLineCommand(_currentOrder!.OrderId, variantId, quantity));
+                lineDto = await _mediator.Send(new AddOrderLineCommand(_currentOrder!.OrderId, variantId, quantity));
             }
 
-            await RefreshOrderAsync();
-        }
-        finally
-        {
-            _orderMutationLock.Release();
-        }
+            if (expectedUnitPrice.HasValue && lineDto.UnitPrice != expectedUnitPrice.Value)
+            {
+                lineDto = await _mediator.Send(new OverrideOrderLinePriceCommand(lineDto.OrderLineId, expectedUnitPrice.Value, "Quick Order Template Price", _currentSession.DisplayName ?? "System"));
+            }
+
+            return lineDto;
     }
 
     private async void DecreaseQuantityButton_Click(object? sender, EventArgs e) => await TryRunAsync(() => BumpQuantityAsync(-1), "update the quantity");
@@ -3428,53 +3884,118 @@ public sealed partial class RestaurantPosForm : XtraForm
                 break;
 
             case "backoffice":
-                // This window was launched standalone for a POS-only
-                // sign-in (Program.cs bypasses Forms.Shell.MainForm
-                // entirely in that case), so there is no existing Shell to
-                // hand off to - resolve one, exactly like Program.cs's own
-                // "backoffice" branch does for the first sign-in.
-                var shell = _scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Forms.Shell.MainForm>();
-                var navigationService = _scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Navigation.INavigationService>();
-                navigationService.NavigateTo("dashboard", "Dashboard");
-                shell.Show();
-                Close();
+                _closeInitiator = PosCloseInitiator.ModeSwitchToBackOffice;
+                if (_applicationModeNavigator is not null)
+                {
+                    await _applicationModeNavigator.OpenBackOfficeAsync();
+                }
+                else
+                {
+                    var shell = _scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Forms.Shell.MainForm>();
+                    var navigationService = _scope.ServiceProvider.GetRequiredService<Clovent.Desktop.Navigation.INavigationService>();
+                    navigationService.NavigateTo("dashboard", "Dashboard");
+                    shell.Show();
+                    Close();
+                }
                 break;
 
             default:
                 // Cancelled, or denied permission for both modules -
                 // nothing left to run for a standalone POS window.
-                Close();
+                _closeInitiator = PosCloseInitiator.SessionSignOut;
+                if (_applicationModeNavigator is not null)
+                {
+                    _applicationModeNavigator.ExitApplication("SwitchUserCancelled");
+                }
+                else
+                {
+                    Close();
+                }
                 break;
+        }
+    }
+
+    /// <summary>Indicates whether the initial asynchronous screen load has completed.</summary>
+    public bool IsInitialLoadComplete { get; private set; }
+
+    private void EnsurePosLoadingOverlay()
+    {
+    }
+
+    private void SetPosLoading(bool loading, string? message = null)
+    {
+        if (IsDisposed || Disposing) return;
+
+        if (loading)
+        {
+            if (_orderStatusLabel != null && !string.IsNullOrWhiteSpace(message))
+            {
+                _orderStatusLabel.Text = message;
+            }
         }
     }
 
     private async Task LoadAsync()
     {
+        _logger?.LogInformation("POS_INIT_STARTED: Starting Restaurant POS initialization...");
         UseWaitCursor = true;
+        SetPosLoading(true, "Initializing POS...");
         try
         {
             await LoadCoreAsync();
+            IsInitialLoadComplete = true;
+            _logger?.LogInformation("POS_INIT_READY: Restaurant POS core initialization completed successfully.");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            _logger.LogError(ex, "Restaurant POS failed to load.");
+            IsInitialLoadComplete = false;
+            _logger?.LogError(ex, "POS_INIT_FAILED: Restaurant POS failed to load.");
+            SetPosLoading(false);
 
-            XtraMessageBox.Show(
-                this,
-                $"Unable to load the Restaurant POS screen.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nClose and reopen this screen to try again.",
-                "Load Failed",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
+            await HandleStartupFailureAsync(ex);
         }
         finally
         {
             UseWaitCursor = false;
+            SetPosLoading(false);
+        }
+    }
+
+    private async Task HandleStartupFailureAsync(Exception ex)
+    {
+        var message = $"Unable to load the Restaurant POS screen.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nWould you like to retry initialization, or return to Back Office?";
+        var result = XtraMessageBox.Show(
+            this,
+            message,
+            "Restaurant POS Load Failed",
+            MessageBoxButtons.RetryCancel,
+            MessageBoxIcon.Warning);
+
+        if (result == DialogResult.Retry)
+        {
+            _logger?.LogInformation("User chose to retry Restaurant POS initialization.");
+            await LoadAsync();
+        }
+        else
+        {
+            _logger?.LogInformation("User cancelled or chose to return to Back Office after POS startup failure.");
+            _closeInitiator = PosCloseInitiator.StartupFailureFallback;
+            if (_applicationModeNavigator != null)
+            {
+                await _applicationModeNavigator.OpenBackOfficeAsync();
+            }
+            else
+            {
+                Close();
+            }
         }
     }
 
     private async Task LoadCoreAsync()
     {
+        _logger.LogInformation("POS_INIT_01: Starting Restaurant POS core initialization...");
         await CurrencyDisplayLoader.ConfigureAsync(_mediator);
+        _logger.LogInformation("POS_INIT_02: Currency display configured.");
 
         // Inline cart editors: Price shows the configured currency precision
         // (50.00, not 50.0000) and Qty edits whole numbers (2, not 2.0000).
@@ -3498,18 +4019,30 @@ public sealed partial class RestaurantPosForm : XtraForm
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
         _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
         _warehousePicker.Visible = warehouses.Count > 1;
+        _logger.LogInformation("POS_INIT_03: Warehouses loaded ({Count}).", warehouses.Count);
 
         // Once per screen, before the first RefreshOrderAsync below needs them.
         await UpdatePermissionsAsync();
+        ApplySmartFeaturePermissions();
+        _logger.LogInformation("POS_INIT_04: Permissions and smart features updated. CanAccessBackOffice={CanAccessBackOffice}", _canAccessBackOffice);
 
         await ReloadMenuItemsAsync();
+        _logger.LogInformation("POS_INIT_05: Menu items loaded ({Count} variants).", _variantsById.Count);
+
+        await ReloadQuickOrderTemplatesAsync();
         await ReloadTablesAsync();
+        _logger.LogInformation("POS_INIT_06: Tables and quick order templates loaded.");
+
         await ReloadCustomersAsync();
         await RefreshOrderAsync();
+        _logger.LogInformation("POS_INIT_07: Active order refreshed.");
+
         await RefreshActiveOrdersAsync();
+        _logger.LogInformation("POS_INIT_08: Active orders rail refreshed.");
 
         AppearanceManager.Apply(this, "Restaurant", nameof(RestaurantPosForm));
         UpdateCategoryButtonSelection();
+        _logger.LogInformation("POS_INIT_READY: Restaurant POS core initialization completed successfully.");
     }
 
     private async Task ReloadMenuItemsAsync()
@@ -3545,7 +4078,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _sellingPricesByVariantId[variant.ProductVariantId] = newestSellingPriceByVariantId.GetValueOrDefault(variant.ProductVariantId, 0m);
 
-            if (!_tileImagesByProductId.ContainsKey(variant.ProductId) && MenuItemImageStore.Load(variant.ProductId) is { } image)
+            // Rush mode skips tile image loading entirely (presentation only).
+            if (RushMode.AllowTileImages
+                && !_tileImagesByProductId.ContainsKey(variant.ProductId)
+                && MenuItemImageStore.Load(variant.ProductId) is { } image)
             {
                 _tileImagesByProductId[variant.ProductId] = image;
             }
@@ -4530,7 +5066,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             if (_currentOrder?.OrderId != tableOrder.OrderId)
             {
-                if (_currentOrder != null && _currentOrderLines.Count > 0)
+                if (_currentOrder != null && _currentOrder.Status == "Open" && _currentOrderLines.Count > 0)
                 {
                     var res = XtraMessageBox.Show(this,
                         $"Order '{_currentOrder.OrderNumber}' is currently active with items. Would you like to put it on Hold before switching tables?",
@@ -4614,8 +5150,14 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        // No active order: the table selection remains active in _tablePicker (showing "Table: T-01")
-        // so that clicking "+ Dine In" immediately creates an order for this selected table.
+        // No active order and the table is free: the table selection itself is
+        // the cashier's explicit Dine-In intent. Start the working Dine-In
+        // order immediately (same command path the "+ Dine In" button used)
+        // so items can be added with no extra click.
+        if (TableSelectionDineInPolicy.ShouldAutoStartDineIn(_currentOrder is not null, tableId))
+        {
+            await NewDineInAsync();
+        }
     }
 
     private async Task NewDineInAsync()
@@ -4633,6 +5175,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        if (_defaultCustomerId is { } defaultCustId)
+        {
+            _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
+        }
         _hasUnsavedEdits = true;
         await RefreshOrderAsync();
         await RefreshActiveOrdersAsync();
@@ -4648,6 +5194,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId));
+        if (_defaultCustomerId is { } defaultCustId)
+        {
+            _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
+        }
         _hasUnsavedEdits = true;
         await RefreshOrderAsync();
         await RefreshActiveOrdersAsync();
@@ -4715,7 +5265,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         // Section 8: Recall Conflict Handling
-        if (_currentOrder != null && _currentOrder.OrderId != targetOrder.OrderId && _currentOrderLines.Count > 0)
+        if (_currentOrder != null && _currentOrder.OrderId != targetOrder.OrderId && _currentOrder.Status == "Open" && _currentOrderLines.Count > 0)
         {
             var res = XtraMessageBox.Show(this,
                 $"The current order '{_currentOrder.OrderNumber}' has unsaved changes.\n\nHold it before recalling '{targetOrder.OrderNumber}'?",
@@ -4803,6 +5353,19 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
         }
 
+        if (_currentOrder is { } order && TableSelectionDineInPolicy.ShouldCancelEmptyDraftOnClear(order.OrderType, _currentOrderLines.Count))
+        {
+            try
+            {
+                await _mediator.Send(new CancelOrderCommand(order.OrderId, "Cleared empty draft order"));
+                await LogActivityAsync("Clear Order", $"Cancelled empty draft Dine-In order {order.OrderNumber}.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to cancel empty draft order {OrderId} during Clear", order.OrderId);
+            }
+        }
+
         _hasUnsavedEdits = false;
         _currentOrder = null;
         _currentOrderLines = [];
@@ -4811,6 +5374,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _amountEdit.Text = string.Empty;
         _amountEntryIsPreset = true;
 
+        await ReloadTablesAsync();
         await RefreshOrderAsync();
         await RefreshActiveOrdersAsync();
     }
@@ -5248,26 +5812,31 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             if (_currentOrder is null)
             {
-                _currentOrderLines = [];
-                _lineGrid.DataSource = null;
-                RenderOrderedItemsList([]);
-                if (_lblCartTableNo is not null) _lblCartTableNo.Text = "No Table selected";
-                if (_tablePicker.SelectedId == null)
+                void ApplyEmptyOrderUi()
                 {
-                    _tablePicker.SelectId(null);
-                }
-                _tablePicker.Enabled = true;
-                if (_lblCartOrderNo is not null) _lblCartOrderNo.Text = "No active order";
-                UpdateBillEmptyState(isEmpty: true);
-                SetTotals(null);
-                _orderStatusLabel.Text = PosStrings.NoOrderSelected;
-                UpdateOrderStatusBadge();
-                UpdateButtonStates();
+                    _currentOrderLines = [];
+                    _lineGrid.DataSource = null;
+                    RenderOrderedItemsList([]);
+                    if (_lblCartTableNo is not null) _lblCartTableNo.Text = "No Table selected";
+                    if (_tablePicker.SelectedId == null)
+                    {
+                        _tablePicker.SelectId(null);
+                    }
+                    _tablePicker.Enabled = true;
+                    if (_lblCartOrderNo is not null) _lblCartOrderNo.Text = "No active order";
+                    UpdateBillEmptyState(isEmpty: true);
+                    SetTotals(null);
+                    _orderStatusLabel.Text = PosStrings.NoOrderSelected;
+                    UpdateOrderStatusBadge();
+                    UpdateButtonStates();
 
-                SetSelectedCustomerId(Guid.Empty);
-                _customerPicker.Enabled = false;
-                _newCustomerButton.Enabled = false;
-                _customerDetailsLabel.Text = string.Empty;
+                    SetSelectedCustomerId(Guid.Empty);
+                    _customerPicker.Enabled = false;
+                    _newCustomerButton.Enabled = false;
+                    _customerDetailsLabel.Text = string.Empty;
+                }
+
+                if (InvokeRequired) Invoke(ApplyEmptyOrderUi); else ApplyEmptyOrderUi();
                 await RefreshActiveOrdersAsync();
                 return;
             }
@@ -5275,28 +5844,39 @@ public sealed partial class RestaurantPosForm : XtraForm
             _currentOrder = await _mediator.Send(new GetOrderByIdQuery(_currentOrder.OrderId));
 
             var isEditable = _currentOrder.Status is "Open" or "Held";
-            _customerPicker.Enabled = isEditable;
-            _newCustomerButton.Enabled = isEditable;
-
-            SetSelectedCustomerId(_currentOrder.CustomerId ?? Guid.Empty);
 
             if (_currentOrder.CustomerId is { } custId)
             {
                 var customer = await _mediator.Send(new GetCustomerByIdQuery(custId));
-                if (customer is not null)
+                void ApplyCustomerDetails()
                 {
-                    _customerDetailsLabel.Text = $"{customer.Name} • Outstanding: {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}";
-                    _customerDetailsLabel.ForeColor = customer.OutstandingBalance > 0 ? Color.Red : Color.Green;
+                    _customerPicker.Enabled = isEditable;
+                    _newCustomerButton.Enabled = isEditable;
+                    SetSelectedCustomerId(_currentOrder.CustomerId ?? Guid.Empty);
+                    if (customer is not null)
+                    {
+                        var codePrefix = !string.IsNullOrWhiteSpace(customer.Code) ? $"[{customer.Code}] " : string.Empty;
+                        _customerDetailsLabel.Text = $"{codePrefix}{customer.Name} • Outstanding: {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}";
+                        _customerDetailsLabel.ForeColor = customer.OutstandingBalance > 0 ? Color.Red : Color.Green;
+                    }
+                    else
+                    {
+                        _customerDetailsLabel.Text = string.Empty;
+                    }
                 }
-                else
-                {
-                    _customerDetailsLabel.Text = string.Empty;
-                }
+                if (InvokeRequired) Invoke(ApplyCustomerDetails); else ApplyCustomerDetails();
             }
             else
             {
-                _customerDetailsLabel.Text = $"Walk-in Customer • Outstanding: {CurrencyDisplay.FormatPlain(0m)}";
-                _customerDetailsLabel.ForeColor = Color.Green;
+                void ApplyWalkInCustomer()
+                {
+                    _customerPicker.Enabled = isEditable;
+                    _newCustomerButton.Enabled = isEditable;
+                    SetSelectedCustomerId(Guid.Empty);
+                    _customerDetailsLabel.Text = $"Walk-in Customer • Outstanding: {CurrencyDisplay.FormatPlain(0m)}";
+                    _customerDetailsLabel.ForeColor = Color.Green;
+                }
+                if (InvokeRequired) Invoke(ApplyWalkInCustomer); else ApplyWalkInCustomer();
             }
 
             var lines = (await _mediator.Send(new ListOrderLinesByOrderQuery(_currentOrder.OrderId)))
@@ -5313,46 +5893,62 @@ public sealed partial class RestaurantPosForm : XtraForm
                 l.Notes ?? string.Empty,
                 l.IsVoided,
                 l.IsPriceOverridden)).ToList();
-            _lineGrid.DataSource = rows;
-            RestoreFocusedLine(focusedLineId, rows);
-            RenderOrderedItemsList(lines);
 
             var tables = await _mediator.Send(new ListAllTablesQuery());
             var tableCodes = tables.ToDictionary(t => t.TableId, t => t.Code);
-            if (_lblCartTableNo is not null)
-            {
-                _lblCartTableNo.Text = _currentOrder.OrderType == "TakeAway" ? "Take Away" : tableCodes.TryGetValue(_currentOrder.TableId ?? Guid.Empty, out var code) ? $"Table No #{code}" : "Dine In";
-            }
-            if (_currentOrder.OrderType == "TakeAway")
-            {
-                _tablePicker.SelectId(null);
-                _tablePicker.Enabled = false;
-            }
-            else
-            {
-                _tablePicker.Enabled = isEditable;
-                _tablePicker.SelectId(_currentOrder.TableId);
-            }
-            if (_lblCartOrderNo is not null)
-            {
-                _lblCartOrderNo.Text = $"Order #{_currentOrder.OrderNumber}";
-            }
-
-            UpdateBillEmptyState(isEmpty: lines.Count == 0);
-
             var totals = await _mediator.Send(new GetOrderSummaryQuery(_currentOrder.OrderId));
-            SetTotals(totals);
 
-            _orderStatusLabel.Text = $"{_currentOrder.OrderNumber}  •  {_currentOrder.OrderType}  •  {_currentOrder.Status}";
-            UpdateOrderStatusBadge();
+            void ApplyActiveOrderUi()
+            {
+                _lineGrid.DataSource = rows;
+                RestoreFocusedLine(focusedLineId, rows);
+                RenderOrderedItemsList(lines);
+
+                if (_lblCartTableNo is not null)
+                {
+                    _lblCartTableNo.Text = _currentOrder.OrderType == "TakeAway" ? "Take Away" : tableCodes.TryGetValue(_currentOrder.TableId ?? Guid.Empty, out var code) ? $"Table No #{code}" : "Dine In";
+                }
+                if (_currentOrder.OrderType == "TakeAway")
+                {
+                    _tablePicker.SelectId(null);
+                    _tablePicker.Enabled = false;
+                }
+                else
+                {
+                    _tablePicker.Enabled = isEditable;
+                    _tablePicker.SelectId(_currentOrder.TableId);
+                }
+                if (_lblCartOrderNo is not null)
+                {
+                    _lblCartOrderNo.Text = $"Order #{_currentOrder.OrderNumber}";
+                }
+
+                UpdateBillEmptyState(isEmpty: lines.Count == 0);
+                SetTotals(totals);
+
+                _orderStatusLabel.Text = $"{_currentOrder.OrderNumber}  •  {_currentOrder.OrderType}  •  {_currentOrder.Status}";
+                UpdateOrderStatusBadge();
+            }
+
+            if (InvokeRequired) Invoke(ApplyActiveOrderUi); else ApplyActiveOrderUi();
 
             await ReloadTablesAsync();
             await RefreshActiveOrdersAsync();
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to refresh order in POS.");
+            throw;
+        }
         finally
         {
             _isRefreshingOrder = false;
-            UpdateButtonStates();
+            void FinalizeRefresh()
+            {
+                UpdateButtonStates();
+                ScheduleSuggestionRefresh();
+            }
+            if (InvokeRequired) Invoke(FinalizeRefresh); else FinalizeRefresh();
         }
     }
 
@@ -5482,6 +6078,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (_currentSession.UserId is not { } userId)
         {
             _permissions = [];
+            _canAccessBackOffice = false;
+            _canPerformRefund = false;
+            BuildOperationsMenu();
             return;
         }
 
@@ -5490,14 +6089,552 @@ public sealed partial class RestaurantPosForm : XtraForm
             "create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
             "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
             "priceoverride",
+            "smartinsights", "quickorders", "restaurantpulse", "rushmode",
         ];
 
         _permissions = new Dictionary<string, bool>();
-        foreach (var operation in operations)
+        try
         {
-            _permissions[operation] = await _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}");
+            var authService = _scope?.ServiceProvider.GetService<IAuthorizationService>();
+            if (authService != null)
+            {
+                var codes = await authService.GetPermissionCodesAsync(userId);
+                var codeSet = new HashSet<string>(codes, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var operation in operations)
+                {
+                    _permissions[operation] = codeSet.Contains($"feature.{FeatureCode}.{operation}");
+                }
+
+                _canAccessBackOffice = codeSet.Any(c => c.StartsWith("menu.", StringComparison.OrdinalIgnoreCase) && !c.Equals("menu.pos", StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                foreach (var operation in operations)
+                {
+                    _permissions[operation] = await _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}");
+                }
+                _canAccessBackOffice = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to evaluate permissions for user {UserId}", userId);
+            _canAccessBackOffice = false;
+        }
+
+        // Refund / Return:
+        // In CBOS currently, there is no end-to-end POS order refund domain workflow (only payment-level void exists in PaymentHistoryDialog).
+        // Per requirement 28: keep hidden until functional rather than displaying a dead command.
+        _canPerformRefund = false;
+
+        BuildOperationsMenu();
+    }
+
+    /// <summary>
+    /// Configures the Operations dropdown command menu based on canonical RBAC permissions
+    /// and POS shift/day-close domain workflows.
+    /// </summary>
+    public void BuildOperationsMenu()
+    {
+        _operationsMenu.Items.Clear();
+
+        // 1. Shift Submenu
+        _shiftMenuItem = new ToolStripMenuItem("Shift");
+        _openShiftMenuItem = new ToolStripMenuItem("Open Shift", null, async (s, e) => await HandleOpenShiftAsync());
+        _currentShiftMenuItem = new ToolStripMenuItem("Current Shift / Shift Details", null, async (s, e) => await HandleCurrentShiftAsync());
+        _closeShiftMenuItem = new ToolStripMenuItem("Close Shift", null, async (s, e) => await HandleCloseShiftAsync());
+
+        _shiftMenuItem.DropDownItems.Add(_openShiftMenuItem);
+        _shiftMenuItem.DropDownItems.Add(_currentShiftMenuItem);
+        _shiftMenuItem.DropDownItems.Add(_closeShiftMenuItem);
+        _operationsMenu.Items.Add(_shiftMenuItem);
+
+        // 2. Cash Movement
+        _cashMovementMenuItem = new ToolStripMenuItem("Cash Movement", null, async (s, e) => await HandleCashMovementAsync());
+        _operationsMenu.Items.Add(_cashMovementMenuItem);
+
+        // 3. Print Last Receipt
+        _printLastReceiptMenuItem = new ToolStripMenuItem("Print Last Receipt", null, async (s, e) => await HandlePrintLastReceiptAsync());
+        _operationsMenu.Items.Add(_printLastReceiptMenuItem);
+
+        // Optional Refund (future domain workflow)
+        if (_canPerformRefund)
+        {
+            var refundItem = new ToolStripMenuItem("Refund / Return", null, (s, e) => { });
+            _operationsMenu.Items.Add(refundItem);
+        }
+
+        // Separator
+        _operationsMenu.Items.Add(new ToolStripSeparator());
+
+        // 4. End of Day
+        _endOfDayMenuItem = new ToolStripMenuItem("End of Day", null, async (s, e) => await HandleEndOfDayAsync());
+        _operationsMenu.Items.Add(_endOfDayMenuItem);
+
+        // Separator
+        _operationsMenu.Items.Add(new ToolStripSeparator());
+
+        // 5. Back Office
+        _backOfficeMenuItem = new ToolStripMenuItem("Back Office", null, async (s, e) =>
+        {
+            await RequestNavigateToBackOfficeAsync();
+        });
+        _operationsMenu.Items.Add(_backOfficeMenuItem);
+
+        UpdateOperationsMenuState();
+
+        if (_operationsButton != null)
+        {
+            StyleOperationsButton();
+            _operationsButton.Visible = _operationsMenu.Items.Count > 0;
         }
     }
+
+    /// <summary>
+    /// Updates enabled/disabled states of Operations menu items based on shift presence and permissions.
+    /// </summary>
+    public void UpdateOperationsMenuState()
+    {
+        if (_shiftMenuItem == null) return;
+
+        var hasShift = _activeShift != null;
+        _openShiftMenuItem.Enabled = !hasShift;
+        _currentShiftMenuItem.Enabled = hasShift;
+        _closeShiftMenuItem.Enabled = hasShift;
+        _cashMovementMenuItem.Enabled = hasShift;
+        _printLastReceiptMenuItem.Enabled = hasShift;
+        _endOfDayMenuItem.Enabled = true;
+        _backOfficeMenuItem.Enabled = _canAccessBackOffice;
+        _backOfficeMenuItem.Visible = _canAccessBackOffice;
+    }
+
+    /// <summary>Gets the Shift submenu item.</summary>
+    public ToolStripMenuItem ShiftMenuItem => _shiftMenuItem;
+
+    /// <summary>Gets the Open Shift menu item.</summary>
+    public ToolStripMenuItem OpenShiftMenuItem => _openShiftMenuItem;
+
+    /// <summary>Gets the Current Shift menu item.</summary>
+    public ToolStripMenuItem CurrentShiftMenuItem => _currentShiftMenuItem;
+
+    /// <summary>Gets the Close Shift menu item.</summary>
+    public ToolStripMenuItem CloseShiftMenuItem => _closeShiftMenuItem;
+
+    /// <summary>Gets the Cash Movement menu item.</summary>
+    public ToolStripMenuItem CashMovementMenuItem => _cashMovementMenuItem;
+
+    /// <summary>Gets the Print Last Receipt menu item.</summary>
+    public ToolStripMenuItem PrintLastReceiptMenuItem => _printLastReceiptMenuItem;
+
+    /// <summary>Gets the End of Day menu item.</summary>
+    public ToolStripMenuItem EndOfDayMenuItem => _endOfDayMenuItem;
+
+    /// <summary>Gets the Back Office menu item.</summary>
+    public ToolStripMenuItem BackOfficeMenuItem => _backOfficeMenuItem;
+
+    /// <summary>Gets the active POS shift, if one is currently open.</summary>
+    public Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? ActiveShift => _activeShift;
+
+    /// <summary>Sets the active POS shift and updates UI accordingly.</summary>
+    public void SetActiveShift(Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? shift)
+    {
+        _activeShift = shift;
+        if (_cashierLabel != null)
+        {
+            if (_activeShift != null)
+            {
+                var cashierName = _currentSession?.DisplayName ?? "Cashier";
+                _cashierLabel.Text = $"Cashier: {cashierName} | Shift #{_activeShift.ShiftNumber}";
+            }
+            else
+            {
+                _cashierLabel.Text = _currentSession?.DisplayName is { } name ? $"Cashier: {name}" : "Cashier: Not signed in";
+            }
+        }
+        UpdateOperationsMenuState();
+    }
+
+    private async Task HandleOpenShiftAsync()
+    {
+        if (_activeShift != null)
+        {
+            XtraMessageBox.Show(this, "A shift is already open on this terminal.", "Open Shift", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var branchId = Guid.Empty;
+        var termId = Guid.Empty;
+        var warehouseId = _warehousePicker.SelectedId ?? Guid.Empty;
+        var termName = "Terminal";
+        var branchName = "Branch";
+        var businessDate = DateOnly.FromDateTime(DateTime.Today);
+
+        try
+        {
+            var termResService = _scope?.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+            if (termResService != null)
+            {
+                var termRes = await termResService.ResolveCurrentTerminalAsync();
+                if (termRes.IsConfigured && termRes.TerminalId.HasValue)
+                {
+                    termId = termRes.TerminalId.Value;
+                    termName = termRes.TerminalName;
+                    branchId = termRes.BranchId ?? Guid.Empty;
+                    branchName = termRes.BranchName;
+                    warehouseId = termRes.WarehouseId ?? warehouseId;
+                }
+            }
+
+            var dateProvider = _scope?.ServiceProvider.GetService<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider>();
+            if (dateProvider != null)
+            {
+                businessDate = dateProvider.GetCurrentBusinessDate();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve terminal/business-date context for Open Shift.");
+        }
+
+        using var openDlg = new Clovent.Desktop.Restaurant.Shifts.OpenShiftDialog(_mediator, _currentSession, branchId, warehouseId, termId, termName, branchName, businessDate);
+        var result = openDlg.ShowDialog(this);
+        if (result == DialogResult.OK && openDlg.OpenedShift != null)
+        {
+            SetActiveShift(openDlg.OpenedShift);
+        }
+    }
+
+    private async Task HandleCurrentShiftAsync()
+    {
+        if (_activeShift == null)
+        {
+            XtraMessageBox.Show(this, "No active shift is currently open.", "Shift Details", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var detailDlg = new Clovent.Desktop.Restaurant.Shifts.ShiftDetailDialog(_mediator, _activeShift.ShiftId);
+        detailDlg.ShowDialog(this);
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleCloseShiftAsync()
+    {
+        if (_activeShift == null)
+        {
+            XtraMessageBox.Show(this, "No active shift is currently open.", "Close Shift", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (HasInProgressOrder())
+        {
+            XtraMessageBox.Show(
+                this,
+                "Cannot close shift while an order is currently in progress.\nPlease complete, hold, or cancel the active order first.",
+                "Order In Progress",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var closeDlg = new Clovent.Desktop.Restaurant.Shifts.CloseShiftDialog(_mediator, _activeShift.ShiftId);
+        var result = closeDlg.ShowDialog(this);
+        if (result == DialogResult.OK && closeDlg.ClosedShiftSummary != null)
+        {
+            var summary = closeDlg.ClosedShiftSummary;
+            SetActiveShift(null);
+
+            XtraMessageBox.Show(
+                this,
+                $"Shift #{summary.Shift.ShiftNumber} has been closed successfully.\n\n" +
+                $"Cash Sales: {CurrencyDisplay.Format(summary.CashSales)}\n" +
+                $"Expected Cash: {CurrencyDisplay.Format(summary.ExpectedCash)}\n" +
+                $"Counted Cash: {CurrencyDisplay.Format(summary.CountedCash)}\n" +
+                $"Variance: {CurrencyDisplay.Format(summary.Variance)}\n\n" +
+                "You will now be returned to the Login screen.",
+                "Shift Closed",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+
+            if (_applicationModeNavigator != null)
+            {
+                _closeInitiator = PosCloseInitiator.SessionSignOut;
+                await _applicationModeNavigator.OpenLoginAsync();
+            }
+        }
+    }
+
+    private async Task HandleCashMovementAsync()
+    {
+        if (_activeShift == null)
+        {
+            XtraMessageBox.Show(this, "No active shift is currently open.", "Cash Movement", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var movementDlg = new Clovent.Desktop.Restaurant.Shifts.CashMovementDialog(_mediator, _currentSession, _activeShift.ShiftId);
+        var result = movementDlg.ShowDialog(this);
+        if (result == DialogResult.OK && movementDlg.RecordedMovement != null)
+        {
+            var m = movementDlg.RecordedMovement;
+            await LogActivityAsync("Cash Movement", $"{m.Type}: {m.Amount:C2} - {m.Reason}");
+
+            try
+            {
+                var refreshed = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetShiftByIdQuery(_activeShift.ShiftId));
+                if (refreshed != null)
+                {
+                    _activeShift = refreshed;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to refresh shift after cash movement.");
+            }
+        }
+    }
+
+    private async Task HandlePrintLastReceiptAsync()
+    {
+        if (_activeShift == null)
+        {
+            XtraMessageBox.Show(this, "No active shift is associated with this terminal.", "Print Last Receipt", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        try
+        {
+            var lastOrder = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetLastCompletedOrderForShiftQuery(_activeShift.ShiftId));
+            if (lastOrder == null)
+            {
+                XtraMessageBox.Show(this, "No completed orders found for the current shift.", "Print Last Receipt", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var receiptText = await ReceiptFormatter.FormatAsync(_mediator, lastOrder);
+            using var preview = new ReceiptPreviewForm(receiptText);
+            preview.ShowDialog(this);
+
+            await LogActivityAsync("Receipt Reprinted", $"Order #{lastOrder.OrderNumber} reprinted for Shift #{_activeShift.ShiftNumber}");
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to print last receipt for shift {ShiftId}", _activeShift.ShiftId);
+            XtraMessageBox.Show(this, $"Failed to reprint receipt: {ex.Message}", "Reprint Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task HandleEndOfDayAsync()
+    {
+        var branchId = _activeShift?.BranchId ?? Guid.Empty;
+        var branchName = "Branch";
+        var businessDate = DateOnly.FromDateTime(_activeShift?.OpenedAtUtc.LocalDateTime ?? DateTime.Today);
+
+        try
+        {
+            if (branchId == Guid.Empty)
+            {
+                var termResService = _scope?.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+                if (termResService != null)
+                {
+                    var termRes = await termResService.ResolveCurrentTerminalAsync();
+                    if (termRes.BranchId.HasValue)
+                    {
+                        branchId = termRes.BranchId.Value;
+                        branchName = termRes.BranchName;
+                    }
+                }
+            }
+
+            var dateProvider = _scope?.ServiceProvider.GetService<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider>();
+            if (dateProvider != null)
+            {
+                businessDate = dateProvider.GetCurrentBusinessDate();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to resolve branch or business date for End of Day.");
+        }
+
+        using var dialog = new Clovent.Desktop.Restaurant.EndOfDay.EndOfDayCloseDialog(_mediator, _currentSession, branchId, branchName, businessDate);
+        dialog.ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Styles the Operations command button with CBOS signature teal prominence,
+    /// matching the exact SimpleButton pattern used by More Actions.
+    /// </summary>
+    private void StyleOperationsButton()
+    {
+        if (_operationsButton == null) return;
+
+        // Distinctive CBOS Primary Teal styling (#0D9488, Teal 600)
+        var tealBg = Color.FromArgb(13, 148, 136);
+        var tealHover = Color.FromArgb(15, 118, 110);   // #0F766E, Teal 700
+        var tealPressed = Color.FromArgb(17, 94, 89);   // #115E59, Teal 800
+
+        _operationsButton.Text = "Operations ▼";
+        _operationsButton.ToolTip = "Additional POS operations";
+        _operationsButton.Dock = DockStyle.Fill;
+        _operationsButton.AutoSize = true;
+        _operationsButton.Cursor = Cursors.Hand;
+        _operationsButton.AllowFocus = false;
+
+        // Border and LookAndFeel matching More Actions SimpleButton
+        _operationsButton.ButtonStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        _operationsButton.LookAndFeel.UseDefaultLookAndFeel = false;
+        _operationsButton.LookAndFeel.Style = DevExpress.LookAndFeel.LookAndFeelStyle.Flat;
+
+        // Typography and Normal State
+        var btnFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _operationsButton.Font = btnFont;
+        _operationsButton.Appearance.Font = btnFont;
+        _operationsButton.Appearance.BackColor = tealBg;
+        _operationsButton.Appearance.ForeColor = Color.White;
+        _operationsButton.Appearance.BorderColor = tealBg;
+        _operationsButton.Appearance.Options.UseFont = true;
+        _operationsButton.Appearance.Options.UseBackColor = true;
+        _operationsButton.Appearance.Options.UseForeColor = true;
+        _operationsButton.Appearance.Options.UseBorderColor = true;
+
+        // Hover State
+        _operationsButton.AppearanceHovered.Font = btnFont;
+        _operationsButton.AppearanceHovered.BackColor = tealHover;
+        _operationsButton.AppearanceHovered.ForeColor = Color.White;
+        _operationsButton.AppearanceHovered.BorderColor = tealHover;
+        _operationsButton.AppearanceHovered.Options.UseFont = true;
+        _operationsButton.AppearanceHovered.Options.UseBackColor = true;
+        _operationsButton.AppearanceHovered.Options.UseForeColor = true;
+        _operationsButton.AppearanceHovered.Options.UseBorderColor = true;
+
+        // Pressed State
+        _operationsButton.AppearancePressed.Font = btnFont;
+        _operationsButton.AppearancePressed.BackColor = tealPressed;
+        _operationsButton.AppearancePressed.ForeColor = Color.White;
+        _operationsButton.AppearancePressed.BorderColor = tealPressed;
+        _operationsButton.AppearancePressed.Options.UseFont = true;
+        _operationsButton.AppearancePressed.Options.UseBackColor = true;
+        _operationsButton.AppearancePressed.Options.UseForeColor = true;
+        // Compact professional vector SVG icon (Settings/Gear), unscaled (14x14) so it supports rather than dominates caption
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(_operationsButton, Clovent.Desktop.Forms.Base.DesktopIcons.Operations);
+        _operationsButton.ImageOptions.SvgImageSize = new Size(14, 14);
+        _operationsButton.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.LeftCenter;
+        _operationsButton.ImageOptions.ImageToTextIndent = 5;
+        _operationsButton.ImageOptions.AllowGlyphSkinning = DevExpress.Utils.DefaultBoolean.True;
+
+        // High-DPI Spacing & Margins: Distinct separation from More and Logout
+        _operationsButton.Margin = new Padding(
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(6, this),
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this),
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(6, this),
+            Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this));
+
+        _operationsButton.Padding = new Padding(12, 0, 12, 0);
+
+        _operationsButton.Click -= OperationsButton_Click;
+        _operationsButton.Click += OperationsButton_Click;
+    }
+
+    private void OperationsButton_Click(object? sender, EventArgs e) =>
+        _operationsMenu.Show(_operationsButton, new Point(0, _operationsButton.Height));
+
+    /// <summary>
+    /// Checks whether the POS currently contains an unplaced / unheld order with items.
+    /// </summary>
+    public bool HasInProgressOrder()
+    {
+        return _currentOrder is not null &&
+               string.Equals(_currentOrder.Status, "Open", StringComparison.OrdinalIgnoreCase) &&
+               (_currentOrderLines.Count > 0 || _currentOrder.OrderLineIds.Count > 0);
+    }
+
+    /// <summary>
+    /// Handles navigation request from POS to Back Office, validating transient cart state.
+    /// If an order is in progress, prompts the cashier with a guard dialog offering
+    /// "Hold &amp; Open Back Office" or "Stay in POS".
+    /// </summary>
+    public async Task RequestNavigateToBackOfficeAsync()
+    {
+        if (HasInProgressOrder())
+        {
+            using var guardDialog = new PosNavigationGuardDialog();
+            var result = guardDialog.ShowDialog(this);
+            if (result != DialogResult.Yes)
+            {
+                // Cashier chose "Stay in POS" or dismissed the dialog
+                return;
+            }
+
+            // Cashier chose "Hold & Open Back Office": execute existing hold pipeline
+            try
+            {
+                var heldOrder = await _mediator.Send(new HoldOrderCommand(_currentOrder!.OrderId));
+                await LogActivityAsync("Hold Order", $"{heldOrder.OrderNumber}");
+
+                _currentOrder = null;
+                _tablePicker.SelectId(null);
+                await RefreshOrderAsync();
+                await RefreshActiveOrdersAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to hold order {OrderId} before navigating to Back Office.", _currentOrder?.OrderId);
+                XtraMessageBox.Show(
+                    this,
+                    $"Failed to hold order: {ex.Message}\nNavigation to Back Office cancelled to protect order state.",
+                    "Hold Order Failed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                return;
+            }
+        }
+
+        if (_applicationModeNavigator is not null)
+        {
+            _closeInitiator = PosCloseInitiator.ModeSwitchToBackOffice;
+            await _applicationModeNavigator.OpenBackOfficeAsync();
+        }
+    }
+
+    /// <summary>Gets the Operations button on the POS header.</summary>
+    [System.ComponentModel.Browsable(false)]
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public DevExpress.XtraEditors.SimpleButton OperationsButton => _operationsButton;
+
+    /// <summary>Gets the Operations ContextMenuStrip attached to the button.</summary>
+    [System.ComponentModel.Browsable(false)]
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public ContextMenuStrip OperationsMenu => _operationsMenu;
+
+    /// <summary>Gets or sets whether the user can access Back Office (updates the Operations menu).</summary>
+    [System.ComponentModel.Browsable(false)]
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool CanAccessBackOffice
+    {
+        get => _canAccessBackOffice;
+        set
+        {
+            _canAccessBackOffice = value;
+            BuildOperationsMenu();
+        }
+    }
+
+    /// <summary>Gets or sets whether the user can perform Refund / Return (updates the Operations menu).</summary>
+    [System.ComponentModel.Browsable(false)]
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool CanPerformRefund
+    {
+        get => _canPerformRefund;
+        set
+        {
+            _canPerformRefund = value;
+            BuildOperationsMenu();
+        }
+    }
+
+    /// <summary>Sets the application mode navigator for testing.</summary>
+    internal void SetApplicationModeNavigator(IApplicationModeNavigator navigator) => _applicationModeNavigator = navigator;
 
     /// <summary>
     /// Validates in-place edits of the cart's Price column: the value must be
@@ -5617,7 +6754,6 @@ public sealed partial class RestaurantPosForm : XtraForm
         var hasOrder = _currentOrder is not null;
         var canEdit = isOpen || isHeld;
 
-        _newDineInButton.Enabled = !hasOrder && Permit("create");
         _newTakeAwayButton.Enabled = !hasOrder && Permit("create");
 
         _holdButton.Enabled = isOpen && Permit("hold");
@@ -5667,30 +6803,44 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         _printBillButton.Enabled = hasOrder;
         _moreActionsButton.Enabled = hasOrder;
+
+        // Smart entries: reorder needs a customer actually picked (not walk-in default).
+        if (_moreRepeatLastOrderItem is not null)
+        {
+            _moreRepeatLastOrderItem.Enabled = canEdit && SelectedCustomerIdOrNull() is not null;
+        }
     }
 
     /// <summary>
-    /// Rebuilds the searchable customer dropdown's data source - a Walk-in
-    /// row (<see cref="Guid.Empty"/>, the same sentinel <c>_currentOrder.CustomerId</c>
-    /// being <see langword="null"/> already maps to everywhere else in this
-    /// class) followed by every active <see cref="Clovent.Restaurant.Application.Customers.Dtos.CustomerDto"/> from the
-    /// existing <see cref="ListCustomersQuery"/> - no new query/search
-    /// infrastructure, the same read this screen already used before the
-    /// picker itself changed. <see cref="SetSelectedCustomerId"/> restores
-    /// whichever id was selected, since reassigning
-    /// <see cref="DevExpress.XtraEditors.LookUpEditBase.Properties"/>.DataSource
-    /// resets <c>EditValue</c>.
+    /// Rebuilds the searchable customer dropdown's data source from active
+    /// customer records, ensuring the designated default customer is resolved and
+    /// placed first.
     /// </summary>
     private async Task ReloadCustomersAsync(Guid? selectCustomerId = null)
     {
         var customers = await _mediator.Send(new ListCustomersQuery());
-        List<CustomerPickerRow> pickerItems = [new CustomerPickerRow(Guid.Empty, "Walk-in Customer", string.Empty, string.Empty)];
-        pickerItems.AddRange(customers
-            .Where(c => c.IsActive)
-            .Select(c => new CustomerPickerRow(c.CustomerId, c.Name, c.MobileNumber, CurrencyDisplay.FormatPlain(c.OutstandingBalance))));
+        var activeCustomers = customers.Where(c => c.IsActive).ToList();
+
+        var defaultCustomer = activeCustomers.FirstOrDefault(c => c.IsDefault) ?? activeCustomers.FirstOrDefault();
+        _defaultCustomerId = defaultCustomer?.CustomerId;
+
+        // Order with default customer first, then alphabetically by name
+        var sortedCustomers = activeCustomers
+            .OrderByDescending(c => c.IsDefault)
+            .ThenBy(c => c.Name)
+            .ToList();
+
+        List<CustomerPickerRow> pickerItems = sortedCustomers
+            .Select(c => new CustomerPickerRow(
+                c.CustomerId,
+                string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
+                c.Name,
+                c.MobileNumber ?? string.Empty,
+                CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
+            .ToList();
 
         _customerPicker.Properties.DataSource = pickerItems;
-        SetSelectedCustomerId(selectCustomerId ?? Guid.Empty);
+        SetSelectedCustomerId(selectCustomerId ?? _currentOrder?.CustomerId ?? _defaultCustomerId ?? Guid.Empty);
     }
 
     private void SetSelectedCustomerId(Guid customerId)
@@ -5740,7 +6890,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                     form.NotesValue,
                     form.ShopNoValue,
                     form.Mobile2Value,
-                    form.PhoneValue));
+                    form.PhoneValue,
+                    form.IsDefaultValue));
 
                 await ReloadCustomersAsync(newCustomer.CustomerId);
 
@@ -5776,29 +6927,66 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_orderId is not { } orderId)
         {
-            _balance = 0m;
-            _paymentBalanceLabel.Text = "0.00";
-            _amountEdit.Text = string.Empty;
-            _amountEntryIsPreset = true;
-            UpdateChangeDisplay();
-            pnlAmountTendered.Enabled = false;
-            pnlKeypad.Enabled = false;
-            pnlQuickCash.Enabled = false;
-            _recordButton.Enabled = false;
+            void ResetPaymentUi()
+            {
+                _balance = 0m;
+                _paymentBalanceLabel.Text = "0.00";
+                _amountEdit.Text = string.Empty;
+                _amountEntryIsPreset = true;
+                UpdateChangeDisplay();
+                pnlAmountTendered.Enabled = false;
+                pnlKeypad.Enabled = false;
+                pnlQuickCash.Enabled = false;
+                _recordButton.Enabled = false;
+            }
+
+            if (InvokeRequired)
+            {
+                try { Invoke(ResetPaymentUi); } catch { }
+            }
+            else
+            {
+                try { ResetPaymentUi(); } catch { }
+            }
             return;
         }
 
-        pnlAmountTendered.Enabled = true;
-        pnlKeypad.Enabled = true;
-        pnlQuickCash.Enabled = true;
-        _recordButton.Enabled = true;
+        void EnablePaymentUi()
+        {
+            pnlAmountTendered.Enabled = true;
+            pnlKeypad.Enabled = true;
+            pnlQuickCash.Enabled = true;
+            _recordButton.Enabled = true;
+        }
+
+        if (InvokeRequired)
+        {
+            try { Invoke(EnablePaymentUi); } catch { }
+        }
+        else
+        {
+            try { EnablePaymentUi(); } catch { }
+        }
 
         var totals = await _mediator.Send(new GetOrderSummaryQuery(orderId));
-        _balance = Math.Max(totals.Balance, 0m);
-        _paymentBalanceLabel.Text = CurrencyDisplay.FormatPlain(_balance);
-        _amountEdit.Text = FormatPlain(_balance);
-        _amountEntryIsPreset = true;
-        UpdateChangeDisplay();
+
+        void UpdateTotalsUi()
+        {
+            _balance = Math.Max(totals.Balance, 0m);
+            _paymentBalanceLabel.Text = CurrencyDisplay.FormatPlain(_balance);
+            _amountEdit.Text = FormatPlain(_balance);
+            _amountEntryIsPreset = true;
+            UpdateChangeDisplay();
+        }
+
+        if (InvokeRequired)
+        {
+            try { Invoke(UpdateTotalsUi); } catch { }
+        }
+        else
+        {
+            try { UpdateTotalsUi(); } catch { }
+        }
     }
 
     private void BuildMethodButtons()
@@ -6250,31 +7438,51 @@ public sealed partial class RestaurantPosForm : XtraForm
     }
 
     /// <summary>Row shape for <see cref="_customerPicker"/>'s popup grid - <see cref="BalanceDisplay"/> is pre-formatted (via <see cref="CurrencyDisplay"/>) rather than a raw <see cref="decimal"/> since the popup grid has no currency-aware column type of its own.</summary>
-    private sealed record CustomerPickerRow(Guid CustomerId, string Name, string Phone, string BalanceDisplay);
+    private sealed record CustomerPickerRow(Guid CustomerId, string CustomerCode, string Name, string Phone, string BalanceDisplay);
 
     private Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? _activeShift;
 
     private async Task<bool> EnsureShiftActiveOrPromptAsync()
     {
-        var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
-        _activeShift = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(CashierId: cashierId));
         if (_activeShift != null)
         {
+            try
+            {
+                var shift = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetShiftByIdQuery(_activeShift.ShiftId));
+                if (shift == null || !string.Equals(shift.Status, "Open", StringComparison.OrdinalIgnoreCase))
+                {
+                    XtraMessageBox.Show(
+                        this,
+                        "Your shift has been closed externally.\nTransactions cannot be processed under a closed shift.",
+                        "Shift Closed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    SetActiveShift(null);
+                    if (_applicationModeNavigator != null)
+                    {
+                        _closeInitiator = PosCloseInitiator.ModeSwitchToBackOffice;
+                        await _applicationModeNavigator.OpenBackOfficeAsync();
+                    }
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to verify shift status with server");
+            }
             return true;
         }
 
-        var branchId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var termId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var warehouseId = _warehousePicker.SelectedId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
-
-        using var openDlg = new Clovent.Desktop.Restaurant.Shifts.OpenShiftDialog(_mediator, _currentSession, branchId, warehouseId, termId);
-        if (openDlg.ShowDialog(this) == DialogResult.OK && openDlg.OpenedShift != null)
+        var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var active = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(CashierId: cashierId));
+        if (active != null)
         {
-            _activeShift = openDlg.OpenedShift;
+            SetActiveShift(active);
             return true;
         }
 
-        return false;
+        await HandleOpenShiftAsync();
+        return _activeShift != null;
     }
 
     private sealed record OrderLineRow(
@@ -6287,5 +7495,1668 @@ public sealed partial class RestaurantPosForm : XtraForm
         string Notes,
         bool IsVoided,
         bool IsPriceOverridden);
+
+    // ==========================================
+    // SMART POS FEATURES
+    // ==========================================
+
+    /// <summary>
+    /// Builds every smart-feature control that lives inside panels created by
+    /// <see cref="RestructureLayout"/>: the suggestion strip above the cart,
+    /// the Quick Orders strip above the menu, the Rush Mode badge in the
+    /// header, the order-health timer, and the smart More-menu entries.
+    /// </summary>
+    private void InitializeSmartFeatures()
+    {
+        try
+        {
+            BuildEmbeddedSuggestionPanel();
+            BuildQuickOrdersStrip();
+            BuildRushModeBadge();
+            BuildOrderHealthTimer();
+            BuildSmartMoreMenuItems();
+
+            _productSearchEdit.KeyDown += ProductSearchEdit_SmartKeyDown;
+            _productSearchEdit.LostFocus += (_, _) => BeginInvoke(new Action(() =>
+            {
+                if (_searchDropdown is { Visible: true })
+                {
+                    _searchDropdown.Hide();
+                }
+            }));
+
+            RushMode.Changed += ApplyRushMode;
+            RushMode.Enabled = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadRushModeEnabled();
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to initialize the POS smart features.");
+        }
+    }
+
+    // ---------- 1. Embedded Smart Upsell suggestion grid ----------
+
+    private void BuildEmbeddedSuggestionPanel()
+    {
+        if (_suggestionPanel != null)
+        {
+            if (_pnlOrderedItemsContainer != null && !_pnlOrderedItemsContainer.Controls.Contains(_suggestionPanel))
+            {
+                _pnlOrderedItemsContainer.Controls.Add(_suggestionPanel);
+                _flowOrderedItems?.BringToFront();
+            }
+            return;
+        }
+
+        // Compact 1-row strip docked at the TOP of the ordered-items viewport.
+        // Takes approximately ONE normal control row (~28px) ONLY when suggestions exist.
+        // When there are no recommendations: Height = 0 and Visible = false.
+        // The actual suggestion GridControl lives inside _suggestionPopupControl (dropdown overlay),
+        // completely avoiding permanently pushing the cart items downward.
+        _suggestionPanel = new Panel
+        {
+            Dock = DockStyle.Top,
+            Height = 0,
+            Visible = false,
+            Margin = new Padding(0),
+            BackColor = Color.FromArgb(248, 250, 252),
+            Padding = new Padding(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(3, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(3, this))
+        };
+
+        // ── Left: [bulb icon] "Suggested Add-ons" ──
+        var leftHeaderPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Left,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            BackColor = Color.Transparent,
+            Margin = new Padding(0),
+            Padding = new Padding(0)
+        };
+
+        _suggestionHeaderIcon = new PictureEdit
+        {
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(22, this),
+            Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(22, this),
+            Cursor = Cursors.Hand,
+            Margin = new Padding(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(1, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this), 0)
+        };
+        _suggestionHeaderIcon.Properties.SizeMode = DevExpress.XtraEditors.Controls.PictureSizeMode.Zoom;
+        _suggestionHeaderIcon.Properties.ShowMenu = false;
+        _suggestionHeaderIcon.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        _suggestionHeaderIcon.Properties.Appearance.BackColor = Color.Transparent;
+        _suggestionHeaderIcon.Properties.Appearance.Options.UseBackColor = true;
+        try
+        {
+            // DevExpress built-in lightbulb SVG icon
+            _suggestionHeaderIcon.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage(Clovent.Desktop.Forms.Base.DesktopIcons.Idea);
+        }
+        catch
+        {
+            // Fallback: no icon - the text label alone is sufficient.
+        }
+
+        _suggestionHeaderLabel = new LabelControl
+        {
+            Text = "Suggested Add-ons",
+            AutoSizeMode = LabelAutoSizeMode.Horizontal,
+            Margin = new Padding(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(3, this), 0, 0),
+            Padding = new Padding(0),
+            Cursor = Cursors.Hand
+        };
+        _suggestionHeaderLabel.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _suggestionHeaderLabel.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
+        _suggestionHeaderLabel.Appearance.Options.UseFont = true;
+        _suggestionHeaderLabel.Appearance.Options.UseForeColor = true;
+        _suggestionHeaderLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _suggestionHeaderLabel.Appearance.Options.UseTextOptions = true;
+
+        leftHeaderPanel.Controls.Add(_suggestionHeaderIcon);
+        leftHeaderPanel.Controls.Add(_suggestionHeaderLabel);
+
+        // ── Popup Container Control (the floating dropdown overlay) ──
+        _suggestionPopupControl = new PopupContainerControl
+        {
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(430, this),
+            Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this),
+            BackColor = Color.White
+        };
+
+        // ── Right: [ 4 suggestions ▼ ] PopupContainerEdit ──
+        _suggestionPopupEdit = new PopupContainerEdit
+        {
+            Dock = DockStyle.Right,
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(140, this),
+            Cursor = Cursors.Hand
+        };
+        _suggestionPopupEdit.Properties.PopupControl = _suggestionPopupControl;
+        _suggestionPopupEdit.Properties.ShowDropDown = DevExpress.XtraEditors.Controls.ShowDropDown.SingleClick;
+        _suggestionPopupEdit.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _suggestionPopupEdit.Properties.NullText = "0 suggestions";
+        _suggestionPopupEdit.Properties.ShowPopupCloseButton = false;
+        _suggestionPopupEdit.Properties.PopupSizeable = false;
+        _suggestionPopupEdit.Properties.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _suggestionPopupEdit.Properties.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
+        _suggestionPopupEdit.Properties.Appearance.Options.UseFont = true;
+        _suggestionPopupEdit.Properties.Appearance.Options.UseForeColor = true;
+        _suggestionPopupEdit.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _suggestionPopupEdit.Properties.Appearance.Options.UseTextOptions = true;
+        _suggestionPopupEdit.Properties.Buttons.Clear();
+        _suggestionPopupEdit.Properties.Buttons.Add(new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo));
+
+        // Clicking label or bulb icon opens the dropdown overlay
+        _suggestionHeaderIcon.Click += (_, _) => _suggestionPopupEdit.ShowPopup();
+        _suggestionHeaderLabel.Click += (_, _) => _suggestionPopupEdit.ShowPopup();
+
+        // Update popup dimensions right before opening
+        _suggestionPopupEdit.QueryPopUp += (_, _) => UpdateSuggestionPopupSize();
+
+        _suggestionPanel.Controls.Add(_suggestionPopupEdit);
+        _suggestionPanel.Controls.Add(leftHeaderPanel);
+
+        // ── Dropdown Overlay Footer: [☐ Select All]  [Add Selected (0)] ──
+        var footerHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(36, this);
+        var footerPanel = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = footerHeight,
+            BackColor = Color.FromArgb(248, 250, 252),
+            Padding = new Padding(8, 4, 8, 4)
+        };
+
+        var footerTlp = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            BackColor = Color.Transparent
+        };
+        footerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
+        footerTlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
+        footerTlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _suggestionSelectAllCheck = new CheckEdit
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0)
+        };
+        _suggestionSelectAllCheck.Properties.Caption = "Select All";
+        _suggestionSelectAllCheck.Properties.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _suggestionSelectAllCheck.Properties.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _suggestionSelectAllCheck.Properties.Appearance.Options.UseFont = true;
+        _suggestionSelectAllCheck.Properties.Appearance.Options.UseForeColor = true;
+        _suggestionSelectAllCheck.CheckedChanged += (_, _) =>
+        {
+            if (!_suggestionSyncingSelection)
+            {
+                SetAllSuggestionsSelected(_suggestionSelectAllCheck.Checked);
+            }
+        };
+
+        _suggestionAddSelectedButton = new SimpleButton
+        {
+            Text = SuggestedAddOnUiHelper.ComposeAddSelectedText(0),
+            Enabled = false,
+            Dock = DockStyle.Fill,
+            Cursor = Cursors.Hand,
+            AllowFocus = false,
+            Margin = new Padding(4, 0, 0, 0),
+            ButtonStyle = DevExpress.XtraEditors.Controls.BorderStyles.HotFlat
+        };
+        _suggestionAddSelectedButton.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _suggestionAddSelectedButton.Appearance.BackColor = AccentColor;
+        _suggestionAddSelectedButton.Appearance.ForeColor = Color.White;
+        _suggestionAddSelectedButton.Appearance.Options.UseFont = true;
+        _suggestionAddSelectedButton.Appearance.Options.UseBackColor = true;
+        _suggestionAddSelectedButton.Appearance.Options.UseForeColor = true;
+        _suggestionAddSelectedButton.Click += async (_, _) => await AddSelectedSuggestionsAsync();
+
+        footerTlp.Controls.Add(_suggestionSelectAllCheck, 0, 0);
+        footerTlp.Controls.Add(_suggestionAddSelectedButton, 1, 0);
+        footerPanel.Controls.Add(footerTlp);
+
+        var divider = new Panel
+        {
+            Dock = DockStyle.Bottom,
+            Height = 1,
+            BackColor = Color.FromArgb(226, 232, 240)
+        };
+
+        // ── Dropdown Overlay Grid: DevExpress checked GridControl ──
+        _suggestionGrid = new GridControl
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0)
+        };
+        _suggestionGridView = new GridView();
+        _suggestionGrid.MainView = _suggestionGridView;
+
+        _suggestionGridView.OptionsBehavior.Editable = false;
+        _suggestionGridView.OptionsSelection.EnableAppearanceFocusedCell = false;
+        _suggestionGridView.OptionsView.ShowGroupPanel = false;
+        _suggestionGridView.OptionsView.ShowIndicator = false;
+        _suggestionGridView.OptionsView.ColumnAutoWidth = true;
+        _suggestionGridView.OptionsView.RowAutoHeight = false;
+        _suggestionGridView.OptionsView.ShowColumnHeaders = true;
+        _suggestionGridView.ColumnPanelRowHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(26, this);
+        _suggestionGridView.RowHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this);
+        _suggestionGridView.Appearance.HeaderPanel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _suggestionGridView.Appearance.HeaderPanel.ForeColor = Color.FromArgb(71, 85, 105);
+        _suggestionGridView.Appearance.HeaderPanel.Options.UseFont = true;
+        _suggestionGridView.Appearance.HeaderPanel.Options.UseForeColor = true;
+        _suggestionGridView.Appearance.Row.Font = new Font("Segoe UI", 9.5F);
+        _suggestionGridView.Appearance.Row.Options.UseFont = true;
+        _suggestionGridView.OptionsCustomization.AllowFilter = false;
+        _suggestionGridView.OptionsCustomization.AllowSort = false;
+        _suggestionGridView.OptionsCustomization.AllowGroup = false;
+        _suggestionGridView.OptionsCustomization.AllowColumnMoving = false;
+        _suggestionGridView.OptionsCustomization.AllowQuickHideColumns = false;
+        _suggestionGridView.OptionsView.EnableAppearanceEvenRow = true;
+        _suggestionGridView.Appearance.EvenRow.BackColor = Color.FromArgb(248, 250, 252);
+        _suggestionGridView.Appearance.EvenRow.Options.UseBackColor = true;
+
+        var selectCol = new DevExpress.XtraGrid.Columns.GridColumn
+        {
+            FieldName = nameof(SuggestedAddOnSelectionRow.Selected),
+            Caption = "✓",
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(38, this)
+        };
+        selectCol.OptionsColumn.FixedWidth = true;
+        selectCol.OptionsColumn.AllowSize = false;
+        selectCol.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        selectCol.AppearanceHeader.Options.UseTextOptions = true;
+        var checkEditor = new RepositoryItemCheckEdit();
+        _suggestionGrid.RepositoryItems.Add(checkEditor);
+        selectCol.ColumnEdit = checkEditor;
+
+        var portionCol = new DevExpress.XtraGrid.Columns.GridColumn
+        {
+            FieldName = nameof(SuggestedAddOnSelectionRow.PortionName),
+            Caption = "Portion",
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(75, this)
+        };
+        portionCol.OptionsColumn.FixedWidth = true;
+        portionCol.OptionsColumn.AllowSize = false;
+
+        var priceCol = new DevExpress.XtraGrid.Columns.GridColumn
+        {
+            FieldName = nameof(SuggestedAddOnSelectionRow.PriceText),
+            Caption = "Price",
+            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(85, this)
+        };
+        priceCol.OptionsColumn.FixedWidth = true;
+        priceCol.OptionsColumn.AllowSize = false;
+        priceCol.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        priceCol.AppearanceHeader.Options.UseTextOptions = true;
+        priceCol.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        priceCol.AppearanceCell.Options.UseTextOptions = true;
+
+        var itemCol = new DevExpress.XtraGrid.Columns.GridColumn
+        {
+            FieldName = nameof(SuggestedAddOnSelectionRow.ItemName),
+            Caption = "Item",
+            MinWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(180, this)
+        };
+        itemCol.AppearanceCell.TextOptions.Trimming = DevExpress.Utils.Trimming.EllipsisCharacter;
+        itemCol.AppearanceCell.Options.UseTextOptions = true;
+
+        _suggestionGridView.OptionsView.ColumnAutoWidth = true;
+        _suggestionGridView.Columns.AddRange([selectCol, itemCol, portionCol, priceCol]);
+        for (int i = 0; i < _suggestionGridView.Columns.Count; i++)
+            _suggestionGridView.Columns[i].VisibleIndex = i;
+
+        // Touch-friendly: clicking ANY cell in a row toggles its checkbox.
+        _suggestionGridView.RowCellClick += (_, e) =>
+        {
+            if (e.Clicks > 1 || e.RowHandle < 0 || e.RowHandle >= _suggestionRows.Count) return;
+            SetSuggestionRowSelected(e.RowHandle, !_suggestionRows[e.RowHandle].Selected);
+        };
+        _suggestionGridView.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Space && _suggestionGridView.FocusedRowHandle >= 0
+                && _suggestionGridView.FocusedRowHandle < _suggestionRows.Count)
+            {
+                var idx = _suggestionGridView.FocusedRowHandle;
+                SetSuggestionRowSelected(idx, !_suggestionRows[idx].Selected);
+                e.Handled = true;
+            }
+        };
+
+        _suggestionPopupControl.Controls.Add(_suggestionGrid);    // Fill
+        _suggestionPopupControl.Controls.Add(divider);             // Bottom
+        _suggestionPopupControl.Controls.Add(footerPanel);         // Bottom
+
+        Controls.Add(_suggestionPopupControl);
+
+        if (_pnlOrderedItemsContainer != null)
+        {
+            _pnlOrderedItemsContainer.Controls.Add(_suggestionPanel);
+            _flowOrderedItems?.BringToFront();
+        }
+    }
+
+    /// <summary>
+    /// Called after every order refresh: debounces a GetBasketRecommendations
+    /// query whenever the basket's product composition changed. Purely
+    /// additive - failures only hide the strip, never block the POS.
+    /// </summary>
+    private void ScheduleSuggestionRefresh(bool forced = false)
+    {
+        if (_suggestionPanel is null || IsDisposed)
+        {
+            return;
+        }
+
+        var order = _currentOrder;
+        var variantIds = _currentOrderLines
+            .Where(l => !l.IsVoided)
+            .Select(l => l.ProductVariantId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToList();
+
+        var basketKey = order is null ? "-" : $"{order.OrderId}|{string.Join(",", variantIds)}";
+        if (!forced && string.Equals(basketKey, _lastSuggestionBasketKey, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _lastSuggestionBasketKey = basketKey;
+
+        // A different order becoming current resets dismissals; a changed
+        // product set (beyond quantity) re-admits previously dismissed items.
+        if (order?.OrderId != _suggestionOrderId)
+        {
+            SuggestionTracker.Reset();
+            _recordedOfferedVariantIds.Clear();
+            _suggestionOrderId = order?.OrderId;
+        }
+        SuggestionTracker.OnBasketChanged(variantIds);
+
+        if (order is null || variantIds.Count == 0)
+        {
+            HideSuggestionContent();
+            return;
+        }
+
+        if (!forced && !RushMode.AllowSuggestionAutoPopup)
+        {
+            // Rush mode: no auto popups - still available via More > Suggestions.
+            return;
+        }
+
+        _suggestionCts?.Cancel();
+        _suggestionCts?.Dispose();
+        _suggestionCts = new CancellationTokenSource();
+        var ct = _suggestionCts.Token;
+
+        _ = LoadSuggestionsAsync(order.OrderId, order.CustomerId, variantIds, ct);
+    }
+
+    private async Task LoadSuggestionsAsync(Guid orderId, Guid? customerId, List<Guid> variantIds, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(500, ct); // debounce
+
+            var recommendations = await _mediator.Send(
+                new GetBasketRecommendationsQuery(customerId, variantIds, DateTime.Now, int.MaxValue), ct);
+
+            if (ct.IsCancellationRequested || IsDisposed || _currentOrder?.OrderId != orderId)
+            {
+                return;
+            }
+
+            var inBasket = variantIds.ToHashSet();
+            var visible = recommendations
+                .Where(r => !inBasket.Contains(r.VariantId) && !SuggestionTracker.IsDismissed(r.VariantId))
+                .ToList();
+
+            if (visible.Count == 0)
+            {
+                HideSuggestionContent();
+                return;
+            }
+
+            _currentSuggestions = visible;
+            RecordOfferedSuggestions(orderId, visible);
+            ShowSuggestions(visible);
+        }
+        catch (OperationCanceledException)
+        {
+            // Superseded by a newer basket - fine.
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Smart suggestion query failed.");
+            HideSuggestionContent();
+        }
+    }
+
+    private void ShowSuggestions(IReadOnlyList<BasketRecommendationDto> recommendations)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => ShowSuggestions(recommendations)));
+            return;
+        }
+
+        if (IsDisposed || _suggestionPanel is null)
+        {
+            return;
+        }
+
+        _suggestionRows.Clear();
+        foreach (var r in recommendations.DistinctBy(rec => rec.VariantId))
+        {
+            var (itemName, portionName) = SuggestedAddOnNaming.Resolve(r.ProductName, r.VariantName);
+            var row = new SuggestedAddOnRow(r.VariantId, itemName, portionName, r.UnitPrice);
+            _suggestionRows.Add(new SuggestedAddOnSelectionRow(row));
+        }
+
+        _suggestionGrid.DataSource = null;
+        _suggestionGrid.DataSource = _suggestionRows;
+        _suggestionGridView.RefreshData();
+
+        UpdateSuggestionSelectionUi();
+        UpdateSuggestionPanelHeight(_suggestionRows.Count);
+    }
+
+    /// <summary>
+    /// Computes and sets the size of the floating dropdown overlay dynamically based
+    /// on recommendation count.
+    /// 1-4 suggestions: sized to fit rows without empty space.
+    /// 5+ suggestions: capped at 4 rows with vertical scrolling.
+    /// </summary>
+    private void UpdateSuggestionPopupSize()
+    {
+        if (_suggestionPopupControl is null || IsDisposed) return;
+
+        int rowCount = _suggestionRows.Count;
+        int colHeaderH = _suggestionGridView?.ColumnPanelRowHeight > 0 
+            ? _suggestionGridView.ColumnPanelRowHeight 
+            : Clovent.Desktop.Forms.Base.DesktopDpi.Scale(26, this);
+        int rowH = _suggestionGridView?.RowHeight > 0 
+            ? _suggestionGridView.RowHeight 
+            : Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this);
+        int footerH = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(36, this);
+        int dividerH = 1;
+        int visibleRows = Math.Clamp(rowCount, 1, 4);
+        int totalH = colHeaderH + (visibleRows * rowH) + footerH + dividerH + Clovent.Desktop.Forms.Base.DesktopDpi.Scale(6, this);
+        int popupW = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(430, this);
+
+        _suggestionPopupControl.Size = new Size(popupW, totalH);
+        if (_suggestionPopupEdit is not null)
+        {
+            _suggestionPopupEdit.Properties.PopupFormSize = new Size(popupW, totalH);
+            _suggestionPopupEdit.Properties.PopupFormMinSize = new Size(popupW, totalH);
+        }
+    }
+
+    /// <summary>
+    /// Controls the visibility and compact height of the main POS suggestion trigger strip.
+    /// 0 suggestions: section hidden entirely (Height = 0, Visible = false).
+    /// 1+ suggestions: compact single row (Height = 28, Visible = true).
+    /// The actual grid lives solely inside the temporary dropdown overlay.
+    /// </summary>
+    private void UpdateSuggestionPanelHeight(int rowCount)
+    {
+        if (_suggestionPanel is null || IsDisposed) return;
+
+        if (rowCount <= 0)
+        {
+            _suggestionPanel.Visible = false;
+            _suggestionPanel.Height = 0;
+            if (_suggestionPopupEdit is not null)
+            {
+                _suggestionPopupEdit.EditValue = "0 suggestions";
+            }
+            return;
+        }
+
+        int compactHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this);
+        _suggestionPanel.Height = compactHeight;
+        _suggestionPanel.Visible = true;
+
+        if (_suggestionHeaderIcon is not null)
+        {
+            int iconSize = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(22, this);
+            _suggestionHeaderIcon.Size = new Size(iconSize, iconSize);
+            _suggestionHeaderIcon.Margin = new Padding(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(1, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this), 0);
+            if (_suggestionHeaderIcon.SvgImage == null)
+            {
+                try
+                {
+                    _suggestionHeaderIcon.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage(Clovent.Desktop.Forms.Base.DesktopIcons.Idea);
+                }
+                catch {}
+            }
+            _suggestionHeaderIcon.Parent?.PerformLayout();
+        }
+
+        if (_suggestionPopupEdit is not null)
+        {
+            _suggestionPopupEdit.EditValue = $"{rowCount} suggestion{(rowCount == 1 ? "" : "s")}";
+        }
+
+        UpdateSuggestionPopupSize();
+    }
+
+    /// <summary>Selects or deselects all visible recommendation rows.</summary>
+    private void SetAllSuggestionsSelected(bool selected)
+    {
+        if (_suggestionAdding) return;
+
+        foreach (var row in _suggestionRows)
+        {
+            row.Selected = selected;
+        }
+
+        _suggestionGridView.RefreshData();
+        UpdateSuggestionSelectionUi();
+    }
+
+    /// <summary>Selects or deselects a single suggestion row.</summary>
+    private void SetSuggestionRowSelected(int rowIndex, bool selected)
+    {
+        if (_suggestionAdding || rowIndex < 0 || rowIndex >= _suggestionRows.Count) return;
+
+        _suggestionRows[rowIndex].Selected = selected;
+        _suggestionGridView.RefreshRow(rowIndex);
+        UpdateSuggestionSelectionUi();
+    }
+
+    private void UpdateSuggestionSelectionUi()
+    {
+        var count = _suggestionRows.Count(r => r.Selected);
+        _suggestionAddSelectedButton.Text = SuggestedAddOnUiHelper.ComposeAddSelectedText(count);
+        _suggestionAddSelectedButton.Enabled = count > 0 && !_suggestionAdding;
+
+        _suggestionSyncingSelection = true;
+        _suggestionSelectAllCheck.Checked = count > 0 && count == _suggestionRows.Count;
+        _suggestionSyncingSelection = false;
+    }
+
+    /// <summary>
+    /// Adds all currently checked suggestions to the cart using the normal POS
+    /// item-add pipeline (preserving duplicate merges, variant handling, pricing,
+    /// tax, discounts, service charges, and totals), records Accepted SuggestionEvents,
+    /// and refreshes the recommendations.
+    /// </summary>
+    private async Task AddSelectedSuggestionsAsync()
+    {
+        var selectedVariantIds = _suggestionRows
+            .Where(r => r.Selected)
+            .Select(r => r.Row.VariantId)
+            .ToList();
+
+        if (_suggestionAdding || selectedVariantIds.Count == 0 || _currentOrder is null)
+        {
+            return;
+        }
+
+        var orderId = _currentOrder.OrderId;
+
+        _suggestionAdding = true;
+        _suggestionAddSelectedButton.Enabled = false;
+        _suggestionSelectAllCheck.Enabled = false;
+        _suggestionGrid.Enabled = false;
+
+        // Close dropdown overlay immediately upon action
+        if (_suggestionPopupEdit is not null && _suggestionPopupEdit.IsPopupOpen)
+        {
+            _suggestionPopupEdit.ClosePopup();
+        }
+
+        try
+        {
+            await AddSuggestedItemsAsync(orderId, selectedVariantIds, committedId =>
+            {
+                foreach (var row in _suggestionRows.Where(r => r.Row.VariantId == committedId))
+                {
+                    row.Selected = false;
+                }
+            });
+        }
+        finally
+        {
+            _suggestionAdding = false;
+            if (!IsDisposed && _suggestionPanel is not null)
+            {
+                _suggestionSelectAllCheck.Enabled = true;
+                _suggestionGrid.Enabled = true;
+                UpdateSuggestionSelectionUi();
+            }
+        }
+    }
+
+    private async Task AddSuggestedItemsAsync(Guid orderId, IReadOnlyList<Guid> variantIds, Action<Guid> committed)
+    {
+        await _orderMutationLock.WaitAsync();
+        _suggestionCts?.Cancel();
+        try
+        {
+            if (_currentOrder?.OrderId != orderId)
+                throw new InvalidOperationException("The current order has changed. Refresh suggestions.");
+
+            foreach (var variantId in variantIds.Distinct())
+            {
+                var line = await AddProductToCurrentOrderCoreAsync(variantId, 1);
+                committed(variantId); // Confirmed persistence: never replay after a refresh failure.
+                SuggestionTracker.UnDismiss(variantId);
+                RecordSuggestionEvent(SuggestionEventKind.Accepted, orderId, variantId,
+                    line.OrderLineId, 1m, line.UnitPrice);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Could not finish adding selected suggestions to order {OrderId}.", orderId);
+            throw;
+        }
+        finally
+        {
+            try { await RefreshOrderAsync(); }
+            finally { _orderMutationLock.Release(); }
+        }
+
+        _suggestionCts?.Cancel();
+        _suggestionCts?.Dispose();
+        _suggestionCts = new CancellationTokenSource();
+        await LoadSuggestionsAsync(orderId, _currentOrder?.CustomerId,
+            _currentOrderLines.Where(l => !l.IsVoided).Select(l => l.ProductVariantId).Distinct().ToList(),
+            _suggestionCts.Token);
+    }
+
+    private void HideSuggestionContent()
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(HideSuggestionContent));
+            return;
+        }
+
+        _currentSuggestions = [];
+        _suggestionRows.Clear();
+
+        if (_suggestionPopupEdit is not null && _suggestionPopupEdit.IsPopupOpen)
+        {
+            _suggestionPopupEdit.ClosePopup();
+        }
+
+        if (_suggestionPanel is not null)
+        {
+            _suggestionPanel.Visible = false;
+            _suggestionPanel.Height = 0;
+        }
+
+        if (_suggestionPopupEdit is not null)
+        {
+            _suggestionPopupEdit.EditValue = "0 suggestions";
+        }
+
+        if (_suggestionGrid is not null)
+        {
+            _suggestionGrid.DataSource = null;
+        }
+    }
+
+    /// <summary>
+    /// Fire-and-forget analytics write for one suggestion interaction. Never
+    /// awaited by callers and never allowed to surface an error - analytics
+    /// must not slow or break the cashier workflow.
+    /// </summary>
+    private void RecordSuggestionEvent(SuggestionEventKind kind, Guid orderId, Guid variantId, Guid? orderLineId = null, decimal quantity = 0m, decimal unitAmount = 0m)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _mediator.Send(new RecordSuggestionEventCommand(orderId, variantId, null, kind, orderLineId, quantity, unitAmount));
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                _logger?.LogError(ex, "Suggestion analytics write failed.");
+            }
+        });
+    }
+
+    /// <summary>Counts a variant as offered once per order (refreshes never double-count).</summary>
+    private void RecordOfferedSuggestions(Guid orderId, IReadOnlyList<BasketRecommendationDto> recommendations)
+    {
+        foreach (var recommendation in recommendations)
+        {
+            if (_recordedOfferedVariantIds.Add(recommendation.VariantId))
+            {
+                RecordSuggestionEvent(SuggestionEventKind.Offered, orderId, recommendation.VariantId);
+            }
+        }
+    }
+
+    /// <summary>Attributes the just-added suggested line to the suggestion interaction.</summary>
+    private void RecordAcceptedSuggestion(Guid orderId, Guid variantId)
+    {
+        var line = _currentOrderLines.FirstOrDefault(l => !l.IsVoided && l.ProductVariantId == variantId);
+        if (line is not null)
+        {
+            RecordSuggestionEvent(SuggestionEventKind.Accepted, orderId, variantId, line.OrderLineId, 1m, line.UnitPrice);
+            _recordedOfferedVariantIds.Remove(variantId);
+        }
+    }
+
+    // ---------- 2. Quick Orders strip ----------
+
+    private void BuildQuickOrdersStrip()
+    {
+        // Collapsible strip placed between the category bar and the product grid:
+        // collapsed it is a compact single toggle line; expanded it shows the toggle
+        // plus one deal button per active template in a clean horizontal strip.
+        _quickOrdersStrip = new Panel
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 2, 0, 4),
+            BackColor = Color.FromArgb(248, 250, 252),
+            Visible = false // shown once templates load (and permission allows)
+        };
+
+        var tlp = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            BackColor = Color.Transparent
+        };
+        var toggleWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(140, this);
+        tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, toggleWidth));
+        tlp.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _quickOrdersToggle = new SimpleButton
+        {
+            Text = "⚡ Quick Orders ▸",
+            Dock = DockStyle.Fill,
+            Width = toggleWidth,
+            Cursor = Cursors.Hand,
+            AllowFocus = false,
+            Margin = new Padding(0, 2, 8, 2),
+            Padding = new Padding(8, 0, 8, 0),
+            ButtonStyle = DevExpress.XtraEditors.Controls.BorderStyles.HotFlat
+        };
+        _quickOrdersToggle.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _quickOrdersToggle.Appearance.BackColor = Color.White;
+        _quickOrdersToggle.Appearance.ForeColor = Color.FromArgb(71, 85, 105);
+        _quickOrdersToggle.Appearance.BorderColor = Color.FromArgb(203, 213, 225);
+        _quickOrdersToggle.Appearance.Options.UseFont = true;
+        _quickOrdersToggle.Appearance.Options.UseBackColor = true;
+        _quickOrdersToggle.Appearance.Options.UseForeColor = true;
+        _quickOrdersToggle.Appearance.Options.UseBorderColor = true;
+        _quickOrdersToggle.Click += (_, _) => ToggleQuickOrdersStrip();
+
+        _quickOrdersFlowPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoScroll = true,
+            Margin = new Padding(0),
+            BackColor = Color.Transparent,
+            Visible = false
+        };
+
+        tlp.Controls.Add(_quickOrdersToggle, 0, 0);
+        tlp.Controls.Add(_quickOrdersFlowPanel, 1, 0);
+        _quickOrdersStrip.Controls.Add(tlp);
+
+        // Add to row 2 of _tlpCenterRows (directly below category bar, above product grid)
+        _tlpCenterRows.Controls.Add(_quickOrdersStrip, 0, 2);
+    }
+
+    private async void ToggleQuickOrdersStrip()
+    {
+        _quickOrdersExpanded = !_quickOrdersExpanded;
+        if (_quickOrdersExpanded) await ReloadQuickOrderTemplatesAsync();
+        ApplyQuickOrdersStripState();
+    }
+
+    private void ApplyQuickOrdersStripState()
+    {
+        if (_quickOrdersStrip is null)
+        {
+            return;
+        }
+
+        var isVisible = _quickOrdersStrip.Visible;
+        int rowHeight = 0;
+        if (isVisible)
+        {
+            rowHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(_quickOrdersExpanded ? 44 : 28, this);
+        }
+
+        if (_tlpCenterRows != null && _tlpCenterRows.RowStyles.Count > 2)
+        {
+            _tlpCenterRows.RowStyles[2].Height = rowHeight;
+            _tlpCenterRows.PerformLayout();
+        }
+
+        _quickOrdersToggle.Text = _quickOrdersExpanded ? "⚡ Quick Orders ▾" : "⚡ Quick Orders ▸";
+        _quickOrdersFlowPanel.Visible = _quickOrdersExpanded;
+        if (_moreQuickOrdersItem is not null)
+        {
+            _moreQuickOrdersItem.Checked = _quickOrdersExpanded;
+        }
+    }
+
+    private async Task ReloadQuickOrderTemplatesAsync()
+    {
+        if (!Permit("quickorders"))
+        {
+            _quickOrderTemplates = [];
+            _quickOrdersStrip.Visible = false;
+            ApplyQuickOrdersStripState();
+            return;
+        }
+
+        try
+        {
+            _quickOrderTemplates = [.. await _mediator.Send(new ListActiveQuickOrderTemplatesQuery(_currentOrder?.WarehouseId ?? _warehousePicker.SelectedId))];
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Quick order templates failed to load.");
+            _quickOrderTemplates = [];
+        }
+
+        RebuildQuickOrderButtons();
+    }
+
+    private void RebuildQuickOrderButtons()
+    {
+        if (_quickOrdersFlowPanel is null)
+        {
+            return;
+        }
+
+        _quickOrdersFlowPanel.SuspendLayout();
+        foreach (Control old in _quickOrdersFlowPanel.Controls)
+        {
+            old.Dispose();
+        }
+        _quickOrdersFlowPanel.Controls.Clear();
+
+        foreach (var template in _quickOrderTemplates)
+        {
+            var captured = template;
+            var button = new SimpleButton
+            {
+                Text = $"{template.Name} · {CurrencyDisplay.FormatPlain(template.TotalPrice)}",
+                AutoSize = true,
+                Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this),
+                Cursor = Cursors.Hand,
+                AllowFocus = false,
+                Margin = new Padding(2, 2, 6, 2),
+                Padding = new Padding(10, 0, 10, 0),
+                ToolTip = template.Description is { Length: > 0 } d ? d : $"{template.Items.Count} item(s) - click to preview",
+                ButtonStyle = DevExpress.XtraEditors.Controls.BorderStyles.HotFlat
+            };
+            button.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            button.Appearance.BackColor = Color.White;
+            button.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
+            button.Appearance.BorderColor = Color.FromArgb(203, 213, 225);
+            button.Appearance.Options.UseFont = true;
+            button.Appearance.Options.UseBackColor = true;
+            button.Appearance.Options.UseForeColor = true;
+            button.Appearance.Options.UseBorderColor = true;
+            // Clicking a deal previews its real configured contents first; the
+            // deal is only added to the order when the cashier confirms in the
+            // preview (Preview → Add Deal). Nothing is added on the first click.
+            button.Click += async (_, _) =>
+            {
+                using var preview = new QuickOrderPreviewDialog(
+                    captured,
+                    this,
+                    () => _currentOrder is not null && _currentOrder.Status is ("Open" or "Held"),
+                    async () => await _mediator.Send(new ListAllTablesQuery()));
+
+                if (preview.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                await HandleQuickOrderAddAsync(captured, preview.StartMode, preview.SelectedTableId);
+            };
+            _quickOrdersFlowPanel.Controls.Add(button);
+        }
+
+        _quickOrdersFlowPanel.ResumeLayout(true);
+
+        var permitted = Permit("quickorders");
+        _quickOrdersStrip.Visible = permitted && _quickOrderTemplates.Count > 0;
+        _moreQuickOrdersItem.Visible = permitted;
+        _moreQuickOrdersItem.Checked = _quickOrdersExpanded;
+        ApplyQuickOrdersStripState();
+    }
+
+    private bool _isApplyingQuickOrder;
+
+    private async Task HandleQuickOrderAddAsync(QuickOrderTemplateDto template, StartOrderChoice startMode, Guid? selectedTableId)
+    {
+        if (template.WarehouseId is { } scopeWarehouse && scopeWarehouse != (_currentOrder?.WarehouseId ?? _warehousePicker.SelectedId))
+        {
+            XtraMessageBox.Show(this, "This deal belongs to a different location. Refresh Quick Orders.", "Location changed");
+            return;
+        }
+        if (_isApplyingQuickOrder) return;
+        _isApplyingQuickOrder = true;
+
+        Guid? newlyCreatedOrderId = null;
+        try
+        {
+            if (_currentOrder is null || _currentOrder.Status is not ("Open" or "Held"))
+            {
+                var warehouseId = _warehousePicker.SelectedId;
+                if (warehouseId is null)
+                {
+                    var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+                    if (warehouses.Count > 0)
+                    {
+                        warehouseId = warehouses.First().WarehouseId;
+                        _warehousePicker.SelectId(warehouseId);
+                    }
+                }
+
+                if (warehouseId is not { } effectiveWarehouseId)
+                {
+                    XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (startMode == StartOrderChoice.TakeAway)
+                {
+                    var order = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, effectiveWarehouseId));
+                    if (_defaultCustomerId is { } defaultCustId)
+                    {
+                        order = await _mediator.Send(new SetOrderCustomerCommand(order.OrderId, defaultCustId));
+                    }
+                    _currentOrder = order;
+                    _currentOrderLines = [];
+                    newlyCreatedOrderId = order.OrderId;
+                    _hasUnsavedEdits = true;
+                    await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Take Away)");
+                }
+                else if (startMode == StartOrderChoice.DineIn)
+                {
+                    if (selectedTableId is not { } tableId)
+                    {
+                        return;
+                    }
+
+                    void SelectTable() => _tablePicker.SelectId(tableId);
+                    if (InvokeRequired) Invoke(SelectTable); else SelectTable();
+                    var order = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, effectiveWarehouseId, tableId));
+                    if (_defaultCustomerId is { } defaultCustId)
+                    {
+                        order = await _mediator.Send(new SetOrderCustomerCommand(order.OrderId, defaultCustId));
+                    }
+                    _currentOrder = order;
+                    _currentOrderLines = [];
+                    newlyCreatedOrderId = order.OrderId;
+                    _hasUnsavedEdits = true;
+                    await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Dine-In)");
+                }
+                else
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                await _orderMutationLock.WaitAsync();
+                try
+                {
+                    foreach (var item in template.Items)
+                    {
+                        await AddProductToCurrentOrderCoreAsync(item.VariantId, item.Quantity, item.UnitPrice);
+                    }
+                }
+                finally
+                {
+                    _orderMutationLock.Release();
+                }
+
+                await LogActivityAsync("Quick Order", $"{template.Name} ({template.Items.Count} items)");
+                await RefreshOrderAsync();
+                await RefreshActiveOrdersAsync();
+                ScheduleSuggestionRefresh(forced: true);
+            }
+            catch (Exception ex)
+            {
+                var qaDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "qa", "quick_orders_deals_live");
+                var tracePath = Path.Combine(qaDir, "qa_trace.log");
+                try { File.AppendAllText(tracePath, $"[HANDLE_QUICK_ORDER_EXCEPTION] {ex}\r\n"); } catch { }
+                _logger.LogError(ex, "Failed to apply quick order '{TemplateName}'.", template.Name);
+                if (newlyCreatedOrderId is { } rollbackId)
+                {
+                    try
+                    {
+                        await _mediator.Send(new CancelOrderCommand(rollbackId, "Failed to apply quick order items"));
+                    }
+                    catch (Exception rbEx)
+                    {
+                        _logger.LogError(rbEx, "Failed to cancel order {OrderId} during rollback.", rollbackId);
+                    }
+                    _currentOrder = null;
+                    void ResetTablePicker() => _tablePicker.SelectId(null);
+                    if (InvokeRequired) Invoke(ResetTablePicker); else ResetTablePicker();
+                    await ReloadTablesAsync();
+                    await RefreshOrderAsync();
+                    await RefreshActiveOrdersAsync();
+                }
+                throw;
+            }
+        }
+        finally
+        {
+            _isApplyingQuickOrder = false;
+        }
+    }
+
+    private async Task ApplyQuickOrderTemplateAsync(QuickOrderTemplateDto template)
+    {
+        if (_currentOrder is null || _currentOrder.Status is not ("Open" or "Held"))
+        {
+            using var choiceDialog = new StartOrderChoiceDialog(this);
+            if (choiceDialog.ShowDialog(this) != DialogResult.OK || choiceDialog.Choice == StartOrderChoice.Cancel)
+            {
+                return;
+            }
+
+            if (choiceDialog.Choice == StartOrderChoice.TakeAway)
+            {
+                await HandleQuickOrderAddAsync(template, StartOrderChoice.TakeAway, null);
+                return;
+            }
+
+            if (choiceDialog.Choice == StartOrderChoice.DineIn)
+            {
+                var tables = await _mediator.Send(new ListAllTablesQuery());
+                using var tableDialog = new SelectTableDialog(tables, this);
+                if (tableDialog.ShowDialog(this) != DialogResult.OK || tableDialog.SelectedTableId == null)
+                {
+                    return;
+                }
+
+                await HandleQuickOrderAddAsync(template, StartOrderChoice.DineIn, tableDialog.SelectedTableId);
+                return;
+            }
+
+            return;
+        }
+
+        await HandleQuickOrderAddAsync(template, StartOrderChoice.Cancel, null);
+    }
+
+    // ---------- 3. Order health on the Active Orders rail ----------
+
+    private void BuildOrderHealthTimer()
+    {
+        var (green, orange) = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadOrderHealthThresholds();
+        _orderHealthThresholds = new OrderHealthThresholds { GreenMinutes = green, OrangeMinutes = orange };
+
+        _orderHealthTimer = new System.Windows.Forms.Timer { Interval = 30_000 };
+        _orderHealthTimer.Tick += (_, _) => TickOrderHealth();
+    }
+
+    private static string OrderHealthGlyph(OrderHealthStatus status) => status switch
+    {
+        OrderHealthStatus.Green => "🟢",
+        OrderHealthStatus.Orange => "🟠",
+        _ => "🔴"
+    };
+
+    /// <summary>The second line of an Active Orders card, including the health pill for live orders.</summary>
+    private string FormatSidebarCardLine2(OrderDto order)
+    {
+        var itemCount = order.OrderLineIds.Count;
+
+        if (order.Status is "Open" or "Held")
+        {
+            try
+            {
+                var health = OrderHealthEvaluator.Evaluate(DateTimeOffset.UtcNow - order.CreatedAtUtc, _orderHealthThresholds);
+                return $"{itemCount} items · {OrderHealthGlyph(health.Status)} {health.DisplayText}";
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Invalid persisted thresholds: fall through to the plain age.
+            }
+        }
+
+        return $"{itemCount} items · {RelativeAge(order.CreatedAtUtc)}";
+    }
+
+    private void RegisterOrderHealthCard(OrderDto order, LabelControl statusLabel)
+    {
+        if (order.Status is "Open" or "Held")
+        {
+            _orderHealthCards[order.OrderId] = new OrderHealthCardState(statusLabel, order.CreatedAtUtc, IsLive: true);
+        }
+        else
+        {
+            _orderHealthCards.Remove(order.OrderId);
+        }
+    }
+
+    private void SyncOrderHealthTimer()
+    {
+        if (_orderHealthTimer is null)
+        {
+            return;
+        }
+
+        if (_orderHealthCards.Count == 0)
+        {
+            _orderHealthTimer.Stop();
+            return;
+        }
+
+        if (Visible && !_orderHealthTimer.Enabled)
+        {
+            _orderHealthTimer.Start();
+        }
+        else if (!Visible)
+        {
+            _orderHealthTimer.Stop();
+        }
+    }
+
+    /// <summary>Timer tick: label text updates only - no queries, no control creation.</summary>
+    private void TickOrderHealth()
+    {
+        try
+        {
+            if (IsDisposed || !Visible)
+            {
+                _orderHealthTimer?.Stop();
+                return;
+            }
+
+            foreach (var state in _orderHealthCards.Values)
+            {
+                if (!state.IsLive || state.StatusLabel.IsDisposed)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var health = OrderHealthEvaluator.Evaluate(DateTimeOffset.UtcNow - state.CreatedAtUtc, _orderHealthThresholds);
+                    state.StatusLabel.Text = ReplaceHealthSegment(state.StatusLabel.Text, health);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // Bad thresholds: leave the text alone rather than crash.
+                }
+            }
+
+            SyncOrderHealthTimer();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Order health tick failed.");
+            _orderHealthTimer?.Stop();
+        }
+    }
+
+    private static string ReplaceHealthSegment(string currentText, OrderHealthResult health)
+    {
+        // Card line 2 looks like "3 items · 🟢 Waiting 4 min"; replace from
+        // the first emoji/age marker onward, preserving the item count.
+        var separator = currentText.IndexOf("·", StringComparison.Ordinal);
+        var prefix = separator >= 0 ? currentText[..(separator + 1)] : string.Empty;
+        return $"{prefix} {OrderHealthGlyph(health.Status)} {health.DisplayText}";
+    }
+
+    // ---------- 4. Rush mode ----------
+
+    private void BuildRushModeBadge()
+    {
+        _rushModeBadge = new LabelControl
+        {
+            Text = "⚡ RUSH MODE ON",
+            Dock = DockStyle.Fill,
+            AutoSizeMode = LabelAutoSizeMode.None,
+            Margin = new Padding(4, 8, 4, 8),
+            Visible = false
+        };
+        _rushModeBadge.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _rushModeBadge.Appearance.ForeColor = Color.White;
+        _rushModeBadge.Appearance.BackColor = Color.FromArgb(220, 38, 38);
+        _rushModeBadge.Appearance.Options.UseFont = true;
+        _rushModeBadge.Appearance.Options.UseForeColor = true;
+        _rushModeBadge.Appearance.Options.UseBackColor = true;
+        _rushModeBadge.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        _rushModeBadge.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _rushModeBadge.Appearance.Options.UseTextOptions = true;
+
+        if (_headerTable is { } header)
+        {
+            header.Controls.Add(_rushModeBadge, header.ColumnCount, 0);
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        }
+    }
+
+    private void ApplyRushMode(object? sender, EventArgs e)
+    {
+        try
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveRushModeEnabled(RushMode.Enabled);
+            _rushModeBadge.Visible = RushMode.Enabled;
+            if (_moreRushModeItem is not null)
+            {
+                _moreRushModeItem.Checked = RushMode.Enabled;
+            }
+
+            if (RushMode.Enabled)
+            {
+                // Kill any in-flight collapse animation and snap to the target.
+                _sidebarAnimationTimer?.Stop();
+                if (_activeOrdersExpanded)
+                {
+                    ApplyActiveOrdersState();
+                }
+
+                HideSuggestionContent();
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Failed to apply Rush Mode visuals.");
+        }
+    }
+
+    private void ToggleRushMode()
+    {
+        RushMode.Enabled = !RushMode.Enabled;
+    }
+
+    // ---------- 5. Universal smart search ----------
+
+    private void ScheduleUniversalSearch()
+    {
+        if (_productSearchEdit is null || IsDisposed)
+        {
+            return;
+        }
+
+        var term = _productSearchEdit.Text?.Trim() ?? string.Empty;
+        if (term.Length < 2 || !Permit("smartinsights"))
+        {
+            CloseUniversalSearchDropdown();
+            return;
+        }
+
+        _universalSearchCts?.Cancel();
+        _universalSearchCts?.Dispose();
+        _universalSearchCts = new CancellationTokenSource();
+        var ct = _universalSearchCts.Token;
+
+        _ = RunUniversalSearchAsync(term, ct);
+    }
+
+    private async Task RunUniversalSearchAsync(string term, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(350, ct); // debounce keystrokes
+
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (_universalSearchCache.TryGet(term, out var cached) && cached is not null)
+            {
+                ShowUniversalSearchResults(cached);
+                return;
+            }
+
+            var results = await _mediator.Send(new UniversalPosSearchQuery(term, 4), ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _universalSearchCache.Set(term, results);
+            ShowUniversalSearchResults(results);
+        }
+        catch (OperationCanceledException)
+        {
+            // Stale query - fine.
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Universal POS search failed for term '{Term}'.", term);
+        }
+    }
+
+    private void ShowUniversalSearchResults(UniversalPosSearchResultsDto results)
+    {
+        if (_searchDropdown is null || _searchDropdown.IsDisposed)
+        {
+            _searchDropdown = new UniversalSearchDropdown();
+            _searchDropdown.ItemInvoked += UniversalSearchItem_Invoked;
+        }
+
+        if (!_searchDropdown.SetResults(results))
+        {
+            _searchDropdown.Hide();
+            return;
+        }
+
+        var origin = _productSearchEdit.PointToScreen(new Point(0, _productSearchEdit.Height));
+        _searchDropdown.Location = origin;
+        _searchDropdown.Show(this);
+        // Keep typing in the search box - the dropdown is pointer/keyboard-driven.
+        _productSearchEdit.Focus();
+    }
+
+    private void CloseUniversalSearchDropdown()
+    {
+        _universalSearchCts?.Cancel();
+        if (_searchDropdown is { } dropdown && dropdown.Visible)
+        {
+            dropdown.Hide();
+        }
+    }
+
+    private void ProductSearchEdit_SmartKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_searchDropdown is not { Visible: true })
+        {
+            return;
+        }
+
+        switch (e.KeyCode)
+        {
+            case Keys.Down:
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                _searchDropdown.MoveSelection(1);
+                break;
+            case Keys.Up:
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                _searchDropdown.MoveSelection(-1);
+                break;
+            case Keys.Enter:
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                _searchDropdown.InvokeSelected();
+                break;
+            case Keys.Escape:
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                _searchDropdown.Hide();
+                break;
+        }
+    }
+
+    private async void UniversalSearchItem_Invoked(UniversalSearchItem item)
+    {
+        try
+        {
+            CloseUniversalSearchDropdown();
+            _productSearchEdit.Text = string.Empty; // triggers EditValueChanged -> ApplyProductFilter + close
+
+            switch (item.Kind)
+            {
+                case UniversalSearchItemKind.Product:
+                    if (_currentOrder is null || _currentOrder.Status is not ("Open" or "Held"))
+                    {
+                        XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+
+                    await TryRunAsync(() => AddProductToCurrentOrder(item.Id, 1), "add the searched item");
+                    break;
+
+                case UniversalSearchItemKind.Customer:
+                    SetSelectedCustomerId(item.Id);
+                    if (_currentOrder is { } order && order.Status is "Open" or "Held" && order.CustomerId != item.Id)
+                    {
+                        await TryRunAsync(
+                            () => RunOrderActionAsync(new SetOrderCustomerCommand(order.OrderId, item.Id)),
+                            "set the order's customer");
+                    }
+                    break;
+
+                case UniversalSearchItemKind.Order:
+                    await OpenSearchedOrderAsync(item);
+                    break;
+
+                case UniversalSearchItemKind.Table:
+                    await OpenSearchedTableAsync(item);
+                    break;
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Universal search action failed for {Kind} {Id}.", item.Kind, item.Id);
+        }
+    }
+
+    private async Task OpenSearchedOrderAsync(UniversalSearchItem item)
+    {
+        var fresh = await _mediator.Send(new GetOrderByIdQuery(item.Id));
+        if (fresh is null)
+        {
+            XtraMessageBox.Show(this, "This order is no longer available.", "Order Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (fresh.Status is "Open" or "Held")
+        {
+            // Same path the Active Orders rail uses (handles hold/resume conflicts).
+            await TryRunAsync(() => LoadOrderFromRailAsync(fresh), "open this order");
+            return;
+        }
+
+        var totals = await _mediator.Send(new GetOrderSummaryQuery(fresh.OrderId));
+        XtraMessageBox.Show(this,
+            $"Order {fresh.OrderNumber} is {fresh.Status}.\nTotal: {CurrencyDisplay.FormatPlain(totals.GrandTotal)}\nPaid: {CurrencyDisplay.FormatPlain(totals.PaidTotal)}",
+            "Order", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private async Task OpenSearchedTableAsync(UniversalSearchItem item)
+    {
+        var openOrders = (await _mediator.Send(new ListOpenOrdersQuery()))
+            .Concat(await _mediator.Send(new ListHeldOrdersQuery()))
+            .Where(o => o.TableId == item.Id)
+            .ToList();
+
+        if (openOrders.Count > 0)
+        {
+            await TryRunAsync(() => LoadOrderFromRailAsync(openOrders[0]), "open this table's order");
+            return;
+        }
+
+        if (_currentOrder is { OrderType: "DineIn", Status: "Open" or "Held" })
+        {
+            // Existing table-picker set logic (moves/creates through OnTableSelectedAsync).
+            _tablePicker.SelectId(item.Id);
+            return;
+        }
+
+        XtraMessageBox.Show(this,
+            $"Table '{item.Title}' has no open order. Start a dine-in order and select the table from the picker.",
+            "Table", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    // ---------- 6. One-click customer reorder ----------
+
+    private Guid? SelectedCustomerIdOrNull()
+    {
+        if (_customerPicker?.EditValue is Guid guid && guid != Guid.Empty)
+        {
+            return guid;
+        }
+
+        return _currentOrder?.CustomerId;
+    }
+
+    private async void MoreRepeatLastOrder_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (SelectedCustomerIdOrNull() is not { } customerId)
+            {
+                XtraMessageBox.Show(this, "Select a customer on the order first.", "Repeat Last Order", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (_currentOrder is null || _currentOrder.Status is not ("Open" or "Held"))
+            {
+                XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using var dialog = new CustomerReorderDialog(_mediator, _logger, customerId);
+            if (dialog.ShowDialog(this) != DialogResult.OK || dialog.SelectedLines.Count == 0)
+            {
+                return;
+            }
+
+            if (_currentOrderLines.Count > 0)
+            {
+                var confirm = XtraMessageBox.Show(this,
+                    $"The cart already has {_currentOrderLines.Count} item(s). Add the {dialog.SelectedLines.Count} item(s) from the last order on top?",
+                    "Repeat Last Order",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+                if (confirm != DialogResult.Yes)
+                {
+                    return;
+                }
+            }
+
+            var unavailable = dialog.UnavailableCount;
+            await TryRunAsync(async () =>
+            {
+                foreach (var line in dialog.SelectedLines.Where(l => l.IsAvailable))
+                {
+                    await AddProductToCurrentOrder(line.VariantId, line.Quantity);
+                }
+
+                await LogActivityAsync("Repeat Last Order", $"{dialog.SelectedLines.Count} item(s) re-added");
+            }, "repeat the last order");
+
+            if (unavailable > 0)
+            {
+                XtraMessageBox.Show(this,
+                    $"{unavailable} item(s) were unavailable and were skipped.",
+                    "Repeat Last Order", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Repeat Last Order failed.");
+        }
+    }
+
+    private void MoreCustomerInsights_Click(object? sender, EventArgs e)
+    {
+        if (SelectedCustomerIdOrNull() is not { } customerId)
+        {
+            XtraMessageBox.Show(this, "Select a customer on the order first.", "Customer Order Insights", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new CustomerInsightsDialog(_mediator, _logger, customerId);
+        dialog.ShowDialog(this);
+    }
+
+    // ---------- 7. Restaurant Pulse ----------
+
+    private void MoreRestaurantPulse_Click(object? sender, EventArgs e)
+    {
+        var pulse = new RestaurantPulseForm(_mediator, _logger);
+        pulse.Show(this);
+    }
+
+    // ---------- 8. Smart More-menu entries + permissions ----------
+
+    private void BuildSmartMoreMenuItems()
+    {
+        _moreMenuSmartSeparator = new ToolStripSeparator();
+
+        _moreQuickOrdersItem = new ToolStripMenuItem("⚡ Quick Orders");
+        _moreQuickOrdersItem.Click += (_, _) =>
+        {
+            _quickOrdersStrip.Visible = _quickOrderTemplates.Count > 0 && Permit("quickorders");
+            ToggleQuickOrdersStrip();
+        };
+
+        _moreShowSuggestionsItem = new ToolStripMenuItem("💡 Suggestions");
+        _moreShowSuggestionsItem.Click += (_, _) => ScheduleSuggestionRefresh(forced: true);
+
+        _moreRepeatLastOrderItem = new ToolStripMenuItem("🔁 Repeat Last Order");
+        _moreRepeatLastOrderItem.Click += MoreRepeatLastOrder_Click;
+
+        _moreCustomerInsightsItem = new ToolStripMenuItem("📊 Customer Order Insights…");
+        _moreCustomerInsightsItem.Click += MoreCustomerInsights_Click;
+
+        _moreRestaurantPulseItem = new ToolStripMenuItem("📈 Restaurant Pulse");
+        _moreRestaurantPulseItem.Click += MoreRestaurantPulse_Click;
+
+        _moreRushModeItem = new ToolStripMenuItem("⚡ Rush Mode");
+        _moreRushModeItem.Click += (_, _) => ToggleRushMode();
+
+        _moreActionsMenu.Items.AddRange(new ToolStripItem[]
+        {
+            _moreMenuSmartSeparator,
+            _moreQuickOrdersItem,
+            _moreShowSuggestionsItem,
+            _moreRepeatLastOrderItem,
+            _moreCustomerInsightsItem,
+            _moreRestaurantPulseItem,
+            _moreRushModeItem
+        });
+    }
+
+    /// <summary>Hides smart menu entries the current user has no permission for. Never throws.</summary>
+    private void ApplySmartFeaturePermissions()
+    {
+        try
+        {
+            var smartInsights = Permit("smartinsights");
+            var quickOrders = Permit("quickorders");
+            var pulse = Permit("restaurantpulse");
+            var rush = Permit("rushmode");
+
+            _moreQuickOrdersItem.Visible = quickOrders;
+            _moreShowSuggestionsItem.Visible = smartInsights;
+            _moreRepeatLastOrderItem.Visible = smartInsights;
+            _moreCustomerInsightsItem.Visible = smartInsights;
+            _moreRestaurantPulseItem.Visible = pulse;
+            _moreRushModeItem.Visible = rush;
+            _moreMenuSmartSeparator.Visible = smartInsights || quickOrders || pulse || rush;
+
+            if (!quickOrders && _quickOrdersStrip != null)
+            {
+                _quickOrdersStrip.Visible = false;
+                ApplyQuickOrdersStripState();
+            }
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Failed to apply smart feature permissions.");
+        }
+    }
 }
+
+
 

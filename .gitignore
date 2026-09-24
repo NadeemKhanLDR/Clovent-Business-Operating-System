@@ -34,3 +34,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Temporary upload and crash-dump files
+.tmp.driveupload/
+*.dmp

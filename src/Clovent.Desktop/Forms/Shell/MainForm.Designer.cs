@@ -78,6 +78,10 @@ public sealed partial class MainForm
         ("paymentmethods", "Restaurant", "Setup", "Payment Methods"),
         ("activitylog", "Restaurant", "Closing", "Activity Log"),
         ("shifts", "Restaurant", "Closing", "Shift History"),
+        ("quickordertemplates", "Restaurant", "Smart POS", "Quick Order Templates"),
+        ("smartcombos", "Restaurant", "Smart POS", "Smart Combo Builder"),
+        ("recommendationrules", "Restaurant", "Smart POS", "Recommendation Rules"),
+        ("upsellperformance", "Restaurant", "Smart POS", "Upsell Performance"),
         ("appearance", "Restaurant", "Setup", "Appearance"),
     ];
 
@@ -100,6 +104,10 @@ public sealed partial class MainForm
 
     private readonly BarStaticItem _statusLabel = new() { Caption = "Ready" };
     private readonly BarStaticItem _userStatusItem = new();
+    private readonly BarStaticItem _attendanceStatusItem = new();
+    private readonly BarButtonItem _punchInOutButton = new();
+    private readonly BarButtonItem _profilePunchInItem = new();
+    private readonly BarButtonItem _profilePunchOutItem = new();
     private readonly BarButtonItem _notificationsButton = new();
     private readonly BarSubItem _profileMenu = new();
     private readonly BarSubItem _recentCompaniesMenu = new() { Caption = "Recent Companies" };
@@ -200,16 +208,32 @@ public sealed partial class MainForm
         _homeRibbonPage.Groups.Add(sessionGroup);
 
         _profileMenu.Caption = _currentSession?.DisplayName ?? "Account";
+        _profilePunchInItem.Caption = "Punch In";
+        _profilePunchInItem.ItemClick += ProfilePunchInItem_ItemClick;
+        _profilePunchOutItem.Caption = "Punch Out";
+        _profilePunchOutItem.ItemClick += ProfilePunchOutItem_ItemClick;
         var changePasswordItem = new BarButtonItem { Caption = "Change Password" };
         changePasswordItem.ItemClick += ChangePasswordItem_ItemClick;
         var signOutItem = new BarButtonItem { Caption = "Sign Out" };
         signOutItem.ItemClick += SignOutItem_ItemClick;
+
+        _punchInOutButton.Caption = "Punch In";
+        _punchInOutButton.ItemClick += PunchInOutButton_ItemClick;
+
         _ribbon.Items.Add(_profileMenu);
+        _ribbon.Items.Add(_profilePunchInItem);
+        _ribbon.Items.Add(_profilePunchOutItem);
         _ribbon.Items.Add(changePasswordItem);
         _ribbon.Items.Add(signOutItem);
+        _ribbon.Items.Add(_punchInOutButton);
+
+        _profileMenu.AddItem(_profilePunchInItem);
+        _profileMenu.AddItem(_profilePunchOutItem);
         _profileMenu.AddItem(changePasswordItem);
         _profileMenu.AddItem(signOutItem);
+
         sessionGroup.ItemLinks.Add(_profileMenu);
+        sessionGroup.ItemLinks.Add(_punchInOutButton);
 
         var recentGroup = new RibbonPageGroup("Recent");
         _homeRibbonPage.Groups.Add(recentGroup);
@@ -246,7 +270,10 @@ public sealed partial class MainForm
     private void BuildStatusBar()
     {
         _userStatusItem.Caption = _currentSession?.DisplayName is { } name ? $"Signed in as {name}" : "Not signed in";
+        _attendanceStatusItem.Caption = "○ Not Punched In";
+        _attendanceStatusItem.ItemClick += AttendanceStatusItem_ItemClick;
         StatusBar.ItemLinks.Add(_userStatusItem);
+        StatusBar.ItemLinks.Add(_attendanceStatusItem);
         StatusBar.ItemLinks.Add(_statusLabel);
     }
 
@@ -271,3 +298,4 @@ public sealed partial class MainForm
         _documentManager.ViewCollection.AddRange([_tabbedView]);
     }
 }
+

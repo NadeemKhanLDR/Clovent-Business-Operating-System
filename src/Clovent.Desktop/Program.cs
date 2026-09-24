@@ -37,6 +37,7 @@ using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
+using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
 using Clovent.Desktop.Startup;
 using Clovent.Platform;
@@ -52,6 +53,19 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+
+        try
+        {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        }
+        catch (InvalidOperationException)
+        {
+        }
+
+        if (SynchronizationContext.Current is not WindowsFormsSynchronizationContext)
+        {
+            SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+        }
 
         var splash = new SplashScreenService();
         splash.Show("Clovent Business Operating System", "Starting...");
@@ -200,6 +214,13 @@ internal static class Program
             navigationService.Register("kitchentickets", () => host.Services.GetRequiredService<KitchenTicketViewerView>());
             navigationService.Register("customers", () => host.Services.GetRequiredService<CustomersView>());
 
+            // CBOS Smart Restaurant POS: back-office configuration for the
+            // quick-order bar and basket recommendations.
+            navigationService.Register("recommendationrules", () => host.Services.GetRequiredService<RecommendationRulesView>());
+            navigationService.Register("smartcombos", () => host.Services.GetRequiredService<SmartComboBuilderView>());
+            navigationService.Register("quickordertemplates", () => host.Services.GetRequiredService<QuickOrderTemplatesView>());
+            navigationService.Register("upsellperformance", () => host.Services.GetRequiredService<UpsellPerformanceView>());
+
             // End-of-Day reporting gap-closing pass.
             navigationService.Register("endofday", () => host.Services.GetRequiredService<EndOfDayReportView>());
 
@@ -234,7 +255,11 @@ internal static class Program
                 splash.SetDescription("Loading sign-in...");
                 var loginForm = host.Services.GetRequiredService<LoginForm>();
                 splash.Close();
-                Application.Run(loginForm);
+                var dialogResult = loginForm.ShowDialog();
+                if (dialogResult != DialogResult.OK || string.IsNullOrWhiteSpace(loginForm.SelectedModuleKey))
+                {
+                    return;
+                }
                 selectedModule = loginForm.SelectedModuleKey;
             }
             else
@@ -250,21 +275,52 @@ internal static class Program
                 System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = culture;
             }
 
-            switch (selectedModule)
+            if (selectedModule is not null)
             {
-                case "pos":
-                    var posForm = host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Orders.RestaurantPosForm>();
-                    Application.Run(posForm);
-                    break;
+                if (SynchronizationContext.Current is not WindowsFormsSynchronizationContext)
+                {
+                    SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+                }
 
-                case "backoffice":
-                    var shell = host.Services.GetRequiredService<MainForm>();
-                    navigationService.NavigateTo("dashboard", "Dashboard");
-                    Application.Run(shell);
-                    break;
+                var navigator = host.Services.GetRequiredService<IApplicationModeNavigator>();
+                if (SynchronizationContext.Current is not null)
+                {
+                    navigator.SetUiSynchronizationContext(SynchronizationContext.Current);
+                }
+                var targetModule = selectedModule;
 
-                default:
-                    break;
+                SynchronizationContext.Current?.Post(async _ =>
+                {
+                    try
+                    {
+                        if (string.Equals(targetModule, "pos", StringComparison.OrdinalIgnoreCase))
+                        {
+                            using var scope = host.Services.CreateScope();
+                            var gate = scope.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.IPosEntryGateCoordinator>();
+                            var opened = gate != null && await gate.EnsureShiftAndOpenPosAsync().ConfigureAwait(false);
+                            if (!opened)
+                            {
+                                await navigator.OpenBackOfficeAsync().ConfigureAwait(false);
+                            }
+                        }
+                        else
+                        {
+                            await navigator.OpenBackOfficeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        var logger = host.Services.GetService<ILoggerFactory>()?.CreateLogger("Program");
+                        logger?.LogError(ex, "Initial startup navigation failed.");
+                        MessageBox.Show(
+                            $"Clovent Business Operating System encountered an error during navigation:\n\n{ex.Message}",
+                            "Navigation Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
+                }, null);
+
+                Application.Run(navigator.ApplicationContext);
             }
         }
         catch (Exception ex)
@@ -278,3 +334,4 @@ internal static class Program
         }
     }
 }
+

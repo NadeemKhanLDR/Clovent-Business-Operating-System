@@ -21,6 +21,7 @@ internal sealed class FakeCustomerRepository : ICustomerRepository
     private readonly Dictionary<CustomerId, Customer> _customers = [];
     private readonly Dictionary<CustomerId, decimal> _persistedBalances = [];
     private readonly Dictionary<CustomerId, bool> _persistedStatuses = [];
+    private readonly Dictionary<CustomerId, bool> _persistedDefaults = [];
 
     /// <summary>How many times a caller persisted the whole aggregate.</summary>
     public int FullUpdateCount { get; private set; }
@@ -38,6 +39,9 @@ internal sealed class FakeCustomerRepository : ICustomerRepository
 
     /// <summary>Reads the stored row's status back.</summary>
     public bool GetPersistedStatus(CustomerId id) => _persistedStatuses[id];
+
+    /// <summary>Reads the stored row's default flag back.</summary>
+    public bool GetPersistedDefault(CustomerId id) => _persistedDefaults[id];
 
     public Task<Customer?> GetByIdAsync(CustomerId id, CancellationToken cancellationToken = default) =>
         Task.FromResult(Fresh(_customers.GetValueOrDefault(id)));
@@ -66,6 +70,7 @@ internal sealed class FakeCustomerRepository : ICustomerRepository
         StatusUpdateCount++;
         _customers[customer.Id] = customer;
         _persistedStatuses[customer.Id] = customer.IsActive;
+        _persistedDefaults[customer.Id] = customer.IsDefault;
         // Pointedly does not write _persistedBalances: the real repository's
         // UPDATE names only the status columns, so the row's balance survives
         // whatever the aggregate instance is carrying.
@@ -77,6 +82,7 @@ internal sealed class FakeCustomerRepository : ICustomerRepository
         _customers[customer.Id] = customer;
         _persistedBalances[customer.Id] = customer.OutstandingBalance;
         _persistedStatuses[customer.Id] = customer.IsActive;
+        _persistedDefaults[customer.Id] = customer.IsDefault;
     }
 
     /// <summary>Mirrors the real repository re-reading a tracked aggregate, so a caller sees the row rather than a value loaded earlier.</summary>
@@ -89,6 +95,10 @@ internal sealed class FakeCustomerRepository : ICustomerRepository
 
         customer.AdjustBalance(_persistedBalances[customer.Id] - customer.OutstandingBalance);
         customer.SetStatus(_persistedStatuses[customer.Id]);
+        if (_persistedDefaults.TryGetValue(customer.Id, out var isDef))
+        {
+            customer.SetDefault(isDef);
+        }
         return customer;
     }
 }

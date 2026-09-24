@@ -82,11 +82,19 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Shift management & register balancing
         "shifts",
+
+        // Employee attendance
+        "attendance",
+
+        // CBOS Smart Restaurant POS back-office configuration screens.
+        "recommendationrules",
+        "smartcombos", "quickordertemplates",
+        "upsellperformance",
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
     [
-        ("users", ["create", "edit", "activate", "deactivate", "resetpassword", "unlock", "assignrole", "assigncompany", "assignbranch"]),
+        ("users", ["create", "edit", "activate", "deactivate", "resetpassword", "setpin", "unlock", "assignrole", "assigncompany", "assignbranch"]),
         ("roles", ["create", "edit", "assignpermission"]),
         ("organizations", ["create", "edit", "activate", "deactivate"]),
         ("companies", ["create", "edit", "activate", "deactivate"]),
@@ -116,11 +124,12 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         ("tables", ["create", "edit", "activate", "deactivate", "occupy", "vacate", "reserve", "outofservice", "returntoservice"]),
         ("pos", ["create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
             "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
-            "priceoverride", "creditsale", "exceedcreditlimit"]),
+            "priceoverride", "creditsale", "exceedcreditlimit",
+            "smartinsights", "quickorders", "restaurantpulse", "rushmode", "printlastreceipt"]),
         ("kitchentickets", ["start", "markready", "serve", "cancel"]),
 
-        // End-of-Day reporting gap-closing pass.
-        ("endofday", ["view"]),
+        // End-of-Day reporting & Day Close.
+        ("endofday", ["view", "close"]),
 
         // Restaurant UX refinement: Menu Items (a presentation layer over Catalog).
         ("menuitems", ["create", "edit", "activate", "deactivate", "createcategory"]),
@@ -143,27 +152,30 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Shift management & register balancing
         ("shifts", ["open", "close", "cashmovement", "history", "viewdetails", "overridevariance"]),
+
+        // Employee attendance
+        ("attendance", ["punchself", "viewself", "manage"]),
+
+        // CBOS Smart Restaurant POS back-office configuration screens.
+        ("recommendationrules", ["create", "edit", "deactivate"]),
+        ("upsellperformance", ["view"]),
+        ("smartcombos", ["analyze", "create", "dismiss"]),
+        ("quickordertemplates", ["create", "edit", "deactivate"]),
     ];
 
     /// <inheritdoc/>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        if (!options.Value.SeedDevelopmentUser)
-        {
-            return;
-        }
-
-        var user = await userRepository.GetByUserNameAsync(UserName.Create("admin"), cancellationToken);
-        if (user is null)
-        {
-            return;
-        }
-
         var role = await roleRepository.GetByNameAsync(RoleName.Create(AdministratorRoleName), cancellationToken);
-        var isNewRole = role is null;
-        role ??= Role.Create(RoleName.Create(AdministratorRoleName));
+        var isNewRole = role is null && options.Value.SeedDevelopmentUser;
+        if (role is null && isNewRole)
+        {
+            role = Role.Create(RoleName.Create(AdministratorRoleName));
+        }
 
         var changed = isNewRole;
+
+        // Ensure all system catalog permissions exist, and ensure Administrator holds all of them
         foreach (var code in BuildPermissionCodes())
         {
             var permissionCode = PermissionCode.Create(code);
@@ -175,22 +187,26 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
                 changed = true;
             }
 
-            if (!role.PermissionIds.Contains(permission.Id))
+            if (role is not null && !role.PermissionIds.Contains(permission.Id))
             {
                 role.AddPermission(permission.Id);
                 changed = true;
             }
         }
 
-        if (isNewRole)
+        if (isNewRole && role is not null)
         {
             await roleRepository.AddAsync(role, cancellationToken);
         }
 
-        if (!user.RoleIds.Contains(role.Id))
+        if (options.Value.SeedDevelopmentUser && role is not null)
         {
-            user.AssignRole(role.Id);
-            changed = true;
+            var user = await userRepository.GetByUserNameAsync(UserName.Create("admin"), cancellationToken);
+            if (user is not null && !user.RoleIds.Contains(role.Id))
+            {
+                user.AssignRole(role.Id);
+                changed = true;
+            }
         }
 
         if (changed)
@@ -215,3 +231,4 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         }
     }
 }
+

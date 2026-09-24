@@ -20,6 +20,7 @@ internal sealed class TableConfiguration : IEntityTypeConfiguration<Table>
             .HasConversion(ValueConverters.DiningAreaIdConverter)
             .IsRequired();
         builder.HasIndex(t => t.DiningAreaId);
+        builder.HasIndex(t => new { t.DiningAreaId, t.Code }).IsUnique();
 
         builder.Property(t => t.Code)
             .HasConversion(ValueConverters.EntityCodeConverter)

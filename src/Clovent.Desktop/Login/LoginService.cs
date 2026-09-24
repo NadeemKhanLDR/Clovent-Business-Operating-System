@@ -60,23 +60,44 @@ public sealed class LoginService(
         var passwordHasher = services.GetRequiredService<IPasswordHasher>();
         var pinHasher = services.GetRequiredService<IPinHasher>();
 
-        var user = await ResolveUserAsync(userRepository, request.Username, cancellationToken);
+        // PIN-only sign-in (no username): the PIN must resolve the user, since
+        // there is no identifier to look up. Salted hashes give no lookup key,
+        // so every stored PIN hash is verified in turn; PINs are unique across
+        // users (SetPinCommandHandler's uniqueness scan), so at most one can
+        // match. The same generic failure message as every other bad
+        // credential keeps this from revealing whether a PIN is in use.
+        var pinOnly = string.IsNullOrWhiteSpace(request.Username) && !string.IsNullOrWhiteSpace(request.Pin);
+        User? user;
+        if (pinOnly)
+        {
+            user = await ResolveUserByPinAsync(credentialsRepository, userRepository, request.Pin!, pinHasher, cancellationToken);
+        }
+        else
+        {
+            user = await ResolveUserAsync(userRepository, request.Username, cancellationToken);
+        }
 
         if (user is null)
         {
-            await mediator.Send(new RecordLoginAttemptCommand(request.Username, null, LoginOutcome.UserNotFound), cancellationToken);
+            var attemptedName = pinOnly ? "(pin)" : request.Username;
+            await mediator.Send(new RecordLoginAttemptCommand(attemptedName, null, LoginOutcome.UserNotFound), cancellationToken);
             return LoginResult.Failure(GenericFailureMessage);
         }
 
+        // Audit records need a non-empty identifier; PIN-only sign-in arrived
+        // with none, so the resolved user's own username stands in for it in
+        // every attempt record below.
+        var attemptIdentifier = pinOnly ? user.UserName.Value : request.Username;
+
         if (user.Status == UserStatus.Locked)
         {
-            await mediator.Send(new RecordLoginAttemptCommand(request.Username, user.Id.Value, LoginOutcome.UserLocked), cancellationToken);
+            await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.UserLocked), cancellationToken);
             return LoginResult.Failure("Your account is locked. Contact an administrator.");
         }
 
         if (user.Status != UserStatus.Active)
         {
-            await mediator.Send(new RecordLoginAttemptCommand(request.Username, user.Id.Value, LoginOutcome.UserInactive), cancellationToken);
+            await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.UserInactive), cancellationToken);
             return LoginResult.Failure("Your account is not active yet.");
         }
 
@@ -85,7 +106,7 @@ public sealed class LoginService(
 
         if (!verified)
         {
-            await mediator.Send(new RecordLoginAttemptCommand(request.Username, user.Id.Value, LoginOutcome.InvalidCredentials), cancellationToken);
+            await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.InvalidCredentials), cancellationToken);
             if (credentials is not null)
             {
                 await mediator.Send(new RecordCredentialCheckCommand(user.Id.Value, Succeeded: false), cancellationToken);
@@ -95,7 +116,7 @@ public sealed class LoginService(
         }
 
         await mediator.Send(new RecordCredentialCheckCommand(user.Id.Value, Succeeded: true), cancellationToken);
-        await mediator.Send(new RecordLoginAttemptCommand(request.Username, user.Id.Value, LoginOutcome.Succeeded), cancellationToken);
+        await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.Succeeded), cancellationToken);
 
         var session = await mediator.Send(new StartSessionCommand(user.Id.Value), cancellationToken);
 
@@ -154,6 +175,30 @@ public sealed class LoginService(
         {
             return null;
         }
+    }
+
+    /// <summary>
+    /// Resolves the signing-in user for PIN-only sign-in: verifies the PIN
+    /// against every stored PIN hash and returns the owning user, or
+    /// <see langword="null"/> when no stored PIN matches.
+    /// </summary>
+    private static async Task<User?> ResolveUserByPinAsync(
+        IUserCredentialsRepository credentialsRepository,
+        IUserRepository userRepository,
+        string pin,
+        IPinHasher pinHasher,
+        CancellationToken cancellationToken)
+    {
+        var all = await credentialsRepository.GetAllAsync(cancellationToken);
+        foreach (var credentials in all)
+        {
+            if (credentials.PinHash is null || !pinHasher.Verify(pin, credentials.PinHash.Value))
+                continue;
+
+            return await userRepository.GetByIdAsync(credentials.UserId, cancellationToken);
+        }
+
+        return null;
     }
 
     private static bool VerifyCredentials(UserCredentials credentials, LoginRequest request, IPasswordHasher passwordHasher, IPinHasher pinHasher)

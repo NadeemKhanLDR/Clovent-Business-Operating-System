@@ -17,7 +17,8 @@ public sealed record CreateCustomerCommand(
     string? Notes,
     string? ShopNo = null,
     string? Mobile2 = null,
-    string? Phone = null) : IRequest<CustomerDto>;
+    string? Phone = null,
+    bool IsDefault = false) : IRequest<CustomerDto>;
 
 /// <summary>Handles <see cref="CreateCustomerCommand"/>.</summary>
 public sealed class CreateCustomerCommandHandler(
@@ -65,6 +66,20 @@ public sealed class CreateCustomerCommandHandler(
             }
         }
 
+        if (request.IsDefault)
+        {
+            var existingCustomers = await customerRepository.GetAllAsync(cancellationToken);
+            foreach (var c in existingCustomers.Where(c => c.IsDefault))
+            {
+                var tracked = await customerRepository.GetByIdAsync(c.Id, cancellationToken);
+                if (tracked is not null && tracked.IsDefault)
+                {
+                    tracked.SetDefault(false);
+                    await customerRepository.UpdateAsync(tracked, cancellationToken);
+                }
+            }
+        }
+
         var customer = Customer.Create(
             code,
             request.Name,
@@ -76,7 +91,8 @@ public sealed class CreateCustomerCommandHandler(
             request.Notes,
             request.ShopNo,
             request.Mobile2,
-            request.Phone);
+            request.Phone,
+            request.IsDefault);
 
         await customerRepository.AddAsync(customer, cancellationToken);
 

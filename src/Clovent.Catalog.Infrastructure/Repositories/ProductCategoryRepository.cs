@@ -8,14 +8,14 @@ namespace Clovent.Catalog.Infrastructure.Repositories;
 public sealed class ProductCategoryRepository(CatalogDbContext dbContext) : IProductCategoryRepository
 {
     /// <inheritdoc/>
-    public Task<ProductCategory?> GetByIdAsync(ProductCategoryId id, CancellationToken cancellationToken = default) =>
-        dbContext.ProductCategories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+    public async Task<ProductCategory?> GetByIdAsync(ProductCategoryId id, CancellationToken cancellationToken = default) =>
+        await dbContext.ProductCategories.FirstOrDefaultAsync(c => c.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<ProductCategory>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.ProductCategories.ToListAsync(cancellationToken);
+        await dbContext.ProductCategories.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(ProductCategory category, CancellationToken cancellationToken = default) =>
-        await dbContext.ProductCategories.AddAsync(category, cancellationToken);
+        await dbContext.ProductCategories.AddAsync(category, cancellationToken).ConfigureAwait(false);
 }

@@ -65,6 +65,9 @@ partial class MasterDataEditFormBase
         // longer captions ("Save & New") once the skin font scales up at
         // above-100% DPI - confirmed in the Edit Menu Item audit screenshot.
         _cancelButton.AutoSize = true;
+        _cancelButton.MinimumSize = new Size(85, 28);
+        _cancelButton.Size = new Size(85, 28);
+        _cancelButton.Margin = new Padding(6, 0, 0, 0);
         _cancelButton.DialogResult = DialogResult.Cancel;
         _cancelButton.Name = "_cancelButton";
         _cancelButton.Text = "Cancel";
@@ -72,6 +75,9 @@ partial class MasterDataEditFormBase
         // _okButton
         //
         _okButton.AutoSize = true;
+        _okButton.MinimumSize = new Size(85, 28);
+        _okButton.Size = new Size(85, 28);
+        _okButton.Margin = new Padding(6, 0, 0, 0);
         _okButton.Name = "_okButton";
         _okButton.Text = "OK";
         _okButton.Click += OkButton_Click;
@@ -81,6 +87,9 @@ partial class MasterDataEditFormBase
         // Not added to _buttonPanel here - only screens that call
         // EnableSaveAndNew (MasterDataEditFormBase.cs) opt into showing it.
         _saveAndNewButton.AutoSize = true;
+        _saveAndNewButton.MinimumSize = new Size(100, 28);
+        _saveAndNewButton.Size = new Size(100, 28);
+        _saveAndNewButton.Margin = new Padding(6, 0, 0, 0);
         _saveAndNewButton.Name = "_saveAndNewButton";
         _saveAndNewButton.Text = "Save && New";
         _saveAndNewButton.Click += SaveAndNewButton_Click;
@@ -91,8 +100,8 @@ partial class MasterDataEditFormBase
         Controls.Add(_buttonPanel);
         AcceptButton = _okButton;
         CancelButton = _cancelButton;
-        Width = 480;
-        Height = 360;
+        Width = 540;
+        Height = 520;
         StartPosition = FormStartPosition.CenterParent;
         // Resizable/maximizable (was FixedDialog/MaximizeBox=false) - "every
         // popup window in the Restaurant module must be resizable, support

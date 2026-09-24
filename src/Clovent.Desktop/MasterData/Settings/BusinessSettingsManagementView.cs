@@ -73,6 +73,9 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
         {
             _timeZoneCombo.Text = _timeZoneCombo.Properties.GetDisplayText(_timeZoneCombo.EditValue);
         };
+
+        _dateFormatCombo.SelectedIndexChanged += (s, e) => UpdateExampleLabel();
+        _dateFormatCombo.TextChanged += (s, e) => UpdateExampleLabel();
     }
 
     /// <inheritdoc/>
@@ -190,7 +193,8 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
 
         try
         {
-            _exampleLabel.Text = DateTime.Now.ToString(format);
+            var businessNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, DateTimeDisplay.BusinessTimeZone);
+            _exampleLabel.Text = businessNow.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
         }
         catch
         {

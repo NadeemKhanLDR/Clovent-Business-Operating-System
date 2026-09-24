@@ -113,12 +113,11 @@ public sealed partial class CustomerPaymentForm : XtraForm
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        Size = LogicalToDeviceUnits(new Size(460, 390));
-        MinimumSize = LogicalToDeviceUnits(new Size(460, 390));
+        DesktopDialogSizing.Apply(this, 520, 460, 480, 400, null, false);
 
         root.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(50));
 
-        fieldTable.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(130));
+        fieldTable.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(140));
         fieldTable.RowStyles[0] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
         fieldTable.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
         fieldTable.RowStyles[2] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
@@ -126,7 +125,7 @@ public sealed partial class CustomerPaymentForm : XtraForm
         fieldTable.RowStyles[4] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
         fieldTable.RowStyles[5] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(80));
 
-        _btnCancel.MinimumSize = LogicalToDeviceUnits(new Size(95, 34));
-        _btnSubmit.MinimumSize = LogicalToDeviceUnits(new Size(130, 34));
+        _btnCancel.MinimumSize = LogicalToDeviceUnits(new Size(100, 36));
+        _btnSubmit.MinimumSize = LogicalToDeviceUnits(new Size(140, 36));
     }
 }

@@ -258,11 +258,14 @@ public sealed class Order : AggregateRoot<OrderId>
     }
 
     /// <summary>Assigns (or reassigns, for a table transfer) the table this order is seated at.</summary>
-    /// <exception cref="RestaurantDomainException">This is a <see cref="OrderType.TakeAway"/> order.</exception>
+    /// <exception cref="RestaurantDomainException">This is a <see cref="OrderType.TakeAway"/> order, or the order is not Open/Held - a closed order's table is settled and must not move.</exception>
     public void AssignTable(TableId tableId)
     {
         if (OrderType != OrderType.DineIn)
             throw RestaurantDomainException.TakeAwayOrderCannotBeAssignedTable(Id);
+
+        if (Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderCannotBeTransferred(Id, Status);
 
         if (TableId == tableId) return;
 

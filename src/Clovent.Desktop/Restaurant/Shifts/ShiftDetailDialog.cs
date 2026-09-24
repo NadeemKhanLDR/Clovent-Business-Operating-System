@@ -65,23 +65,20 @@ public sealed class ShiftDetailDialog : XtraForm
     private void BuildUi()
     {
         Text = "Shift Session Details";
-        ClientSize = new Size(680, 580);
-        StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedSingle;
-        MaximizeBox = true;
+        DesktopDialogSizing.Apply(this, 720, 620, 640, 540, null, true);
 
         var mainPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(20),
-            RowCount = 5,
+            Padding = new Padding(DesktopDpi.Scale(16, this)),
+            RowCount = 4,
             ColumnCount = 1
         };
 
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 35f));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 190f));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(35, this)));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(200, this)));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45f));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this)));
 
         _lblHeader = new LabelControl
         {
@@ -161,9 +158,9 @@ public sealed class ShiftDetailDialog : XtraForm
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(0, 5, 0, 0)
+            Padding = new Padding(0, DesktopDpi.Scale(6, this), 0, 0)
         };
-        _btnClose = new SimpleButton { Text = "Close", DialogResult = DialogResult.OK, Size = new Size(110, 36) };
+        _btnClose = new SimpleButton { Text = "Close", DialogResult = DialogResult.OK, Size = new Size(DesktopDpi.Scale(110, this), DesktopDpi.Scale(36, this)) };
         btnPanel.Controls.Add(_btnClose);
 
         mainPanel.Controls.Add(_lblHeader, 0, 0);
@@ -190,18 +187,18 @@ public sealed class ShiftDetailDialog : XtraForm
             {
                 _lblHeader.Text = $"Shift #{summary.Shift.ShiftNumber} Details";
                 _lblStatusVal.Text = summary.Shift.Status;
-                _lblCashierVal.Text = summary.Shift.CashierName;
-                _lblOpenedVal.Text = summary.Shift.OpenedAtUtc.ToLocalTime().ToString("g");
-                _lblClosedVal.Text = summary.Shift.ClosedAtUtc.HasValue ? summary.Shift.ClosedAtUtc.Value.ToLocalTime().ToString("g") : "Still Open";
+                _lblCashierVal.Text = UserDisplayNameHelper.FormatCashierName(summary.Shift.CashierName);
+                _lblOpenedVal.Text = DateTimeDisplay.FormatDateTime(summary.Shift.OpenedAtUtc);
+                _lblClosedVal.Text = summary.Shift.ClosedAtUtc.HasValue ? DateTimeDisplay.FormatDateTime(summary.Shift.ClosedAtUtc.Value) : "Still Open";
 
-                _lblStartingVal.Text = summary.StartingCash.ToString("N2");
-                _lblCashSalesVal.Text = summary.CashSales.ToString("N2");
-                _lblCardSalesVal.Text = summary.CardSales.ToString("N2");
-                _lblOtherSalesVal.Text = summary.OtherSales.ToString("N2");
+                _lblStartingVal.Text = CurrencyDisplay.Format(summary.StartingCash);
+                _lblCashSalesVal.Text = CurrencyDisplay.Format(summary.CashSales);
+                _lblCardSalesVal.Text = CurrencyDisplay.Format(summary.CardSales);
+                _lblOtherSalesVal.Text = CurrencyDisplay.Format(summary.OtherSales);
 
-                _lblExpectedVal.Text = summary.ExpectedCash.ToString("N2");
+                _lblExpectedVal.Text = CurrencyDisplay.Format(summary.ExpectedCash);
                 _lblVarianceVal.Text = summary.Shift.Status == "Closed"
-                    ? $"{summary.CountedCash:N2} (Variance: {summary.Variance:N2})"
+                    ? $"{CurrencyDisplay.Format(summary.CountedCash)} (Variance: {CurrencyDisplay.Format(summary.Variance)})"
                     : "Shift Open";
 
                 _gridMovements.DataSource = summary.CashMovements;

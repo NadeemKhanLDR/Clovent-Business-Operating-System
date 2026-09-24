@@ -1,3 +1,4 @@
+using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Tables;
 
@@ -11,6 +12,9 @@ internal sealed class FakeTableRepository : ITableRepository
 
     public Task<Table?> GetByIdAsync(TableId id, CancellationToken cancellationToken = default) =>
         Task.FromResult(_tables.GetValueOrDefault(id));
+
+    public Task<Table?> GetByCodeAsync(DiningAreaId diningAreaId, EntityCode code, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_tables.Values.FirstOrDefault(t => t.DiningAreaId == diningAreaId && t.Code == code));
 
     public Task<IReadOnlyCollection<Table>> GetByDiningAreaIdAsync(DiningAreaId diningAreaId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Table>>([.. _tables.Values.Where(t => t.DiningAreaId == diningAreaId)]);

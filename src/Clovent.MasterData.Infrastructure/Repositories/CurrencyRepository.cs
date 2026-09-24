@@ -17,7 +17,7 @@ public sealed class CurrencyRepository(MasterDataDbContext dbContext) : ICurrenc
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Currency>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Currencies.ToListAsync(cancellationToken);
+        await dbContext.Currencies.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Currency currency, CancellationToken cancellationToken = default) =>

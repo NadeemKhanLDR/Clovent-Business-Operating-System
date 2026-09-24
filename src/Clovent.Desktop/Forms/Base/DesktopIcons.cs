@@ -41,6 +41,22 @@ public static class DesktopIcons
     /// <summary>Standard "down arrow" gallery icon.</summary>
     public const string Down = "svgimages/arrows/movedown.svg";
 
+    /// <summary>Standard "idea / lightbulb" gallery icon.</summary>
+    public const string Idea = "svgimages/icon%20builder/business_idea.svg";
+
+    /// <summary>Standard "idea / lightbulb" gallery icon alternative URI.</summary>
+    public const string IdeaAlt = "svgimages/icon builder/business_idea.svg";
+
+    /// <summary>Standard "operations / properties / gear" gallery icon.</summary>
+    public const string Operations = "svgimages/setup/properties.svg";
+
     /// <summary>Assigns <paramref name="imageUri"/> to <paramref name="button"/> - a no-op visually if the gallery cannot resolve it.</summary>
-    public static void Apply(SimpleButton button, string imageUri) => button.ImageOptions.ImageUri = imageUri;
+    public static void Apply(SimpleButton button, string imageUri)
+    {
+        button.ImageOptions.ImageUri = imageUri;
+        if (button.ImageOptions.SvgImage == null)
+        {
+            button.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage(imageUri);
+        }
+    }
 }

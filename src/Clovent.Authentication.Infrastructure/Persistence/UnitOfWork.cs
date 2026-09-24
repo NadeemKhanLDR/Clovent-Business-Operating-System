@@ -7,5 +7,5 @@ public sealed class UnitOfWork(AuthenticationDbContext dbContext) : IUnitOfWork
 {
     /// <inheritdoc/>
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 }

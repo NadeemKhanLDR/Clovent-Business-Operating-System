@@ -9,18 +9,18 @@ namespace Clovent.MasterData.Infrastructure.Repositories;
 public sealed class WarehouseRepository(MasterDataDbContext dbContext) : IWarehouseRepository
 {
     /// <inheritdoc/>
-    public Task<Warehouse?> GetByIdAsync(WarehouseId id, CancellationToken cancellationToken = default) =>
-        dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == id, cancellationToken);
+    public async Task<Warehouse?> GetByIdAsync(WarehouseId id, CancellationToken cancellationToken = default) =>
+        await dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == id, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Warehouse>> GetByBranchIdAsync(BranchId branchId, CancellationToken cancellationToken = default) =>
-        await dbContext.Warehouses.Where(w => w.BranchId == branchId).ToListAsync(cancellationToken);
+        await dbContext.Warehouses.Where(w => w.BranchId == branchId).ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Warehouse>> GetAllAsync(CancellationToken cancellationToken = default) =>
-        await dbContext.Warehouses.ToListAsync(cancellationToken);
+        await dbContext.Warehouses.ToListAsync(cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Warehouse warehouse, CancellationToken cancellationToken = default) =>
-        await dbContext.Warehouses.AddAsync(warehouse, cancellationToken);
+        await dbContext.Warehouses.AddAsync(warehouse, cancellationToken).ConfigureAwait(false);
 }

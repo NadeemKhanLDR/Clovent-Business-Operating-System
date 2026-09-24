@@ -1,46 +1,62 @@
+using System;
+
 namespace Clovent.Desktop.Forms.Base;
 
 /// <summary>
 /// The one currently-configured <c>Currency</c>'s symbol/decimal places
-/// (<c>MasterData.Application.Currencies</c>, unchanged), held statically so
-/// every Restaurant screen's grid/label formats money the same way instead
-/// of each re-picking its own "N2"/"$"/etc. Screens already resolve "the
-/// first configured currency" for their own writes (<c>MenuItemsForm</c>,
-/// <c>RestaurantPosView</c> - see <c>RestaurantPOSArchitecture.md</c>
-/// Section 13.1) - <see cref="Configure"/> is called once per screen load
-/// with that same currency, so display and write path never disagree. A
-/// static holder (not per-instance state) is deliberate: this is a
-/// single-user desktop process with exactly one configured currency at a
-/// time, the same "fine at this scale" reasoning already applied throughout
-/// this codebase's Restaurant screens.
+/// (<c>MasterData.Application.Currencies</c>), held statically so
+/// every Restaurant screen's grid/label formats money consistently.
 /// </summary>
 public static class CurrencyDisplay
 {
-    private static string _symbol = string.Empty;
+    private static string _code = "PKR";
+    private static string _symbol = "Rs.";
     private static int _decimalPlaces = 2;
 
     /// <summary>Sets the symbol/decimal places every subsequent <see cref="Format"/> call uses.</summary>
     public static void Configure(string symbol, int decimalPlaces)
     {
-        _symbol = symbol;
+        _symbol = symbol ?? string.Empty;
         _decimalPlaces = decimalPlaces;
     }
 
-    /// <summary>Formats <paramref name="amount"/> as currency ("Rs.850.00") using the last-configured symbol/decimal places, or plain "N2" if none has been configured yet.</summary>
+    /// <summary>Sets the currency code, symbol, and decimal places.</summary>
+    public static void Configure(string code, string symbol, int decimalPlaces)
+    {
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            _code = code.Trim();
+        }
+        _symbol = symbol ?? string.Empty;
+        _decimalPlaces = decimalPlaces;
+    }
+
+    /// <summary>The configured ISO 4217 currency code (e.g. "PKR", "USD").</summary>
+    public static string CurrencyCode => _code;
+
+    /// <summary>The configured currency symbol (e.g. "Rs.", "$").</summary>
+    public static string Symbol => _symbol;
+
+    /// <summary>The preferred short display label: symbol if present, otherwise code.</summary>
+    public static string SymbolOrCode => !string.IsNullOrWhiteSpace(_symbol) ? _symbol : _code;
+
+    /// <summary>Formats <paramref name="amount"/> as currency (e.g. "Rs. 850.00" or "$850.00") using the configured symbol and decimal places.</summary>
     public static string Format(decimal amount)
     {
         var numeric = amount.ToString("N" + Math.Clamp(_decimalPlaces, 0, 4));
-        return string.IsNullOrEmpty(_symbol) ? numeric : $"{_symbol}{numeric}";
+        var sym = SymbolOrCode;
+        if (string.IsNullOrWhiteSpace(sym)) return numeric;
+
+        bool needsSpace = !sym.EndsWith(" ") && !sym.EndsWith(".") && !sym.EndsWith("$") && !sym.EndsWith("€") && !sym.EndsWith("£") && !sym.EndsWith("¥");
+        return needsSpace ? $"{sym} {numeric}" : $"{sym}{numeric}";
     }
 
     /// <summary>
     /// Formats <paramref name="amount"/> as a bare number ("850.00") using the
-    /// last-configured decimal places but no symbol - for dense screens (the
-    /// POS cart/totals) where the symbol would repeat on every value and the
-    /// configured currency is instead shown once on the summary figures.
+    /// configured decimal places without symbol.
     /// </summary>
     public static string FormatPlain(decimal amount) => amount.ToString("N" + DecimalPlaces);
 
-    /// <summary>The currently configured number of decimal places, for editors that need to match <see cref="FormatPlain"/>'s precision.</summary>
+    /// <summary>The currently configured number of decimal places.</summary>
     public static int DecimalPlaces => Math.Clamp(_decimalPlaces, 0, 4);
 }

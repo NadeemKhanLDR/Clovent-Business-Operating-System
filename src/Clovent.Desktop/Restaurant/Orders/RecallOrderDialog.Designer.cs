@@ -148,14 +148,15 @@ partial class RecallOrderDialog
         int physTargetH = (int)Math.Round(logicalTargetH * dpiScale);
 
         // Clamp physical size so it never exceeds available working area
-        physTargetW = Math.Min(physTargetW, work.Width - 12);
-        physTargetH = Math.Min(physTargetH, work.Height - 12);
+        physTargetW = Math.Max(0, Math.Min(physTargetW, work.Width - 12));
+        physTargetH = Math.Max(0, Math.Min(physTargetH, work.Height - 12));
 
         // MinimumSize MUST be set before Size: a stale minimum left over from
         // a different DPI silently clamps the new Size upward (observed as a
         // full-screen dialog after a live 240->120 DPI transition).
-        MinimumSize = new Size(Math.Min(physTargetW, (int)Math.Round(900 * dpiScale)),
-                               Math.Min(physTargetH, (int)Math.Round(540 * dpiScale)));
+        int minW = Math.Max(0, Math.Min(physTargetW, (int)Math.Round(900 * dpiScale)));
+        int minH = Math.Max(0, Math.Min(physTargetH, (int)Math.Round(540 * dpiScale)));
+        MinimumSize = new Size(minW, minH);
         Size = new Size(physTargetW, physTargetH);
 
         // Center window over Owner or WorkingArea
@@ -616,6 +617,7 @@ partial class RecallOrderDialog
         AddColumn("InvoiceDisplay", "Invoice #", 100, 90);
         AddColumn("TypeDisplay", "Type", 90, 85);
         AddColumn("TableDisplay", "Table", 75, 70, HorzAlignment.Center);
+        AddColumn("CustomerCode", "Customer Code", 110, 90);
         AddColumn("CustomerName", "Customer", 150, 140);
         AddColumn("Phone", "Phone", 95, 85);
         AddColumn("ItemCount", "Items", 65, 60, HorzAlignment.Center);

@@ -15,6 +15,12 @@ internal sealed class FakeOrderRepository : IOrderRepository
     public Task<IReadOnlyCollection<Order>> GetOpenOrHeldByTableIdAsync(TableId tableId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Order>>([.. _orders.Values.Where(o => o.TableId == tableId && o.Status is OrderStatus.Open or OrderStatus.Held)]);
 
+    public Task<IReadOnlySet<TableId>> GetActiveTableIdsAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlySet<TableId>>(_orders.Values
+            .Where(o => o.TableId.HasValue && o.Status is OrderStatus.Open or OrderStatus.Held)
+            .Select(o => o.TableId!.Value)
+            .ToHashSet());
+
     public Task<IReadOnlyCollection<Order>> GetOpenAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Order>>([.. _orders.Values.Where(o => o.Status == OrderStatus.Open)]);
 

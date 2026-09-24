@@ -12,6 +12,8 @@ using Clovent.Restaurant.KitchenTickets;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Clovent.Restaurant.Application.Orders.Commands;
+using Clovent.Restaurant.Application.Tables.Queries;
 using Xunit;
 using Clovent.Platform.Bootstrap;
 using IHost = Microsoft.Extensions.Hosting.IHost;
@@ -127,6 +129,7 @@ public sealed class RuntimeVerificationTests
             Clovent.Desktop.Forms.Base.DesktopIcons.Search,
             Clovent.Desktop.Forms.Base.DesktopIcons.Up,
             Clovent.Desktop.Forms.Base.DesktopIcons.Down,
+            Clovent.Desktop.Forms.Base.DesktopIcons.Idea,
         };
 
         var cache = DevExpress.Images.ImageResourceCache.Default;
@@ -185,10 +188,10 @@ public sealed class RuntimeVerificationTests
         var tableT01 = tables.FirstOrDefault(t => t.Name == "T-01") ?? tables.First();
 
         // 3. Ensure Table T-01 is available or reset if needed
-        var existingOrders = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.ListOpenOrdersQuery());
-        foreach (var order in existingOrders.Where(o => o.TableId == tableT01.TableId))
+        var occupying = await mediator.Send(new Clovent.Restaurant.Application.Orders.Queries.GetOpenOrHeldOrderByTableQuery(tableT01.TableId));
+        if (occupying != null)
         {
-            await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.CancelOrderCommand(order.OrderId, "Reset for QA"));
+            await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.CancelOrderCommand(occupying.OrderId, "Reset for QA"));
         }
 
         // 4. Create Dine-In order for Table T-01
@@ -258,5 +261,41 @@ public sealed class RuntimeVerificationTests
         var dbPayment = restDb.Payments.FirstOrDefault(p => p.Id == new Clovent.Restaurant.Payments.PaymentId(paymentResult.PaymentId));
         Assert.NotNull(dbPayment);
         Assert.Equal(shiftId, dbPayment.ShiftId?.Value);
+    }
+
+    [Fact]
+    public async Task RestaurantPos_DefaultCustomer_RealDatabase_ResolvesAndPersistsCorrectly()
+    {
+        var (mediator, session) = await ConnectAsAdminAsync();
+
+        // 1. Query all customers and verify C000 exists and is active
+        var customers = await mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.ListCustomersQuery());
+        Assert.NotEmpty(customers);
+
+        var defaultCustomer = await mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.GetDefaultCustomerQuery());
+        Assert.NotNull(defaultCustomer);
+        Assert.True(defaultCustomer.IsDefault);
+        Assert.True(defaultCustomer.IsActive);
+
+        // 2. Exactly one customer must be marked IsDefault
+        var defaultCount = customers.Count(c => c.IsDefault);
+        Assert.Equal(1, defaultCount);
+
+        // 3. Set another active customer as default if available
+        var otherActive = customers.FirstOrDefault(c => c.IsActive && !c.IsDefault);
+        if (otherActive != null)
+        {
+            var updated = await mediator.Send(new Clovent.Restaurant.Application.Customers.Commands.SetDefaultCustomerCommand(otherActive.CustomerId));
+            Assert.True(updated.IsDefault);
+
+            var reloadedList = await mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.ListCustomersQuery());
+            Assert.Equal(1, reloadedList.Count(c => c.IsDefault));
+
+            // Restore original default
+            await mediator.Send(new Clovent.Restaurant.Application.Customers.Commands.SetDefaultCustomerCommand(defaultCustomer.CustomerId));
+            var restoredList = await mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.ListCustomersQuery());
+            Assert.Equal(1, restoredList.Count(c => c.IsDefault));
+            Assert.True(restoredList.First(c => c.CustomerId == defaultCustomer.CustomerId).IsDefault);
+        }
     }
 }

@@ -41,7 +41,9 @@ public static class PersistenceServiceCollectionExtensions
             ?? throw new InvalidOperationException(
                 $"Missing required connection string 'ConnectionStrings:{ConnectionStringName}'.");
 
-        services.AddDbContext<AuthenticationDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContext<AuthenticationDbContext>(options =>
+            options.UseSqlServer(connectionString)
+                   .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<ISessionRepository, SessionRepository>();
         services.TryAddScoped<ILoginAttemptRepository, LoginAttemptRepository>();

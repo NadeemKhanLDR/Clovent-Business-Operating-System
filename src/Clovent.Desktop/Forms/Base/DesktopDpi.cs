@@ -12,6 +12,13 @@ namespace Clovent.Desktop.Forms.Base;
 public static class DesktopDpi
 {
     /// <summary>Scales <paramref name="logicalPixels"/> (a 96-DPI value) to <paramref name="reference"/>'s actual DPI.</summary>
-    public static int Scale(int logicalPixels, Control reference) =>
-        (int)Math.Round(logicalPixels * reference.DeviceDpi / 96.0);
+    public static int Scale(int logicalPixels, Control reference)
+    {
+        int dpi = reference?.DeviceDpi > 0 ? reference.DeviceDpi : 96;
+        return Scale(logicalPixels, dpi);
+    }
+
+    /// <summary>Scales <paramref name="logicalPixels"/> (a 96-DPI value) to an explicit <paramref name="dpi"/>.</summary>
+    public static int Scale(int logicalPixels, int dpi) =>
+        (int)Math.Round(logicalPixels * (dpi > 0 ? dpi : 96) / 96.0);
 }

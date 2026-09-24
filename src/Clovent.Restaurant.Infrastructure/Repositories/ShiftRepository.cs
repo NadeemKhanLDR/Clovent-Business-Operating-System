@@ -18,19 +18,22 @@ public sealed class ShiftRepository(RestaurantDbContext dbContext) : IShiftRepos
     public async Task<Shift?> GetByIdAsync(ShiftId id, CancellationToken cancellationToken = default) =>
         await dbContext.Shifts
             .Include(s => s.CashMovements)
-            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken)
+            .ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<Shift?> GetActiveShiftForTerminalAsync(TerminalId terminalId, CancellationToken cancellationToken = default) =>
         await dbContext.Shifts
             .Include(s => s.CashMovements)
-            .FirstOrDefaultAsync(s => s.TerminalId == terminalId && s.Status == ShiftStatus.Open, cancellationToken);
+            .FirstOrDefaultAsync(s => s.TerminalId == terminalId && s.Status == ShiftStatus.Open, cancellationToken)
+            .ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<Shift?> GetActiveShiftForCashierAsync(UserId cashierId, CancellationToken cancellationToken = default) =>
         await dbContext.Shifts
             .Include(s => s.CashMovements)
-            .FirstOrDefaultAsync(s => s.CashierId == cashierId && s.Status == ShiftStatus.Open, cancellationToken);
+            .FirstOrDefaultAsync(s => s.CashierId == cashierId && s.Status == ShiftStatus.Open, cancellationToken)
+            .ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<Shift>> SearchShiftsAsync(
@@ -68,19 +71,19 @@ public sealed class ShiftRepository(RestaurantDbContext dbContext) : IShiftRepos
             query = query.Where(s => s.OpenedAtUtc <= toDateUtc.Value);
         }
 
-        return await query.OrderByDescending(s => s.ShiftNumber).ToListAsync(cancellationToken);
+        return await query.OrderByDescending(s => s.ShiftNumber).ToListAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
     public async Task<int> GetNextShiftNumberAsync(CancellationToken cancellationToken = default)
     {
-        var maxNumber = await dbContext.Shifts.MaxAsync(s => (int?)s.ShiftNumber, cancellationToken);
+        var maxNumber = await dbContext.Shifts.MaxAsync(s => (int?)s.ShiftNumber, cancellationToken).ConfigureAwait(false);
         return (maxNumber ?? 1000) + 1;
     }
 
     /// <inheritdoc/>
     public async Task AddAsync(Shift shift, CancellationToken cancellationToken = default) =>
-        await dbContext.Shifts.AddAsync(shift, cancellationToken);
+        await dbContext.Shifts.AddAsync(shift, cancellationToken).ConfigureAwait(false);
 
     /// <inheritdoc/>
     public Task UpdateAsync(Shift shift, CancellationToken cancellationToken = default)

@@ -21,7 +21,14 @@ public static class GlobalExceptionHandler
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(errorDialogService);
 
-        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        try
+        {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        }
+        catch (InvalidOperationException)
+        {
+            // Thread exception mode cannot be changed once controls are created on the thread.
+        }
 
         Application.ThreadException += (_, e) =>
             Handle(logger, errorDialogService, e.Exception, "UI thread");

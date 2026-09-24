@@ -90,6 +90,14 @@ public sealed class TablePickerEdit : ComboBoxEdit
                 SelectedItem = "(No Table)";
                 SelectedId = null;
             }
+            else
+            {
+                // Previously selected table no longer exists - clear the
+                // selection rather than leaving a dangling id with stale text.
+                EditValue = "(No Table)";
+                SelectedItem = "(No Table)";
+                SelectedId = null;
+            }
         }
         finally
         {
@@ -119,7 +127,13 @@ public sealed class TablePickerEdit : ComboBoxEdit
             }
             else
             {
+                // The id is not in the currently loaded item list (e.g. the list
+                // is still loading). Keep the id so callers can read it, but do
+                // not leave the previous table's text on screen - the display
+                // must never claim a table the selection does not point at.
                 SelectedId = id;
+                EditValue = null;
+                SelectedItem = null;
             }
         }
         finally

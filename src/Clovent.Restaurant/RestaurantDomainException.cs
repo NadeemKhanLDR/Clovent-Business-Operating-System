@@ -1,4 +1,5 @@
 using Clovent.Domain;
+using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
@@ -61,6 +62,10 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException TableNotActive(TableId tableId) =>
         new($"Table '{tableId}' is not active.");
 
+    /// <summary>A table with the same code already exists in the dining area.</summary>
+    public static RestaurantDomainException TableCodeAlreadyExists(EntityCode code) =>
+        new($"A table with code '{code.Value}' already exists in this dining area.");
+
     /// <summary>A dine-in Order.Create() was attempted with no table.</summary>
     public static RestaurantDomainException DineInOrderRequiresTable() =>
         new("A dine-in order requires a table.");
@@ -72,6 +77,10 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>An Order.AssignTable() was attempted on a take-away order.</summary>
     public static RestaurantDomainException TakeAwayOrderCannotBeAssignedTable(OrderId orderId) =>
         new($"Order '{orderId}' is take-away and cannot be assigned a table.");
+
+    /// <summary>An Order.AssignTable() was attempted on an order that is no longer Open or Held.</summary>
+    public static RestaurantDomainException OrderCannotBeTransferred(OrderId orderId, OrderStatus status) =>
+        new($"Order '{orderId}' is {status} and cannot be moved to another table.");
 
     /// <summary>An operation requiring <see cref="OrderStatus.Open"/> was attempted while the order was not.</summary>
     public static RestaurantDomainException OrderNotOpen(OrderId orderId, OrderStatus status) =>
@@ -201,4 +210,16 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>An OrderLine.OverridePrice() was attempted with no reason given.</summary>
     public static RestaurantDomainException PriceOverrideReasonRequired(OrderLineId orderLineId) =>
         new($"Order line '{orderLineId}' price override requires a reason.");
+
+    /// <summary>A customer cannot be set as default while inactive.</summary>
+    public static RestaurantDomainException CustomerCannotBeDefaultWhileInactive() =>
+        new("Only an active customer can be set as the default customer.");
+
+    /// <summary>An attendance session PunchOut was attempted while already closed.</summary>
+    public static RestaurantDomainException AttendanceSessionAlreadyClosed() =>
+        new("Attendance session is already closed.");
+
+    /// <summary>An attendance session PunchOut was attempted with a timestamp earlier than punch in.</summary>
+    public static RestaurantDomainException InvalidPunchOutTimestamp() =>
+        new("Punch out time cannot be earlier than punch in time.");
 }

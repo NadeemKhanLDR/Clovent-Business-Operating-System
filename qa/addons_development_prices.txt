@@ -1,0 +1,11 @@
+Name|Portion|Amount|PriceType|Status|TaxConfiguration
+----|-------|------|---------|------|----------------
+Chicken Biryani|Standard|450.00|Selling|Active|{"RatePercentage":0,"IsInclusive":false}
+Chicken Haleem|Half Plate|260.00|Selling|Active|{"RatePercentage":0,"IsInclusive":false}
+Salad|Standard|30.00|Selling|Active|{"RatePercentage":0,"IsInclusive":false}
+Leechi|Leechi|50.00|Selling|Active|{"RatePercentage":0,"IsInclusive":false}
+Garlic Nan|Garlic Nan|50.00|Selling|Active|{"RatePercentage":15,"IsInclusive":false}
+Chicken Haleem|Full Plate|420.00|Selling|Active|{"RatePercentage":0,"IsInclusive":false}
+CompletedToday
+--------------
+5

@@ -240,4 +240,92 @@ public class TableHandlerTests
 
         Assert.Equal("Window Table", result.Name);
     }
+
+    [Fact]
+    public async Task CreateTableCommandHandler_DuplicateCodeInSameDiningArea_ThrowsDomainException()
+    {
+        var repository = new FakeTableRepository();
+        var handler = new CreateTableCommandHandler(repository);
+        var diningAreaId = DiningAreaId.New();
+
+        await handler.Handle(new CreateTableCommand(diningAreaId.Value, "T-QA1", "Table QA1", 4), CancellationToken.None);
+
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new CreateTableCommand(diningAreaId.Value, "T-QA1", "Table QA1 Duplicate", 4), CancellationToken.None));
+
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    [Fact]
+    public async Task ReconcileTableOccupancyCommandHandler_VacatesTable_WhenAllOrdersClosed()
+    {
+        var tableRepo = new FakeTableRepository();
+        var orderRepo = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-QA1"), 4);
+        table.Occupy();
+        tableRepo.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        order.Cancel("Test cancellation");
+        orderRepo.Add(order);
+
+        await new ReconcileTableOccupancyCommandHandler(tableRepo, orderRepo)
+            .Handle(new ReconcileTableOccupancyCommand(), CancellationToken.None);
+
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
+
+    [Fact]
+    public async Task ReconcileTableOccupancyCommandHandler_PreservesOccupied_WhenActiveOrderExists()
+    {
+        var tableRepo = new FakeTableRepository();
+        var orderRepo = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-01"), 4);
+        table.Occupy();
+        tableRepo.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepo.Add(order);
+
+        await new ReconcileTableOccupancyCommandHandler(tableRepo, orderRepo)
+            .Handle(new ReconcileTableOccupancyCommand(), CancellationToken.None);
+
+        Assert.Equal(TableOccupancyStatus.Occupied, table.OccupancyStatus);
+    }
+
+    [Fact]
+    public async Task ReconcileTableOccupancyCommandHandler_DoesNotResetOutOfServiceTable()
+    {
+        var tableRepo = new FakeTableRepository();
+        var orderRepo = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-02"), 4);
+        table.SetOutOfService();
+        tableRepo.Add(table);
+
+        await new ReconcileTableOccupancyCommandHandler(tableRepo, orderRepo)
+            .Handle(new ReconcileTableOccupancyCommand(), CancellationToken.None);
+
+        Assert.Equal(TableOccupancyStatus.OutOfService, table.OccupancyStatus);
+    }
+
+    [Fact]
+    public async Task ListAllTablesQueryHandler_ReconcilesDriftedTableOccupancy()
+    {
+        var tableRepo = new FakeTableRepository();
+        var orderRepo = new FakeOrderRepository();
+
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-QA1"), 4);
+        table.Occupy();
+        tableRepo.Add(table);
+
+        var handler = new ListAllTablesQueryHandler(tableRepo, orderRepo);
+        var result = await handler.Handle(new ListAllTablesQuery(), CancellationToken.None);
+
+        var tableDto = Assert.Single(result);
+        Assert.Equal("Available", tableDto.OccupancyStatus);
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
 }

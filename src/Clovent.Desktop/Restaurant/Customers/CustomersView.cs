@@ -122,9 +122,9 @@ public sealed partial class CustomersView : XtraUserControl
             _allItems = [.. items];
 
             var pickerItems = new List<CustomerPickerRow>();
-            pickerItems.Add(new CustomerPickerRow(Guid.Empty, "All Customers", string.Empty, string.Empty));
+            pickerItems.Add(new CustomerPickerRow(Guid.Empty, "-", "All Customers", string.Empty, string.Empty));
             pickerItems.AddRange(_allItems
-                .Select(c => new CustomerPickerRow(c.CustomerId, c.Name, c.MobileNumber, CurrencyDisplay.FormatPlain(c.OutstandingBalance))));
+                .Select(c => new CustomerPickerRow(c.CustomerId, c.Code, c.Name, c.MobileNumber, CurrencyDisplay.FormatPlain(c.OutstandingBalance))));
 
             var selectedVal = _txtSearch.EditValue;
             _txtSearch.Properties.DataSource = pickerItems;
@@ -174,6 +174,9 @@ public sealed partial class CustomersView : XtraUserControl
         var canDeactivate = selectedCount > 0 && await _featurePolicy.CanUseFeatureAsync(userId, "customers.deactivate");
         _btnToggleStatus.Enabled = canActivate || canDeactivate;
         _btnToggleStatus.Text = focusedDto != null && focusedDto.IsActive ? "Deactivate" : "Activate";
+
+        var canEdit = await _featurePolicy.CanUseFeatureAsync(userId, "customers.edit");
+        _btnSetDefault.Enabled = (selectedCount == 1) && focusedDto != null && focusedDto.IsActive && !focusedDto.IsDefault && canEdit;
 
         _btnLedger.Enabled = (selectedCount == 1) && focusedDto != null && await _featurePolicy.CanUseFeatureAsync(userId, "customers.viewledger");
         _btnReceivePayment.Enabled = (selectedCount == 1) && focusedDto != null && focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.payment");
@@ -322,7 +325,8 @@ public sealed partial class CustomersView : XtraUserControl
                 form.NotesValue,
                 form.ShopNoValue,
                 form.Mobile2Value,
-                form.PhoneValue));
+                form.PhoneValue,
+                form.IsDefaultValue));
 
             await LogActivityAsync("Customer Created", $"Customer: {form.NameValue} ({form.CodeValue})");
             await RefreshAsync();
@@ -338,6 +342,36 @@ public sealed partial class CustomersView : XtraUserControl
         {
             _gridView.ExportToCsv(dialog.FileName);
             XtraMessageBox.Show(this, "Customers exported successfully.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
+    private async void BtnSetDefault_Click(object? sender, EventArgs e)
+    {
+        if (GetFocusedCustomer() is not { } customer) return;
+
+        if (!await CanUseFeatureAsync("edit"))
+        {
+            XtraMessageBox.Show(this, "You do not have permission to edit customers.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (!customer.IsActive)
+        {
+            XtraMessageBox.Show(this, "Inactive customers cannot be set as default.", "Operation Invalid", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (customer.IsDefault)
+        {
+            return;
+        }
+
+        string confirmMsg = $"Set customer '{customer.Name}' ({customer.Code}) as the default customer for new POS orders?";
+        if (XtraMessageBox.Show(this, confirmMsg, "Confirm Set Default", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+        {
+            await _mediator.Send(new SetDefaultCustomerCommand(customer.CustomerId));
+            await LogActivityAsync("Customer Default Changed", $"Customer: {customer.Name} ({customer.Code}) set as default POS customer");
+            await RefreshAsync();
         }
     }
 
@@ -425,8 +459,10 @@ public sealed partial class CustomersView : XtraUserControl
         return detail;
     }
 
+    private bool _isLedgerDialogOpen;
     private async void BtnLedger_Click(object? sender, EventArgs e)
     {
+        if (_isLedgerDialogOpen) return;
         if (GetFocusedCustomer() is not { } customer) return;
 
         if (!await CanUseFeatureAsync("viewledger"))
@@ -435,10 +471,18 @@ public sealed partial class CustomersView : XtraUserControl
             return;
         }
 
-        using var dialog = new CustomerLedgerDialog(_mediator, customer);
-        dialog.ShowDialog(this);
-        // Refresh balance in grid upon ledger dialog closing in case updates occurred
-        await RefreshAsync();
+        _isLedgerDialogOpen = true;
+        try
+        {
+            using var dialog = new CustomerLedgerDialog(_mediator, customer);
+            dialog.ShowDialog(this);
+            // Refresh balance in grid upon ledger dialog closing in case updates occurred
+            await RefreshAsync();
+        }
+        finally
+        {
+            _isLedgerDialogOpen = false;
+        }
     }
 
     private async void BtnToggleStatus_Click(object? sender, EventArgs e)
@@ -505,7 +549,8 @@ public sealed partial class CustomersView : XtraUserControl
             isNew: false,
             dto.ShopNo,
             dto.Mobile2,
-            dto.Phone);
+            dto.Phone,
+            dto.IsDefault);
 
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -519,7 +564,8 @@ public sealed partial class CustomersView : XtraUserControl
                 form.NotesValue,
                 form.ShopNoValue,
                 form.Mobile2Value,
-                form.PhoneValue));
+                form.PhoneValue,
+                form.IsDefaultValue));
 
             await LogActivityAsync("Customer Edited", $"Customer: {form.NameValue} ({dto.Code})");
             await RefreshAsync();
@@ -556,6 +602,7 @@ public sealed partial class CustomersView : XtraUserControl
         _btnLedger.MinimumSize = LogicalToDeviceUnits(new Size(110, 32));
         _btnReceivePayment.MinimumSize = LogicalToDeviceUnits(new Size(130, 32));
         _btnToggleStatus.MinimumSize = LogicalToDeviceUnits(new Size(100, 32));
+        _btnSetDefault.MinimumSize = LogicalToDeviceUnits(new Size(115, 32));
         _exportButton.MinimumSize = LogicalToDeviceUnits(new Size(95, 32));
         _refreshButton.MinimumSize = LogicalToDeviceUnits(new Size(80, 32));
         _newButton.MinimumSize = LogicalToDeviceUnits(new Size(130, 32));
@@ -573,14 +620,16 @@ public sealed partial class CustomersView : XtraUserControl
         _gridView.Columns["Code"].MinWidth = LogicalToDeviceUnits(60);
         _gridView.Columns["Name"].MinWidth = LogicalToDeviceUnits(150);
         _gridView.Columns["MobileNumber"].MinWidth = LogicalToDeviceUnits(100);
+        _gridView.Columns["Phone"].MinWidth = LogicalToDeviceUnits(100);
         _gridView.Columns["Email"].MinWidth = LogicalToDeviceUnits(150);
         _gridView.Columns["OutstandingBalance"].MinWidth = LogicalToDeviceUnits(100);
         _gridView.Columns["CreditLimit"].MinWidth = LogicalToDeviceUnits(100);
         _gridView.Columns["StatusText"].MinWidth = LogicalToDeviceUnits(80);
+        _gridView.Columns["IsDefaultText"].MinWidth = LogicalToDeviceUnits(70);
         _gridView.Columns["LastTransactionText"].MinWidth = LogicalToDeviceUnits(140);
     }
 
-    private sealed record CustomerPickerRow(Guid CustomerId, string Name, string Phone, string BalanceDisplay);
+    private sealed record CustomerPickerRow(Guid CustomerId, string CustomerCode, string Name, string Phone, string BalanceDisplay);
 
     // --- GRID VIEW ROW SHAPE ---
     private sealed class CustomerGridRow(CustomerDto dto)
@@ -596,6 +645,8 @@ public sealed partial class CustomersView : XtraUserControl
         public decimal OutstandingBalance => Dto.OutstandingBalance;
         public decimal CreditLimit => Dto.CreditLimit;
         public string StatusText => Dto.IsActive ? "Active" : "Inactive";
+        public bool IsDefault => Dto.IsDefault;
+        public string IsDefaultText => Dto.IsDefault ? "YES" : "";
         public string LastTransactionText => DateTimeDisplay.Format(Dto.LastTransactionDate);
     }
 }

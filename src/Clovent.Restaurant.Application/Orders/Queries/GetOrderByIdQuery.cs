@@ -13,7 +13,7 @@ public sealed class GetOrderByIdQueryHandler(IOrderRepository repository) : IReq
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
-        var order = await repository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
+        var order = await repository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
 
         return OrderDto.FromDomain(order);

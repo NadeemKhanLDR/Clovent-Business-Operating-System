@@ -322,4 +322,107 @@ public sealed class RecallOrderDialogScreenshotTests
 
         posBmp.Save(outPath, ImageFormat.Png);
     }
+
+    [Fact]
+    public void RenderDealPreviewScreenshots_At1024_1366_1920()
+    {
+        var thread = new Thread(() =>
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string? dir = baseDir;
+            string? qaDir = null;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                var candidate = Path.Combine(dir, "qa");
+                if (Directory.Exists(candidate))
+                {
+                    qaDir = candidate;
+                    break;
+                }
+                dir = Path.GetDirectoryName(dir);
+            }
+            if (string.IsNullOrEmpty(qaDir))
+            {
+                qaDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "qa"));
+                Directory.CreateDirectory(qaDir);
+            }
+
+            // Real deal template item data matching production quick orders
+            var template = new Clovent.Restaurant.Application.QuickOrderTemplates.Dtos.QuickOrderTemplateDto(
+                Guid.NewGuid(),
+                "Chicken Karahi Feast",
+                "Full Chicken Karahi with 4 Garlic Naan & 2 Cold Drinks",
+                true,
+                1,
+                [
+                    new Clovent.Restaurant.Application.QuickOrderTemplates.Dtos.QuickOrderTemplateItemDto(
+                        Guid.NewGuid(), "Chicken Karahi", "Full", 1m, 1200.00m),
+                    new Clovent.Restaurant.Application.QuickOrderTemplates.Dtos.QuickOrderTemplateItemDto(
+                        Guid.NewGuid(), "Garlic Naan", "Fresh", 4m, 60.00m),
+                    new Clovent.Restaurant.Application.QuickOrderTemplates.Dtos.QuickOrderTemplateItemDto(
+                        Guid.NewGuid(), "Cold Drink", "500ml", 2m, 60.00m)
+                ],
+                1560.00m);
+
+            // Resolution 1: 1024x768
+            using (var dialog1024 = new QuickOrderPreviewDialog(template))
+            {
+                dialog1024.ApplyOperationalSize(1024, 768);
+                CaptureGenericDialog(dialog1024, Path.Combine(qaDir, "runtime_1024_deal_preview.png"));
+            }
+
+            // Resolution 2: 1366x768
+            using (var dialog1366 = new QuickOrderPreviewDialog(template))
+            {
+                dialog1366.ApplyOperationalSize(1366, 768);
+                CaptureGenericDialog(dialog1366, Path.Combine(qaDir, "runtime_1366_deal_preview.png"));
+            }
+
+            // Resolution 3: 1920x1080
+            using (var dialog1920 = new QuickOrderPreviewDialog(template))
+            {
+                dialog1920.ApplyOperationalSize(1920, 1080);
+                CaptureGenericDialog(dialog1920, Path.Combine(qaDir, "runtime_1920_deal_preview.png"));
+            }
+
+            // Composite POS preview
+            RenderPosComposite(Path.Combine(qaDir, "runtime_1920_deal_preview.png"), 1920, 1080, Path.Combine(qaDir, "runtime_1920_deal_preview_pos_composite.png"));
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        var qa = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "qa"));
+        Assert.True(File.Exists(Path.Combine(qa, "runtime_1920_deal_preview.png")));
+        Assert.True(File.Exists(Path.Combine(qa, "runtime_1920_deal_preview_pos_composite.png")));
+    }
+
+    private static void CaptureGenericDialog(Form dialog, string outPath)
+    {
+        dialog.StartPosition = FormStartPosition.Manual;
+        dialog.Location = new Point(10, 10);
+        dialog.Show();
+        for (int i = 0; i < 20; i++)
+        {
+            Application.DoEvents();
+            Thread.Sleep(30);
+        }
+        var bounds = dialog.Bounds;
+        using var bmp = new Bitmap(bounds.Width, bounds.Height);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            var hdc = g.GetHdc();
+            try
+            {
+                PrintWindow(dialog.Handle, hdc, 2);
+            }
+            finally
+            {
+                g.ReleaseHdc(hdc);
+            }
+        }
+        bmp.Save(outPath, ImageFormat.Png);
+        dialog.Close();
+        Application.DoEvents();
+    }
 }

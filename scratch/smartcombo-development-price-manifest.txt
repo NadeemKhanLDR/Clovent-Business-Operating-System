@@ -1,0 +1,3 @@
+2026-09-21 07:28:27Z | Chicken Biryani | PriceId=cc8d1aa6-3298-47f9-b0ca-c654a88990ce | VariantId=c28181e1-e80c-42d0-9402-1409621816f9 | Amount=450 | Currency=06715aa9-ae73-4f97-b4dc-a2abfc8ef310
+2026-09-21 07:28:27Z | Salad | PriceId=e05e3071-1785-4ac5-9298-9bf7a9f1874f | VariantId=a6ef7092-dab1-4e73-a603-27001bd6d85d | Amount=30 | Currency=06715aa9-ae73-4f97-b4dc-a2abfc8ef310
+2026-09-21 07:28:27Z | Leechi | PriceId=a48f0530-dc0d-4f2d-aba7-7e1f85294ee1 | VariantId=62b73e75-129e-4489-9ad8-6c8c96fcb527 | Amount=50 | Currency=06715aa9-ae73-4f97-b4dc-a2abfc8ef310

@@ -3,6 +3,7 @@ using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
+using Clovent.Restaurant.Application.Tables.Queries;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
@@ -287,6 +288,33 @@ public class OrderHandlerTests
 
         Assert.Equal("Cancelled", result.Status);
         Assert.Equal("Available", table.OccupancyStatus.ToString());
+    }
+
+    [Fact]
+    public async Task CancelOrderCommandHandler_DineIn_ReloadAfterCancellation_PreservesAvailable()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-QA1"), 4);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var order = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepository.Add(order);
+
+        // 1. Cancel the Dine-In order
+        await new CancelOrderCommandHandler(orderRepository, tableRepository)
+            .Handle(new CancelOrderCommand(order.Id.Value, "Customer cancelled"), CancellationToken.None);
+
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+
+        // 2. Query/reload all tables (simulating closing and reopening the app or reload)
+        var listHandler = new ListAllTablesQueryHandler(tableRepository, orderRepository);
+        var tables = await listHandler.Handle(new ListAllTablesQuery(), CancellationToken.None);
+
+        var loadedTable = Assert.Single(tables, t => t.TableId == table.Id.Value);
+        Assert.Equal("Available", loadedTable.OccupancyStatus);
+        Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
     }
 
     [Fact]

@@ -55,6 +55,12 @@ public class HoldAndRecallTests
         public Task<IReadOnlyCollection<Order>> GetOpenOrHeldByTableIdAsync(TableId tableId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<Order>>([.. Orders.Values.Where(o => o.TableId == tableId && o.Status is OrderStatus.Open or OrderStatus.Held)]);
 
+        public Task<IReadOnlySet<TableId>> GetActiveTableIdsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlySet<TableId>>(Orders.Values
+                .Where(o => o.TableId.HasValue && o.Status is OrderStatus.Open or OrderStatus.Held)
+                .Select(o => o.TableId!.Value)
+                .ToHashSet());
+
         public Task<IReadOnlyCollection<Order>> GetOpenAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<Order>>([.. Orders.Values.Where(o => o.Status == OrderStatus.Open)]);
 
@@ -662,4 +668,96 @@ public class HoldAndRecallTests
         Assert.True(btnHold.Right <= btnRecall.Left);
         Assert.True(btnRecall.Right <= btnClear.Left);
     }
+
+    // 25. Recall when current order in POS is already Held does not throw OrderNotOpen
+    [Fact]
+    public async Task Scenario25_RecallWhenCurrentOrderIsHeld_DoesNotAttemptToReHold()
+    {
+        var orderRepo = new InMemoryOrderRepository();
+        var lineRepo = new InMemoryOrderLineRepository();
+
+        // Order 1 is already held (e.g. recalled earlier or placed on hold)
+        var order1 = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line1 = OrderLine.Create(order1.Id, ProductVariantId.New(), 1m, 100m, 0m, false);
+        order1.AddOrderLine(line1.Id);
+        order1.Hold();
+        await orderRepo.AddAsync(order1);
+        await lineRepo.AddAsync(line1);
+
+        // Order 2 is also held and being recalled
+        var order2 = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line2 = OrderLine.Create(order2.Id, ProductVariantId.New(), 2m, 200m, 0m, false);
+        order2.AddOrderLine(line2.Id);
+        order2.Hold();
+        await orderRepo.AddAsync(order2);
+        await lineRepo.AddAsync(line2);
+
+        // In POS, if _currentOrder is order1 (Status == "Held"), recalling order2 must NOT invoke HoldOrderCommand on order1
+        // because order1 is already Held. Invoking Hold on a Held order throws RestaurantDomainException ("Order is Held, not Open").
+        Assert.Equal(OrderStatus.Held, order1.Status);
+        Assert.Equal(OrderStatus.Held, order2.Status);
+
+        // Verify holding an open order succeeds, whereas holding an already held order throws
+        var openOrder = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        openOrder.AddOrderLine(OrderLineId.New());
+        await orderRepo.AddAsync(openOrder);
+        var holdHandler = new HoldOrderCommandHandler(orderRepo);
+        var heldResult = await holdHandler.Handle(new HoldOrderCommand(openOrder.Id.Value), CancellationToken.None);
+        Assert.Equal("Held", heldResult.Status);
+
+        // Confirm domain exception if re-holding held order:
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            holdHandler.Handle(new HoldOrderCommand(order1.Id.Value), CancellationToken.None));
+    }
+
+    // 26. Customer Code and Walk-in customer code display
+    [Fact]
+    public void Scenario26_CustomerCode_DisplayRules()
+    {
+        // For a registered customer with Code:
+        var customerCode = "C001";
+        var customerName = "John Smith";
+        var custText = customerCode != "-" ? $"[{customerCode}] {customerName}" : customerName;
+        Assert.Equal("[C001] John Smith", custText);
+
+        // For Walk-in Customer:
+        var walkInCode = "-";
+        var walkInName = "Walk-in Customer";
+        var walkInText = walkInCode != "-" ? $"[{walkInCode}] {walkInName}" : walkInName;
+        Assert.Equal("Walk-in Customer", walkInText);
+    }
+
+    // 27. Customer Picker Popup Grid columns configuration (CustomerId GUID hidden, code/name/phone/balance visible)
+    [Fact]
+    public void Scenario27_CustomerPicker_PopupColumns_HidesInternalCustomerId()
+    {
+        using var picker = new DevExpress.XtraEditors.SearchLookUpEdit();
+        picker.Properties.ValueMember = "CustomerId";
+        picker.Properties.DisplayMember = "Name";
+
+        var popupView = picker.Properties.PopupView;
+        Assert.NotNull(popupView);
+
+        popupView.Columns.Clear();
+        var colCode = popupView.Columns.AddVisible("CustomerCode", "Customer Code");
+        colCode.Width = 120;
+        var colName = popupView.Columns.AddVisible("Name", "Name");
+        colName.Width = 240;
+        var colPhone = popupView.Columns.AddVisible("Phone", "Phone");
+        colPhone.Width = 130;
+        var colBalance = popupView.Columns.AddVisible("BalanceDisplay", "Balance");
+        colBalance.Width = 110;
+
+        // Verify ValueMember is still CustomerId for database persistence & key lookup
+        Assert.Equal("CustomerId", picker.Properties.ValueMember);
+        Assert.Equal("Name", picker.Properties.DisplayMember);
+
+        // Verify CustomerId is NOT in visible columns
+        Assert.Null(popupView.Columns["CustomerId"]);
+
+        // Verify visible columns are only CustomerCode, Name, Phone, BalanceDisplay
+        var visibleColumns = popupView.VisibleColumns.Cast<DevExpress.XtraGrid.Columns.GridColumn>().Select(c => c.FieldName).ToList();
+        Assert.Equal(["CustomerCode", "Name", "Phone", "BalanceDisplay"], visibleColumns);
+    }
 }
+

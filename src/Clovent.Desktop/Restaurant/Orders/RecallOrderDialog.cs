@@ -319,6 +319,7 @@ CloseButton Bounds: {_closeButton.Bounds}
 
         var customer = order.CustomerId is { } cid && customersById.TryGetValue(cid, out var c) ? c : null;
         var customerName = customer?.Name ?? "Walk-in Customer";
+        var customerCode = customer is not null && !string.IsNullOrWhiteSpace(customer.Code) ? customer.Code : "-";
         var phone = customer?.MobileNumber is { Length: > 0 } mobile ? mobile : "-";
         var invoiceDisplay = order.DailySalesNumber is { } n ? $"INV-{n:D6}" : "-";
 
@@ -351,6 +352,7 @@ CloseButton Bounds: {_closeButton.Bounds}
             order.DailySalesNumber?.ToString() ?? "",
             orderTypeDisplay,
             tableDisplay,
+            customerCode,
             customerName,
             phone,
             statusDisplay,
@@ -363,6 +365,7 @@ CloseButton Bounds: {_closeButton.Bounds}
             invoiceDisplay,
             orderTypeDisplay,
             tableDisplay,
+            customerCode,
             customerName,
             phone,
             order.OrderLineIds.Count,
@@ -439,6 +442,7 @@ CloseButton Bounds: {_closeButton.Bounds}
         ColumnByField("OrderNumber").Visible = true;
         ColumnByField("TypeDisplay").Visible = true;
         ColumnByField("TableDisplay").Visible = true;
+        ColumnByField("CustomerCode").Visible = true;
         ColumnByField("CustomerName").Visible = true;
         ColumnByField("ItemCount").Visible = true;
         ColumnByField("TotalDisplay").Visible = true;
@@ -518,10 +522,11 @@ CloseButton Bounds: {_closeButton.Bounds}
 
         var tableText = row.TableDisplay == "-" ? "None" : row.TableDisplay;
         var phoneText = row.Phone == "-" ? "" : $" ({row.Phone})";
+        var custText = row.CustomerCode != "-" ? $"[{row.CustomerCode}] {row.CustomerName}" : row.CustomerName;
         _previewHeaderLabel.Text = $"Selected:  {row.OrderNumber}  •  {row.TypeDisplay}  •  {row.StatusDisplay}";
 
         _previewSummaryLabel.Text =
-            $"Customer: {row.CustomerName}{phoneText}    •    Table: {tableText}    •    " +
+            $"Customer: {custText}{phoneText}    •    Table: {tableText}    •    " +
             $"Items: {row.ItemCount}    •    Total: Rs. {row.TotalDisplay}";
 
         var heldByText = !string.IsNullOrEmpty(row.PerformedBy) && row.PerformedBy != "-" ? row.PerformedBy : "Administrator";
@@ -702,10 +707,11 @@ CloseButton Bounds: {_closeButton.Bounds}
         var payments = await _mediator.Send(new Clovent.Restaurant.Application.Payments.Queries.ListPaymentsByOrderQuery(row.OrderId));
 
         var sb = new System.Text.StringBuilder();
+        var custText = row.CustomerCode != "-" ? $"[{row.CustomerCode}] {row.CustomerName}" : row.CustomerName;
         sb.AppendLine($"Order:    {row.OrderNumber}   ({row.StatusDisplay})");
         sb.AppendLine($"Invoice:  {row.InvoiceDisplay}");
         sb.AppendLine($"Type:     {row.TypeDisplay}   Table: {row.TableDisplay}");
-        sb.AppendLine($"Customer: {row.CustomerName}   {row.Phone}");
+        sb.AppendLine($"Customer: {custText}   {row.Phone}");
         sb.AppendLine($"Updated:  {row.DateTimeDisplay}");
         if (row.Reason != "-")
             sb.AppendLine($"Reason:   {row.Reason}");
@@ -753,6 +759,7 @@ CloseButton Bounds: {_closeButton.Bounds}
         string InvoiceDisplay,
         string TypeDisplay,
         string TableDisplay,
+        string CustomerCode,
         string CustomerName,
         string Phone,
         int ItemCount,

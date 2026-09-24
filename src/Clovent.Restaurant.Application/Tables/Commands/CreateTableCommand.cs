@@ -24,7 +24,16 @@ public sealed class CreateTableCommandHandler(ITableRepository repository) : IRe
     /// <inheritdoc/>
     public async Task<TableDto> Handle(CreateTableCommand request, CancellationToken cancellationToken)
     {
-        var table = Table.Create(new DiningAreaId(request.DiningAreaId), EntityCode.Create(request.Code), TableName.Create(request.Name), request.Capacity);
+        var diningAreaId = new DiningAreaId(request.DiningAreaId);
+        var code = EntityCode.Create(request.Code);
+
+        var existing = await repository.GetByCodeAsync(diningAreaId, code, cancellationToken);
+        if (existing is not null)
+        {
+            throw RestaurantDomainException.TableCodeAlreadyExists(code);
+        }
+
+        var table = Table.Create(diningAreaId, code, TableName.Create(request.Name), request.Capacity);
 
         await repository.AddAsync(table, cancellationToken);
 
