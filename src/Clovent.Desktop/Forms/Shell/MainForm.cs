@@ -317,7 +317,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
             if (session != null)
             {
-                var localTime = session.PunchInAtUtc.ToLocalTime().ToString("hh:mm tt");
+                var localTime = Clovent.Desktop.Forms.Base.DateTimeDisplay.FormatTime(session.PunchInAtUtc);
                 _attendanceStatusItem.Caption = $"● Punched In · {localTime}";
                 _punchInOutButton.Caption = "Punch Out";
                 _punchInOutButton.Hint = "Punch out from employee attendance session";

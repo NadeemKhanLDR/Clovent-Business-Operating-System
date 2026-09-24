@@ -6377,7 +6377,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (result == DialogResult.OK && movementDlg.RecordedMovement != null)
         {
             var m = movementDlg.RecordedMovement;
-            await LogActivityAsync("Cash Movement", $"{m.Type}: {m.Amount:C2} - {m.Reason}");
+            await LogActivityAsync("Cash Movement", $"{m.Type}: {CurrencyDisplay.Format(m.Amount)} - {m.Reason}");
 
             try
             {
