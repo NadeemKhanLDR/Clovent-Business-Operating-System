@@ -15,6 +15,9 @@ public interface IPaymentRepository
     /// <summary>Retrieves every payment recorded against a shift session.</summary>
     Task<IReadOnlyCollection<Payment>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves every payment recorded across all orders.</summary>
+    Task<IReadOnlyCollection<Payment>> GetAllAsync(CancellationToken cancellationToken = default);
+
     /// <summary>Adds a newly-recorded payment.</summary>
     Task AddAsync(Payment payment, CancellationToken cancellationToken = default);
 }

@@ -14,7 +14,7 @@ public sealed class GetTimeZoneEntryByIdQueryHandler(ITimeZoneRepository timeZon
     /// <inheritdoc/>
     public async Task<TimeZoneEntryDto> Handle(GetTimeZoneEntryByIdQuery request, CancellationToken cancellationToken)
     {
-        var entry = await timeZoneRepository.GetByIdAsync(new TimeZoneEntryId(request.TimeZoneEntryId), cancellationToken)
+        var entry = await timeZoneRepository.GetByIdAsync(new TimeZoneEntryId(request.TimeZoneEntryId), cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException(nameof(TimeZoneEntry), request.TimeZoneEntryId);
 
         return TimeZoneEntryDto.FromDomain(entry);

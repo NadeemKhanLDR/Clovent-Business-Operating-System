@@ -184,6 +184,19 @@ public partial class MasterDataEditFormBase : XtraForm
     }
 
     /// <summary>
+    /// Whether this dialog should automatically recompute its ClientSize based on its 2-column field contents.
+    /// Forms with custom multi-column layouts or explicit dialog sizing (such as CustomerEditForm)
+    /// can override this to false.
+    /// </summary>
+    protected virtual bool AutoComputeClientSize => true;
+
+    /// <summary>
+    /// Whether this dialog should restore and save window placement across sessions.
+    /// Modal dialogs with fixed layouts can override this to false to ensure content-driven sizing.
+    /// </summary>
+    protected virtual bool PersistWindowPlacement => true;
+
+    /// <summary>
     /// Recomputes this dialog's real size from its subclass's actual field
     /// content - see this class's constructor for why the InitializeComponent
     /// placeholder Width/Height alone are not enough.
@@ -234,90 +247,93 @@ public partial class MasterDataEditFormBase : XtraForm
         _buttonPanel.PerformLayout();
         this.PerformLayout();
 
-        var labelColumnWidth = 0;
-        var maxEditorWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
-        var maxSpan2Width = 0;
-
-        foreach (Control control in _contentPanel.Controls)
+        if (AutoComputeClientSize)
         {
-            var col = _contentPanel.GetColumn(control);
-            var colSpan = _contentPanel.GetColumnSpan(control);
-            var prefSize = control.GetPreferredSize(Size.Empty);
+            var labelColumnWidth = 0;
+            var maxEditorWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
+            var maxSpan2Width = 0;
 
-            if (colSpan == 2)
+            foreach (Control control in _contentPanel.Controls)
             {
-                maxSpan2Width = Math.Max(maxSpan2Width, prefSize.Width);
+                var col = _contentPanel.GetColumn(control);
+                var colSpan = _contentPanel.GetColumnSpan(control);
+                var prefSize = control.GetPreferredSize(Size.Empty);
+
+                if (colSpan == 2)
+                {
+                    maxSpan2Width = Math.Max(maxSpan2Width, prefSize.Width);
+                }
+                else if (col == 0)
+                {
+                    labelColumnWidth = Math.Max(labelColumnWidth, prefSize.Width);
+                }
+                else if (col == 1)
+                {
+                    maxEditorWidth = Math.Max(maxEditorWidth, prefSize.Width);
+                }
             }
-            else if (col == 0)
+
+            var wantedClientWidth = Math.Max(labelColumnWidth + maxEditorWidth, maxSpan2Width) + _contentPanel.Padding.Horizontal + 48;
+
+            // The button strip's own preferred width (three AutoSize buttons plus
+            // its padding) is a floor too - a narrow field set must not size the
+            // dialog narrower than its own buttons ("Save & New"/Save/Cancel
+            // squeezed against the edges, confirmed in the Menu Item Edit
+            // screenshot).
+            var buttonRowWidth = _buttonPanel.GetPreferredSize(Size.Empty).Width + 16;
+            wantedClientWidth = Math.Max(wantedClientWidth, buttonRowWidth);
+
+            // Ensure title bar text is fully visible (not truncated)
+            int titleWidth = 0;
+            try
             {
-                labelColumnWidth = Math.Max(labelColumnWidth, prefSize.Width);
+                titleWidth = TextRenderer.MeasureText(Text, SystemFonts.CaptionFont).Width + 120;
             }
-            else if (col == 1)
+            catch
             {
-                maxEditorWidth = Math.Max(maxEditorWidth, prefSize.Width);
+                titleWidth = TextRenderer.MeasureText(Text, Font).Width + 120;
             }
+            wantedClientWidth = Math.Max(wantedClientWidth, titleWidth);
+
+            // Comfortable click targets: AutoSize grows buttons to their caption,
+            // but a DPI-scaled minimum keeps OK/Cancel/Save & New from rendering
+            // as thin slivers on short captions at above-100% DPI.
+            var minButtonWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(96, this);
+            foreach (var button in new[] { _okButton, _cancelButton, _saveAndNewButton })
+            {
+                button.MinimumSize = new Size(minButtonWidth, 0);
+                button.Padding = new Padding(10, 4, 10, 4);
+            }
+
+            var contentHeight = _contentPanel.GetPreferredSize(new Size(wantedClientWidth - _contentPanel.Padding.Horizontal, 0)).Height;
+            var buttonHeight = _buttonPanel.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
+
+            // Any extra Top/Bottom-docked chrome a subclass adds after this
+            // constructor returns (e.g. MenuItemEditForm's centered "Menu
+            // Item" heading) needs its height counted here too, or this
+            // dialog sizes itself short by exactly that much and clips the
+            // last field row - the same class of bug this whole recompute
+            // was added to fix in the first place.
+            var extraChromeHeight = Controls.OfType<Control>()
+                .Where(c => c != _contentPanel && c != _buttonPanel && c.Dock is DockStyle.Top or DockStyle.Bottom)
+                .Sum(c => {
+                    var prefHeight = c.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
+                    return prefHeight > 0 ? prefHeight : c.Height;
+                });
+            var wantedClientHeight = contentHeight + buttonHeight + extraChromeHeight;
+
+            ClientSize = new Size(
+                Math.Max(ClientSize.Width, wantedClientWidth),
+                Math.Max(ClientSize.Height, wantedClientHeight));
+
+            // The dialog can now be resized/maximized, so it needs a real
+            // floor: whatever this subclass's own fields actually need,
+            // computed above from real content the exact same way ClientSize
+            // already is - a user can shrink the window down to (but never
+            // below) what its own fields require, instead of an arbitrary
+            // guessed minimum.
+            MinimumSize = Size;
         }
-
-        var wantedClientWidth = Math.Max(labelColumnWidth + maxEditorWidth, maxSpan2Width) + _contentPanel.Padding.Horizontal + 48;
-
-        // The button strip's own preferred width (three AutoSize buttons plus
-        // its padding) is a floor too - a narrow field set must not size the
-        // dialog narrower than its own buttons ("Save & New"/Save/Cancel
-        // squeezed against the edges, confirmed in the Menu Item Edit
-        // screenshot).
-        var buttonRowWidth = _buttonPanel.GetPreferredSize(Size.Empty).Width + 16;
-        wantedClientWidth = Math.Max(wantedClientWidth, buttonRowWidth);
-
-        // Ensure title bar text is fully visible (not truncated)
-        int titleWidth = 0;
-        try
-        {
-            titleWidth = TextRenderer.MeasureText(Text, SystemFonts.CaptionFont).Width + 120;
-        }
-        catch
-        {
-            titleWidth = TextRenderer.MeasureText(Text, Font).Width + 120;
-        }
-        wantedClientWidth = Math.Max(wantedClientWidth, titleWidth);
-
-        // Comfortable click targets: AutoSize grows buttons to their caption,
-        // but a DPI-scaled minimum keeps OK/Cancel/Save & New from rendering
-        // as thin slivers on short captions at above-100% DPI.
-        var minButtonWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(96, this);
-        foreach (var button in new[] { _okButton, _cancelButton, _saveAndNewButton })
-        {
-            button.MinimumSize = new Size(minButtonWidth, 0);
-            button.Padding = new Padding(10, 4, 10, 4);
-        }
-
-        var contentHeight = _contentPanel.GetPreferredSize(new Size(wantedClientWidth - _contentPanel.Padding.Horizontal, 0)).Height;
-        var buttonHeight = _buttonPanel.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
-
-        // Any extra Top/Bottom-docked chrome a subclass adds after this
-        // constructor returns (e.g. MenuItemEditForm's centered "Menu
-        // Item" heading) needs its height counted here too, or this
-        // dialog sizes itself short by exactly that much and clips the
-        // last field row - the same class of bug this whole recompute
-        // was added to fix in the first place.
-        var extraChromeHeight = Controls.OfType<Control>()
-            .Where(c => c != _contentPanel && c != _buttonPanel && c.Dock is DockStyle.Top or DockStyle.Bottom)
-            .Sum(c => {
-                var prefHeight = c.GetPreferredSize(new Size(wantedClientWidth, 0)).Height;
-                return prefHeight > 0 ? prefHeight : c.Height;
-            });
-        var wantedClientHeight = contentHeight + buttonHeight + extraChromeHeight;
-
-        ClientSize = new Size(
-            Math.Max(ClientSize.Width, wantedClientWidth),
-            Math.Max(ClientSize.Height, wantedClientHeight));
-
-        // The dialog can now be resized/maximized, so it needs a real
-        // floor: whatever this subclass's own fields actually need,
-        // computed above from real content the exact same way ClientSize
-        // already is - a user can shrink the window down to (but never
-        // below) what its own fields require, instead of an arbitrary
-        // guessed minimum.
-        MinimumSize = Size;
 
         // Keyed by the concrete subclass's own type name, so
         // PriceOverrideDialog/DiscountDialog/PaymentMethodEditForm/...
@@ -325,9 +341,17 @@ public partial class MasterDataEditFormBase : XtraForm
         // per-subclass code needed - restoring here (after MinimumSize
         // is set) clamps a saved size up to this dialog's real minimum
         // rather than risking violating it.
-        WindowPlacementStore.Restore(this, GetType().Name);
+        if (PersistWindowPlacement)
+        {
+            WindowPlacementStore.Restore(this, GetType().Name);
+        }
     }
 
-    private void MasterDataEditFormBase_FormClosed(object? sender, FormClosedEventArgs e) =>
-        WindowPlacementStore.Save(this, GetType().Name);
+    private void MasterDataEditFormBase_FormClosed(object? sender, FormClosedEventArgs e)
+    {
+        if (PersistWindowPlacement)
+        {
+            WindowPlacementStore.Save(this, GetType().Name);
+        }
+    }
 }

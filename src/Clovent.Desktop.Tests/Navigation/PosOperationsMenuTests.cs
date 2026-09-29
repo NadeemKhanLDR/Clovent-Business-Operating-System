@@ -36,6 +36,8 @@ public class PosOperationsMenuTests
             return Task.CompletedTask;
         }
 
+        public Task OpenLoginAsync() => Task.CompletedTask;
+
         public void ExitApplication()
         {
             ExitCallCount++;
@@ -317,5 +319,26 @@ public class PosOperationsMenuTests
             Assert.Equal(Color.FromArgb(13, 148, 136), form2.OperationsButton.Appearance.BackColor);
             Assert.NotEmpty(form2.OperationsMenu.Items);
         }
+    }
+
+    [Fact]
+    public void LogoutButton_IsLocatedInPosHeader_InRowZeroAndVisible()
+    {
+        using var form = new RestaurantPosForm();
+        form.Show();
+
+        var logoutBtn = form.Controls.Find("_logoutButton", true).FirstOrDefault() as SimpleButton;
+        Assert.NotNull(logoutBtn);
+        Assert.NotNull(logoutBtn.Parent);
+
+        if (logoutBtn.Parent is TableLayoutPanel tlp)
+        {
+            var cellPos = tlp.GetCellPosition(logoutBtn);
+            Assert.Equal(0, cellPos.Row); // Must never be pushed to row 1 (which is clipped/hidden)
+            Assert.True(cellPos.Column >= 0);
+            Assert.True(cellPos.Column < tlp.ColumnCount);
+        }
+
+        Assert.True(logoutBtn.Visible);
     }
 }

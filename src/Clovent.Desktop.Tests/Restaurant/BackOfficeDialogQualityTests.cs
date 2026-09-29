@@ -162,7 +162,7 @@ public class BackOfficeDialogQualityTests
     /// Fixed pixel rows (20px labels, 34px editors) collapse to slivers at 250% DPI.
     /// </summary>
     [Fact]
-    public void CustomerLedgerDialog_FilterPanel_UsesAutoSizeRows_NotFixedPixels()
+    public void CustomerLedgerDialog_FilterPanel_UsesDiscreteScaledRowHeights_NotCollapsibleAutoSize()
     {
         var dummyCustomer = new CustomerDto(
             Guid.NewGuid(), "C001", "Test Customer", "555-0001", "1 Main St",
@@ -175,9 +175,11 @@ public class BackOfficeDialogQualityTests
         var filterPanel = (TableLayoutPanel)filterPanelField.GetValue(dialog)!;
         Assert.NotNull(filterPanel);
 
-        // Both row styles must be AutoSize, NOT Absolute.
-        Assert.Equal(SizeType.AutoSize, filterPanel.RowStyles[0].SizeType);
-        Assert.Equal(SizeType.AutoSize, filterPanel.RowStyles[1].SizeType);
+        // Discrete DPI-scaled row heights prevent row collapse at 250% DPI
+        Assert.Equal(SizeType.Absolute, filterPanel.RowStyles[0].SizeType);
+        Assert.Equal(SizeType.Absolute, filterPanel.RowStyles[1].SizeType);
+        Assert.True(filterPanel.RowStyles[0].Height >= 20F);
+        Assert.True(filterPanel.RowStyles[1].Height >= 30F);
     }
 
     /// <summary>
@@ -300,7 +302,7 @@ public class BackOfficeDialogQualityTests
     }
 
     [Fact]
-    public void CustomerLedgerDialog_RootLayout_HasSixRows_AndStatusPanelIsDedicatedRowThree()
+    public void CustomerLedgerDialog_RootLayout_HasEightRows_AndActionPanelHasStatusAndClose()
     {
         var dummyCustomer = new CustomerDto(
             Guid.NewGuid(), "C001", "Test Customer", "555-0001", "1 Main St",
@@ -312,16 +314,25 @@ public class BackOfficeDialogQualityTests
         Assert.NotNull(rootField);
         var root = (TableLayoutPanel)rootField.GetValue(dialog)!;
         Assert.NotNull(root);
-        Assert.Equal(6, root.RowCount);
+        Assert.Equal(8, root.RowCount);
 
-        var statusPanelField = typeof(CustomerLedgerDialog).GetField("_statusPanel", BindingFlags.Instance | BindingFlags.NonPublic);
-        Assert.NotNull(statusPanelField);
-        var statusPanel = (PanelControl)statusPanelField.GetValue(dialog)!;
-        Assert.NotNull(statusPanel);
+        var statusLabelField = typeof(CustomerLedgerDialog).GetField("_lblStatus", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(statusLabelField);
+        var lblStatus = (LabelControl)statusLabelField.GetValue(dialog)!;
+        Assert.NotNull(lblStatus);
 
-        // Status panel must be child of root at row 3 (not inside filterPanel)
-        var row = root.GetRow(statusPanel);
-        Assert.Equal(3, row);
+        var closeButtonField = typeof(CustomerLedgerDialog).GetField("_closeButton", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(closeButtonField);
+        var closeButton = (SimpleButton)closeButtonField.GetValue(dialog)!;
+        Assert.NotNull(closeButton);
+
+        var actionPanelField = typeof(CustomerLedgerDialog).GetField("actionPanel", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(actionPanelField);
+        var actionPanel = (TableLayoutPanel)actionPanelField.GetValue(dialog)!;
+        Assert.NotNull(actionPanel);
+        Assert.Contains(lblStatus, actionPanel.Controls.Cast<Control>());
+        Assert.Contains(closeButton, actionPanel.Controls.Cast<Control>());
+        Assert.Equal(7, root.GetRow(actionPanel));
     }
 
     [Fact]

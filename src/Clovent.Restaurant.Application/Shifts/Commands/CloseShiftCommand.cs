@@ -24,7 +24,8 @@ public sealed class CloseShiftCommandHandler(
     IShiftRepository shiftRepository,
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    IActivityLogEntryRepository activityLogRepository) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
+    IActivityLogEntryRepository activityLogRepository,
+    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
 {
     /// <inheritdoc/>
     public async Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken)
@@ -79,7 +80,16 @@ public sealed class CloseShiftCommandHandler(
         decimal cashIn = shift.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
         decimal cashOut = shift.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
 
-        decimal expectedCash = shift.StartingCash + cashIn + cashSales - cashOut;
+        decimal cashCustomerPayments = 0m;
+        if (ledgerRepository is not null)
+        {
+            var shiftLedgerEntries = await ledgerRepository.GetByShiftIdAsync(shiftId, cancellationToken);
+            cashCustomerPayments = shiftLedgerEntries
+                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Sum(e => e.Credit);
+        }
+
+        decimal expectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashOut;
 
         // Domain close handles variance calculation and validation
         shift.Close(request.CountedCash, expectedCash, request.VarianceReason, request.Notes);

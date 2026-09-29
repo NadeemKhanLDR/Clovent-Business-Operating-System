@@ -110,6 +110,8 @@ public static class DesktopServiceCollectionExtensions
         services.AddScoped<IStartupTask, DevelopmentMasterDataSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentCatalogSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentRestaurantSeedStartupTask>();
+        services.AddScoped<DevelopmentRestaurantReportingSeedStartupTask>();
+        services.AddScoped<IStartupTask>(sp => sp.GetRequiredService<DevelopmentRestaurantReportingSeedStartupTask>());
         services.AddScoped<IStartupTask, TableOccupancyReconciliationStartupTask>();
         services.AddScoped<IStartupTask, WorldCurrencySeedStartupTask>();
         services.AddScoped<IStartupTask, WorldTimeZoneSeedStartupTask>();
@@ -177,6 +179,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<KitchenTicketViewerView>();
         services.TryAddTransient<EndOfDayReportView>();
         services.TryAddTransient<CustomersView>();
+        services.TryAddTransient<CustomerReceivablesReportView>();
         services.TryAddTransient<SmartComboBuilderView>();
         services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboAccess, SmartComboAccess>();
         var comboOptions = configuration.GetSection("SmartCombos").Get<Clovent.Restaurant.Application.SmartCombos.SmartComboOptions>() ?? new();

@@ -18,7 +18,8 @@ public sealed record CreateCustomerCommand(
     string? ShopNo = null,
     string? Mobile2 = null,
     string? Phone = null,
-    bool IsDefault = false) : IRequest<CustomerDto>;
+    bool IsDefault = false,
+    bool IsCreditAllowed = true) : IRequest<CustomerDto>;
 
 /// <summary>Handles <see cref="CreateCustomerCommand"/>.</summary>
 public sealed class CreateCustomerCommandHandler(
@@ -92,7 +93,8 @@ public sealed class CreateCustomerCommandHandler(
             request.ShopNo,
             request.Mobile2,
             request.Phone,
-            request.IsDefault);
+            request.IsDefault,
+            request.IsCreditAllowed);
 
         await customerRepository.AddAsync(customer, cancellationToken);
 

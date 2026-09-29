@@ -125,7 +125,7 @@ public sealed class LoginService(
             await mediator.Send(new IssueRefreshSessionCommand(session.SessionId), cancellationToken);
         }
 
-        currentSession.SignIn(user.Id.Value, session.SessionId, user.DisplayName.Value);
+        currentSession.SignIn(user.Id.Value, session.SessionId, user.DisplayName.Value, user.UserName.Value);
 
         // Best-effort: the Restaurant activity log is a convenience audit
         // trail, not the authoritative record of this sign-in (that's

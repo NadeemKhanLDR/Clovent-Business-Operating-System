@@ -230,5 +230,13 @@ internal static class ValueConverters
     /// <summary>Nullable <see cref="Clovent.MasterData.Terminals.TerminalId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<Clovent.MasterData.Terminals.TerminalId?, Guid?> NullableTerminalIdConverter =
         new(id => id.HasValue ? id.Value.Value : null, value => value.HasValue ? new Clovent.MasterData.Terminals.TerminalId(value.Value) : null);
+
+    /// <summary><see cref="CustomerPaymentAllocationId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<CustomerPaymentAllocationId, Guid> CustomerPaymentAllocationIdConverter =
+        new(id => id.Value, value => new CustomerPaymentAllocationId(value));
+
+    /// <summary>Nullable <see cref="CustomerLedgerEntryId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<CustomerLedgerEntryId?, Guid?> NullableCustomerLedgerEntryIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new CustomerLedgerEntryId(value.Value));
 }
 

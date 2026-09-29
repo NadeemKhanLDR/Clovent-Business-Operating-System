@@ -125,5 +125,51 @@ When an order is settled at the POS:
   - Window disposal during mode switching is initiated as `PosCloseInitiator.ModeSwitchToBackOffice`, transferring window ownership to Back Office without terminating the application process.
   - User-driven form closing ('X') prompts to confirm discarding unsaved edits if an active order is in progress, before initiating application exit.
 
+---
+
+## 8. Delivery Order Lifecycle & Delivery Status Tracking
+
+Milestone 17 introduces first-class delivery orders alongside Dine-In and Take-Away:
+- **`OrderType.Delivery`:** Like `TakeAway`, delivery orders do not occupy a dining table (`TableId` must be null).
+- **Delivery Metadata Snapshot:** Captured via `DeliveryDetailsDialog` and persisted on `Order`:
+  - `OrderSource`: `WalkIn`, `Phone`, `Online`
+  - Recipient Name, Delivery Phone, Delivery Address, Dispatch Notes, Rider Name, Rider Phone (independent first-class domain properties; no string parsing)
+  - Optional Delivery Fee: Modeled natively as a fixed `OrderServiceCharge` (`ChargeType = PercentOrFixed.Fixed`), automatically factoring into totals, taxes, and receipt printing without specialized schema columns.
+- **`DeliveryStatus` State Machine:**
+  - Transitions: `Received` -> `Preparing` -> `Ready` -> `OutForDelivery` -> `Delivered` (or `Cancelled`).
+  - Progresses independently of `OrderStatus`, allowing kitchen production and courier dispatch to be tracked through preparation, transit, and customer doorstep handover.
+
+### 8.1 Mode Switching & Empty Draft Cancellation
+- When switching order modes in the POS UI:
+  - If the active order is an empty draft (`OrderLines.Count == 0`), switching modes automatically triggers `CancelOrderCommand` with reason `"Switched order mode to {targetMode}"`.
+  - For Dining draft orders, the table is automatically vacated and released back to `Available`.
+  - The workflow for the new mode begins immediately.
+  - Non-empty orders require the cashier to hold, void, or complete the order before switching modes.
+
+---
+
+## 9. Customer On-Account Settlement, Postpaid Invoicing & Credit Limits
+
+### 9.1 On-Account Payment Transition
+- An order can be settled using the `On Account` payment method, creating a debit entry on the customer's ledger:
+  - Default/Walk-in guests (`C000`, `IsDefault = true`) are strictly forbidden from On Account settlement (`RestaurantDomainException.WalkInCannotUseOnAccount`).
+  - The customer must have `IsCreditAllowed = true` enabled on their profile.
+  - The total outstanding balance plus the new order total must not exceed `CreditLimit`, unless manager approval is granted (`ExceedCreditLimitApproved`).
+- Settlement completes the order (`OrderStatus.Completed`), issues inventory, and transitions the balance into a customer receivable.
+
+### 9.2 Postpaid Settlement & FIFO Allocation
+- Long-running receivables are settled via customer debt collections (`RecordCustomerPaymentCommand`).
+- Customer payments automatically allocate cash/bank funds to oldest unpaid or partially-paid On Account orders using First-In, First-Out (FIFO) logic (`[Restaurant].[CustomerPaymentAllocations]`).
+- Cashier shift floats incorporate customer debt payments received in cash into expected drawer totals during shift closing.
+
+---
+
+## 10. Service Item Stock Exemption in Order Completion
+
+`CompleteOrderCommandHandler` inspects each item line's `ProductItemType`:
+- **`Prepared` & `PurchasedResale`:** Issue warehouse stock against `(order.WarehouseId, line.ProductVariantId)`.
+- **`Service`:** Explicitly skips inventory issuance and stock availability checks. Non-physical charges (e.g., Food Heating, Delivery Fee, Corkage) complete without deducting warehouse inventory.
+
+
 
 

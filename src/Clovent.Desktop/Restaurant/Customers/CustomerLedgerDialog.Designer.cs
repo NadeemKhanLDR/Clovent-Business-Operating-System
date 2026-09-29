@@ -12,7 +12,6 @@ partial class CustomerLedgerDialog
 {
     private System.ComponentModel.IContainer components = null;
 
-    private PanelControl _headerPanel;
     private LabelControl _titleLabel;
     private LabelControl _customerLabel;
     private LabelControl _subtitleLabel;
@@ -47,6 +46,7 @@ partial class CustomerLedgerDialog
 
     // Layout Panels
     private TableLayoutPanel root;
+    private FlowLayoutPanel titleRow;
     private TableLayoutPanel summaryPanel;
     private PanelControl cardPanel1;
     private TableLayoutPanel cardLayout1;
@@ -64,11 +64,11 @@ partial class CustomerLedgerDialog
     private TableLayoutPanel cardLayout5;
     private LabelControl cardTitle5;
     private TableLayoutPanel filterPanel;
+    private TableLayoutPanel searchToolsRow;
     private PanelControl toolsPanel;
     private FlowLayoutPanel toolsFlowLeft;
     private FlowLayoutPanel toolsFlowRight;
-    private PanelControl _statusPanel;
-    private FlowLayoutPanel actionPanel;
+    private TableLayoutPanel actionPanel;
 
     /// <summary>Clean up any resources being used.</summary>
     protected override void Dispose(bool disposing)
@@ -83,7 +83,7 @@ partial class CustomerLedgerDialog
 
     private void InitializeComponent()
     {
-        _headerPanel = new PanelControl();
+        titleRow = new FlowLayoutPanel();
         _titleLabel = new LabelControl();
         _customerLabel = new LabelControl();
         _subtitleLabel = new LabelControl();
@@ -134,14 +134,12 @@ partial class CustomerLedgerDialog
         cardTitle5 = new LabelControl();
         _totalCreditVal = new LabelControl();
         filterPanel = new TableLayoutPanel();
+        searchToolsRow = new TableLayoutPanel();
         toolsPanel = new PanelControl();
         toolsFlowLeft = new FlowLayoutPanel();
         toolsFlowRight = new FlowLayoutPanel();
-        _statusPanel = new PanelControl();
-        actionPanel = new FlowLayoutPanel();
+        actionPanel = new TableLayoutPanel();
 
-        ((System.ComponentModel.ISupportInitialize)_headerPanel).BeginInit();
-        _headerPanel.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)_ledgerGrid).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_ledgerGridView).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_periodCombo.Properties).BeginInit();
@@ -168,8 +166,6 @@ partial class CustomerLedgerDialog
         cardLayout5.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)toolsPanel).BeginInit();
         toolsPanel.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)_statusPanel).BeginInit();
-        _statusPanel.SuspendLayout();
         SuspendLayout();
 
         Text = "Customer Ledger";
@@ -180,41 +176,29 @@ partial class CustomerLedgerDialog
         MaximizeBox = true;
         MinimizeBox = false;
         ShowInTaskbar = false;
+        StartPosition = FormStartPosition.CenterParent;
         Name = "CustomerLedgerDialog";
 
         root.Dock = DockStyle.Fill;
         root.ColumnCount = 1;
-        root.RowCount = 6;
+        root.RowCount = 8;
         root.Padding = new Padding(16, 12, 16, 12);
         root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 0: Header
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78F));        // Row 1: Summary cards
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 2: Filters bar
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 3: Dedicated status feedback strip
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));        // Row 4: Grid
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));        // Row 5: Close actions panel
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28F));        // Row 0: Title
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));        // Row 1: Subtitle
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78F));        // Row 2: KPI summary cards
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 58F));        // Row 3: Filter labels/editors
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 24F));        // Row 4: Search label
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));        // Row 5: Search editor & action tools
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));        // Row 6: Ledger Grid
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48F));        // Row 7: Footer actions panel
 
-        // --- HEADER PANEL ---
-        _headerPanel.Dock = DockStyle.Fill;
-        _headerPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-        _headerPanel.Padding = new Padding(0, 0, 0, 8);
-        _headerPanel.Margin = new Padding(0);
-
-        var headerFlow = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            AutoSize = true,
-            Margin = new Padding(0)
-        };
-
-        var titleRow = new FlowLayoutPanel
-        {
-            FlowDirection = FlowDirection.LeftToRight,
-            AutoSize = true,
-            Margin = new Padding(0, 0, 0, 2)
-        };
+        // --- TITLE ROW (Row 0) ---
+        titleRow.Dock = DockStyle.Fill;
+        titleRow.FlowDirection = FlowDirection.LeftToRight;
+        titleRow.WrapContents = false;
+        titleRow.AutoSize = false;
+        titleRow.Margin = new Padding(0, 0, 0, 2);
 
         _titleLabel.Text = "CUSTOMER LEDGER STATEMENT";
         _titleLabel.Font = new Font("Segoe UI", 12.5F, FontStyle.Bold);
@@ -229,14 +213,12 @@ partial class CustomerLedgerDialog
         titleRow.Controls.Add(_titleLabel);
         titleRow.Controls.Add(_customerLabel);
 
+        // --- SUBTITLE (Row 1) ---
+        _subtitleLabel.Dock = DockStyle.Fill;
         _subtitleLabel.Text = "Review customer debits, payments and running balance.";
         _subtitleLabel.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
         _subtitleLabel.ForeColor = Color.FromArgb(100, 116, 139);
-        _subtitleLabel.Margin = new Padding(0);
-
-        headerFlow.Controls.Add(titleRow);
-        headerFlow.Controls.Add(_subtitleLabel);
-        _headerPanel.Controls.Add(headerFlow);
+        _subtitleLabel.Margin = new Padding(0, 0, 0, 4);
 
         // --- SUMMARY DASHBOARD ---
         summaryPanel.Dock = DockStyle.Fill;
@@ -365,11 +347,10 @@ partial class CustomerLedgerDialog
         summaryPanel.Controls.Add(cardPanel5, 4, 0);
 
         // --- FILTERS BAR ---
+        // --- FILTERS BAR (Row 3) ---
         filterPanel.Dock = DockStyle.Fill;
         filterPanel.ColumnCount = 5;
-        filterPanel.RowCount = 5;
-        filterPanel.AutoSize = true;
-        filterPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        filterPanel.RowCount = 2;
         filterPanel.Margin = new Padding(0, 0, 0, 4);
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140F)); // Period
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130F)); // From
@@ -377,35 +358,32 @@ partial class CustomerLedgerDialog
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160F)); // Type
         filterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));  // Remaining space
 
-        filterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 0: Labels 1
-        filterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 1: Controls 1
-        filterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 2: Search Label
-        filterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 3: Search Input
-        filterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));             // Row 4: Action Tools
+        filterPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22F));       // Row 0: Labels
+        filterPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));       // Row 1: Editors
 
         _lblPeriod.Text = "Report Period";
         _lblPeriod.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _lblPeriod.ForeColor = Color.FromArgb(71, 85, 105);
         _lblPeriod.Dock = DockStyle.Fill;
-        _lblPeriod.Margin = new Padding(0, 4, 0, 2);
+        _lblPeriod.Margin = new Padding(0, 2, 0, 2);
 
         _lblFrom.Text = "From";
         _lblFrom.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _lblFrom.ForeColor = Color.FromArgb(71, 85, 105);
         _lblFrom.Dock = DockStyle.Fill;
-        _lblFrom.Margin = new Padding(0, 4, 0, 2);
+        _lblFrom.Margin = new Padding(0, 2, 0, 2);
 
         _lblTo.Text = "To";
         _lblTo.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _lblTo.ForeColor = Color.FromArgb(71, 85, 105);
         _lblTo.Dock = DockStyle.Fill;
-        _lblTo.Margin = new Padding(0, 4, 0, 2);
+        _lblTo.Margin = new Padding(0, 2, 0, 2);
 
         _lblType.Text = "Transactions";
         _lblType.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _lblType.ForeColor = Color.FromArgb(71, 85, 105);
         _lblType.Dock = DockStyle.Fill;
-        _lblType.Margin = new Padding(0, 4, 0, 2);
+        _lblType.Margin = new Padding(0, 2, 0, 2);
 
         _periodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _periodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9F);
@@ -449,22 +427,44 @@ partial class CustomerLedgerDialog
         _comboType.Font = new Font("Segoe UI", 9F);
         _comboType.SelectedIndexChanged += Filter_EditValueChanged;
 
+        // Row 0: Labels for Top Filters
+        filterPanel.Controls.Add(_lblPeriod, 0, 0);
+        filterPanel.Controls.Add(_lblFrom, 1, 0);
+        filterPanel.Controls.Add(_lblTo, 2, 0);
+        filterPanel.Controls.Add(_lblType, 3, 0);
+
+        // Row 1: Controls for Top Filters
+        filterPanel.Controls.Add(_periodCombo, 0, 1);
+        filterPanel.Controls.Add(_dateFrom, 1, 1);
+        filterPanel.Controls.Add(_dateTo, 2, 1);
+        filterPanel.Controls.Add(_comboType, 3, 1);
+
+        // --- SEARCH LABEL (Row 4) ---
         _lblSearch.Text = "Reference / Description";
         _lblSearch.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _lblSearch.ForeColor = Color.FromArgb(71, 85, 105);
         _lblSearch.Dock = DockStyle.Fill;
-        _lblSearch.Margin = new Padding(0, 6, 0, 2);
+        _lblSearch.Margin = new Padding(0, 4, 0, 2);
+
+        // --- SEARCH EDITOR & TOOLS ROW (Row 5) ---
+        searchToolsRow.Dock = DockStyle.Fill;
+        searchToolsRow.ColumnCount = 2;
+        searchToolsRow.RowCount = 1;
+        searchToolsRow.Margin = new Padding(0, 0, 0, 4);
+        searchToolsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280F));
+        searchToolsRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        searchToolsRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         _txtSearchRef.Properties.NullValuePrompt = "Search reference or description...";
         _txtSearchRef.Dock = DockStyle.Fill;
         _txtSearchRef.Font = new Font("Segoe UI", 9F);
+        _txtSearchRef.Margin = new Padding(0, 2, 8, 2);
         _txtSearchRef.EditValueChanged += Filter_EditValueChanged;
 
         // Tools action bar (Load/Clear on left; Print/PDF/Excel on right)
         toolsPanel.Dock = DockStyle.Fill;
         toolsPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-        toolsPanel.AutoSize = true;
-        toolsPanel.Margin = new Padding(0, 4, 0, 0);
+        toolsPanel.Margin = new Padding(0);
 
         toolsFlowLeft.Dock = DockStyle.Left;
         toolsFlowLeft.FlowDirection = FlowDirection.LeftToRight;
@@ -530,47 +530,10 @@ partial class CustomerLedgerDialog
         toolsPanel.Controls.Add(toolsFlowLeft);
         toolsPanel.Controls.Add(toolsFlowRight);
 
-        // Row 0: Labels for Top Filters
-        filterPanel.Controls.Add(_lblPeriod, 0, 0);
-        filterPanel.Controls.Add(_lblFrom, 1, 0);
-        filterPanel.Controls.Add(_lblTo, 2, 0);
-        filterPanel.Controls.Add(_lblType, 3, 0);
+        searchToolsRow.Controls.Add(_txtSearchRef, 0, 0);
+        searchToolsRow.Controls.Add(toolsPanel, 1, 0);
 
-        // Row 1: Controls for Top Filters
-        filterPanel.Controls.Add(_periodCombo, 0, 1);
-        filterPanel.Controls.Add(_dateFrom, 1, 1);
-        filterPanel.Controls.Add(_dateTo, 2, 1);
-        filterPanel.Controls.Add(_comboType, 3, 1);
-
-        // Row 2: Search label (full width)
-        filterPanel.Controls.Add(_lblSearch, 0, 2);
-        filterPanel.SetColumnSpan(_lblSearch, 5);
-
-        // Row 3: Search input (full width)
-        filterPanel.Controls.Add(_txtSearchRef, 0, 3);
-        filterPanel.SetColumnSpan(_txtSearchRef, 5);
-
-        // Row 4: Action buttons bar (full width)
-        filterPanel.Controls.Add(toolsPanel, 0, 4);
-        filterPanel.SetColumnSpan(toolsPanel, 5);
-
-        // --- DEDICATED STATUS FEEDBACK STRIP ---
-        _statusPanel.Name = "_statusPanel";
-        _statusPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-        _statusPanel.Dock = DockStyle.Fill;
-        _statusPanel.AutoSize = true;
-        _statusPanel.Margin = new Padding(0, 4, 0, 4);
-        _statusPanel.Padding = new Padding(2, 0, 0, 0);
-
-        _lblStatus.Name = "_lblStatus";
-        _lblStatus.Text = string.Empty;
-        _lblStatus.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-        _lblStatus.ForeColor = Color.FromArgb(71, 85, 105);
-        _lblStatus.Dock = DockStyle.Left;
-        _lblStatus.AutoSizeMode = LabelAutoSizeMode.Horizontal;
-        _statusPanel.Controls.Add(_lblStatus);
-
-        // --- LEDGER GRID ---
+        // --- LEDGER GRID (Row 6) ---
         _ledgerGrid.Name = "_ledgerGrid";
         _ledgerGrid.Dock = DockStyle.Fill;
         _ledgerGrid.MainView = _ledgerGridView;
@@ -636,28 +599,43 @@ partial class CustomerLedgerDialog
         _ledgerGridView.CustomColumnDisplayText += LedgerGridView_CustomColumnDisplayText;
         _ledgerGridView.CustomDrawEmptyForeground += LedgerGridView_CustomDrawEmptyForeground;
 
-        // --- CLOSE BUTTON ---
+        // --- FOOTER & CLOSE BUTTON (Row 7) ---
         actionPanel.Dock = DockStyle.Fill;
-        actionPanel.FlowDirection = FlowDirection.RightToLeft;
+        actionPanel.ColumnCount = 2;
+        actionPanel.RowCount = 1;
+        actionPanel.Margin = new Padding(0, 6, 0, 0);
+        actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        actionPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        actionPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _lblStatus.Name = "_lblStatus";
+        _lblStatus.Text = string.Empty;
+        _lblStatus.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+        _lblStatus.ForeColor = Color.FromArgb(71, 85, 105);
+        _lblStatus.Dock = DockStyle.Fill;
+        _lblStatus.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _lblStatus.AutoSizeMode = LabelAutoSizeMode.None;
+
         _closeButton.Name = "_closeButton";
         _closeButton.Text = "Close";
         _closeButton.DialogResult = DialogResult.OK;
-        _closeButton.AutoSize = true;
         _closeButton.MinimumSize = new Size(120, 36);
-        actionPanel.Controls.Add(_closeButton);
+        _closeButton.Anchor = AnchorStyles.Right;
 
-        // Assemble into root TableLayoutPanel
-        root.Controls.Add(_headerPanel, 0, 0);
-        root.Controls.Add(summaryPanel, 0, 1);
-        root.Controls.Add(filterPanel, 0, 2);
-        root.Controls.Add(_statusPanel, 0, 3);
-        root.Controls.Add(_ledgerGrid, 0, 4);
-        root.Controls.Add(actionPanel, 0, 5);
+        actionPanel.Controls.Add(_lblStatus, 0, 0);
+        actionPanel.Controls.Add(_closeButton, 1, 0);
+
+        // Assemble into root TableLayoutPanel (8 dedicated rows)
+        root.Controls.Add(titleRow, 0, 0);
+        root.Controls.Add(_subtitleLabel, 0, 1);
+        root.Controls.Add(summaryPanel, 0, 2);
+        root.Controls.Add(filterPanel, 0, 3);
+        root.Controls.Add(_lblSearch, 0, 4);
+        root.Controls.Add(searchToolsRow, 0, 5);
+        root.Controls.Add(_ledgerGrid, 0, 6);
+        root.Controls.Add(actionPanel, 0, 7);
 
         Controls.Add(root);
-
-        ((System.ComponentModel.ISupportInitialize)_headerPanel).EndInit();
-        _headerPanel.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)_ledgerGrid).EndInit();
         ((System.ComponentModel.ISupportInitialize)_ledgerGridView).EndInit();
         ((System.ComponentModel.ISupportInitialize)_periodCombo.Properties).EndInit();
@@ -684,8 +662,6 @@ partial class CustomerLedgerDialog
         cardLayout5.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)toolsPanel).EndInit();
         toolsPanel.ResumeLayout(false);
-        ((System.ComponentModel.ISupportInitialize)_statusPanel).EndInit();
-        _statusPanel.ResumeLayout(false);
 
         AppearanceManager.Changed += AppearanceManager_Changed;
         Load += CustomerLedgerDialog_Load;

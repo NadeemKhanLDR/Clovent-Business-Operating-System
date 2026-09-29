@@ -19,10 +19,11 @@ partial class CustomersView
     private SimpleButton _newButton;
     private SimpleButton _refreshButton;
     private SimpleButton _exportButton;
-    private SimpleButton _btnReceivePayment;
-    private SimpleButton _btnLedger;
+    private SimpleButton _btnEdit;
     private SimpleButton _btnToggleStatus;
     private SimpleButton _btnSetDefault;
+    private SimpleButton _btnReceivePayment;
+    private SimpleButton _btnLedger;
 
     private LabelControl _lblTotalCustomers;
     private LabelControl _lblActiveCustomers;
@@ -47,10 +48,11 @@ partial class CustomersView
         _newButton = new SimpleButton();
         _refreshButton = new SimpleButton();
         _exportButton = new SimpleButton();
-        _btnReceivePayment = new SimpleButton();
-        _btnLedger = new SimpleButton();
+        _btnEdit = new SimpleButton();
         _btnToggleStatus = new SimpleButton();
         _btnSetDefault = new SimpleButton();
+        _btnReceivePayment = new SimpleButton { Visible = false };
+        _btnLedger = new SimpleButton { Visible = false };
         _lblTotalCustomers = new LabelControl();
         _lblActiveCustomers = new LabelControl();
         _lblWithBalance = new LabelControl();
@@ -184,29 +186,17 @@ partial class CustomersView
         _exportButton.Text = "Export CSV";
         _exportButton.Click += ExportButton_Click;
         // 
-        // _btnReceivePayment
+        // _btnEdit
         // 
-        _btnReceivePayment.Appearance.Font = new Font("Segoe UI", 9F);
-        _btnReceivePayment.Appearance.Options.UseFont = true;
-        _btnReceivePayment.Location = new Point(464, 5);
-        _btnReceivePayment.MinimumSize = new Size(130, 32);
-        _btnReceivePayment.Name = "_btnReceivePayment";
-        _btnReceivePayment.Size = new Size(130, 32);
-        _btnReceivePayment.TabIndex = 1;
-        _btnReceivePayment.Text = "Receive Payment";
-        _btnReceivePayment.Click += BtnReceivePayment_Click;
-        // 
-        // _btnLedger
-        // 
-        _btnLedger.Appearance.Font = new Font("Segoe UI", 9F);
-        _btnLedger.Appearance.Options.UseFont = true;
-        _btnLedger.Location = new Point(600, 5);
-        _btnLedger.MinimumSize = new Size(110, 32);
-        _btnLedger.Name = "_btnLedger";
-        _btnLedger.Size = new Size(110, 32);
-        _btnLedger.TabIndex = 0;
-        _btnLedger.Text = "View Ledger";
-        _btnLedger.Click += BtnLedger_Click;
+        _btnEdit.Appearance.Font = new Font("Segoe UI", 9F);
+        _btnEdit.Appearance.Options.UseFont = true;
+        _btnEdit.Location = new Point(464, 5);
+        _btnEdit.MinimumSize = new Size(80, 32);
+        _btnEdit.Name = "_btnEdit";
+        _btnEdit.Size = new Size(80, 32);
+        _btnEdit.TabIndex = 1;
+        _btnEdit.Text = "Edit";
+        _btnEdit.Click += BtnEdit_Click;
         // 
         // _btnToggleStatus
         // 
@@ -334,8 +324,7 @@ partial class CustomersView
         // 
         // actionsPanel
         // 
-        actionsPanel.Controls.Add(_btnLedger);
-        actionsPanel.Controls.Add(_btnReceivePayment);
+        actionsPanel.Controls.Add(_btnEdit);
         actionsPanel.Controls.Add(_btnToggleStatus);
         actionsPanel.Controls.Add(_btnSetDefault);
         actionsPanel.Controls.Add(_exportButton);

@@ -200,8 +200,8 @@ public class ReportPeriodCalculatorTests
     {
         var range = new DateRange(new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 22));
 
-        Assert.Equal(new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero), range.StartOfFromUtc);
-        Assert.Equal(new DateTimeOffset(2026, 9, 23, 0, 0, 0, TimeSpan.Zero), range.StartOfDayAfterToUtc);
-        Assert.Equal(new DateTimeOffset(2026, 9, 22, 23, 59, 59, TimeSpan.Zero).AddTicks(9999999), range.EndOfToUtcInclusive);
+        Assert.Equal(new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero), range.GetStartUtc(TimeZoneInfo.Utc));
+        Assert.Equal(new DateTimeOffset(2026, 9, 23, 0, 0, 0, TimeSpan.Zero), range.GetEndUtcExclusive(TimeZoneInfo.Utc));
+        Assert.Equal(new DateTimeOffset(2026, 9, 22, 23, 59, 59, TimeSpan.Zero).AddTicks(9999999), range.GetEndUtcInclusive(TimeZoneInfo.Utc));
     }
 }

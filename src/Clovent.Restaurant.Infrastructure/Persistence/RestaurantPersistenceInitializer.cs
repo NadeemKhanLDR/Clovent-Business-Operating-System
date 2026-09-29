@@ -11,9 +11,8 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
     {
         await dbContext.Database.MigrateAsync(cancellationToken);
 
-        // Ensure ShiftId column exists on [Restaurant].[Payments] and that Shifts and CashMovements tables
-        // exist in case the migration was previously recorded in __EFMigrationsHistory when its Up() method was empty.
-        const string sql = """
+        // 1. Schema DDL: Ensure tables, columns, and indexes exist before compiling and executing DML
+        const string schemaSql = """
             IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Shifts]'))
             BEGIN
                 CREATE TABLE [Restaurant].[Shifts] (
@@ -120,18 +119,143 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                     ALTER TABLE [Restaurant].[Customers] ADD [IsDefault] bit NOT NULL CONSTRAINT [DF_Customers_IsDefault] DEFAULT 0;
                 END
 
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.columns
+                    WHERE object_id = OBJECT_ID(N'[Restaurant].[Customers]')
+                    AND name = 'IsCreditAllowed'
+                )
+                BEGIN
+                    ALTER TABLE [Restaurant].[Customers] ADD [IsCreditAllowed] bit NOT NULL CONSTRAINT [DF_Customers_IsCreditAllowed] DEFAULT 1;
+                END
+            END
+
+            -- Ensure CustomerPaymentAllocations table exists
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[CustomerPaymentAllocations]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[CustomerPaymentAllocations] (
+                    [Id] uniqueidentifier NOT NULL,
+                    [CustomerId] uniqueidentifier NOT NULL,
+                    [OrderId] uniqueidentifier NOT NULL,
+                    [CustomerLedgerEntryId] uniqueidentifier NULL,
+                    [Amount] decimal(18,2) NOT NULL,
+                    [AllocatedAtUtc] datetimeoffset NOT NULL,
+                    [Notes] nvarchar(500) NULL,
+                    CONSTRAINT [PK_CustomerPaymentAllocations] PRIMARY KEY ([Id])
+                );
+
+                CREATE INDEX [IX_CustomerPaymentAllocations_CustomerId] ON [Restaurant].[CustomerPaymentAllocations] ([CustomerId]);
+                CREATE INDEX [IX_CustomerPaymentAllocations_OrderId] ON [Restaurant].[CustomerPaymentAllocations] ([OrderId]);
+                CREATE INDEX [IX_CustomerPaymentAllocations_CustomerLedgerEntryId] ON [Restaurant].[CustomerPaymentAllocations] ([CustomerLedgerEntryId]);
+            END
+
+            -- Ensure ShiftId and PaymentMethod columns exist on CustomerLedgerEntries
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[CustomerLedgerEntries]'))
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[CustomerLedgerEntries]') AND name = 'ShiftId')
+                BEGIN
+                    ALTER TABLE [Restaurant].[CustomerLedgerEntries] ADD [ShiftId] uniqueidentifier NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[CustomerLedgerEntries]') AND name = 'PaymentMethod')
+                BEGIN
+                    ALTER TABLE [Restaurant].[CustomerLedgerEntries] ADD [PaymentMethod] nvarchar(50) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CustomerLedgerEntries_ShiftId' AND object_id = OBJECT_ID(N'[Restaurant].[CustomerLedgerEntries]'))
+                BEGIN
+                    CREATE INDEX [IX_CustomerLedgerEntries_ShiftId] ON [Restaurant].[CustomerLedgerEntries] ([ShiftId]);
+                END
+            END
+
+            -- Ensure Delivery columns exist on Orders
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]'))
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'OrderSource')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [OrderSource] nvarchar(30) NOT NULL CONSTRAINT [DF_Orders_OrderSource] DEFAULT 'WalkIn';
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryStatus')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryStatus] nvarchar(30) NOT NULL CONSTRAINT [DF_Orders_DeliveryStatus] DEFAULT 'None';
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryCustomerName')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryCustomerName] nvarchar(150) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryPhone')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryPhone] nvarchar(50) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryAddress')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryAddress] nvarchar(500) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryNotes')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryNotes] nvarchar(500) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'DeliveryFee')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [DeliveryFee] decimal(18,2) NOT NULL CONSTRAINT [DF_Orders_DeliveryFee] DEFAULT 0.00;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'RiderName')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [RiderName] nvarchar(150) NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Orders]') AND name = 'RiderPhone')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Orders] ADD [RiderPhone] nvarchar(50) NULL;
+                END
+            END
+            """;
+        await dbContext.Database.ExecuteSqlRawAsync(schemaSql, cancellationToken);
+
+        // 2. Seed DML: Executes after schema DDL has succeeded and columns are guaranteed to exist
+        const string seedSql = """
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Customers]'))
+            BEGIN
                 -- Idempotently seed Walk-in Customer if code C000 does not exist
                 IF NOT EXISTS (SELECT 1 FROM [Restaurant].[Customers] WHERE [Code] = 'C000')
                 BEGIN
-                    INSERT INTO [Restaurant].[Customers] (
-                        [Id], [Code], [Name], [MobileNumber], [Address], [Email],
-                        [OpeningBalance], [CreditLimit], [OutstandingBalance], [IsActive],
-                        [IsDefault], [Notes], [CreatedAtUtc], [UpdatedAtUtc], [ShopNo], [Mobile2], [Phone]
-                    ) VALUES (
-                        NEWID(), 'C000', 'Walk-in Customer', '-', 'Counter', NULL,
-                        0.00, 0.00, 0.00, 1,
-                        1, 'System default counter customer', SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, NULL, NULL
-                    );
+                    EXEC sp_executesql N'
+                        INSERT INTO [Restaurant].[Customers] (
+                            [Id], [Code], [Name], [MobileNumber], [Address], [Email],
+                            [OpeningBalance], [CreditLimit], [OutstandingBalance], [IsActive],
+                            [IsDefault], [IsCreditAllowed], [Notes], [CreatedAtUtc], [UpdatedAtUtc], [ShopNo], [Mobile2], [Phone]
+                        ) VALUES (
+                            NEWID(), ''C000'', ''Walk-in Customer'', ''-'', ''Counter'', NULL,
+                            0.00, 0.00, 0.00, 1,
+                            1, 0, ''System default counter customer'', SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, NULL, NULL
+                        );
+                    ';
+                END
+                ELSE
+                BEGIN
+                    EXEC sp_executesql N'UPDATE [Restaurant].[Customers] SET [IsCreditAllowed] = 0 WHERE [Code] = ''C000'';';
+                END
+
+                -- Idempotently seed CREDIT-DEMO customer
+                IF NOT EXISTS (SELECT 1 FROM [Restaurant].[Customers] WHERE [Code] = 'CREDIT-DEMO')
+                BEGIN
+                    EXEC sp_executesql N'
+                        INSERT INTO [Restaurant].[Customers] (
+                            [Id], [Code], [Name], [MobileNumber], [Address], [Email],
+                            [OpeningBalance], [CreditLimit], [OutstandingBalance], [IsActive],
+                            [IsDefault], [IsCreditAllowed], [Notes], [CreatedAtUtc], [UpdatedAtUtc], [ShopNo], [Mobile2], [Phone]
+                        ) VALUES (
+                            NEWID(), ''CREDIT-DEMO'', ''Corporate Account Demo'', ''0300-1234567'', ''Corporate Plaza, F-7, Islamabad'', ''demo@corporate.com'',
+                            0.00, 25000.00, 0.00, 1,
+                            0, 1, ''Standard demo customer for On-Account & credit receivables testing'', SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, NULL, NULL
+                        );
+                    ';
                 END
 
                 -- Ensure exactly one active customer is marked default if none is currently marked default
@@ -139,12 +263,22 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                 BEGIN
                     IF EXISTS (SELECT 1 FROM [Restaurant].[Customers] WHERE [Code] = 'C000' AND [IsActive] = 1)
                     BEGIN
-                        UPDATE [Restaurant].[Customers] SET [IsDefault] = 1 WHERE [Code] = 'C000';
+                        EXEC sp_executesql N'UPDATE [Restaurant].[Customers] SET [IsDefault] = 1 WHERE [Code] = ''C000'';';
                     END
                     ELSE
                     BEGIN
-                        UPDATE TOP (1) [Restaurant].[Customers] SET [IsDefault] = 1 WHERE [IsActive] = 1;
+                        EXEC sp_executesql N'UPDATE TOP (1) [Restaurant].[Customers] SET [IsDefault] = 1 WHERE [IsActive] = 1;';
                     END
+                END
+            END
+
+            -- Ensure "On Account" payment method exists
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[PaymentMethods]'))
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM [Restaurant].[PaymentMethods] WHERE [Name] = 'On Account')
+                BEGIN
+                    INSERT INTO [Restaurant].[PaymentMethods] ([Id], [Name], [Status], [CreatedAtUtc])
+                    VALUES (NEWID(), 'On Account', 'Active', SYSUTCDATETIME());
                 END
             END
 
@@ -251,7 +385,7 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                 END
             END
             """;
-        await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+        await dbContext.Database.ExecuteSqlRawAsync(seedSql, cancellationToken);
 
         const string tableUniquenessSql = """
             IF EXISTS (

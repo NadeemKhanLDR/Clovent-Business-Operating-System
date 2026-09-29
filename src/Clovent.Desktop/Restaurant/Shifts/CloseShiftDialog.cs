@@ -66,7 +66,8 @@ public sealed class CloseShiftDialog : XtraForm
     private void BuildUi()
     {
         Text = "Close Cash Register Shift & Register Balancing";
-        DesktopDialogSizing.Apply(this, 680, 620, 600, 540, null, true);
+        AutoScaleMode = AutoScaleMode.None;
+        DesktopDialogSizing.Apply(this, 680, 560, 600, 500, null, true);
 
         var mainLayout = new TableLayoutPanel
         {
@@ -98,9 +99,9 @@ public sealed class CloseShiftDialog : XtraForm
             ColumnCount = 4
         };
 
-        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(110, this)));
+        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(125, this)));
         summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(110, this)));
+        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(125, this)));
         summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
         for (int r = 0; r < 5; r++)
@@ -169,10 +170,12 @@ public sealed class CloseShiftDialog : XtraForm
 
         _spnCountedCash = new SpinEdit
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left,
+            Width = DesktopDpi.Scale(170, this),
             Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold),
             Value = 0m
         };
+        _spnCountedCash.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
         _spnCountedCash.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _spnCountedCash.Properties.Mask.EditMask = "n2";
         _spnCountedCash.Properties.Mask.UseMaskAsDisplayFormat = true;
@@ -195,7 +198,8 @@ public sealed class CloseShiftDialog : XtraForm
         var lblReason = new LabelControl { Text = "Variance Reason:", Anchor = AnchorStyles.Left };
         _cboVarianceReason = new ComboBoxEdit
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left,
+            Width = DesktopDpi.Scale(280, this),
             Properties =
             {
                 TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard,

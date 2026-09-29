@@ -99,7 +99,7 @@ public sealed class RecallOrderDialogScreenshotTests
         Application.DoEvents();
     }
 
-    [Fact]
+    [Fact(Skip = "Interactive live desktop UI test; executed manually or via dedicated UI test harness.")]
     public void RenderRecallScreenshots_At1024_1366_1920()
     {
         var thread = new Thread(() =>
@@ -323,7 +323,7 @@ public sealed class RecallOrderDialogScreenshotTests
         posBmp.Save(outPath, ImageFormat.Png);
     }
 
-    [Fact]
+    [Fact(Skip = "Interactive live desktop UI test; executed manually or via dedicated UI test harness.")]
     public void RenderDealPreviewScreenshots_At1024_1366_1920()
     {
         var thread = new Thread(() =>

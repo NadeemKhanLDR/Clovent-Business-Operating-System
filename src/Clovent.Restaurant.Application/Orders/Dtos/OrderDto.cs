@@ -19,7 +19,16 @@ public sealed record OrderDto(
     IReadOnlyCollection<Guid> PaymentIds,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
-    Guid? CustomerId)
+    Guid? CustomerId,
+    string OrderSource = "WalkIn",
+    string DeliveryStatus = "None",
+    string? DeliveryCustomerName = null,
+    string? DeliveryPhone = null,
+    string? DeliveryAddress = null,
+    string? DeliveryNotes = null,
+    decimal DeliveryFee = 0m,
+    string? RiderName = null,
+    string? RiderPhone = null)
 {
     /// <summary>Projects a domain <see cref="Order"/> into its DTO.</summary>
     public static OrderDto FromDomain(Order order) => new(
@@ -38,5 +47,14 @@ public sealed record OrderDto(
         [.. order.PaymentIds.Select(id => id.Value)],
         order.CreatedAtUtc,
         order.UpdatedAtUtc,
-        order.CustomerId?.Value);
+        order.CustomerId?.Value,
+        order.OrderSource.ToString(),
+        order.DeliveryStatus.ToString(),
+        order.DeliveryCustomerName,
+        order.DeliveryPhone,
+        order.DeliveryAddress,
+        order.DeliveryNotes,
+        order.DeliveryFee,
+        order.RiderName,
+        order.RiderPhone);
 }

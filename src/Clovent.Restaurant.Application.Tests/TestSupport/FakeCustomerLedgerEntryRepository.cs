@@ -25,4 +25,8 @@ internal sealed class FakeCustomerLedgerEntryRepository : ICustomerLedgerEntryRe
             .ToDictionary(g => g.Key, g => g.Max(e => e.Date));
         return Task.FromResult(dict);
     }
+
+    public Task<IReadOnlyCollection<CustomerLedgerEntry>> GetByShiftIdAsync(Clovent.Restaurant.Shifts.ShiftId shiftId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<CustomerLedgerEntry>>(
+            [.. _entries.Where(e => e.ShiftId == shiftId).OrderBy(e => e.Date)]);
 }

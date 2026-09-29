@@ -96,7 +96,9 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         string? barcode2 = null,
         string? barcode3 = null,
         Func<string, Task<bool>>? checkBarcodeExists = null,
-        List<MenuItemVariantEditRow>? variants = null) : base(title)
+        List<MenuItemVariantEditRow>? variants = null,
+        string itemType = "Prepared",
+        decimal costPrice = 0m) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -110,6 +112,21 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         _activeEdit.Checked = isActive;
         _pictureEdit.Image = existingImage;
         _noPhotoLabel.Visible = existingImage is null;
+
+        _itemTypeCombo.Properties.Items.Clear();
+        _itemTypeCombo.Properties.Items.AddRange(new object[] { "Prepared", "Purchased / Resale", "Service" });
+        _itemTypeCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _itemTypeCombo.SelectedItem = itemType switch
+        {
+            "PurchasedResale" or "Purchased / Resale" => "Purchased / Resale",
+            "Service" => "Service",
+            _ => "Prepared"
+        };
+
+        _costPriceEdit.Value = costPrice;
+        _costPriceEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
+        _costPriceEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
+        _costPriceEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
 
         _barcode1Edit.Text = barcode1 ?? string.Empty;
         _barcode2Edit.Text = barcode2 ?? string.Empty;
@@ -212,6 +229,17 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
 
     /// <summary>The entered selling price.</summary>
     public decimal SellingPrice => _priceEdit.Value;
+
+    /// <summary>The entered cost/purchase price.</summary>
+    public decimal CostPrice => _costPriceEdit.Value;
+
+    /// <summary>The selected item classification type (Prepared, PurchasedResale, Service).</summary>
+    public string ItemTypeValue => _itemTypeCombo.SelectedItem?.ToString() switch
+    {
+        "Purchased / Resale" => "PurchasedResale",
+        "Service" => "Service",
+        _ => "Prepared"
+    };
 
     /// <summary>Whether the item should be sellable.</summary>
     public bool ItemIsActive => _activeEdit.Checked;

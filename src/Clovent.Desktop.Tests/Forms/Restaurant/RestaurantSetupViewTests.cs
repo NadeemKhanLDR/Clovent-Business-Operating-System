@@ -379,5 +379,30 @@ public class RestaurantSetupViewTests
             Assert.True(saveSettingsButton.Visible);
         }
     }
+
+    [Fact]
+    public async Task DefaultOrderMode_RadioGroup_HasExpectedItemsAndSaves()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            view.CreateControl();
+
+            var defaultOrderModeRadioGroup = (RadioGroup)typeof(RestaurantSetupView).GetField("_defaultOrderModeRadioGroup", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            Assert.NotNull(defaultOrderModeRadioGroup);
+
+            // Verify items: Dining, Take Away, Delivery
+            Assert.Equal(3, defaultOrderModeRadioGroup.Properties.Items.Count);
+            Assert.Equal("DineIn", defaultOrderModeRadioGroup.Properties.Items[0].Value);
+            Assert.Equal("TakeAway", defaultOrderModeRadioGroup.Properties.Items[1].Value);
+            Assert.Equal("Delivery", defaultOrderModeRadioGroup.Properties.Items[2].Value);
+
+            // Change selection and save
+            defaultOrderModeRadioGroup.EditValue = "TakeAway";
+            await view.SaveSettingsAsync();
+
+            Assert.Equal("TakeAway", PosSettingsStore.LoadDefaultOrderMode());
+        }
+    }
 }
 

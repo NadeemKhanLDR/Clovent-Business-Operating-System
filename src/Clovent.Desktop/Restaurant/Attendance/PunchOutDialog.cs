@@ -84,6 +84,7 @@ public sealed class PunchOutDialog : XtraForm
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
+        AutoScaleMode = AutoScaleMode.None;
 
         DesktopDialogSizing.Apply(this, 540, 520, 460, 440, null, false);
 

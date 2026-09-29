@@ -1,3 +1,4 @@
+using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Theming;
 using DevExpress.XtraBars;
 using DevExpress.XtraBars.Docking2010;
@@ -10,93 +11,18 @@ namespace Clovent.Desktop.Forms.Shell;
 /// <summary>
 /// Visual structure of <see cref="MainForm"/>: the <see cref="RibbonControl"/>
 /// (pages/groups/buttons), the non-MDI <see cref="DocumentManager"/>/
-/// <see cref="TabbedView"/> document host, and the status bar. Behavior
-/// (event handler implementations, navigation, sign-out, password change)
-/// lives in <c>MainForm.cs</c> - see that file's class doc comment for the
-/// full Control -> Event -> Handler -> Service story this split is meant to
-/// make traceable.
+/// <see cref="TabbedView"/> document host, and the status bar.
+/// Uses centralized <see cref="NavigationRegistry"/> for all page, group, icon, and button definitions.
 /// </summary>
 public sealed partial class MainForm
 {
-    /// <summary>
-    /// The Ribbon's business-area navigation, one row per menu item: which
-    /// <see cref="Navigation.INavigationService"/> key it opens, which
-    /// <see cref="RibbonPage"/>/<see cref="RibbonPageGroup"/> it lives in,
-    /// and its button caption. Declared as data rather than thirty
-    /// hand-written field-plus-ItemClick-handler pairs - every button here
-    /// shares one handler (<see cref="NavigationButtonItem_ItemClick"/>)
-    /// that reads the key back off <see cref="BarItem.Tag"/>, so the
-    /// control->event->handler->service chain is still one hop, not thirty
-    /// near-identical ones. This table is Shell chrome (permission-gated
-    /// per signed-in user by <c>RefreshNavigationAsync</c>), not a business
-    /// screen, which is why it stays data-driven rather than one hand-authored
-    /// field per button - see <c>docs/architecture/DesktopShellArchitecture.md</c>
-    /// for why that's a deliberate, bounded exception to "no dynamic
-    /// construction". Page/group creation order follows this array's order
-    /// (first appearance of a page/group name wins).
-    /// </summary>
-    private static readonly (string Key, string Page, string Group, string Caption)[] NavigationItems =
-    [
-        ("dashboard", "Home", "Navigation", "Dashboard"),
-
-        ("users", "Administration", "Security", "Users"),
-        ("roles", "Administration", "Security", "Roles"),
-        ("organizations", "Administration", "Organization", "Organizations"),
-        ("companies", "Administration", "Organization", "Companies"),
-        ("branches", "Administration", "Organization", "Branches"),
-        ("departments", "Administration", "Organization", "Departments"),
-        ("warehouses", "Administration", "Operations Setup", "Warehouses"),
-        ("terminals", "Administration", "Operations Setup", "Terminals"),
-        ("fiscalyears", "Administration", "Financial Setup", "Fiscal Years"),
-        ("currencies", "Administration", "Financial Setup", "Currencies"),
-        ("businesssettings", "Administration", "Configuration", "Business Settings"),
-
-        ("categories", "Catalog", "Product Setup", "Categories"),
-        ("brands", "Catalog", "Product Setup", "Brands"),
-        ("units", "Catalog", "Product Setup", "Units of Measure"),
-        ("products", "Catalog", "Products", "Products"),
-        ("variants", "Catalog", "Products", "Product Variants"),
-        ("barcodes", "Catalog", "Identification", "Barcodes"),
-        ("prices", "Catalog", "Pricing", "Prices"),
-
-        ("warehousestocks", "Inventory", "Stock", "Warehouse Stocks"),
-        ("inventorytransactions", "Inventory", "Stock", "Inventory Transactions"),
-        ("stockadjustments", "Inventory", "Operations", "Stock Adjustments"),
-        ("stocktransfers", "Inventory", "Operations", "Stock Transfers"),
-
-        ("menuitems", "Restaurant", "Menu", "Menu Items"),
-        ("pos", "Restaurant", "POS", "Restaurant POS"),
-        ("diningareas", "Restaurant", "Dining", "Dining Areas"),
-        ("tables", "Restaurant", "Dining", "Tables"),
-        ("customers", "Restaurant", "Customers", "Customers"),
-        ("runningorders", "Restaurant", "Orders", "Running Orders"),
-        ("holdorders", "Restaurant", "Orders", "Held Orders"),
-        ("orderhistory", "Restaurant", "Orders", "Order History"),
-        ("kitchentickets", "Restaurant", "Kitchen", "Kitchen Tickets"),
-        ("endofday", "Restaurant", "Closing", "Sales Summary"),
-        ("restaurantsetup", "Restaurant", "Setup", "Restaurant Setup"),
-        ("paymentmethods", "Restaurant", "Setup", "Payment Methods"),
-        ("activitylog", "Restaurant", "Closing", "Activity Log"),
-        ("shifts", "Restaurant", "Closing", "Shift History"),
-        ("quickordertemplates", "Restaurant", "Smart POS", "Quick Order Templates"),
-        ("smartcombos", "Restaurant", "Smart POS", "Smart Combo Builder"),
-        ("recommendationrules", "Restaurant", "Smart POS", "Recommendation Rules"),
-        ("upsellperformance", "Restaurant", "Smart POS", "Upsell Performance"),
-        ("appearance", "Restaurant", "Setup", "Appearance"),
-    ];
-
-    /// <summary>Business-area pages that collapse themselves when the signed-in user has no visible item on any of their groups - never <c>Home</c>, which always carries session/appearance/notifications regardless of menu permissions.</summary>
-    private static readonly string[] PermissionGatedPages = ["Administration", "Catalog", "Inventory", "Restaurant"];
-
     private readonly RibbonControl _ribbon = new();
 
     /// <summary>
     /// The non-MDI document host. <see cref="_tabbedView"/> is DevExpress's
     /// "Tabbed View" - deliberately not "MDI Tabbed View"/"Native MDI Tabbed
     /// View", the two options in the same toolbox family that do use a real
-    /// MDI parent/child relationship under the hood. See
-    /// <see cref="BuildDocumentHost"/> for how it's wired to this form
-    /// without ever touching <see cref="DocumentManager.MdiParent"/>.
+    /// MDI parent/child relationship under the hood.
     /// </summary>
     private readonly DocumentManager _documentManager = new();
 
@@ -106,26 +32,29 @@ public sealed partial class MainForm
     private readonly BarStaticItem _userStatusItem = new();
     private readonly BarStaticItem _attendanceStatusItem = new();
     private readonly BarButtonItem _punchInOutButton = new();
-    private readonly BarButtonItem _profilePunchInItem = new();
-    private readonly BarButtonItem _profilePunchOutItem = new();
     private readonly BarButtonItem _notificationsButton = new();
     private readonly BarSubItem _profileMenu = new();
     private readonly BarSubItem _recentCompaniesMenu = new() { Caption = "Recent Companies" };
     private readonly BarSubItem _recentBranchesMenu = new() { Caption = "Recent Branches" };
     private readonly BarEditItem _themeEditItem = new();
-    private DevExpress.XtraEditors.Repository.RepositoryItemComboBox themeCombo;
+    private DevExpress.XtraEditors.Repository.RepositoryItemComboBox themeCombo = null!;
 
-    private RibbonPage _homeRibbonPage = null!;
-    private RibbonPage _administrationRibbonPage = null!;
-    private RibbonPage _catalogRibbonPage = null!;
+    private RibbonPage _mastersRibbonPage = null!;
     private RibbonPage _inventoryRibbonPage = null!;
-    private RibbonPage _restaurantRibbonPage = null!;
+    private RibbonPage _purchasesRibbonPage = null!;
+    private RibbonPage _posRibbonPage = null!;
+    private RibbonPage _managerPanelRibbonPage = null!;
+    private RibbonPage _usersRibbonPage = null!;
+    private RibbonPage _reportsRibbonPage = null!;
+    private RibbonPage _settingsRibbonPage = null!;
 
-    /// <summary>Every navigation <see cref="BarButtonItem"/> built from <see cref="NavigationItems"/>, keyed by its navigation key - how <c>RefreshNavigationAsync</c> (in <c>MainForm.cs</c>) shows/hides commands per the signed-in user's menu permissions.</summary>
-    private readonly Dictionary<string, BarButtonItem> _navigationButtonsByKey = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, RibbonPage> _pagesByName = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Ribbon page groups built from <see cref="NavigationItems"/>, keyed by <c>"{Page}{Group}"</c> - lets <c>RefreshNavigationAsync</c> collapse a group once every button in it is hidden.</summary>
-    private readonly Dictionary<string, RibbonPageGroup> _navigationGroupsByKey = [];
+    /// <summary>Every navigation <see cref="BarButtonItem"/> paired with its navigation key for permission gating.</summary>
+    private readonly List<(string Key, BarButtonItem Button)> _allNavigationButtons = [];
+
+    /// <summary>Ribbon page groups built from <see cref="NavigationRegistry"/>, keyed by <c>"{Page}_{Group}"</c>.</summary>
+    private readonly Dictionary<string, RibbonPageGroup> _navigationGroupsByKey = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Builds the Ribbon, document host, and status bar. Called once from the constructor in <c>MainForm.cs</c>.</summary>
     private void InitializeComponent()
@@ -135,12 +64,15 @@ public sealed partial class MainForm
         Ribbon = _ribbon;
         StatusBar = new RibbonStatusBar(_ribbon);
 
-        _ribbon.ApplicationButtonText = "&Menu";
+        _ribbon.ShowApplicationButton = DevExpress.Utils.DefaultBoolean.False;
+        _ribbon.ApplicationButtonText = string.Empty;
 
         BuildBusinessAreaPages();
-        BuildHomePageExtras();
+        BuildShellExtras();
         BuildStatusBar();
         BuildDocumentHost();
+
+        _ribbon.SelectedPage = _mastersRibbonPage;
 
         // Assigning the `Ribbon`/`StatusBar` RibbonForm properties does not
         // parent those controls by itself - without adding them to
@@ -152,98 +84,135 @@ public sealed partial class MainForm
     }
 
     /// <summary>
-    /// Builds the Administration/Catalog/Inventory/Restaurant pages (plus
-    /// Home's own "Navigation" group, just the Dashboard button) entirely
-    /// from <see cref="NavigationItems"/>: one <see cref="RibbonPage"/> per
-    /// distinct <c>Page</c>, one <see cref="RibbonPageGroup"/> per distinct
-    /// <c>Group</c> within it, one <see cref="BarButtonItem"/> per row - all
-    /// three keyed off first appearance in the array, so this method's
-    /// output order matches the table declared above.
+    /// Builds the top-level RibbonPages in strictly ordered sequence:
+    /// Masters, Inventory, POS, Manager Panel, Users, Reports, Settings.
+    /// Purchases is hidden until its procurement module is ready.
+    /// Groups and items are populated directly from <see cref="NavigationRegistry.AllItems"/>.
     /// </summary>
     private void BuildBusinessAreaPages()
     {
-        var pagesByName = new Dictionary<string, RibbonPage>();
+        _pagesByName.Clear();
+        _allNavigationButtons.Clear();
+        _navigationGroupsByKey.Clear();
 
-        foreach (var (key, pageName, groupName, caption) in NavigationItems)
+        // Create the top-level RibbonPages in canonical order (skipping empty Purchases)
+        foreach (var pageName in NavigationPage.OrderedPages)
         {
-            if (!pagesByName.TryGetValue(pageName, out var page))
+            if (string.Equals(pageName, NavigationPage.Purchases, StringComparison.OrdinalIgnoreCase))
             {
-                page = new RibbonPage(pageName);
-                _ribbon.Pages.Add(page);
-                pagesByName[pageName] = page;
+                continue; // Hidden until purchasing/procurement module is implemented
             }
 
-            var groupKey = $"{pageName}{groupName}";
+            var page = new RibbonPage(pageName);
+            _ribbon.Pages.Add(page);
+            _pagesByName[pageName] = page;
+        }
+
+        // Add groups and buttons from NavigationRegistry
+        foreach (var item in NavigationRegistry.AllItems)
+        {
+            if (!_pagesByName.TryGetValue(item.RibbonPage, out var page))
+            {
+                continue;
+            }
+
+            var groupKey = $"{item.RibbonPage}_{item.RibbonGroup}";
             if (!_navigationGroupsByKey.TryGetValue(groupKey, out var group))
             {
-                group = new RibbonPageGroup(groupName);
+                group = new RibbonPageGroup(item.RibbonGroup);
                 page.Groups.Add(group);
                 _navigationGroupsByKey[groupKey] = group;
             }
 
-            var button = new BarButtonItem { Caption = caption, Tag = key };
+            var button = new BarButtonItem
+            {
+                Caption = item.Caption,
+                Tag = item.Key,
+                RibbonStyle = item.IsPrimaryAction ? RibbonItemStyles.Large : RibbonItemStyles.SmallWithText
+            };
+
+            var svg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage(item.IconUri);
+            if (svg != null)
+            {
+                button.ImageOptions.SvgImage = svg;
+            }
+
             button.ItemClick += NavigationButtonItem_ItemClick;
             _ribbon.Items.Add(button);
             group.ItemLinks.Add(button);
-            _navigationButtonsByKey[key] = button;
+            _allNavigationButtons.Add((item.Key, button));
         }
 
-        _homeRibbonPage = pagesByName["Home"];
-        _administrationRibbonPage = pagesByName["Administration"];
-        _catalogRibbonPage = pagesByName["Catalog"];
-        _inventoryRibbonPage = pagesByName["Inventory"];
-        _restaurantRibbonPage = pagesByName["Restaurant"];
+        _mastersRibbonPage = _pagesByName[NavigationPage.Masters];
+        _inventoryRibbonPage = _pagesByName[NavigationPage.Inventory];
+        _purchasesRibbonPage = _pagesByName.GetValueOrDefault(NavigationPage.Purchases)!;
+        _posRibbonPage = _pagesByName[NavigationPage.Pos];
+        _managerPanelRibbonPage = _pagesByName[NavigationPage.ManagerPanel];
+        _usersRibbonPage = _pagesByName[NavigationPage.Users];
+        _reportsRibbonPage = _pagesByName[NavigationPage.Reports];
+        _settingsRibbonPage = _pagesByName[NavigationPage.Settings];
     }
 
     /// <summary>
-    /// Adds Home's non-navigation groups: Session (profile menu - current
-    /// user name plus Change Password/Sign Out), Recent (recent
-    /// companies/branches), Appearance (theme/language), and Notifications.
-    /// None of these are permission gated - they are always available to any
-    /// signed-in user.
+    /// Adds Masters non-navigation groups: Session (profile menu with Change Password/Sign Out
+    /// plus standalone dynamic Punch In/Out button), Recent, and Notifications.
+    /// Adds Settings Appearance group (theme and language pickers).
     /// </summary>
-    private void BuildHomePageExtras()
+    private void BuildShellExtras()
     {
+        // 1. Session Group on Masters
         var sessionGroup = new RibbonPageGroup("Session");
-        _homeRibbonPage.Groups.Add(sessionGroup);
 
-        _profileMenu.Caption = _currentSession?.DisplayName ?? "Account";
-        _profilePunchInItem.Caption = "Punch In";
-        _profilePunchInItem.ItemClick += ProfilePunchInItem_ItemClick;
-        _profilePunchOutItem.Caption = "Punch Out";
-        _profilePunchOutItem.ItemClick += ProfilePunchOutItem_ItemClick;
+        _profileMenu.Caption = _currentSession?.DisplayName ?? "Administrator";
+        _profileMenu.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_user.svg");
+
         var changePasswordItem = new BarButtonItem { Caption = "Change Password" };
+        changePasswordItem.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_role.svg");
         changePasswordItem.ItemClick += ChangePasswordItem_ItemClick;
+
         var signOutItem = new BarButtonItem { Caption = "Sign Out" };
+        signOutItem.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("devav/actions/close.svg");
         signOutItem.ItemClick += SignOutItem_ItemClick;
 
         _punchInOutButton.Caption = "Punch In";
+        _punchInOutButton.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/scheduling/time.svg");
         _punchInOutButton.ItemClick += PunchInOutButton_ItemClick;
 
         _ribbon.Items.Add(_profileMenu);
-        _ribbon.Items.Add(_profilePunchInItem);
-        _ribbon.Items.Add(_profilePunchOutItem);
         _ribbon.Items.Add(changePasswordItem);
         _ribbon.Items.Add(signOutItem);
         _ribbon.Items.Add(_punchInOutButton);
 
-        _profileMenu.AddItem(_profilePunchInItem);
-        _profileMenu.AddItem(_profilePunchOutItem);
         _profileMenu.AddItem(changePasswordItem);
         _profileMenu.AddItem(signOutItem);
 
         sessionGroup.ItemLinks.Add(_profileMenu);
         sessionGroup.ItemLinks.Add(_punchInOutButton);
 
+        // 2. Recent Group on Masters
         var recentGroup = new RibbonPageGroup("Recent");
-        _homeRibbonPage.Groups.Add(recentGroup);
+        _recentCompaniesMenu.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_organization.svg");
+        _recentBranchesMenu.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_department.svg");
         _ribbon.Items.Add(_recentCompaniesMenu);
         _ribbon.Items.Add(_recentBranchesMenu);
         recentGroup.ItemLinks.Add(_recentCompaniesMenu);
         recentGroup.ItemLinks.Add(_recentBranchesMenu);
 
+        // 3. Notifications Group on Masters
+        var notificationsGroup = new RibbonPageGroup("Notifications");
+        _notificationsButton.ImageOptions.SvgImage = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_report.svg");
+        _notificationsButton.ItemClick += NotificationsButtonItem_ItemClick;
+        _ribbon.Items.Add(_notificationsButton);
+        notificationsGroup.ItemLinks.Add(_notificationsButton);
+
+        // Insert Session, Recent, Notifications right after Workspace (index 0) in Masters
+        int insertIdx = _mastersRibbonPage.Groups.Count > 0 ? 1 : 0;
+        _mastersRibbonPage.Groups.Insert(insertIdx, sessionGroup);
+        _mastersRibbonPage.Groups.Insert(insertIdx + 1, recentGroup);
+        _mastersRibbonPage.Groups.Insert(insertIdx + 2, notificationsGroup);
+
+        // 4. Appearance Group on Settings (Theme & Language)
         var appearanceGroup = new RibbonPageGroup("Appearance");
-        _homeRibbonPage.Groups.Add(appearanceGroup);
 
         themeCombo = new DevExpress.XtraEditors.Repository.RepositoryItemComboBox();
         themeCombo.Items.AddRange(new object[] { "Office 2019 Colorful", "Basic", "The Bezier" });
@@ -260,11 +229,7 @@ public sealed partial class MainForm
         _ribbon.Items.Add(languageEditItem);
         appearanceGroup.ItemLinks.Add(languageEditItem);
 
-        var notificationsGroup = new RibbonPageGroup("Notifications");
-        _homeRibbonPage.Groups.Add(notificationsGroup);
-        _notificationsButton.ItemClick += NotificationsButtonItem_ItemClick;
-        _ribbon.Items.Add(_notificationsButton);
-        notificationsGroup.ItemLinks.Add(_notificationsButton);
+        _settingsRibbonPage.Groups.Add(appearanceGroup);
     }
 
     private void BuildStatusBar()
@@ -281,14 +246,7 @@ public sealed partial class MainForm
     /// Wires the <see cref="DocumentManager"/> to this form via
     /// <see cref="DocumentManager.ContainerControl"/> - never
     /// <see cref="DocumentManager.MdiParent"/>, which this application never
-    /// sets anywhere. This is the same "let the manager own the surface"
-    /// relationship <see cref="RibbonControl"/> itself is built on; no
-    /// separate <c>Controls.Add</c> is needed for the tab surface the way it
-    /// is for <see cref="_ribbon"/>/<c>StatusBar</c>, because the
-    /// <see cref="DocumentManager"/> renders directly into its
-    /// <c>ContainerControl</c> once assigned. <see cref="DocumentManager.MenuManager"/>
-    /// is set to <see cref="_ribbon"/> so a document could merge its own
-    /// Ribbon commands in later if one ever needs to; nothing does yet.
+    /// sets anywhere.
     /// </summary>
     private void BuildDocumentHost()
     {
@@ -298,4 +256,3 @@ public sealed partial class MainForm
         _documentManager.ViewCollection.AddRange([_tabbedView]);
     }
 }
-

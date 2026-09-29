@@ -30,11 +30,26 @@ public sealed class Customer : AggregateRoot<CustomerId>
     /// <summary>Maximum amount of credit allowed for this customer.</summary>
     public decimal CreditLimit { get; private set; }
 
-    /// <summary>Current outstanding amount owed to the restaurant.</summary>
+    /// <summary>Current outstanding amount owed to the restaurant (net balance: positive is receivable, negative is advance).</summary>
     public decimal OutstandingBalance { get; private set; }
 
-    /// <summary>Whether this customer is active and can receive credit sales.</summary>
+    /// <summary>Portion of balance representing money currently owed by customer (accounts receivable).</summary>
+    public decimal ReceivableBalance => Math.Max(0m, OutstandingBalance);
+
+    /// <summary>Portion of balance representing unapplied payment / advance credit held by restaurant.</summary>
+    public decimal AdvanceBalance => Math.Max(0m, -OutstandingBalance);
+
+    /// <summary>Net ledger position (positive is receivable, negative is advance).</summary>
+    public decimal NetBalance => OutstandingBalance;
+
+    /// <summary>Whether this customer is active and can receive orders.</summary>
     public bool IsActive { get; private set; }
+
+    /// <summary>Whether credit / on-account sales are allowed for this customer.</summary>
+    public bool IsCreditAllowed { get; private set; }
+
+    /// <summary>Available credit balance remaining under the limit (excluding advance from exposure).</summary>
+    public decimal AvailableCredit => IsCreditAllowed ? Math.Max(0m, CreditLimit - ReceivableBalance) : 0m;
 
     /// <summary>Whether this customer is the default customer for new POS orders.</summary>
     public bool IsDefault { get; private set; }
@@ -75,7 +90,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? shopNo,
         string? mobile2,
         string? phone,
-        bool isDefault = false)
+        bool isDefault = false,
+        bool isCreditAllowed = true)
     {
         Id = id;
         Code = code;
@@ -94,6 +110,7 @@ public sealed class Customer : AggregateRoot<CustomerId>
         ShopNo = shopNo;
         Mobile2 = mobile2;
         Phone = phone;
+        IsCreditAllowed = isCreditAllowed;
     }
 
     /// <summary>Creates a new Customer aggregate.</summary>
@@ -109,7 +126,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? shopNo = null,
         string? mobile2 = null,
         string? phone = null,
-        bool isDefault = false)
+        bool isDefault = false,
+        bool isCreditAllowed = true)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Customer name is required.", nameof(name));
@@ -140,7 +158,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
             shopNo?.Trim(),
             mobile2?.Trim(),
             phone?.Trim(),
-            isDefault);
+            isDefault,
+            isCreditAllowed);
     }
 
     /// <summary>Updates customer information.</summary>
@@ -153,7 +172,8 @@ public sealed class Customer : AggregateRoot<CustomerId>
         string? notes,
         string? shopNo = null,
         string? mobile2 = null,
-        string? phone = null)
+        string? phone = null,
+        bool isCreditAllowed = true)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Customer name is required.", nameof(name));
@@ -173,6 +193,15 @@ public sealed class Customer : AggregateRoot<CustomerId>
         ShopNo = shopNo?.Trim();
         Mobile2 = mobile2?.Trim();
         Phone = phone?.Trim();
+        IsCreditAllowed = isCreditAllowed;
+        Touch();
+    }
+
+    /// <summary>Sets whether credit / on-account purchases are permitted for this customer.</summary>
+    public void SetCreditAllowed(bool isCreditAllowed)
+    {
+        if (IsCreditAllowed == isCreditAllowed) return;
+        IsCreditAllowed = isCreditAllowed;
         Touch();
     }
 

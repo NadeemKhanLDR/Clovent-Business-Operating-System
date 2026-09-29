@@ -75,7 +75,15 @@ public sealed partial class CustomerLedgerDialog : XtraForm
             _isUpdatingPeriod = false;
         }
 
-        DesktopDialogSizing.Apply(this, 1040, 680, 900, 560, null, true);
+        var dateFormat = BusinessDateTimeService.ExtractDateFormatPattern(DateTimeDisplay.FormatString);
+        _dateFrom.Properties.EditMask = dateFormat;
+        _dateFrom.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
+        _dateFrom.Properties.DisplayFormat.FormatString = dateFormat;
+        _dateTo.Properties.EditMask = dateFormat;
+        _dateTo.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
+        _dateTo.Properties.DisplayFormat.FormatString = dateFormat;
+
+        DesktopDialogSizing.Apply(this, 1040, 680, 900, 560, this.Owner ?? this.Parent, true);
         await LoadLedgerAsync();
     }
 
@@ -106,11 +114,28 @@ public sealed partial class CustomerLedgerDialog : XtraForm
             var currentCustomer = await _mediator.Send(new GetCustomerByIdQuery(_customer.CustomerId));
             var outstanding = currentCustomer?.OutstandingBalance ?? _customer.OutstandingBalance;
             var limit = currentCustomer?.CreditLimit ?? _customer.CreditLimit;
-            var available = Math.Max(0m, limit - outstanding);
 
-            _outstandingVal.Text = CurrencyDisplay.FormatPlain(outstanding);
+            if (outstanding < 0m)
+            {
+                cardTitle1.Text = "Outstanding Balance";
+                _outstandingVal.Text = CurrencyDisplay.FormatPlain(0m);
+                _outstandingVal.ForeColor = Color.FromArgb(71, 85, 105);
+
+                var advance = Math.Abs(outstanding);
+                _availableVal.Text = CurrencyDisplay.FormatPlain(limit + advance);
+                _lblStatus.Text = $"Customer has an Advance / Credit balance of {CurrencyDisplay.Format(advance)} (Net Position: {CurrencyDisplay.Format(outstanding)}).";
+            }
+            else
+            {
+                cardTitle1.Text = "Outstanding Balance";
+                _outstandingVal.Text = CurrencyDisplay.FormatPlain(outstanding);
+                _outstandingVal.ForeColor = outstanding > 0 ? Color.FromArgb(185, 28, 28) : Color.FromArgb(71, 85, 105);
+
+                var available = Math.Max(0m, limit - outstanding);
+                _availableVal.Text = CurrencyDisplay.FormatPlain(available);
+            }
+
             _limitVal.Text = CurrencyDisplay.FormatPlain(limit);
-            _availableVal.Text = CurrencyDisplay.FormatPlain(available);
 
             ApplyFilters();
         }
@@ -377,13 +402,23 @@ public sealed partial class CustomerLedgerDialog : XtraForm
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        root.RowStyles[1] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(78, this));
-        root.RowStyles[5] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this));
+        root.RowStyles[0] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(28, this));
+        root.RowStyles[1] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(22, this));
+        root.RowStyles[2] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(78, this));
+        root.RowStyles[3] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(58, this));
+        root.RowStyles[4] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(24, this));
+        root.RowStyles[5] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(36, this));
+        root.RowStyles[7] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this));
+
+        filterPanel.RowStyles[0] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(22, this));
+        filterPanel.RowStyles[1] = new RowStyle(SizeType.Absolute, DesktopDpi.Scale(32, this));
 
         filterPanel.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(140, this));
         filterPanel.ColumnStyles[1] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(130, this));
         filterPanel.ColumnStyles[2] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(130, this));
         filterPanel.ColumnStyles[3] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(160, this));
+
+        searchToolsRow.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(280, this));
 
         int filterBtnH = DesktopDpi.Scale(32, this);
         _btnLoadLedger.MinimumSize = new Size(DesktopDpi.Scale(110, this), filterBtnH);

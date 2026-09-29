@@ -7,5 +7,8 @@ public enum OrderType
     DineIn,
 
     /// <summary>Prepared for the customer to take away - never has a table.</summary>
-    TakeAway
+    TakeAway,
+
+    /// <summary>Delivered to customer's location - never has a table.</summary>
+    Delivery
 }

@@ -36,6 +36,8 @@ public class CartNavigationGuardTests
             return Task.CompletedTask;
         }
 
+        public Task OpenLoginAsync() => Task.CompletedTask;
+
         public void ExitApplication() { }
         public void ExitApplication(string initiator) { }
     }

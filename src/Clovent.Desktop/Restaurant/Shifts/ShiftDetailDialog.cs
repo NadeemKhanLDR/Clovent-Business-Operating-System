@@ -32,13 +32,8 @@ public sealed class ShiftDetailDialog : XtraForm
     private LabelControl _lblCashSalesVal = null!;
     private LabelControl _lblCardSalesVal = null!;
     private LabelControl _lblOtherSalesVal = null!;
-    private LabelControl _lblTotalSalesVal = null!;
-    private LabelControl _lblCashInVal = null!;
-    private LabelControl _lblCashOutVal = null!;
     private LabelControl _lblExpectedVal = null!;
-    private LabelControl _lblCountedVal = null!;
     private LabelControl _lblVarianceVal = null!;
-    private LabelControl _lblReasonVal = null!;
 
     private GridControl _gridMovements = null!;
     private GridView _viewMovements = null!;
@@ -65,6 +60,7 @@ public sealed class ShiftDetailDialog : XtraForm
     private void BuildUi()
     {
         Text = "Shift Session Details";
+        AutoScaleMode = AutoScaleMode.None;
         DesktopDialogSizing.Apply(this, 720, 620, 640, 540, null, true);
 
         var mainPanel = new TableLayoutPanel

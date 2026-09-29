@@ -49,6 +49,12 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(p => p.ItemType)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(ProductItemType.Prepared)
+            .IsRequired();
+
         builder.Property(p => p.CreatedAtUtc).IsRequired();
 
         builder.Ignore(p => p.DomainEvents);

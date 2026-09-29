@@ -84,4 +84,29 @@ public class PosSettingsStoreTests : IDisposable
         mode = PosSettingsStore.LoadViewMode();
         Assert.Equal("Grid", mode);
     }
+
+    [Fact]
+    public void LoadDefaultOrderMode_DefaultsToDineIn()
+    {
+        var mode = PosSettingsStore.LoadDefaultOrderMode();
+        Assert.Equal("DineIn", mode);
+
+        var type = PosSettingsStore.LoadDefaultOrderType();
+        Assert.Equal(Clovent.Restaurant.Orders.OrderType.DineIn, type);
+    }
+
+    [Fact]
+    public void SaveAndLoadDefaultOrderMode_PreservesValue()
+    {
+        PosSettingsStore.SaveDefaultOrderMode("TakeAway");
+        Assert.Equal("TakeAway", PosSettingsStore.LoadDefaultOrderMode());
+        Assert.Equal(Clovent.Restaurant.Orders.OrderType.TakeAway, PosSettingsStore.LoadDefaultOrderType());
+
+        PosSettingsStore.SaveDefaultOrderType(Clovent.Restaurant.Orders.OrderType.Delivery);
+        Assert.Equal("Delivery", PosSettingsStore.LoadDefaultOrderMode());
+        Assert.Equal(Clovent.Restaurant.Orders.OrderType.Delivery, PosSettingsStore.LoadDefaultOrderType());
+
+        PosSettingsStore.SaveDefaultOrderType(Clovent.Restaurant.Orders.OrderType.DineIn);
+        Assert.Equal("DineIn", PosSettingsStore.LoadDefaultOrderMode());
+    }
 }

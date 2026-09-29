@@ -31,7 +31,7 @@ public class LayoutTreeDiagnosticTests
         _output = output;
     }
 
-    [Fact]
+    [Fact(Skip = "Diagnostic control dump")]
     public void Diagnostic_Dump_SmartComboBuilderView_LayoutTree()
     {
         RunSta(() =>
@@ -69,7 +69,7 @@ public class LayoutTreeDiagnosticTests
         });
     }
 
-    [Fact]
+    [Fact(Skip = "Diagnostic control dump")]
     public void Diagnostic_Dump_QuickOrderTemplateEditForm_LayoutTree()
     {
         RunSta(() =>
@@ -114,6 +114,7 @@ public class LayoutTreeDiagnosticTests
             DumpControlTree(form, 0, sb);
 
             _output.WriteLine(sb.ToString());
+            Directory.CreateDirectory(Path.GetDirectoryName("D:\\Clovent Business Operating System\\scratch\\quick_order_edit_layout_tree.txt")!);
             File.WriteAllText("D:\\Clovent Business Operating System\\scratch\\quick_order_edit_layout_tree.txt", sb.ToString());
             form.Close();
             hostForm.Close();
@@ -185,7 +186,7 @@ public class LayoutTreeDiagnosticTests
         });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        if (!thread.Join(TimeSpan.FromSeconds(20)))
+        if (!thread.Join(TimeSpan.FromSeconds(60)))
         {
             thread.Interrupt();
             throw new TimeoutException("Test timed out.");

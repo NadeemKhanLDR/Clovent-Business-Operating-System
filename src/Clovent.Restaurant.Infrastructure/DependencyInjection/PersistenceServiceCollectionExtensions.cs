@@ -61,6 +61,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IActivityLogEntryRepository, ActivityLogEntryRepository>();
         services.TryAddScoped<ICustomerRepository, CustomerRepository>();
         services.TryAddScoped<ICustomerLedgerEntryRepository, CustomerLedgerEntryRepository>();
+        services.TryAddScoped<ICustomerPaymentAllocationRepository, CustomerPaymentAllocationRepository>();
         services.TryAddScoped<IShiftRepository, ShiftRepository>();
         services.TryAddScoped<Clovent.Restaurant.Attendance.IAttendanceSessionRepository, AttendanceSessionRepository>();
         services.TryAddScoped<IRecommendationRuleRepository, RecommendationRuleRepository>();

@@ -10,7 +10,9 @@ partial class MenuItemEditForm
 
     private readonly TextEdit _nameEdit = new();
     private readonly ComboBoxEdit _categoryCombo = new();
+    private readonly ComboBoxEdit _itemTypeCombo = new();
     private readonly SpinEdit _priceEdit = new() { Properties = { MinValue = 0, MaxValue = 1_000_000, Increment = 1m } };
+    private readonly SpinEdit _costPriceEdit = new() { Properties = { MinValue = 0, MaxValue = 1_000_000, Increment = 1m } };
     private readonly CheckEdit _activeEdit = new() { Text = "Active", Checked = true };
     private readonly TextEdit _barcode1Edit = new();
     private readonly TextEdit _barcode2Edit = new();
@@ -55,7 +57,9 @@ partial class MenuItemEditForm
     {
         label1 = new DevExpress.XtraEditors.LabelControl();
         label2 = new DevExpress.XtraEditors.LabelControl();
+        labelItemType = new DevExpress.XtraEditors.LabelControl();
         label3 = new DevExpress.XtraEditors.LabelControl();
+        labelCostPrice = new DevExpress.XtraEditors.LabelControl();
         label5 = new DevExpress.XtraEditors.LabelControl();
         
         var headingLabel = new LabelControl
@@ -93,7 +97,9 @@ partial class MenuItemEditForm
 
         ((System.ComponentModel.ISupportInitialize)_nameEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_categoryCombo.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_itemTypeCombo.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_priceEdit.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_costPriceEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_activeEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_hasVariantsEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_barcode1Edit.Properties).BeginInit();
@@ -137,13 +143,15 @@ partial class MenuItemEditForm
         {
             Dock = System.Windows.Forms.DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 11,
+            RowCount = 13,
             Margin = new Padding(0),
             Padding = new Padding(0)
         };
         leftFieldsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         leftFieldsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         
+        leftFieldsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        leftFieldsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         leftFieldsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         leftFieldsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         leftFieldsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -174,76 +182,94 @@ partial class MenuItemEditForm
         _categoryCombo.Width = 260;
         leftFieldsPanel.Controls.Add(_categoryCombo, 1, 1);
 
-        // Row 2: Price
+        // Row 2: Item Type
+        labelItemType.Text = "Item Type *:";
+        labelItemType.Padding = new Padding(0, 6, 8, 0);
+        leftFieldsPanel.Controls.Add(labelItemType, 0, 2);
+        _itemTypeCombo.Dock = System.Windows.Forms.DockStyle.Top;
+        _itemTypeCombo.Margin = new Padding(0, 3, 0, 3);
+        _itemTypeCombo.Width = 260;
+        leftFieldsPanel.Controls.Add(_itemTypeCombo, 1, 2);
+
+        // Row 3: Selling Price
         label3.Text = "Selling Price *:";
         label3.Padding = new Padding(0, 6, 8, 0);
-        leftFieldsPanel.Controls.Add(label3, 0, 2);
+        leftFieldsPanel.Controls.Add(label3, 0, 3);
         _priceEdit.Dock = System.Windows.Forms.DockStyle.Top;
         _priceEdit.Margin = new Padding(0, 3, 0, 3);
         _priceEdit.Width = 260;
-        leftFieldsPanel.Controls.Add(_priceEdit, 1, 2);
+        leftFieldsPanel.Controls.Add(_priceEdit, 1, 3);
 
-        // Row 3: Has Portions
+        // Row 4: Cost Price
+        labelCostPrice.Text = "Cost Price:";
+        labelCostPrice.Padding = new Padding(0, 6, 8, 0);
+        leftFieldsPanel.Controls.Add(labelCostPrice, 0, 4);
+        _costPriceEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _costPriceEdit.Margin = new Padding(0, 3, 0, 3);
+        _costPriceEdit.Width = 260;
+        leftFieldsPanel.Controls.Add(_costPriceEdit, 1, 4);
+
+        // Row 5: Has Portions
         _hasVariantsEdit.Dock = System.Windows.Forms.DockStyle.Top;
         _hasVariantsEdit.Margin = new Padding(0, 3, 0, 3);
-        leftFieldsPanel.Controls.Add(_hasVariantsEdit, 1, 3);
+        leftFieldsPanel.Controls.Add(_hasVariantsEdit, 1, 5);
 
-        // Row 4: Active
+        // Row 6: Active
         _activeEdit.Dock = System.Windows.Forms.DockStyle.Top;
         _activeEdit.Margin = new Padding(0, 3, 0, 3);
-        leftFieldsPanel.Controls.Add(_activeEdit, 1, 4);
+        leftFieldsPanel.Controls.Add(_activeEdit, 1, 6);
 
-        // Row 5: Barcodes Header
+        // Row 7: Barcodes Header
         labelBarcodesHeader = new LabelControl
         {
             Text = "Barcodes:",
             Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
             Margin = new Padding(0, 12, 0, 4)
         };
-        leftFieldsPanel.Controls.Add(labelBarcodesHeader, 0, 5);
+        leftFieldsPanel.Controls.Add(labelBarcodesHeader, 0, 7);
         leftFieldsPanel.SetColumnSpan(labelBarcodesHeader, 2);
 
-        // Row 6: Barcode 1
+        // Row 8: Barcode 1
         labelBarcode1 = new LabelControl
         {
             Text = "Barcode 1:",
             Padding = new Padding(0, 6, 8, 0)
         };
-        leftFieldsPanel.Controls.Add(labelBarcode1, 0, 6);
+        leftFieldsPanel.Controls.Add(labelBarcode1, 0, 8);
         _barcode1Edit.Dock = DockStyle.Top;
         _barcode1Edit.Margin = new Padding(0, 3, 0, 3);
         _barcode1Edit.Width = 260;
-        leftFieldsPanel.Controls.Add(_barcode1Edit, 1, 6);
+        leftFieldsPanel.Controls.Add(_barcode1Edit, 1, 8);
 
-        // Row 7: Barcode 2
+        // Row 9: Barcode 2
         labelBarcode2 = new LabelControl
         {
             Text = "Barcode 2:",
             Padding = new Padding(0, 6, 8, 0)
         };
-        leftFieldsPanel.Controls.Add(labelBarcode2, 0, 7);
+        leftFieldsPanel.Controls.Add(labelBarcode2, 0, 9);
         _barcode2Edit.Dock = DockStyle.Top;
         _barcode2Edit.Margin = new Padding(0, 3, 0, 3);
         _barcode2Edit.Width = 260;
-        leftFieldsPanel.Controls.Add(_barcode2Edit, 1, 7);
+        leftFieldsPanel.Controls.Add(_barcode2Edit, 1, 9);
 
-        // Row 8: Barcode 3
+        // Row 10: Barcode 3
         labelBarcode3 = new LabelControl
         {
             Text = "Barcode 3:",
             Padding = new Padding(0, 6, 8, 0)
         };
-        leftFieldsPanel.Controls.Add(labelBarcode3, 0, 8);
+        leftFieldsPanel.Controls.Add(labelBarcode3, 0, 10);
         _barcode3Edit.Dock = DockStyle.Top;
         _barcode3Edit.Margin = new Padding(0, 3, 0, 3);
         _barcode3Edit.Width = 260;
-        leftFieldsPanel.Controls.Add(_barcode3Edit, 1, 8);
+        leftFieldsPanel.Controls.Add(_barcode3Edit, 1, 10);
 
-        // Row 9: Variants Grid
+        // Row 11: Variants Grid
         _variantsGrid.Dock = DockStyle.Fill;
         _variantsGrid.Height = 180;
         _variantsGrid.Margin = new Padding(0, 6, 0, 6);
-        leftFieldsPanel.Controls.Add(_variantsGrid, 0, 9);
+        leftFieldsPanel.Controls.Add(_variantsGrid, 0, 11);
         leftFieldsPanel.SetColumnSpan(_variantsGrid, 2);
 
         // Photo Section Panel
@@ -357,6 +383,8 @@ partial class MenuItemEditForm
         ((System.ComponentModel.ISupportInitialize)_barcode1Edit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_barcode2Edit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_barcode3Edit.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_itemTypeCombo.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_costPriceEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_pictureEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_variantsGrid).EndInit();
         ((System.ComponentModel.ISupportInitialize)_variantsGridView).EndInit();
@@ -367,7 +395,9 @@ partial class MenuItemEditForm
 
     private DevExpress.XtraEditors.LabelControl label1;
     private DevExpress.XtraEditors.LabelControl label2;
+    private DevExpress.XtraEditors.LabelControl labelItemType;
     private DevExpress.XtraEditors.LabelControl label3;
+    private DevExpress.XtraEditors.LabelControl labelCostPrice;
     private DevExpress.XtraEditors.LabelControl label5;
     private DevExpress.XtraEditors.LabelControl labelBarcodesHeader;
     private DevExpress.XtraEditors.LabelControl labelBarcode1;

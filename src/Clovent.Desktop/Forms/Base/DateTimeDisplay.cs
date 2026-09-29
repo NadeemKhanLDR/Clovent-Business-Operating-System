@@ -32,10 +32,28 @@ public static class DateTimeDisplay
     }
 
     /// <summary>
+    /// Formats a DateTimeOffset value by first converting it to the configured business timezone,
+    /// and then formatting it according to the configured Date and Time Format.
+    /// </summary>
+    public static string FormatDateTime(DateTimeOffset? value)
+    {
+        return BusinessDateTimeService.Instance.FormatDateTime(value);
+    }
+
+    /// <summary>
     /// Formats a DateTime value by first converting it to the configured business timezone,
     /// and then formatting it according to the configured Date and Time Format.
     /// </summary>
     public static string Format(DateTime? value)
+    {
+        return BusinessDateTimeService.Instance.FormatDateTime(value);
+    }
+
+    /// <summary>
+    /// Formats a DateTime value by first converting it to the configured business timezone,
+    /// and then formatting it according to the configured Date and Time Format.
+    /// </summary>
+    public static string FormatDateTime(DateTime? value)
     {
         return BusinessDateTimeService.Instance.FormatDateTime(value);
     }

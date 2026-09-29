@@ -27,6 +27,7 @@ public static class PosSettingsStore
         public bool RushModeEnabled { get; set; } = false;
         public Guid? TerminalId { get; set; }
         public Guid? BranchId { get; set; }
+        public string DefaultOrderMode { get; set; } = "DineIn";
     }
 
     private static PosSettingsData LoadData()
@@ -194,5 +195,53 @@ public static class PosSettingsStore
         var data = LoadData();
         data.BranchId = branchId;
         SaveData(data);
+    }
+
+    /// <summary>Returns the configured default order mode (DineIn, TakeAway, Delivery), defaulting to "DineIn".</summary>
+    public static string LoadDefaultOrderMode()
+    {
+        var mode = LoadData().DefaultOrderMode;
+        return mode switch
+        {
+            "TakeAway" => "TakeAway",
+            "Delivery" => "Delivery",
+            _ => "DineIn"
+        };
+    }
+
+    /// <summary>Persists the default order mode preference.</summary>
+    public static void SaveDefaultOrderMode(string mode)
+    {
+        var data = LoadData();
+        data.DefaultOrderMode = mode switch
+        {
+            "TakeAway" => "TakeAway",
+            "Delivery" => "Delivery",
+            _ => "DineIn"
+        };
+        SaveData(data);
+    }
+
+    /// <summary>Returns the configured default order mode as an <see cref="Clovent.Restaurant.Orders.OrderType"/> enum.</summary>
+    public static Clovent.Restaurant.Orders.OrderType LoadDefaultOrderType()
+    {
+        var mode = LoadDefaultOrderMode();
+        return mode switch
+        {
+            "TakeAway" => Clovent.Restaurant.Orders.OrderType.TakeAway,
+            "Delivery" => Clovent.Restaurant.Orders.OrderType.Delivery,
+            _ => Clovent.Restaurant.Orders.OrderType.DineIn
+        };
+    }
+
+    /// <summary>Persists the default order mode preference as an <see cref="Clovent.Restaurant.Orders.OrderType"/> enum.</summary>
+    public static void SaveDefaultOrderType(Clovent.Restaurant.Orders.OrderType orderType)
+    {
+        SaveDefaultOrderMode(orderType switch
+        {
+            Clovent.Restaurant.Orders.OrderType.TakeAway => "TakeAway",
+            Clovent.Restaurant.Orders.OrderType.Delivery => "Delivery",
+            _ => "DineIn"
+        });
     }
 }

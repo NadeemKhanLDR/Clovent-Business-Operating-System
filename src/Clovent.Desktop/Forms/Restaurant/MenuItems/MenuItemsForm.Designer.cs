@@ -16,6 +16,8 @@ partial class MenuItemsForm
         btnEdit = new DevExpress.XtraEditors.SimpleButton();
         btnActivate = new DevExpress.XtraEditors.SimpleButton();
         btnDeactivate = new DevExpress.XtraEditors.SimpleButton();
+        btnMarkAvailable = new DevExpress.XtraEditors.SimpleButton();
+        btnMarkSoldOut = new DevExpress.XtraEditors.SimpleButton();
         btnNewCategory = new DevExpress.XtraEditors.SimpleButton();
         btnCategoryColor = new DevExpress.XtraEditors.SimpleButton();
         btnMoveUp = new DevExpress.XtraEditors.SimpleButton();
@@ -27,7 +29,10 @@ partial class MenuItemsForm
         colPhoto = new DevExpress.XtraGrid.Columns.GridColumn();
         colName = new DevExpress.XtraGrid.Columns.GridColumn();
         colCategoryName = new DevExpress.XtraGrid.Columns.GridColumn();
+        colItemType = new DevExpress.XtraGrid.Columns.GridColumn();
         colPrice = new DevExpress.XtraGrid.Columns.GridColumn();
+        colCostPrice = new DevExpress.XtraGrid.Columns.GridColumn();
+        colAvailability = new DevExpress.XtraGrid.Columns.GridColumn();
         colStatus = new DevExpress.XtraGrid.Columns.GridColumn();
         emptyStateLabel = new DevExpress.XtraEditors.LabelControl();
         ((System.ComponentModel.ISupportInitialize)txtSearch.Properties).BeginInit();
@@ -80,38 +85,52 @@ partial class MenuItemsForm
         btnDeactivate.Text = "Deactivate";
         btnDeactivate.Click += BtnDeactivate_Click;
         //
+        // btnMarkAvailable
+        //
+        btnMarkAvailable.Name = "btnMarkAvailable";
+        btnMarkAvailable.TabIndex = 6;
+        btnMarkAvailable.Text = "Mark Available";
+        btnMarkAvailable.Click += BtnMarkAvailable_Click;
+        //
+        // btnMarkSoldOut
+        //
+        btnMarkSoldOut.Name = "btnMarkSoldOut";
+        btnMarkSoldOut.TabIndex = 7;
+        btnMarkSoldOut.Text = "Mark Sold Out";
+        btnMarkSoldOut.Click += BtnMarkSoldOut_Click;
+        //
         // btnNewCategory
         //
         btnNewCategory.Name = "btnNewCategory";
-        btnNewCategory.TabIndex = 6;
+        btnNewCategory.TabIndex = 8;
         btnNewCategory.Text = "New Category";
         btnNewCategory.Click += BtnNewCategory_Click;
         //
         // btnCategoryColor
         //
         btnCategoryColor.Name = "btnCategoryColor";
-        btnCategoryColor.TabIndex = 7;
+        btnCategoryColor.TabIndex = 9;
         btnCategoryColor.Text = "Category Color";
         btnCategoryColor.Click += BtnCategoryColor_Click;
         //
         // btnMoveUp
         //
         btnMoveUp.Name = "btnMoveUp";
-        btnMoveUp.TabIndex = 8;
+        btnMoveUp.TabIndex = 10;
         btnMoveUp.Text = "Move Up";
         btnMoveUp.Click += BtnMoveUp_Click;
         //
         // btnMoveDown
         //
         btnMoveDown.Name = "btnMoveDown";
-        btnMoveDown.TabIndex = 9;
+        btnMoveDown.TabIndex = 11;
         btnMoveDown.Text = "Move Down";
         btnMoveDown.Click += BtnMoveDown_Click;
         //
         // btnRefresh
         //
         btnRefresh.Name = "btnRefresh";
-        btnRefresh.TabIndex = 10;
+        btnRefresh.TabIndex = 12;
         btnRefresh.Text = "Refresh";
         btnRefresh.Click += BtnRefresh_Click;
         //
@@ -127,12 +146,22 @@ partial class MenuItemsForm
         //
         // gridView
         //
-        gridView.Columns.AddRange(new DevExpress.XtraGrid.Columns.GridColumn[] { colPhoto, colName, colCategoryName, colPrice, colStatus });
+        gridView.Columns.AddRange(new DevExpress.XtraGrid.Columns.GridColumn[] {
+            colPhoto,
+            colName,
+            colCategoryName,
+            colItemType,
+            colPrice,
+            colCostPrice,
+            colAvailability,
+            colStatus
+        });
         gridView.GridControl = gridControl;
         gridView.Name = "gridView";
         gridView.OptionsBehavior.AutoPopulateColumns = false;
         gridView.OptionsBehavior.Editable = false;
-        gridView.OptionsSelection.MultiSelect = false;
+        gridView.OptionsSelection.MultiSelect = true;
+        gridView.OptionsSelection.MultiSelectMode = DevExpress.XtraGrid.Views.Grid.GridMultiSelectMode.CheckBoxRowSelect;
         gridView.OptionsView.ColumnAutoWidth = true;
         gridView.OptionsView.ShowGroupPanel = false;
         // Fixed-height rows so every Photo thumbnail renders at the same
@@ -201,14 +230,41 @@ partial class MenuItemsForm
         colCategoryName.VisibleIndex = 2;
         colCategoryName.Width = 160;
         //
+        // colItemType
+        //
+        colItemType.Caption = "Item Type";
+        colItemType.FieldName = "ItemType";
+        colItemType.Name = "colItemType";
+        colItemType.Visible = true;
+        colItemType.VisibleIndex = 3;
+        colItemType.Width = 110;
+        //
         // colPrice
         //
         colPrice.Caption = "Selling Price";
         colPrice.FieldName = "Price";
         colPrice.Name = "colPrice";
         colPrice.Visible = true;
-        colPrice.VisibleIndex = 3;
-        colPrice.Width = 110;
+        colPrice.VisibleIndex = 4;
+        colPrice.Width = 100;
+        //
+        // colCostPrice
+        //
+        colCostPrice.Caption = "Cost Price";
+        colCostPrice.FieldName = "CostPrice";
+        colCostPrice.Name = "colCostPrice";
+        colCostPrice.Visible = true;
+        colCostPrice.VisibleIndex = 5;
+        colCostPrice.Width = 90;
+        //
+        // colAvailability
+        //
+        colAvailability.Caption = "Availability";
+        colAvailability.FieldName = "Availability";
+        colAvailability.Name = "colAvailability";
+        colAvailability.Visible = true;
+        colAvailability.VisibleIndex = 6;
+        colAvailability.Width = 90;
         //
         // colStatus
         //
@@ -216,8 +272,8 @@ partial class MenuItemsForm
         colStatus.FieldName = "Status";
         colStatus.Name = "colStatus";
         colStatus.Visible = true;
-        colStatus.VisibleIndex = 4;
-        colStatus.Width = 90;
+        colStatus.VisibleIndex = 7;
+        colStatus.Width = 80;
         //
         // MenuItemsForm
         //
@@ -242,10 +298,14 @@ partial class MenuItemsForm
         CommandPanelLayout.AddCommandButton(commandFlow, btnEdit);
         CommandPanelLayout.AddCommandButton(commandFlow, btnActivate);
         CommandPanelLayout.AddCommandButton(commandFlow, btnDeactivate);
+        CommandPanelLayout.AddCommandButton(commandFlow, btnMarkAvailable);
+        CommandPanelLayout.AddCommandButton(commandFlow, btnMarkSoldOut);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnNewMenuItem, Clovent.Desktop.Forms.Base.DesktopIcons.Add);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnEdit, Clovent.Desktop.Forms.Base.DesktopIcons.Edit);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnActivate, Clovent.Desktop.Forms.Base.DesktopIcons.ActivateIcon);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnDeactivate, Clovent.Desktop.Forms.Base.DesktopIcons.CancelIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnMarkAvailable, Clovent.Desktop.Forms.Base.DesktopIcons.ActivateIcon);
+        Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnMarkSoldOut, Clovent.Desktop.Forms.Base.DesktopIcons.CancelIcon);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnNewCategory, Clovent.Desktop.Forms.Base.DesktopIcons.Add);
         Clovent.Desktop.Forms.Base.DesktopIcons.Apply(btnCategoryColor, Clovent.Desktop.Forms.Base.DesktopIcons.Edit);
         CommandPanelLayout.AddCommandButton(commandFlow, btnNewCategory);
@@ -281,6 +341,8 @@ partial class MenuItemsForm
     private DevExpress.XtraEditors.SimpleButton btnEdit;
     private DevExpress.XtraEditors.SimpleButton btnActivate;
     private DevExpress.XtraEditors.SimpleButton btnDeactivate;
+    private DevExpress.XtraEditors.SimpleButton btnMarkAvailable;
+    private DevExpress.XtraEditors.SimpleButton btnMarkSoldOut;
     private DevExpress.XtraEditors.SimpleButton btnNewCategory;
     private DevExpress.XtraEditors.SimpleButton btnCategoryColor;
     private DevExpress.XtraEditors.SimpleButton btnMoveUp;
@@ -292,7 +354,10 @@ partial class MenuItemsForm
     private DevExpress.XtraGrid.Columns.GridColumn colPhoto;
     private DevExpress.XtraGrid.Columns.GridColumn colName;
     private DevExpress.XtraGrid.Columns.GridColumn colCategoryName;
+    private DevExpress.XtraGrid.Columns.GridColumn colItemType;
     private DevExpress.XtraGrid.Columns.GridColumn colPrice;
+    private DevExpress.XtraGrid.Columns.GridColumn colCostPrice;
+    private DevExpress.XtraGrid.Columns.GridColumn colAvailability;
     private DevExpress.XtraGrid.Columns.GridColumn colStatus;
     private DevExpress.XtraEditors.LabelControl emptyStateLabel;
 }

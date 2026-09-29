@@ -170,7 +170,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             using (var scope = _scopeFactory.CreateScope())
             {
                 var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-                await DateTimeDisplayLoader.ConfigureAsync(mediator);
+                await DateTimeDisplayLoader.ConfigureAsync(mediator, scope.ServiceProvider);
             }
 
             await RefreshNavigationAsync();
@@ -180,6 +180,25 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         {
             _splashScreenService.Close();
         }
+    }
+
+    /// <summary>
+    /// Gets the DevExpress SVG image gallery URI for each navigation button key.
+    /// Every URI maps to a verified SVG resource in DevExpress ImageResourceCache.
+    /// </summary>
+    public static string GetNavigationIconUri(string key) => NavigationRegistry.GetIconUri(key);
+
+    /// <summary>
+    /// Returns all navigation key-to-icon URI mappings for test verification.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> GetNavigationIconMap()
+    {
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in NavigationRegistry.AllItems)
+        {
+            dict[item.Key] = item.IconUri;
+        }
+        return dict;
     }
 
     private void NotificationService_Changed(object? sender, EventArgs e) => RefreshNotificationsButton();
@@ -221,10 +240,6 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private async void SignOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await SignOutAsync();
 
     private async void PunchInOutButton_ItemClick(object? sender, ItemClickEventArgs e) => await ToggleOrPromptAttendanceAsync();
-
-    private async void ProfilePunchInItem_ItemClick(object? sender, ItemClickEventArgs e) => await OpenPunchInDialogAsync();
-
-    private async void ProfilePunchOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await OpenPunchOutDialogAsync();
 
     private async void AttendanceStatusItem_ItemClick(object? sender, ItemClickEventArgs e) => await ToggleOrPromptAttendanceAsync();
 
@@ -304,8 +319,6 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         {
             _attendanceStatusItem.Caption = "○ Not Punched In";
             _punchInOutButton.Caption = "Punch In";
-            _profilePunchInItem.Visibility = BarItemVisibility.Always;
-            _profilePunchOutItem.Visibility = BarItemVisibility.Never;
             return;
         }
 
@@ -321,16 +334,12 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
                 _attendanceStatusItem.Caption = $"● Punched In · {localTime}";
                 _punchInOutButton.Caption = "Punch Out";
                 _punchInOutButton.Hint = "Punch out from employee attendance session";
-                _profilePunchInItem.Visibility = BarItemVisibility.Never;
-                _profilePunchOutItem.Visibility = BarItemVisibility.Always;
             }
             else
             {
                 _attendanceStatusItem.Caption = "○ Not Punched In";
                 _punchInOutButton.Caption = "Punch In";
                 _punchInOutButton.Hint = "Punch in for employee attendance session";
-                _profilePunchInItem.Visibility = BarItemVisibility.Always;
-                _profilePunchOutItem.Visibility = BarItemVisibility.Never;
             }
         }
         catch
@@ -373,7 +382,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
 
         var visibleKeys = new HashSet<string>(await navigationMenuBuilder.GetVisibleMenuKeysAsync(userId), StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (key, button) in _navigationButtonsByKey)
+        foreach (var (key, button) in _allNavigationButtons)
         {
             button.Visibility = visibleKeys.Contains(key) ? BarItemVisibility.Always : BarItemVisibility.Never;
         }
@@ -383,10 +392,12 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
             group.Visible = group.ItemLinks.Cast<BarItemLink>().Any(link => link.Item.Visibility == BarItemVisibility.Always);
         }
 
-        foreach (var pageName in PermissionGatedPages)
+        foreach (var pageName in NavigationPage.PermissionGatedPages)
         {
-            var page = _ribbon.Pages[pageName];
-            page.Visible = page.Groups.Cast<RibbonPageGroup>().Any(g => g.Visible);
+            if (_pagesByName.TryGetValue(pageName, out var page))
+            {
+                page.Visible = page.Groups.Cast<RibbonPageGroup>().Any(g => g.Visible);
+            }
         }
 
         LocalizationHelper.LocalizeRibbon(_ribbon);
@@ -601,6 +612,16 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         {
             _openDocumentsByKey.Remove(key);
         }
+
+        if (_tabbedView.Documents.Count == 0 || _tabbedView.ActiveDocument == null)
+        {
+            if (_activeStatusSource is not null)
+            {
+                _activeStatusSource.StatusTextChanged -= ActiveDocument_StatusTextChanged;
+                _activeStatusSource = null;
+            }
+            SetStatus("Ready");
+        }
     }
 
     /// <summary>
@@ -608,6 +629,7 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     /// push their own <see cref="BaseForm.StatusText"/> (subscribed here,
     /// unsubscribed from whichever document was active before); anything
     /// else (a not-yet-converted screen) falls back to its tab caption.
+    /// Also synchronizes the active RibbonPage to the canonical category of the active document.
     /// </summary>
     private void TabbedView_DocumentActivated(object? sender, DocumentEventArgs e)
     {
@@ -626,6 +648,19 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         else
         {
             SetStatus($"Viewing: {e.Document.Caption}");
+        }
+
+        var activeKey = _openDocumentsByKey.FirstOrDefault(pair => ReferenceEquals(pair.Value, e.Document)).Key;
+        if (!string.IsNullOrEmpty(activeKey))
+        {
+            var targetPageName = NavigationRegistry.GetCanonicalPageForKey(activeKey);
+            if (!string.IsNullOrEmpty(targetPageName) && _pagesByName.TryGetValue(targetPageName, out var targetPage))
+            {
+                if (targetPage.Visible && _ribbon.SelectedPage != targetPage)
+                {
+                    _ribbon.SelectedPage = targetPage;
+                }
+            }
         }
     }
 

@@ -4,6 +4,7 @@ using Clovent.Catalog.Application.Prices.Queries;
 using Clovent.Catalog.Application.Products.Queries;
 using Clovent.Desktop.Dashboard;
 using Clovent.Desktop.Forms.Base;
+using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Shell;
@@ -15,7 +16,10 @@ using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
 using Clovent.MasterData.Application.FiscalYears.Queries;
 using Clovent.MasterData.Application.Settings.Queries;
+using Clovent.MasterData.Application.TimeZones.Queries;
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Restaurant.Application.Customers.Queries;
+using Clovent.Restaurant.Application.EndOfDay.Queries;
 using Clovent.Restaurant.Application.KitchenTickets.Queries;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Queries;
@@ -68,6 +72,7 @@ public sealed partial class DashboardView : BaseForm
     private readonly ICurrentSession _currentSession;
     private readonly INotificationService _notificationService;
     private readonly IRecentItemsService _recentItemsService;
+    private readonly INavigationService? _navigationService;
 
     /// <summary>
     /// Builds the dashboard. The Scoped repositories/mediator it queries are
@@ -79,14 +84,17 @@ public sealed partial class DashboardView : BaseForm
         IServiceScopeFactory scopeFactory,
         ICurrentSession currentSession,
         INotificationService notificationService,
-        IRecentItemsService recentItemsService)
+        IRecentItemsService recentItemsService,
+        INavigationService? navigationService = null)
     {
         _scopeFactory = scopeFactory;
         _currentSession = currentSession;
         _notificationService = notificationService;
         _recentItemsService = recentItemsService;
+        _navigationService = navigationService;
 
         InitializeComponent();
+        WireDrilldowns();
     }
 
     /// <summary>
@@ -107,6 +115,26 @@ public sealed partial class DashboardView : BaseForm
         _recentItemsService = null!;
 
         InitializeComponent();
+        WireDrilldowns();
+    }
+
+    private void WireDrilldowns()
+    {
+        pnlTotalReceivables.Cursor = Cursors.Hand;
+        lblTotalReceivablesValue.Cursor = Cursors.Hand;
+        lblTotalReceivablesCaption.Cursor = Cursors.Hand;
+        void OpenReceivables(object? s, EventArgs e) => _navigationService?.NavigateTo("customerreceivables", "Customer Receivables");
+        pnlTotalReceivables.Click += OpenReceivables;
+        lblTotalReceivablesValue.Click += OpenReceivables;
+        lblTotalReceivablesCaption.Click += OpenReceivables;
+
+        pnlDeliveryOrders.Cursor = Cursors.Hand;
+        lblDeliveryOrdersValue.Cursor = Cursors.Hand;
+        lblDeliveryOrdersCaption.Cursor = Cursors.Hand;
+        void OpenRunningOrders(object? s, EventArgs e) => _navigationService?.NavigateTo("runningorders", "Running Orders");
+        pnlDeliveryOrders.Click += OpenRunningOrders;
+        lblDeliveryOrdersValue.Click += OpenRunningOrders;
+        lblDeliveryOrdersCaption.Click += OpenRunningOrders;
     }
 
     /// <inheritdoc/>
@@ -178,7 +206,6 @@ public sealed partial class DashboardView : BaseForm
             _recentItemsService.RecordBranchSelected(branch);
         }
     }
-
 
     private async Task LoadAsync()
     {
@@ -303,15 +330,31 @@ public sealed partial class DashboardView : BaseForm
     }
 
     /// <summary>
-    /// Loads the Today's Sales, Open Tables, Running Orders, Kitchen Queue,
-    /// and Top Selling Items widgets. Today's Sales and Top Selling Items
-    /// both walk every completed order's lines/payments individually (there
-    /// is no flat "sales report" query yet) - the same "fine at this demo
-    /// scale" honest simplification <see cref="LoadCatalogInventoryContextAsync"/>
-    /// already applies to Inventory Value.
+    /// Loads the restaurant widgets: Open Tables, Running Orders, Kitchen Queue,
+    /// Delivery Orders, Today's Sales, Top Selling Items, Customer Receivables,
+    /// Customer Advances, and Today's Collections.
     /// </summary>
     private async Task LoadRestaurantContextAsync()
     {
+        // Determine business date from organization default timezone
+        var businessToday = DateOnly.FromDateTime(DateTime.UtcNow);
+        try
+        {
+            var organizations = await _mediator.Send(new ListOrganizationsQuery());
+            var org = organizations.FirstOrDefault();
+            if (org is not null)
+            {
+                var settings = await _mediator.Send(new GetBusinessSettingsByOrganizationQuery(org.OrganizationId));
+                var tz = await _mediator.Send(new GetTimeZoneEntryByIdQuery(settings.DefaultTimeZoneId));
+                var offset = TimeSpan.FromMinutes(tz.UtcOffsetMinutes);
+                businessToday = DateOnly.FromDateTime(DateTimeOffset.UtcNow.ToOffset(offset).DateTime);
+            }
+        }
+        catch
+        {
+            businessToday = DateOnly.FromDateTime(DateTime.UtcNow);
+        }
+
         var tables = await _mediator.Send(new ListAllTablesQuery());
         lblOpenTablesValue.Text = RestaurantDashboardCalculations.CountOccupiedTables(tables).ToString();
 
@@ -322,7 +365,11 @@ public sealed partial class DashboardView : BaseForm
         lblKitchenQueueValue.Text = activeTickets.Count.ToString();
 
         var allOrders = await _mediator.Send(new ListAllOrdersQuery());
-        var completedToday = RestaurantDashboardCalculations.FilterCompletedOn(allOrders, DateOnly.FromDateTime(DateTime.UtcNow));
+        var completedToday = RestaurantDashboardCalculations.FilterCompletedOn(allOrders, businessToday);
+
+        // Delivery orders placed today (business date)
+        var deliveryCount = RestaurantDashboardCalculations.CountDeliveryOrdersOn(allOrders, businessToday);
+        lblDeliveryOrdersValue.Text = deliveryCount.ToString();
 
         decimal todaysSales = 0m;
         var allLines = new List<OrderLineDto>();
@@ -344,6 +391,35 @@ public sealed partial class DashboardView : BaseForm
             topSellingDisplay.Add($"{variant.Sku} {variant.Name}  -  {quantity:N2} sold");
         }
         PopulateList(lstTopSellingItems, [.. topSellingDisplay], "No sales completed today.");
+
+        // Customer Receivables & Advances metrics
+        try
+        {
+            var asOfDate = businessToday.ToDateTime(TimeOnly.MinValue);
+            var receivablesReport = await _mediator.Send(new GetCustomerReceivablesReportQuery(asOfDate));
+            lblTotalReceivablesValue.Text = receivablesReport.TotalReceivables.ToString("N" + CurrencyDisplay.DecimalPlaces);
+            lblCustomersWithBalanceValue.Text = receivablesReport.ActiveAccountsWithBalanceCount.ToString();
+            lblCustomerAdvancesValue.Text = receivablesReport.TotalAdvances.ToString("N" + CurrencyDisplay.DecimalPlaces);
+            lblNetReceivablesValue.Text = receivablesReport.NetPosition.ToString("N" + CurrencyDisplay.DecimalPlaces);
+
+            var warehouses = await _mediator.Send(new Clovent.MasterData.Application.Warehouses.Queries.ListAllWarehousesQuery());
+            var warehouse = warehouses.FirstOrDefault();
+            if (warehouse is not null)
+            {
+                var summary = await _mediator.Send(new GetExpandedSalesSummaryQuery(warehouse.WarehouseId, businessToday, businessToday));
+                lblTodaysOnAccountValue.Text = summary.Kpis.OnAccountCreated.ToString("N" + CurrencyDisplay.DecimalPlaces);
+                lblTodaysCollectionsValue.Text = summary.Kpis.CustomerPaymentsCollected.ToString("N" + CurrencyDisplay.DecimalPlaces);
+            }
+        }
+        catch
+        {
+            lblTotalReceivablesValue.Text = "0.00";
+            lblCustomersWithBalanceValue.Text = "0";
+            lblCustomerAdvancesValue.Text = "0.00";
+            lblTodaysOnAccountValue.Text = "0.00";
+            lblTodaysCollectionsValue.Text = "0.00";
+            lblNetReceivablesValue.Text = "0.00";
+        }
     }
 
     private void PopulateSelectors()

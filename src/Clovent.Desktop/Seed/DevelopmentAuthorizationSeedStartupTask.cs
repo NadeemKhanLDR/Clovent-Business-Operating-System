@@ -79,6 +79,7 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Customers management screen
         "customers",
+        "customerreceivables",
 
         // Shift management & register balancing
         "shifts",
@@ -149,6 +150,7 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Customer management
         ("customers", ["create", "edit", "activate", "deactivate", "viewledger", "payment"]),
+        ("customerreceivables", ["view", "export"]),
 
         // Shift management & register balancing
         ("shifts", ["open", "close", "cashmovement", "history", "viewdetails", "overridevariance"]),

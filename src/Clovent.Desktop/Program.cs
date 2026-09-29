@@ -49,6 +49,8 @@ namespace Clovent.Desktop;
 
 internal static class Program
 {
+    public static IServiceProvider? Services { get; internal set; }
+
     [STAThread]
     private static void Main(string[] args)
     {
@@ -60,11 +62,6 @@ internal static class Program
         }
         catch (InvalidOperationException)
         {
-        }
-
-        if (SynchronizationContext.Current is not WindowsFormsSynchronizationContext)
-        {
-            SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
         }
 
         var splash = new SplashScreenService();
@@ -153,82 +150,26 @@ internal static class Program
             bootstrapper.Services.LoadModules(bootstrapper.Configuration, DesktopModuleCatalog.ModuleTypes);
 
             splash.SetDescription("Initializing persistence...");
-            var host = bootstrapper.BuildAndInitializeAsync().GetAwaiter().GetResult();
+            var host = Task.Run(async () =>
+            {
+                var h = await bootstrapper.BuildAndInitializeAsync().ConfigureAwait(false);
+                using var initScope = h.Services.CreateScope();
+                var initMediator = initScope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+                await Clovent.Desktop.Forms.Base.DateTimeDisplayLoader.ConfigureAsync(initMediator, h.Services).ConfigureAwait(false);
+                await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(initMediator).ConfigureAwait(false);
+                return h;
+            }).GetAwaiter().GetResult();
+
+            Services = host.Services;
 
             var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));
             var errorDialogService = host.Services.GetRequiredService<IErrorDialogService>();
             GlobalExceptionHandler.Initialize(logger, errorDialogService);
+            logger.LogInformation("STARTUP: Persistence and display loaders configured successfully.");
 
-            // The Dashboard is part of the Shell itself, not a business
-            // module (none exists yet - see DesktopModuleCatalog's doc
-            // comment), so it registers directly here rather than through
-            // DesktopModuleLoader/WithModule<T>().
+            // Register all desktop view factories centrally through NavigationRegistry
             var navigationService = host.Services.GetRequiredService<INavigationService>();
-            navigationService.Register("dashboard", () => host.Services.GetRequiredService<DashboardView>());
-
-            // User Administration gap-closing pass - registered the same way
-            // as Dashboard, since Identity has no IModule implementation yet
-            // (see DesktopModuleCatalog's doc comment).
-            navigationService.Register("users", () => host.Services.GetRequiredService<UsersForm>());
-            navigationService.Register("roles", () => host.Services.GetRequiredService<RolesForm>());
-
-            // Milestone 13 ("Organization & Master Data Foundation") management
-            // screens - registered the same way as Dashboard, since no business
-            // module infrastructure exists yet for Organization/MasterData
-            // (see DesktopModuleCatalog's doc comment).
-            navigationService.Register("organizations", () => host.Services.GetRequiredService<OrganizationManagementView>());
-            navigationService.Register("companies", () => host.Services.GetRequiredService<CompanyManagementView>());
-            navigationService.Register("branches", () => host.Services.GetRequiredService<BranchManagementView>());
-            navigationService.Register("departments", () => host.Services.GetRequiredService<DepartmentManagementView>());
-            navigationService.Register("warehouses", () => host.Services.GetRequiredService<WarehouseManagementView>());
-            navigationService.Register("terminals", () => host.Services.GetRequiredService<TerminalManagementView>());
-            navigationService.Register("fiscalyears", () => host.Services.GetRequiredService<FiscalYearManagementView>());
-            navigationService.Register("currencies", () => host.Services.GetRequiredService<CurrencyManagementView>());
-            navigationService.Register("businesssettings", () => host.Services.GetRequiredService<BusinessSettingsManagementView>());
-
-            // Milestone 14 ("Product Catalog & Inventory Foundation") management
-            // screens - registered the same way as Milestone 13's, since no
-            // business module infrastructure exists yet for Catalog/Inventory
-            // (see DesktopModuleCatalog's doc comment).
-            navigationService.Register("categories", () => host.Services.GetRequiredService<ProductCategoryManagementView>());
-            navigationService.Register("brands", () => host.Services.GetRequiredService<BrandManagementView>());
-            navigationService.Register("units", () => host.Services.GetRequiredService<UnitOfMeasureManagementView>());
-            navigationService.Register("products", () => host.Services.GetRequiredService<ProductsForm>());
-            navigationService.Register("variants", () => host.Services.GetRequiredService<ProductVariantManagementView>());
-            navigationService.Register("barcodes", () => host.Services.GetRequiredService<BarcodeManagementView>());
-            navigationService.Register("prices", () => host.Services.GetRequiredService<ProductPriceManagementView>());
-            navigationService.Register("warehousestocks", () => host.Services.GetRequiredService<WarehouseStockManagementView>());
-            navigationService.Register("stockadjustments", () => host.Services.GetRequiredService<StockAdjustmentManagementView>());
-            navigationService.Register("stocktransfers", () => host.Services.GetRequiredService<StockTransferManagementView>());
-            navigationService.Register("inventorytransactions", () => host.Services.GetRequiredService<InventoryTransactionsView>());
-
-            // Milestone 15 ("Restaurant POS Core") management screens -
-            // registered the same way as Milestones 13/14's.
-            navigationService.Register("diningareas", () => host.Services.GetRequiredService<DiningAreaManagementView>());
-            navigationService.Register("tables", () => host.Services.GetRequiredService<TableManagementView>());
-            navigationService.Register("menuitems", () => host.Services.GetRequiredService<MenuItemsForm>());
-            navigationService.Register("pos", () => host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Orders.RestaurantPosForm>());
-            navigationService.Register("runningorders", () => host.Services.GetRequiredService<RunningOrdersView>());
-            navigationService.Register("holdorders", () => host.Services.GetRequiredService<HoldOrdersView>());
-            navigationService.Register("orderhistory", () => host.Services.GetRequiredService<OrderHistoryView>());
-            navigationService.Register("kitchentickets", () => host.Services.GetRequiredService<KitchenTicketViewerView>());
-            navigationService.Register("customers", () => host.Services.GetRequiredService<CustomersView>());
-
-            // CBOS Smart Restaurant POS: back-office configuration for the
-            // quick-order bar and basket recommendations.
-            navigationService.Register("recommendationrules", () => host.Services.GetRequiredService<RecommendationRulesView>());
-            navigationService.Register("smartcombos", () => host.Services.GetRequiredService<SmartComboBuilderView>());
-            navigationService.Register("quickordertemplates", () => host.Services.GetRequiredService<QuickOrderTemplatesView>());
-            navigationService.Register("upsellperformance", () => host.Services.GetRequiredService<UpsellPerformanceView>());
-
-            // End-of-Day reporting gap-closing pass.
-            navigationService.Register("endofday", () => host.Services.GetRequiredService<EndOfDayReportView>());
-
-            navigationService.Register("restaurantsetup", () => host.Services.GetRequiredService<RestaurantSetupView>());
-            navigationService.Register("paymentmethods", () => host.Services.GetRequiredService<PaymentMethodsView>());
-            navigationService.Register("activitylog", () => host.Services.GetRequiredService<ActivityLogView>());
-            navigationService.Register("appearance", () => host.Services.GetRequiredService<AppearanceSettingsView>());
-            navigationService.Register("shifts", () => host.Services.GetRequiredService<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>());
+            NavigationRegistry.RegisterAllViews(navigationService, host.Services);
 
             string? selectedModule = null;
             if (args.Any(a => string.Equals(a, "--pos", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-pos", StringComparison.OrdinalIgnoreCase)))
@@ -252,10 +193,12 @@ internal static class Program
 
             if (selectedModule == null)
             {
+                logger.LogInformation("STARTUP: Opening sign-in form...");
                 splash.SetDescription("Loading sign-in...");
                 var loginForm = host.Services.GetRequiredService<LoginForm>();
                 splash.Close();
                 var dialogResult = loginForm.ShowDialog();
+                logger.LogInformation("STARTUP: LoginForm closed with {Result}, SelectedModule={Module}", dialogResult, loginForm.SelectedModuleKey);
                 if (dialogResult != DialogResult.OK || string.IsNullOrWhiteSpace(loginForm.SelectedModuleKey))
                 {
                     return;

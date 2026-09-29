@@ -188,16 +188,21 @@ public class EndOfDayReportViewTests
             view.CreateControl();
             view.PerformLayout();
 
-            // Verify all 6 tabs exist
+            // Verify all 11 tabs exist
             var tabControl = GetAllControls(view).OfType<DevExpress.XtraTab.XtraTabControl>().FirstOrDefault();
             Assert.NotNull(tabControl);
-            Assert.Equal(6, tabControl.TabPages.Count);
+            Assert.Equal(11, tabControl.TabPages.Count);
 
             var tabTitles = tabControl.TabPages.Select(p => p.Text).ToList();
             Assert.Contains("Summary", tabTitles);
-            Assert.Contains("Top Selling Items", tabTitles);
+            Assert.Contains("Orders / Bills", tabTitles);
+            Assert.Contains("Items", tabTitles);
+            Assert.Contains("Customers", tabTitles);
+            Assert.Contains("Payments", tabTitles);
+            Assert.Contains("Receivables Movement", tabTitles);
+            Assert.Contains("Order Types", tabTitles);
+            Assert.Contains("Item Types / Profitability", tabTitles);
             Assert.Contains("Cash Summary", tabTitles);
-            Assert.Contains("Bills", tabTitles);
             Assert.Contains("Inventory Movement", tabTitles);
             Assert.Contains("Stock Remaining", tabTitles);
 
@@ -271,9 +276,9 @@ public class EndOfDayReportViewTests
             var tabControl = GetAllControls(view).OfType<DevExpress.XtraTab.XtraTabControl>().FirstOrDefault();
             Assert.NotNull(tabControl);
 
-            // The 5 detail grid pages should contain the GridControl directly and no redundant toolbars
+            // The 10 detail grid pages should contain the GridControl directly and no redundant toolbars
             var detailPages = tabControl.TabPages.Skip(1).ToList(); // Skip Summary tab
-            Assert.Equal(5, detailPages.Count);
+            Assert.Equal(10, detailPages.Count);
 
             foreach (var page in detailPages)
             {
@@ -298,5 +303,33 @@ public class EndOfDayReportViewTests
             list.AddRange(GetAllControls(c));
         }
         return list;
+    }
+
+    [Fact]
+    public void EndOfDayReportView_ScaleLayoutAtRuntime_EnforcesDpiScaling()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            view.ScaleLayoutAtRuntime();
+
+            var periodCombo = (ComboBoxEdit)typeof(EndOfDayReportView).GetField("_periodCombo", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var fromDate = (DateEdit)typeof(EndOfDayReportView).GetField("_fromDateEdit", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var toDate = (DateEdit)typeof(EndOfDayReportView).GetField("_toDateEdit", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var generateBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_generateButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var printSummaryBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printSummaryButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            int expectedPeriodW = DesktopDpi.Scale(180, view);
+            int expectedFromW = DesktopDpi.Scale(160, view);
+            int expectedToW = DesktopDpi.Scale(160, view);
+            int expectedGenW = DesktopDpi.Scale(100, view);
+            int expectedSummaryW = DesktopDpi.Scale(120, view);
+
+            Assert.True(periodCombo.MinimumSize.Width >= expectedPeriodW);
+            Assert.True(fromDate.MinimumSize.Width >= expectedFromW);
+            Assert.True(toDate.MinimumSize.Width >= expectedToW);
+            Assert.True(generateBtn.MinimumSize.Width >= expectedGenW);
+            Assert.True(printSummaryBtn.MinimumSize.Width >= expectedSummaryW);
+        }
     }
 }

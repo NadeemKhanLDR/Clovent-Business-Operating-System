@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.Tables;
 
 namespace Clovent.Restaurant.Orders;
@@ -22,6 +23,9 @@ public interface IOrderRepository
 
     /// <summary>Retrieves every order, regardless of status.</summary>
     Task<IReadOnlyCollection<Order>> GetAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves every order associated with a customer.</summary>
+    Task<IReadOnlyCollection<Order>> GetByCustomerIdAsync(CustomerId customerId, CancellationToken cancellationToken = default);
 
     /// <summary>Adds a newly-created order.</summary>
     Task AddAsync(Order order, CancellationToken cancellationToken = default);

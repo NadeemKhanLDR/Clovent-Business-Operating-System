@@ -1,4 +1,5 @@
 using Clovent.Desktop.Dashboard;
+using Clovent.Restaurant.Application.Customers.Queries;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Application.Tables.Dtos;
@@ -11,8 +12,8 @@ public class RestaurantDashboardCalculationsTests
     private static TableDto CreateTable(string occupancyStatus) => new(
         Guid.NewGuid(), Guid.NewGuid(), "T-01", "T-01", 4, "Active", occupancyStatus, DateTimeOffset.UtcNow);
 
-    private static OrderDto CreateOrder(string status, DateTimeOffset updatedAtUtc) => new(
-        Guid.NewGuid(), "ORD-1", null, "DineIn", status, Guid.NewGuid(), Guid.NewGuid(), null, null, [], [], [], [], DateTimeOffset.UtcNow, updatedAtUtc, null);
+    private static OrderDto CreateOrder(string status, DateTimeOffset updatedAtUtc, string orderType = "DineIn", DateTimeOffset? createdAtUtc = null) => new(
+        Guid.NewGuid(), "ORD-1", null, orderType, status, Guid.NewGuid(), Guid.NewGuid(), null, null, [], [], [], [], createdAtUtc ?? updatedAtUtc, updatedAtUtc, null);
 
     private static OrderLineDto CreateLine(Guid variantId, decimal quantity, bool isVoided = false) => new(
         Guid.NewGuid(), Guid.NewGuid(), variantId, quantity, 9.99m, 9.99m, false, null, null, null, 0m, false, null, isVoided, quantity * 9.99m, DateTimeOffset.UtcNow);
@@ -86,5 +87,39 @@ public class RestaurantDashboardCalculationsTests
         var result = RestaurantDashboardCalculations.TopSellingItems(lines, top: 3);
 
         Assert.Equal(3, result.Count);
+    }
+
+    [Fact]
+    public void CountDeliveryOrdersOn_CountsOnlyDeliveryOrdersOnGivenDate()
+    {
+        var date = new DateOnly(2026, 9, 27);
+        var dateUtc = new DateTimeOffset(2026, 9, 27, 10, 0, 0, TimeSpan.Zero);
+        var yesterdayUtc = new DateTimeOffset(2026, 9, 26, 10, 0, 0, TimeSpan.Zero);
+
+        OrderDto[] orders =
+        [
+            CreateOrder("Completed", dateUtc, orderType: "Delivery", createdAtUtc: dateUtc),
+            CreateOrder("Preparing", dateUtc, orderType: "Delivery", createdAtUtc: dateUtc),
+            CreateOrder("Completed", yesterdayUtc, orderType: "Delivery", createdAtUtc: yesterdayUtc),
+            CreateOrder("Completed", dateUtc, orderType: "DineIn", createdAtUtc: dateUtc),
+        ];
+
+        var count = RestaurantDashboardCalculations.CountDeliveryOrdersOn(orders, date);
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void CountCustomersWithBalance_CountsOnlyPositiveReceivables()
+    {
+        CustomerReceivableRowDto[] rows =
+        [
+            new(Guid.NewGuid(), "C-1", "Customer 1", "123", 500m, 100m, 400m, null, 100m, 0m, 0m, 0m, 0m, 0m, false, true, "Active", Receivable: 100m, Advance: 0m),
+            new(Guid.NewGuid(), "C-2", "Customer 2", "456", 500m, -50m, 500m, null, 0m, 0m, 0m, 0m, 0m, 0m, false, true, "Active", Receivable: 0m, Advance: 50m),
+            new(Guid.NewGuid(), "C-3", "Customer 3", "789", 500m, 250m, 250m, null, 250m, 0m, 0m, 0m, 0m, 0m, false, true, "Active", Receivable: 250m, Advance: 0m),
+            new(Guid.NewGuid(), "C-4", "Customer 4", "000", 500m, 0m, 500m, null, 0m, 0m, 0m, 0m, 0m, 0m, false, true, "Active", Receivable: 0m, Advance: 0m),
+        ];
+
+        var count = RestaurantDashboardCalculations.CountCustomersWithBalance(rows);
+        Assert.Equal(2, count);
     }
 }

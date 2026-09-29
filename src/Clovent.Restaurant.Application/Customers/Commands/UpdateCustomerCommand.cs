@@ -16,7 +16,8 @@ public sealed record UpdateCustomerCommand(
     string? ShopNo = null,
     string? Mobile2 = null,
     string? Phone = null,
-    bool? IsDefault = null) : IRequest<CustomerDto>;
+    bool? IsDefault = null,
+    bool? IsCreditAllowed = null) : IRequest<CustomerDto>;
 
 /// <summary>Handles <see cref="UpdateCustomerCommand"/>.</summary>
 public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository) : IRequestHandler<UpdateCustomerCommand, CustomerDto>
@@ -36,7 +37,8 @@ public sealed class UpdateCustomerCommandHandler(ICustomerRepository repository)
             request.Notes,
             request.ShopNo,
             request.Mobile2,
-            request.Phone);
+            request.Phone,
+            request.IsCreditAllowed ?? customer.IsCreditAllowed);
 
         if (request.IsDefault is { } makeDefault)
         {

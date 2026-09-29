@@ -1871,7 +1871,7 @@ partial class RestaurantPosForm
         _customerPickerColumnCode.FieldName = "CustomerCode";
         _customerPickerColumnCode.MinWidth = 50;
         _customerPickerColumnCode.Name = "_customerPickerColumnCode";
-        _customerPickerColumnCode.Visible = true;
+        _customerPickerColumnCode.Visible = false;
         _customerPickerColumnCode.VisibleIndex = 0;
         _customerPickerColumnCode.Width = 150;
         // 

@@ -41,6 +41,10 @@ internal sealed class ProductVariantConfiguration : IEntityTypeConfiguration<Pro
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(v => v.IsAvailable)
+            .HasDefaultValue(true)
+            .IsRequired();
+
         builder.Property(v => v.SortOrder).IsRequired();
 
         builder.Property(v => v.CreatedAtUtc).IsRequired();

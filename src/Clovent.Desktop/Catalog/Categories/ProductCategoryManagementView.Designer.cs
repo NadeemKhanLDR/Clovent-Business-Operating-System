@@ -35,7 +35,7 @@ partial class ProductCategoryManagementView
         [
             new MasterDataColumn("Name", "Name", 220),
             new MasterDataColumn("Status", "Status", 90),
-            new MasterDataColumn("CreatedAtUtc", "Created (UTC)", 160),
+            new MasterDataColumn("CreatedAtUtc", "Created", 160),
         ])
         {
             LoadItemsAsync = LoadItemsAsync,

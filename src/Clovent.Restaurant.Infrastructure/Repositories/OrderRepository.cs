@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.Infrastructure.Persistence;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
@@ -46,6 +47,14 @@ public sealed class OrderRepository(RestaurantDbContext dbContext) : IOrderRepos
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>
         await dbContext.Orders.ToListAsync(cancellationToken).ConfigureAwait(false);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyCollection<Order>> GetByCustomerIdAsync(CustomerId customerId, CancellationToken cancellationToken = default) =>
+        await dbContext.Orders
+            .Where(o => o.CustomerId == customerId)
+            .OrderBy(o => o.CreatedAtUtc)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
     /// <inheritdoc/>
     public async Task AddAsync(Order order, CancellationToken cancellationToken = default) =>

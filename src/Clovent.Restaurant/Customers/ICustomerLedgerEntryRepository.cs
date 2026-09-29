@@ -11,4 +11,7 @@ public interface ICustomerLedgerEntryRepository
 
     /// <summary>Retrieves the latest transaction date for each customer who has ledger entries.</summary>
     Task<Dictionary<CustomerId, DateTimeOffset>> GetLastTransactionDatesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves all ledger entries associated with a given shift.</summary>
+    Task<IReadOnlyCollection<CustomerLedgerEntry>> GetByShiftIdAsync(Clovent.Restaurant.Shifts.ShiftId shiftId, CancellationToken cancellationToken = default);
 }

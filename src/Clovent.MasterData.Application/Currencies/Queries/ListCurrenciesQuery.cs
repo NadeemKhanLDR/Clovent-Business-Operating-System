@@ -14,7 +14,7 @@ public sealed class ListCurrenciesQueryHandler(ICurrencyRepository currencyRepos
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<CurrencyDto>> Handle(ListCurrenciesQuery request, CancellationToken cancellationToken)
     {
-        var currencies = await currencyRepository.GetAllAsync(cancellationToken);
+        var currencies = await currencyRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
         return [.. currencies.Select(CurrencyDto.FromDomain)];
     }
 }

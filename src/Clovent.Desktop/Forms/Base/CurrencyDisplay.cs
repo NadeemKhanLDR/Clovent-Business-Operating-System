@@ -47,8 +47,8 @@ public static class CurrencyDisplay
         var sym = SymbolOrCode;
         if (string.IsNullOrWhiteSpace(sym)) return numeric;
 
-        bool needsSpace = !sym.EndsWith(" ") && !sym.EndsWith(".") && !sym.EndsWith("$") && !sym.EndsWith("€") && !sym.EndsWith("£") && !sym.EndsWith("¥");
-        return needsSpace ? $"{sym} {numeric}" : $"{sym}{numeric}";
+        bool isDirectPrefixSymbol = sym == "$" || sym == "€" || sym == "£" || sym == "¥";
+        return isDirectPrefixSymbol ? $"{sym}{numeric}" : $"{sym.TrimEnd()} {numeric}";
     }
 
     /// <summary>

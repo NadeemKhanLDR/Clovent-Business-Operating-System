@@ -332,6 +332,29 @@ public sealed class DevelopmentCatalogSeedStartupTask(
             "SALAD-RAITA.jpg",
             [("Standard", 30m, "STD", "888888880019")],
             each, group, brand, currency, existingProducts, cancellationToken);
+
+        var breadsCategory = await GetOrCreateCategoryAsync("Breads", cancellationToken);
+        var servicesCategory = await GetOrCreateCategoryAsync("Services", cancellationToken);
+
+        // 10. Naan (Purchased / Resale item: Cost 20.00, Selling 25.00)
+        await SeedMultiVariantProductAsync(
+            "Naan",
+            "NAAN",
+            breadsCategory,
+            "Garlic-Nan.jpg",
+            [("Standard", 25m, 20m, "STD", "888888880020")],
+            each, group, brand, currency, existingProducts, cancellationToken,
+            ProductItemType.PurchasedResale);
+
+        // 11. Food Heating (Service item: Selling 30.00, Cost 0.00)
+        await SeedMultiVariantProductAsync(
+            "Food Heating",
+            "FOOD-HEATING",
+            servicesCategory,
+            "",
+            [("Standard", 30m, 0m, "STD", "888888880021")],
+            each, group, brand, currency, existingProducts, cancellationToken,
+            ProductItemType.Service);
     }
 
     private async Task<ProductCategory> GetOrCreateCategoryAsync(string categoryName, CancellationToken cancellationToken)
@@ -369,7 +392,7 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         return canonical;
     }
 
-    private async Task SeedMultiVariantProductAsync(
+    private Task SeedMultiVariantProductAsync(
         string productName,
         string sku,
         ProductCategory category,
@@ -380,7 +403,26 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         Brand brand,
         Currency currency,
         IReadOnlyCollection<Product> existingProducts,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ProductItemType itemType = ProductItemType.Prepared)
+    {
+        var expandedPortions = portions.Select(p => (p.Name, p.Price, 0m, p.SkuSuffix, p.Barcode)).ToArray();
+        return SeedMultiVariantProductAsync(productName, sku, category, imageName, expandedPortions, each, group, brand, currency, existingProducts, cancellationToken, itemType);
+    }
+
+    private async Task SeedMultiVariantProductAsync(
+        string productName,
+        string sku,
+        ProductCategory category,
+        string imageName,
+        (string Name, decimal Price, decimal CostPrice, string SkuSuffix, string Barcode)[] portions,
+        UnitOfMeasure each,
+        ProductGroup group,
+        Brand brand,
+        Currency currency,
+        IReadOnlyCollection<Product> existingProducts,
+        CancellationToken cancellationToken,
+        ProductItemType itemType = ProductItemType.Prepared)
     {
         var product = existingProducts.FirstOrDefault(p => 
             p.Sku.Value == sku || 
@@ -397,7 +439,8 @@ public sealed class DevelopmentCatalogSeedStartupTask(
                 TaxConfiguration.Create(0m, false),
                 category.Id,
                 group.Id,
-                brand.Id);
+                brand.Id,
+                itemType);
             await productRepository.AddAsync(product, cancellationToken);
             await catalogDbContext.SaveChangesAsync(cancellationToken);
         }
@@ -405,6 +448,7 @@ public sealed class DevelopmentCatalogSeedStartupTask(
         {
             product.Rename(ProductName.Create(productName));
             product.SetCategory(category.Id);
+            product.SetItemType(itemType);
         }
 
         var dbVariants = await variantRepository.GetByProductIdAsync(product.Id, cancellationToken);
@@ -445,6 +489,20 @@ public sealed class DevelopmentCatalogSeedStartupTask(
             {
                 sellingPrice = ProductPrice.Create(variant.Id, PriceType.Selling, portion.Price, currency.Id);
                 await priceRepository.AddAsync(sellingPrice, cancellationToken);
+            }
+
+            if (portion.CostPrice > 0)
+            {
+                var costPrice = prices.FirstOrDefault(p => p.PriceType == PriceType.Cost && p.Status == CatalogStatus.Active);
+                if (costPrice is not null)
+                {
+                    costPrice.UpdateAmount(portion.CostPrice);
+                }
+                else
+                {
+                    costPrice = ProductPrice.Create(variant.Id, PriceType.Cost, portion.CostPrice, currency.Id);
+                    await priceRepository.AddAsync(costPrice, cancellationToken);
+                }
             }
 
             // Barcode

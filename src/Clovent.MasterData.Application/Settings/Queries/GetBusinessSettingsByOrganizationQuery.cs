@@ -15,7 +15,7 @@ public sealed class GetBusinessSettingsByOrganizationQueryHandler(IBusinessSetti
     /// <inheritdoc/>
     public async Task<BusinessSettingsDto> Handle(GetBusinessSettingsByOrganizationQuery request, CancellationToken cancellationToken)
     {
-        var settings = await businessSettingsRepository.GetByOrganizationIdAsync(new OrganizationId(request.OrganizationId), cancellationToken)
+        var settings = await businessSettingsRepository.GetByOrganizationIdAsync(new OrganizationId(request.OrganizationId), cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException(nameof(BusinessSettings), request.OrganizationId);
 
         return BusinessSettingsDto.FromDomain(settings);

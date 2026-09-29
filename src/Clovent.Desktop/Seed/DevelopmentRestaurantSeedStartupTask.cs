@@ -59,7 +59,7 @@ public sealed class DevelopmentRestaurantSeedStartupTask(
 
         var cash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
         var creditCard = PaymentMethod.Create(PaymentMethodName.Create("Credit Card"));
-        var customerCredit = PaymentMethod.Create(PaymentMethodName.Create("Credit"));
+        var onAccount = PaymentMethod.Create(PaymentMethodName.Create("On Account"));
 
         await diningAreaRepository.AddAsync(diningArea, cancellationToken);
         await tableRepository.AddAsync(tableOne, cancellationToken);
@@ -67,7 +67,7 @@ public sealed class DevelopmentRestaurantSeedStartupTask(
         await tableRepository.AddAsync(tableThree, cancellationToken);
         await paymentMethodRepository.AddAsync(cash, cancellationToken);
         await paymentMethodRepository.AddAsync(creditCard, cancellationToken);
-        await paymentMethodRepository.AddAsync(customerCredit, cancellationToken);
+        await paymentMethodRepository.AddAsync(onAccount, cancellationToken);
         await restaurantDbContext.SaveChangesAsync(cancellationToken);
     }
 

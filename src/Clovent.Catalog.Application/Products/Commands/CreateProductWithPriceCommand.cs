@@ -30,7 +30,10 @@ public sealed record CreateProductWithPriceCommand(
     decimal SellingPrice,
     Guid CurrencyId,
     Guid BaseUnitOfMeasureId,
-    bool IsActive = true) : IRequest<ProductDto>;
+    bool IsActive = true,
+    ProductItemType ItemType = ProductItemType.Prepared,
+    decimal? CostPrice = null,
+    bool IsAvailable = true) : IRequest<ProductDto>;
 
 /// <summary>Handles <see cref="CreateProductWithPriceCommand"/>.</summary>
 public sealed class CreateProductWithPriceCommandHandler(
@@ -45,14 +48,30 @@ public sealed class CreateProductWithPriceCommandHandler(
         var sku = await GenerateUniqueSkuAsync(name.Value, cancellationToken);
         var categoryId = request.CategoryId is { } rawCategoryId ? new ProductCategoryId(rawCategoryId) : (ProductCategoryId?)null;
 
-        var product = Product.Create(name, sku, new UnitOfMeasureId(request.BaseUnitOfMeasureId), categoryId: categoryId);
+        var product = Product.Create(
+            name,
+            sku,
+            new UnitOfMeasureId(request.BaseUnitOfMeasureId),
+            categoryId: categoryId,
+            itemType: request.ItemType);
         await productRepository.AddAsync(product, cancellationToken);
 
-        var variant = ProductVariant.Create(product.Id, VariantName.Create(name.Value), sku, new UnitOfMeasureId(request.BaseUnitOfMeasureId));
+        var variant = ProductVariant.Create(
+            product.Id,
+            VariantName.Create(name.Value),
+            sku,
+            new UnitOfMeasureId(request.BaseUnitOfMeasureId),
+            isAvailable: request.IsAvailable);
         await variantRepository.AddAsync(variant, cancellationToken);
 
-        var price = ProductPrice.Create(variant.Id, PriceType.Selling, request.SellingPrice, new CurrencyId(request.CurrencyId));
-        await priceRepository.AddAsync(price, cancellationToken);
+        var sellingPrice = ProductPrice.Create(variant.Id, PriceType.Selling, request.SellingPrice, new CurrencyId(request.CurrencyId));
+        await priceRepository.AddAsync(sellingPrice, cancellationToken);
+
+        if (request.CostPrice.HasValue && request.CostPrice.Value > 0)
+        {
+            var costPrice = ProductPrice.Create(variant.Id, PriceType.Cost, request.CostPrice.Value, new CurrencyId(request.CurrencyId));
+            await priceRepository.AddAsync(costPrice, cancellationToken);
+        }
 
         if (!request.IsActive)
         {

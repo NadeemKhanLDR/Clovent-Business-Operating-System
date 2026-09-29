@@ -176,10 +176,10 @@ public sealed partial class CustomersView : XtraUserControl
         _btnToggleStatus.Text = focusedDto != null && focusedDto.IsActive ? "Deactivate" : "Activate";
 
         var canEdit = await _featurePolicy.CanUseFeatureAsync(userId, "customers.edit");
+        _btnEdit.Enabled = (selectedCount == 1) && focusedDto != null && canEdit;
         _btnSetDefault.Enabled = (selectedCount == 1) && focusedDto != null && focusedDto.IsActive && !focusedDto.IsDefault && canEdit;
-
+        _btnReceivePayment.Enabled = (selectedCount == 1) && focusedDto != null && await _featurePolicy.CanUseFeatureAsync(userId, "customers.payment");
         _btnLedger.Enabled = (selectedCount == 1) && focusedDto != null && await _featurePolicy.CanUseFeatureAsync(userId, "customers.viewledger");
-        _btnReceivePayment.Enabled = (selectedCount == 1) && focusedDto != null && focusedDto.IsActive && await _featurePolicy.CanUseFeatureAsync(userId, "customers.payment");
     }
 
     private CustomerDto? GetFocusedCustomer()
@@ -326,7 +326,8 @@ public sealed partial class CustomersView : XtraUserControl
                 form.ShopNoValue,
                 form.Mobile2Value,
                 form.PhoneValue,
-                form.IsDefaultValue));
+                form.IsDefaultValue,
+                form.IsCreditAllowedValue));
 
             await LogActivityAsync("Customer Created", $"Customer: {form.NameValue} ({form.CodeValue})");
             await RefreshAsync();
@@ -375,59 +376,17 @@ public sealed partial class CustomersView : XtraUserControl
         }
     }
 
-    private async void BtnReceivePayment_Click(object? sender, EventArgs e)
+    private async void BtnEdit_Click(object? sender, EventArgs e)
     {
         if (GetFocusedCustomer() is not { } customer) return;
 
-        if (!await CanUseFeatureAsync("payment"))
+        if (!await CanUseFeatureAsync("edit"))
         {
-            XtraMessageBox.Show(this, "You do not have permission to receive payments.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            XtraMessageBox.Show(this, "You do not have permission to edit customers.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
-        // The methods a payment may be recorded against are the ones the owner
-        // configured, not a list hardcoded into this dialog: a hardcoded list
-        // drifts from the configured one and silently records payments against
-        // methods that do not exist (defect D9).
-        var paymentMethods = await _mediator.Send(new ListPaymentMethodsQuery());
-        var activeMethodNames = paymentMethods
-            .Where(m => m.Status == "Active")
-            .Select(m => m.Name)
-            .ToList();
-
-        if (activeMethodNames.Count == 0)
-        {
-            XtraMessageBox.Show(
-                this,
-                "No active payment methods are configured. Add one under Payment Methods before receiving a payment.",
-                "No Payment Methods",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
-        using var form = new CustomerPaymentForm(customer, activeMethodNames);
-        if (form.ShowDialog(this) == DialogResult.OK)
-        {
-            var res = await _mediator.Send(new RecordCustomerPaymentCommand(
-                customer.CustomerId,
-                form.Amount,
-                form.PaymentMethod,
-                form.Reference,
-                form.Notes));
-
-            var detailMsg = ComposePaymentActivityDetail(
-                form.Amount,
-                form.PaymentMethod,
-                customer.Name,
-                customer.Code,
-                res.OutstandingAfter,
-                res.ChangeAmount);
-
-            await LogActivityAsync("Customer Payment", detailMsg);
-            XtraMessageBox.Show(this, detailMsg, "Payment Recorded", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            await RefreshAsync();
-        }
+        await EditAsync(customer);
     }
 
     /// <summary>
@@ -457,32 +416,6 @@ public sealed partial class CustomersView : XtraUserControl
         }
 
         return detail;
-    }
-
-    private bool _isLedgerDialogOpen;
-    private async void BtnLedger_Click(object? sender, EventArgs e)
-    {
-        if (_isLedgerDialogOpen) return;
-        if (GetFocusedCustomer() is not { } customer) return;
-
-        if (!await CanUseFeatureAsync("viewledger"))
-        {
-            XtraMessageBox.Show(this, "You do not have permission to view the ledger.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
-        _isLedgerDialogOpen = true;
-        try
-        {
-            using var dialog = new CustomerLedgerDialog(_mediator, customer);
-            dialog.ShowDialog(this);
-            // Refresh balance in grid upon ledger dialog closing in case updates occurred
-            await RefreshAsync();
-        }
-        finally
-        {
-            _isLedgerDialogOpen = false;
-        }
     }
 
     private async void BtnToggleStatus_Click(object? sender, EventArgs e)
@@ -550,7 +483,8 @@ public sealed partial class CustomersView : XtraUserControl
             dto.ShopNo,
             dto.Mobile2,
             dto.Phone,
-            dto.IsDefault);
+            dto.IsDefault,
+            dto.IsCreditAllowed);
 
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -565,7 +499,8 @@ public sealed partial class CustomersView : XtraUserControl
                 form.ShopNoValue,
                 form.Mobile2Value,
                 form.PhoneValue,
-                form.IsDefaultValue));
+                form.IsDefaultValue,
+                form.IsCreditAllowedValue));
 
             await LogActivityAsync("Customer Edited", $"Customer: {form.NameValue} ({dto.Code})");
             await RefreshAsync();
@@ -599,8 +534,7 @@ public sealed partial class CustomersView : XtraUserControl
 
         topPanel.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(180));
 
-        _btnLedger.MinimumSize = LogicalToDeviceUnits(new Size(110, 32));
-        _btnReceivePayment.MinimumSize = LogicalToDeviceUnits(new Size(130, 32));
+        _btnEdit.MinimumSize = LogicalToDeviceUnits(new Size(80, 32));
         _btnToggleStatus.MinimumSize = LogicalToDeviceUnits(new Size(100, 32));
         _btnSetDefault.MinimumSize = LogicalToDeviceUnits(new Size(115, 32));
         _exportButton.MinimumSize = LogicalToDeviceUnits(new Size(95, 32));

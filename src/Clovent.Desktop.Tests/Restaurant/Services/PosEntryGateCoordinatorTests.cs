@@ -79,6 +79,7 @@ public class PosEntryGateCoordinatorTests
         }
 
         public Task OpenBackOfficeAsync(string? initialViewKey = "dashboard", string? initialCaption = "Dashboard") => Task.CompletedTask;
+        public Task OpenLoginAsync() => Task.CompletedTask;
         public void ExitApplication() { }
         public void ExitApplication(string initiator) { }
     }

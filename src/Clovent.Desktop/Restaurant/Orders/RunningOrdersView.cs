@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Restaurant.Shared;
 using Clovent.Desktop.Sessions;
@@ -6,6 +12,7 @@ using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Application.Orders.Queries;
 using Clovent.Restaurant.Application.Tables.Queries;
+using Clovent.Restaurant.Orders;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,13 +20,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Clovent.Desktop.Restaurant.Orders;
 
 /// <summary>
-/// Running Orders screen: monitors every currently open order across every
-/// table and take-away, with quick Hold/Send to Kitchen/Void/Cancel actions.
-/// Item-level work (adding lines, discounts, payment) stays in
-/// <see cref="RestaurantPosForm"/> - this screen is a floor-wide overview,
-/// not a second place to edit an order's contents. Feature-gated per
-/// <c>pos.{operation}</c>, the same codes the POS screen itself uses since
-/// these are the same order-lifecycle actions.
+/// Running Orders screen: monitors every currently open order across tables, take-away,
+/// and delivery orders with lifecycle actions (Kitchen, Preparing, Ready, Rider, Delivered, Void, Cancel).
 /// </summary>
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed partial class RunningOrdersView : XtraUserControl
@@ -32,6 +34,7 @@ public sealed partial class RunningOrdersView : XtraUserControl
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
     private Dictionary<Guid, string> _tableCodesById = [];
+
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     [Obsolete("Designer only", true)]
@@ -50,7 +53,7 @@ public sealed partial class RunningOrdersView : XtraUserControl
     {
         InitializeComponent();
 
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        if (DesignModeHelper.IsInDesignMode)
         {
             _scope = null!;
             _mediator = null!;
@@ -67,18 +70,19 @@ public sealed partial class RunningOrdersView : XtraUserControl
 
     private async void RunningOrdersView_Load(object? sender, EventArgs e)
     {
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        if (DesignModeHelper.IsInDesignMode)
             return;
         await _listView.RefreshAsync();
     }
+
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
             components?.Dispose();
-            _scope.Dispose();
-            _gate.Dispose();
+            _scope?.Dispose();
+            _gate?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -90,17 +94,108 @@ public sealed partial class RunningOrdersView : XtraUserControl
         _tableCodesById = tables.ToDictionary(t => t.TableId, t => t.Code);
 
         var orders = await _mediator.Send(new ListOpenOrdersQuery(), cancellationToken);
+
+        var filter = _comboOrderTypeFilter.SelectedItem?.ToString();
+        if (!string.IsNullOrWhiteSpace(filter) && filter != "All Orders")
+        {
+            orders = orders.Where(o => string.Equals(o.OrderType, filter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
         return [.. orders.Select(ToRow)];
     }
 
-    private OrderRow ToRow(OrderDto order) => new(
-        order.OrderId,
-        order.OrderNumber,
-        order.OrderType,
-        order.TableId is { } tableId ? _tableCodesById.GetValueOrDefault(tableId, "-") : "-",
-        order.OrderLineIds.Count,
-        order.Notes ?? string.Empty,
-        order.CreatedAtUtc);
+    private OrderRow ToRow(OrderDto order)
+    {
+        var tableDisplay = order.TableId is { } tableId ? _tableCodesById.GetValueOrDefault(tableId, "-") : "-";
+        var custDisplay = !string.IsNullOrWhiteSpace(order.DeliveryCustomerName)
+            ? $"{order.DeliveryCustomerName} ({order.DeliveryPhone ?? string.Empty})".Trim()
+            : "-";
+
+        return new OrderRow(
+            order.OrderId,
+            order.OrderNumber,
+            order.OrderType,
+            tableDisplay,
+            order.OrderLineIds.Count,
+            order.Notes ?? string.Empty,
+            order.CreatedAtUtc,
+            order.DeliveryStatus,
+            order.RiderName ?? "-",
+            custDisplay,
+            order.OrderSource);
+    }
+
+    private async Task SetPreparingAsync(OrderRow row)
+    {
+        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
+        await _mediator.Send(new UpdateDeliveryDetailsCommand(
+            row.OrderId,
+            source,
+            null,
+            null,
+            null,
+            null,
+            0m,
+            row.RiderName == "-" ? null : row.RiderName,
+            RiderPhone: null,
+            DeliveryStatus: DeliveryStatus.Preparing));
+        await _listView.RefreshAsync();
+    }
+
+    private async Task SetReadyAsync(OrderRow row)
+    {
+        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
+        await _mediator.Send(new UpdateDeliveryDetailsCommand(
+            row.OrderId,
+            source,
+            null,
+            null,
+            null,
+            null,
+            0m,
+            row.RiderName == "-" ? null : row.RiderName,
+            RiderPhone: null,
+            DeliveryStatus: DeliveryStatus.Ready));
+        await _listView.RefreshAsync();
+    }
+
+    private async Task AssignRiderAsync(OrderRow row)
+    {
+        using var form = new TextPromptForm("Assign Rider", "Enter Rider / Courier Name:", initialText: row.RiderName == "-" ? string.Empty : row.RiderName, required: true);
+        if (form.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(form.Value))
+        {
+            var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
+            await _mediator.Send(new UpdateDeliveryDetailsCommand(
+                row.OrderId,
+                source,
+                null,
+                null,
+                null,
+                null,
+                0m,
+                form.Value.Trim(),
+                RiderPhone: null,
+                DeliveryStatus: DeliveryStatus.OutForDelivery));
+            await _listView.RefreshAsync();
+        }
+    }
+
+    private async Task SetDeliveredAsync(OrderRow row)
+    {
+        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
+        await _mediator.Send(new UpdateDeliveryDetailsCommand(
+            row.OrderId,
+            source,
+            null,
+            null,
+            null,
+            null,
+            0m,
+            row.RiderName == "-" ? null : row.RiderName,
+            RiderPhone: null,
+            DeliveryStatus: DeliveryStatus.Delivered));
+        await _listView.RefreshAsync();
+    }
 
     private async Task VoidAsync(OrderRow row)
     {
@@ -108,6 +203,7 @@ public sealed partial class RunningOrdersView : XtraUserControl
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             await _mediator.Send(new VoidOrderCommand(row.OrderId, form.Value!));
+            await _listView.RefreshAsync();
         }
     }
 
@@ -117,6 +213,7 @@ public sealed partial class RunningOrdersView : XtraUserControl
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             await _mediator.Send(new CancelOrderCommand(row.OrderId, form.Value!));
+            await _listView.RefreshAsync();
         }
     }
 
@@ -125,5 +222,16 @@ public sealed partial class RunningOrdersView : XtraUserControl
             ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
             : Task.FromResult(false);
 
-    private sealed record OrderRow(Guid OrderId, string OrderNumber, string OrderType, string TableCode, int LineCount, string Notes, DateTimeOffset CreatedAtUtc);
+    private sealed record OrderRow(
+        Guid OrderId,
+        string OrderNumber,
+        string OrderType,
+        string TableCode,
+        int LineCount,
+        string Notes,
+        DateTimeOffset CreatedAtUtc,
+        string DeliveryStatus,
+        string RiderName,
+        string CustomerInfo,
+        string OrderSource);
 }

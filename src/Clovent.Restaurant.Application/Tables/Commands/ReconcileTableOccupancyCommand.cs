@@ -20,8 +20,8 @@ public sealed class ReconcileTableOccupancyCommandHandler(
     /// <inheritdoc/>
     public async Task<Unit> Handle(ReconcileTableOccupancyCommand request, CancellationToken cancellationToken)
     {
-        var tables = await tableRepository.GetAllAsync(cancellationToken);
-        var activeTableIds = await orderRepository.GetActiveTableIdsAsync(cancellationToken);
+        var tables = await tableRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
+        var activeTableIds = await orderRepository.GetActiveTableIdsAsync(cancellationToken).ConfigureAwait(false);
 
         foreach (var table in tables)
         {

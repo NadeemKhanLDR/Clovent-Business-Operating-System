@@ -29,6 +29,12 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
     /// <summary>The customer's running outstanding balance after this entry.</summary>
     public decimal RunningBalance { get; }
 
+    /// <summary>Shift during which this transaction occurred, if applicable.</summary>
+    public Clovent.Restaurant.Shifts.ShiftId? ShiftId { get; }
+
+    /// <summary>Payment method name used for payments (e.g. "Cash", "Card"), if applicable.</summary>
+    public string? PaymentMethod { get; }
+
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
     private CustomerLedgerEntry(
         CustomerLedgerEntryId id,
@@ -38,7 +44,9 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
         string description,
         decimal debit,
         decimal credit,
-        decimal runningBalance)
+        decimal runningBalance,
+        Clovent.Restaurant.Shifts.ShiftId? shiftId,
+        string? paymentMethod)
     {
         Id = id;
         CustomerId = customerId;
@@ -48,6 +56,8 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
         Debit = debit;
         Credit = credit;
         RunningBalance = runningBalance;
+        ShiftId = shiftId;
+        PaymentMethod = paymentMethod;
     }
 
     /// <summary>Creates a new CustomerLedgerEntry.</summary>
@@ -57,7 +67,9 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
         string description,
         decimal debit,
         decimal credit,
-        decimal runningBalance)
+        decimal runningBalance,
+        Clovent.Restaurant.Shifts.ShiftId? shiftId = null,
+        string? paymentMethod = null)
     {
         if (string.IsNullOrWhiteSpace(reference))
             throw new ArgumentException("Reference is required.", nameof(reference));
@@ -72,6 +84,8 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
             description.Trim(),
             debit,
             credit,
-            runningBalance);
+            runningBalance,
+            shiftId,
+            paymentMethod?.Trim());
     }
 }

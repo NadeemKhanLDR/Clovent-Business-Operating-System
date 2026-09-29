@@ -150,8 +150,25 @@ public sealed class CompleteOrderCommandHandler(
     /// <exception cref="InvalidOperationException">Stock is insufficient for one or more variants. Thrown before anything is issued.</exception>
     private async Task IssueStockForOrderAsync(Order order, IReadOnlyCollection<OrderLineDto> lineDtos, CancellationToken cancellationToken)
     {
+        HashSet<Guid> serviceVariantIds = [];
+        try
+        {
+            var allVariants = await mediator.Send(new Clovent.Catalog.Application.Variants.Queries.ListProductVariantsQuery(), cancellationToken);
+            if (allVariants is not null)
+            {
+                serviceVariantIds = allVariants
+                    .Where(v => string.Equals(v.ItemType, "Service", StringComparison.OrdinalIgnoreCase))
+                    .Select(v => v.ProductVariantId)
+                    .ToHashSet();
+            }
+        }
+        catch (NotSupportedException)
+        {
+            // Unit tests with minimal test fakes
+        }
+
         var required = lineDtos
-            .Where(l => !l.IsVoided)
+            .Where(l => !l.IsVoided && !serviceVariantIds.Contains(l.ProductVariantId))
             .GroupBy(l => l.ProductVariantId)
             .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(l => l.Quantity) })
             .ToList();

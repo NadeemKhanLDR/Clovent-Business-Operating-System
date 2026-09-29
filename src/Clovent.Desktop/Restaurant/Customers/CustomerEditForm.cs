@@ -31,7 +31,8 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         string? shopNo = null,
         string? mobile2 = null,
         string? phone = null,
-        bool isDefault = false) : base(title)
+        bool isDefault = false,
+        bool isCreditAllowed = true) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
@@ -47,6 +48,7 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         _emailEdit.Text = email ?? string.Empty;
         _openingBalanceEdit.Value = openingBalance;
         _creditLimitEdit.Value = creditLimit;
+        _isCreditAllowedCheck.Checked = isCreditAllowed;
         _isDefaultCheck.Checked = isDefault;
         _notesEdit.Text = notes ?? string.Empty;
 
@@ -61,8 +63,57 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         _creditLimitEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
         _creditLimitEdit.Properties.Mask.UseMaskAsDisplayFormat = true;
 
-        SetFixedRowHeight(_notesEdit, 80);
+        _lblHeaderTitle.Text = isNew ? "NEW CUSTOMER" : "EDIT CUSTOMER";
+        _lblHeaderSubtitle.Text = isNew ? "Create a new customer account with credit facilities and address." : "Maintain customer contact and account settings.";
+        DialogOkButton.Text = isNew ? "Create Customer" : "Save Changes";
+        DialogOkButton.MinimumSize = new System.Drawing.Size(120, 30);
+        DialogOkButton.Size = new System.Drawing.Size(120, 30);
+
+        StartPosition = FormStartPosition.CenterParent;
+        _contentPanel.AutoScroll = false;
+        Clovent.Desktop.Forms.Base.DesktopDialogSizing.Apply(this, 780, 460, 740, 430, this.Owner ?? this.Parent, false);
+
+        Load += (s, e) =>
+        {
+            var labelWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this);
+            if (_contentPanel.ColumnStyles.Count >= 3)
+            {
+                _contentPanel.ColumnStyles[0].SizeType = System.Windows.Forms.SizeType.Absolute;
+                _contentPanel.ColumnStyles[0].Width = labelWidth;
+                _contentPanel.ColumnStyles[2].SizeType = System.Windows.Forms.SizeType.Absolute;
+                _contentPanel.ColumnStyles[2].Width = labelWidth;
+            }
+
+            _contentPanel.AutoScrollPosition = new System.Drawing.Point(0, 0);
+            if (isNew && !_codeEdit.Properties.ReadOnly)
+            {
+                _codeEdit.Focus();
+            }
+            else
+            {
+                _nameEdit.Focus();
+            }
+        };
+
+        Shown += (s, e) =>
+        {
+            _contentPanel.AutoScrollPosition = new System.Drawing.Point(0, 0);
+            if (isNew && !_codeEdit.Properties.ReadOnly)
+            {
+                _codeEdit.Focus();
+            }
+            else
+            {
+                _nameEdit.Focus();
+            }
+        };
     }
+
+    /// <inheritdoc/>
+    protected override bool AutoComputeClientSize => false;
+
+    /// <inheritdoc/>
+    protected override bool PersistWindowPlacement => false;
 
     /// <summary>The entered customer code.</summary>
     public string CodeValue => _codeEdit.Text.Trim();
@@ -93,6 +144,9 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
 
     /// <summary>The entered credit limit.</summary>
     public decimal CreditLimitValue => _creditLimitEdit.Value;
+
+    /// <summary>Whether credit / on-account purchases are permitted for this customer.</summary>
+    public bool IsCreditAllowedValue => _isCreditAllowedCheck.Checked;
 
     /// <summary>The entered notes (optional).</summary>
     public string? NotesValue => string.IsNullOrWhiteSpace(_notesEdit.Text) ? null : _notesEdit.Text.Trim();

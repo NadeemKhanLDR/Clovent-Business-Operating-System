@@ -14,7 +14,7 @@ public sealed class ListOrganizationsQueryHandler(IOrganizationRepository organi
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<OrganizationDto>> Handle(ListOrganizationsQuery request, CancellationToken cancellationToken)
     {
-        var organizations = await organizationRepository.GetAllAsync(cancellationToken);
+        var organizations = await organizationRepository.GetAllAsync(cancellationToken).ConfigureAwait(false);
         return [.. organizations.Select(OrganizationDto.FromDomain)];
     }
 }

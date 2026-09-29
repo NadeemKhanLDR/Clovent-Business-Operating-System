@@ -197,6 +197,10 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             {
                 e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.Format(dt);
             }
+            else if (e.Value is DateOnly d)
+            {
+                e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.FormatDate(d);
+            }
         };
 
         _gridView.FocusedRowChanged += (_, _) => UpdateButtonStates();

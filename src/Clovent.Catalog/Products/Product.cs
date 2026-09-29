@@ -41,6 +41,9 @@ public sealed class Product : AggregateRoot<ProductId>
     /// <summary>The product's tax treatment.</summary>
     public TaxConfiguration TaxConfiguration { get; private set; }
 
+    /// <summary>The fundamental classification (Prepared, PurchasedResale, Service).</summary>
+    public ProductItemType ItemType { get; private set; }
+
     /// <summary>The product's current lifecycle state.</summary>
     public CatalogStatus Status { get; private set; }
 
@@ -58,7 +61,8 @@ public sealed class Product : AggregateRoot<ProductId>
         UnitOfMeasureId baseUnitOfMeasureId,
         TaxConfiguration taxConfiguration,
         CatalogStatus status,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        ProductItemType itemType = ProductItemType.Prepared)
     {
         Id = id;
         Name = name;
@@ -70,6 +74,7 @@ public sealed class Product : AggregateRoot<ProductId>
         TaxConfiguration = taxConfiguration;
         Status = status;
         CreatedAtUtc = createdAtUtc;
+        ItemType = itemType;
     }
 
     /// <summary>Creates a new, active product.</summary>
@@ -80,7 +85,8 @@ public sealed class Product : AggregateRoot<ProductId>
         TaxConfiguration? taxConfiguration = null,
         ProductCategoryId? categoryId = null,
         ProductGroupId? groupId = null,
-        BrandId? brandId = null)
+        BrandId? brandId = null,
+        ProductItemType itemType = ProductItemType.Prepared)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(sku);
@@ -88,9 +94,15 @@ public sealed class Product : AggregateRoot<ProductId>
         var now = DateTimeOffset.UtcNow;
         var product = new Product(
             ProductId.New(), name, sku, categoryId, groupId, brandId, baseUnitOfMeasureId,
-            taxConfiguration ?? TaxConfiguration.None, CatalogStatus.Active, now);
+            taxConfiguration ?? TaxConfiguration.None, CatalogStatus.Active, now, itemType);
         product.AddDomainEvent(new ProductCreated(product.Id, product.Name, product.Sku, product.BaseUnitOfMeasureId, now));
         return product;
+    }
+
+    /// <summary>Sets the item classification type.</summary>
+    public void SetItemType(ProductItemType itemType)
+    {
+        ItemType = itemType;
     }
 
     /// <summary>Renames the product. A no-op (no event raised) if unchanged.</summary>

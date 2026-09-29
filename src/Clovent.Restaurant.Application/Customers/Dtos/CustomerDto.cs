@@ -19,7 +19,12 @@ public sealed record CustomerDto(
     string? Mobile2 = null,
     string? Phone = null,
     DateTimeOffset? LastTransactionDate = null,
-    bool IsDefault = false)
+    bool IsDefault = false,
+    bool IsCreditAllowed = true,
+    decimal AvailableCredit = 0m,
+    decimal ReceivableBalance = 0m,
+    decimal AdvanceBalance = 0m,
+    decimal NetBalance = 0m)
 {
     /// <summary>Projects a domain <see cref="Clovent.Restaurant.Customers.Customer"/> into its DTO.</summary>
     public static CustomerDto FromDomain(Clovent.Restaurant.Customers.Customer customer) => new(
@@ -40,5 +45,10 @@ public sealed record CustomerDto(
         customer.Mobile2,
         customer.Phone,
         null,
-        customer.IsDefault);
+        customer.IsDefault,
+        customer.IsCreditAllowed,
+        customer.AvailableCredit,
+        customer.ReceivableBalance,
+        customer.AdvanceBalance,
+        customer.NetBalance);
 }

@@ -1073,3 +1073,247 @@ The `Operations` dropdown button and `PosNavigationGuardDialog` conform to CBOS 
   - `ModeSwitchToBackOffice`: User clicked Operations > Back Office or Shift Closed. Form closes cleanly without exiting CBOS; `ApplicationModeNavigator.OpenBackOfficeAsync()` opens `MainForm`.
   - `StartupFailureFallback`: Startup failure was cancelled; returns to Back Office without exiting CBOS.
 - In `CbosApplicationContext`, only genuine active `MainForm` close events outside transition trigger `ExitThreadCore()`.
+
+---
+
+## 32. Milestone 17: Postpaid Sales, Customer Receivables FIFO Allocation, Delivery Orders, and Product Classification (2026-09-26)
+
+### 32.1 Customer On-Account / Postpaid Sales & Credit Control
+- **First-Class On-Account Tender:** "On Account" is recognized as a payment method in POS checkout and customer ledger operations.
+- **Walk-in Protection:** Default/Walk-in customer (`C000`, `IsDefault = true`) is strictly prevented from purchasing on credit (`InvalidOperationException`).
+- **Credit Allowed Flag:** Customers have an explicit boolean flag `IsCreditAllowed`. When false, on-account settlement is prohibited even if the customer has an available credit limit.
+- **Credit Limit & Overrides:** If a sale causes `OutstandingBalance + SaleAmount > CreditLimit`, the sale is blocked unless an authorized manager approves the credit limit override (`ExceedCreditLimitApproved = true`).
+- **Cumulative Customer Ledger:** On-Account sales create a Debit entry in `CustomerLedgerEntries` with reference to the Order number, updating the running balance.
+
+### 32.2 Long-Running Customer Receivables & FIFO Payment Allocation
+- **Cumulative Tracking:** Customer receivables persist across shifts, business days, and multiple sales orders.
+- **FIFO Allocation Engine:** When a customer makes a payment (`RecordCustomerPaymentCommand`), `CustomerPaymentAllocation` records are generated linking the payment entry to specific unpaid/partially-paid On-Account orders, starting with the oldest order.
+- **Shift Expected Cash Integration:** Customer cash payments collected during an active shift (`ShiftId`) are automatically incorporated into the shift's expected cash calculation:
+  $$\text{Expected Cash} = \text{Starting Cash} + \text{Order Cash Payments} + \text{Customer Cash Payments} + \text{Cash In} - \text{Cash Out} - \text{Cash Refunds}$$
+
+### 32.3 Delivery Order Lifecycle
+- **Order Channel:** Added `OrderType.Delivery` and `OrderSource` (`WalkIn`, `Phone`, `Online`).
+- **Delivery Status Transitions:** `Received` $\rightarrow$ `Preparing` $\rightarrow$ `Ready` $\rightarrow$ `OutForDelivery` $\rightarrow$ `Delivered` (or `Cancelled`).
+- **Snapshot Properties:** `DeliveryCustomerName`, `DeliveryPhone`, `DeliveryAddress`, `DeliveryNotes`, `DeliveryFee`, `RiderName`, `RiderPhone`. Rider name and phone are stored as independent, first-class domain properties without combined string parsing, preserving clean ERP architecture.
+- **Delivery Fee:** Recorded as an automatic service charge on the order.
+
+### 32.4 Food-Cost-Ready Product Classification & Availability
+- **Item Classification:** `ProductItemType` (`Prepared`, `PurchasedResale`, `Service`).
+  - `Service` items bypass inventory check and issue operations during order completion.
+  - `PurchasedResale` items store both purchase cost and selling price, enabling food cost and margin analysis.
+- **Availability vs. Active Status:** `ProductVariant.IsAvailable` distinguishes currently available items from temporarily sold-out items (`IsAvailable = false`).
+- **POS Display & Protection:** Sold-out items display a distinct "SOLD OUT" badge in the POS catalog tiles and cannot be tapped or added to orders.
+- **Bulk Operations:** Menu Items grid supports multi-select checkbox batch actions: Activate, Deactivate, Mark Available, and Mark Sold Out.
+
+### 32.5 Reporting & Analytics
+- **Customer Receivables / Aging Report:** Back Office report with aging buckets (Current, 1–7d, 8–15d, 16–30d, 31–60d, 60+d), summary KPI cards, filtering by balance/over-limit/search, and double-click drilldown to `CustomerLedgerDialog`.
+- **Expanded Sales Summary Report:** Detailed tabbed report with Summary KPIs, Orders, Items, Customers, Payments, Receivables period activity, Order Types, and Item Types/Profitability.
+
+---
+
+## 33. QA-Closure & Hardening Pass: Rider Domain Separation, Order Mode State Machine & Headless Test Stability (2026-09-29)
+
+### 33.1 Dedicated Rider Data Model
+- **Independent Domain Properties:** `Order.RiderName` (max 100) and `Order.RiderPhone` (max 50) are stored as distinct first-class columns in `[Restaurant].[Orders]`.
+- **Elimination of Composite String Parsing:** Prior `Name (Phone)` formatting in `RiderName` is eliminated. UI dialogs (`DeliveryDetailsDialog`), commands (`CreateOrderCommand`, `UpdateDeliveryDetailsCommand`), and read DTOs bind `RiderName` and `RiderPhone` independently.
+- **Idempotent Database Migration:** Migration `20260929054645_AddOrderRiderPhone` executes defensive `sys.columns` checks (`IF NOT EXISTS`) to ensure idempotent execution on existing databases alongside `RestaurantPersistenceInitializer`.
+
+### 33.2 POS Order Mode Switching & Empty Draft Release
+- **Seamless Mode Switching (`SwitchOrderModeAsync`):** Cashiers can switch between Dining, Take Away, and Delivery modes directly from the POS header mode buttons.
+- **Draft Order Vacate & Release:** If an empty draft order (`_currentOrderLines.Count == 0`) exists when switching modes:
+  - If the previous mode was Dining, the table is automatically vacated and released back to `Available`.
+  - The empty draft order is cancelled via `CancelOrderCommand` (`"Switched order mode to {targetMode}"`).
+  - The new order workflow (e.g. Table Picker for Dining, Delivery Details for Delivery) launches immediately.
+- **Cart Protection:** If the order contains items, mode switching is blocked with an informative alert requiring the cashier to complete, hold, or void the order before changing modes.
+- **Visual Prominence:** Active order mode button is highlighted with deep teal background and bold white font; inactive buttons remain muted.
+
+### 33.3 Default Order Mode Configuration & Lifecycle
+- **Back Office Setting:** Configured in Restaurant Setup (`RestaurantSetupView`) via a 3-way radio group ("Dining", "Take Away", "Delivery").
+- **Persistence:** Saved in `PosSettingsStore` (`pos-settings.json`) across sessions.
+- **Session Protection:** Cashier mode switches during a shift change only the current working order; they do not overwrite the configured default.
+- **Automatic Restoration:** Upon order completion (`CompleteOrderAsync`), order cancellation (`CancelCurrentOrderAsync`), or voiding (`VoidCurrentOrderAsync`), the POS automatically restores the default order mode (`ResetToDefaultModeAsync`).
+
+### 33.4 Headless Unit Test & Dialog Stability
+- **Headless Runner Guard:** `PosEntryGateCoordinator` modal dialog calls (`punchInDialog.ShowDialog`, `openDialog.ShowDialog`, `XtraMessageBox.Show`) evaluate `Application.MessageLoop`. In non-interactive headless runners (e.g., xUnit CLI `dotnet test`), unowned modal dialogs default to `DialogResult.Cancel` rather than blocking the test process indefinitely.
+- **DPI-Scaled Layout Assertions:** Layout quality tests in `Clovent.Desktop.Tests` assert discrete DPI-scaled `SizeType.Absolute` rows and correct child control hierarchy for dialogs (`CustomerLedgerDialog`, `CustomerEditForm`, `DeliveryDetailsDialog`).
+
+### 33.5 High-DPI Customer Edit & Delivery SearchLookUpEdit Popup Optimization
+- **Customer Edit Dialog Polish:**
+  - Preserves two-column layout (`CUSTOMER DETAILS`) with `AutoScroll = false` and `CenterParent`.
+  - Added vertical margins (bottom margin $\ge 6$px on Credit Limit panel and top margin $\ge 6$px on Default Customer checkbox) to guarantee the `0.00 = Zero Credit Limit (no credit extended).` helper text is 100% visible and does not visually collide at 240 DPI (250% scaling).
+  - Reduced excessive vertical space beneath Notes by adjusting client size to $780 \times 470$ (minimum $720 \times 440$), keeping Save Changes and Cancel prominently anchored at the bottom.
+- **Delivery Customer SearchLookUpEdit Dropdown:**
+  - Sized to compact logical bounds ($740 \times 320$px baseline) with `ColumnAutoWidth = true`, `ShowGroupPanel = false`, `ShowIndicator = false`, and `ShowClearButton = true`.
+  - Configured 4 canonical columns: `Customer Name` (~180px, ellipsis trimming), `Mobile` (~130px), `Address` (proportional remainder ~280px, ellipsis trimming), and `Balance` (~100px, right-aligned).
+  - Clamping Engine (`CalculateClampedPopupBounds`): Dynamically evaluates the monitor `WorkingArea` on `QueryPopUp` and `Popup` events. Clamps the popup to the screen boundaries, shifting left if the editor is positioned near the screen right edge so the right-side Balance column, Clear button, and Close button are never cut off.
+  - Multi-line Editing: Removed single-key Enter interceptors from `DeliveryDetailsDialog` address and special notes fields so multiline input is accepted naturally without triggering premature form submission.
+
+---
+
+## 34. Content-Driven Modal Dialog Architecture, Window Placement Isolation & Compact Search Lookup Hardening (2026-09-29)
+
+### 34.1 Root Cause & Architectural Remediation of Vertical Whitespace in `CustomerEditForm`
+- **WindowPlacementStore Stale Inflation:** `MasterDataEditFormBase.MasterDataEditFormBase_Load` unconditionally invoked `WindowPlacementStore.Restore(this, GetType().Name)`. If a developer or user previously ran an earlier build with an oversized window or on a different display scaling, the stored dimensions (e.g., 1400px at 240 DPI) forced the dialog back to that bloated size regardless of content.
+- **2-Column ClientSize Overwrite:** `MasterDataEditFormBase_Load` recomputed `wantedClientHeight` and set `ClientSize = new Size(Math.Max(ClientSize.Width, ...), Math.Max(ClientSize.Height, ...))`. This computation assumed 2-column layouts and prevented multi-column forms with explicit dialog sizing from retaining their content-driven bounds.
+- **Notes Editor Sizing Cap:** In `CustomerEditForm.Designer.cs`, `_notesEdit` was constrained by `MaximumSize = new Size(0, 56)`. Because row 12 was `SizeType.AutoSize`, `GetPreferredSize` collapsed `_notesEdit` to a single line (~48px), while `TableLayoutPanel` left all surplus dialog height as a massive empty gray gap below Notes and above the footer buttons.
+- **Credit Limit Helper Cramping:** The helper text `0.00 = Zero Credit Limit (no credit extended).` had insufficient bottom margin, appearing visually squeezed against the Default Customer checkbox row.
+- **Architectural Fixes:**
+  1. Added `AutoComputeClientSize` and `PersistWindowPlacement` virtual properties to `MasterDataEditFormBase`, overridden to `false` in `CustomerEditForm`.
+  2. Evicted `MaximumSize` from `_notesEdit`, enforced `MinimumSize = new Size(0, 75)`, and invoked `SetFixedRowHeight(_notesEdit, 75)` to ensure a dedicated 75-logical-pixel row (188px at 240 DPI) accommodating 3–4 lines of notes.
+  3. Top-aligned `label8` ("Notes:") with `Padding(0, 6, 4, 0)` to align with the first line of the multiline `MemoEdit`.
+  4. Increased margins: `pnlCreditLimit.Margin.Bottom = 8px` and `labelCreditLimitHelp.Margin.Bottom = 6px`, restoring comfortable vertical breathing room before the Default Customer row.
+  5. Sized dialog to content-driven bounds: `DesktopDialogSizing.Apply(this, 780, 480, 740, 460)`, ensuring footer buttons sit neatly ~12–16px beneath Notes with zero wasted space.
+
+### 34.2 Root Cause & Architectural Remediation of Sizing & Clipping in `DeliveryDetailsDialog`
+- **Artificial Percent Spacer Row:** `formPanel` row 9 had `SizeType.Percent, 100F`, causing it to consume all leftover height when `DesktopDialogSizing.Apply(this, 600, 560)` ran. At 240 DPI, this produced an artificial 265px blank void between Special Notes and the footer buttons.
+- **Notes Field Compression:** `_txtNotes` was budgeted only 52px at 96 DPI while row 9 swallowed over 100px of empty space.
+- **Subtitle Descender Clipping:** `topPanel` had AutoSize rows without explicit minimum height, and `subheaderLabel` text was truncated to `"Customer destination address, contact number, delivery fee and rider"`, clipping font descenders on 'g' and 'y' at high DPI.
+- **Customer Search Popup Overflow:**
+  1. The popup baseline had been set to $740 \times 320$px. At 240 DPI (250% scale), this scaled to $1850 \times 800$px on a 1920-wide monitor, covering almost the entire parent dialog and screen.
+  2. Because the popup was wider than available screen space from the editor's left coordinate, clamping shifted the popup across the screen, and the Balance column was pushed off-screen.
+- **Architectural Fixes:**
+  1. Replaced `formPanel` row 9 with a compact `SizeType.Absolute, 10F` spacer row.
+  2. Increased `_txtNotes` row to `SizeType.Absolute, 68F` with `_txtNotes.MinimumSize = new Size(0, 60)`, giving special notes the same comfortable multiline height as the delivery address.
+  3. Set `root` rows to `SizeType.AutoSize` and tightened dialog dimensions to $620 \times 520$ (min $580 \times 480$), eliminating vertical stretching and positioning Confirm/Cancel directly beneath the fields.
+  4. Restored complete subtitle text `"Customer destination address, contact number, delivery fee and rider details."` with `subheaderLabel.MinimumSize = new Size(0, 22)` and `topPanel.AutoSize = true`, completely eliminating text and descender clipping.
+  5. Compacted customer search lookup popup to $540 \times 260$ (min $450 \times 200$) with `OptionsView.ColumnAutoWidth = true`. Column minimums (`Name: 105`, `Mobile: 80`, `Address: 135`, `Balance: 70`) sum to 390px, guaranteeing all 4 columns (including right-aligned Balance) fit comfortably within the popup with zero clipping at 96, 144, 192, and 240 DPI.
+  6. In both `QueryPopUp` and `Popup` events, passed `new Size(desiredW, desiredH)` to `CalculateClampedPopupBounds` to prevent DevExpress internal popup caching from preserving stale oversized bounds.
+
+### 34.3 Multi-DPI Layout Regression Test Verification
+- All 26 layout tests in `CustomerEditFormLayoutTests` and `DeliveryDetailsDialogLayoutTests` pass across 96, 144, 192, and 240 DPI.
+- Full solution test suite passes cleanly with 0 failures.
+
+---
+
+## 35. High-DPI Visual Defect Closure: Single-Line Notes, Vertical Row Spacing & Delivery Field Hierarchy (2026-09-29)
+
+### 35.1 Root Cause & Architectural Remediation of Disappearing Fields in `DeliveryDetailsDialog`
+- **Root Cause Analysis (Auto-Sized Form Panel Collapse):**
+  In the previous pass, `root.RowStyles[1]` (hosting `formPanel`) was configured as `SizeType.AutoSize`. In Windows Forms, when a parent `TableLayoutPanel` row is set to `SizeType.AutoSize`, it measures the child control via `GetPreferredSize(Size.Empty)`. Because `formPanel` is a `TableLayoutPanel` with `Dock = DockStyle.Fill` and `AutoSize = false`, its `GetPreferredSize` implementation does not compute the sum of its absolute row heights; it returns only its unconstrained baseline size (~36px, measuring row 0). As a result:
+  1. `root` allocated only 36px to `formPanel` (row 1).
+  2. `formPanel.Height` became 36px, completely clipping rows 1 through 8 (Customer Name, Phone, Address, Source, Fee, Rider, Rider Phone, Notes) outside its bounds.
+  3. `root` row 2 (`bottomPanel`) was positioned immediately below `formPanel` at $Y \approx 88$px (right beneath `Select Customer`).
+  4. The rest of the dialog down to its client height was left as a massive empty gray void below `Confirm Delivery`.
+- **Architectural Fixes:**
+  1. `root.RowStyles[1]` is explicitly set to `SizeType.Percent, 100F`, guaranteeing `formPanel` fills all available vertical space between the header (`topPanel`, `SizeType.AutoSize`) and footer (`bottomPanel`, `SizeType.AutoSize`).
+  2. `formPanel.AutoScroll` is set to `true`, providing smooth scrolling protection against small monitor working areas at high DPI.
+  3. Removed the obsolete row 9 spacer; `formPanel` has exactly 9 rows (0 to 8).
+  4. Sized dialog to compact content-driven bounds: `DesktopDialogSizing.Apply(this, 620, 455, 580, 420)`.
+  5. Refactored row construction into a designer-safe private helper `ConfigureRow` to maintain CodeDOM compatibility without inline local functions.
+
+### 35.2 Customer Edit Dialog: Single-Line Notes & Proportional Row Spacing
+- **Single-Line Notes TextEdit:** Replaced `_notesEdit` from `DevExpress.XtraEditors.MemoEdit` to single-line `DevExpress.XtraEditors.TextEdit`. Configured `label8` ("Notes:") with `ContentAlignment.MiddleLeft` and `Padding(0, 0, 6, 0)`.
+- **Deliberate Editor Vertical Margins:** Configured `label.Margin = new Padding(0, 3, 6, 4)` and `editor.Margin = new Padding(0, 3, col == 0 ? 16 : 0, 4)` in `ConfigureField`, establishing an intentional 7px vertical gap between rows and a 16px horizontal gutter between columns.
+- **Credit Limit Helper Spacing:** Adjusted `_creditLimitEdit.Margin = new Padding(0, 0, 0, 5)`, `labelCreditLimitHelp.Margin = new Padding(0, 4, 0, 8)`, `pnlCreditLimit.Margin = new Padding(0, 3, 16, 6)`, and `label7.Padding = new Padding(0, 5, 6, 0)`, eliminating crowding against the Default Customer row.
+- **Form Height Reduction:** Set `ClientSize = new Size(780, 460)` and `MinimumSize = new Size(740, 430)`, eliminating excess vertical void below Notes.
+
+### 35.3 Compact Customer Search Popup Clamping
+- Configured baseline size to $520 \times 250$px with minimum size $420 \times 180$px.
+- Column minimums: Customer Name (105px), Mobile (80px), Address (135px), Balance (70px). With `ColumnAutoWidth = true`, columns scale proportionally to 520px without horizontal scrolling or right-edge clipping.
+- Dynamic screen clamping in `CalculateClampedPopupBounds` ensures the popup is clamped within `Screen.WorkingArea`, shifting horizontally if positioned near screen edges.
+
+### 35.4 Multi-DPI Layout Regression Test Verification
+- All 27 layout tests in `CustomerEditFormLayoutTests` and `DeliveryDetailsDialogLayoutTests` pass across 96, 144, 192, and 240 DPI.
+- Full solution test suite passes cleanly with 0 failures.
+
+---
+
+## 36. Manager Authorization Dialog Rebuild: Credit Limit Override, Inline Validation, Audit Logging & PerMonitorV2 High-DPI Quality (2026-09-29)
+
+### 36.1 Defect Root Cause Analysis
+During manual testing of a real POS On Account transaction with an exceeded customer credit limit (e.g., Outstanding Balance: Rs. 20,000.00; Sale Amount: Rs. 2,130.00; Credit Limit: Rs. 0.00), the POS correctly detected that manager authorization was required. However, the authorization challenge dialog was fundamentally broken and blocked the transaction:
+1. **Inheritance Mismatch (`MasterDataEditFormBase`):** `ManagerAuthorizationForm` inherited from `MasterDataEditFormBase`, which is architected for large master entity editing (e.g. `BranchEditForm`) rather than compact challenge modals. `MasterDataEditFormBase` automatically injected a Top-docked header and a Fill-docked `_contentPanel`.
+2. **Docking and Z-Order Collapse:** In `MasterDataEditFormBase_Load`, Top/Bottom controls were brought to front while `_contentPanel` was sent to back. Combined with hardcoded `ClientSize = (420, 160)` and multi-line wrapping detail text, the Top header (~120-150px) and Bottom button bar (~50px) completely consumed the form's vertical space, shrinking `_contentPanel` height to $\le 0$px.
+3. **Control Invisibility & Missing Password Input:** The `_userNameEdit` in row 0 was pushed entirely underneath `_detailLabel`, while `_passwordEdit` in row 1 had 0px height and was concealed behind `_buttonPanel`. The user only saw a dangling "Manager Password:" text label with no input editor.
+4. **Stacked Modal Validation Antipattern:** Clicking the generic OK button triggered `MasterDataEditFormBase.TryClose()`, which executed `ValidateFields` and produced a secondary stacked modal `XtraMessageBox` ("Enter the manager's username."), directly contradicting the UI presentation.
+5. **Decoupled Verification Flow:** `ManagerAuthorizationForm` only collected text and did not verify credentials; after closing, `RestaurantPosForm` called `_managerAuthorization.AuthorizeAsync(...)`, and on any failure showed yet another modal error over a closed form, discarding the cashier's progress.
+
+### 36.2 Architectural Rebuild of `ManagerAuthorizationForm`
+1. **Direct `XtraForm` Inheritance:** Rebuilt `ManagerAuthorizationForm` as a direct descendant of `DevExpress.XtraEditors.XtraForm`, completely eliminating unwanted master-data chrome and docking overrides.
+2. **Designer & Reflection Safety:** Maintained a clean parameterless constructor (`ManagerAuthorizationForm()`) compliant with `DesignerSafetyTests` and reflection activation.
+3. **Structured Context Support (`CreditLimitOverrideContext`):**
+   - Supports structured financial breakdown: Customer Name, Current Outstanding Balance, Credit Limit, Sale Amount, Balance After Sale, and Exceeded By.
+   - Factory method `ManagerAuthorizationForm.ForCreditLimit(...)` formats currency values via `CurrencyDisplay.FormatPlain(...)` and renders a clean 5-row key-value table.
+   - Backwards compatible with generic detail strings for other privileged operations (e.g., `pos.void`).
+4. **Clean Root Layout:**
+   - 6-row `TableLayoutPanel` root layout with 16px horizontal and 12px vertical padding.
+   - Row 0: Header Panel (`_headerLabel` at 11pt Bold, `_lblSubtitle` at 8.5pt Slate-500).
+   - Row 1: Situation & Financials Card (`_cardPanel`) with Red-600 "Credit limit exceeded." notice, financial summary grid, and italicized instruction label.
+   - Row 2: Inline Error Label (`_lblErrorMessage` in Red-600 Bold, vertically auto-sizing, initially hidden).
+   - Row 3: Credentials Input Grid (`_credentialsPanel`, 2 rows x 2 cols):
+     - Row 0: `_lblUserName` ("Manager Username:") + `_userNameEdit` (`TextEdit`, TabIndex 0, Segoe UI 9.5pt).
+     - Row 1: `_lblPassword` ("Manager Password:") + `_passwordEdit` (`TextEdit`, TabIndex 1, `UseSystemPasswordChar = true`, Segoe UI 9.5pt).
+   - Row 4: Flexible spacer row (`SizeType.Percent, 100F`).
+   - Row 5: Action Button Panel (`_buttonPanel`, FlowLayoutPanel RightToLeft):
+     - `_btnAuthorize`: Primary accent (Teal `#0D9488`, White Bold text, 110x34px, `AcceptButton`).
+     - `_btnCancel`: Neutral button ("Cancel", 90x34px, `CancelButton`, `DialogResult.Cancel`).
+
+### 36.3 Inline Validation & Direct Credential Verification
+- **Zero Stacked Modal Message Boxes:** All validation and authentication errors appear directly on `_lblErrorMessage` within the dialog.
+- **Input Validation:**
+  - Empty username: Inline error `"Enter the manager username."`, focuses `_userNameEdit`, dialog stays open.
+  - Empty password: Inline error `"Enter the manager password."`, focuses `_passwordEdit`, dialog stays open.
+- **Service Verification:** When `IManagerAuthorizationService` is injected, `PerformAuthorizeAsync()` sets busy state (wait cursor, disabled buttons), verifies credentials and permissions against identity infrastructure:
+  - Invalid credentials: Clears password field, preserves username, displays `"Invalid manager username or password."`, focuses `_passwordEdit`, dialog stays open.
+  - Unauthorized manager: Displays `"User '{DisplayName}' is not authorized to approve this action."`, preserves inputs, dialog stays open.
+  - Success: Populates `AuthorizationResult`, sets `DialogResult = DialogResult.OK`, and closes dialog.
+- **Security Cleansing:** Passwords are never logged, persisted, or cached in session or application memory.
+
+### 36.4 Auto-Prefill & Session Integration
+- **`ICurrentSession.UserName` & `CurrentSession`:** Extended session contract to track signed-in `UserName` alongside `UserId` and `DisplayName`.
+- **Cashier Entitlement Check:** If the current cashier holds the required manager permission (`pos.exceedcreditlimit`), `RestaurantPosForm` prepopulates `_userNameEdit` with the cashier's username and places initial focus directly on `_passwordEdit`.
+- **Cashier Editability:** The username field remains fully editable so a visiting floor manager can easily type their own credentials if the cashier is unprivileged.
+
+### 36.5 Comprehensive POS Audit Trail
+Upon successful manager override, `RestaurantPosForm` records an immutable activity audit log via `LogActivityAsync("CreditLimitOverride", ...)` capturing:
+- Order Number
+- Customer Name and Customer Code
+- Previous Outstanding Balance
+- Credit Limit
+- Sale Amount
+- New Outstanding Balance
+- Cashier Display Name
+- Authorizing Manager Display Name
+- Workstation / Terminal Name (`Environment.MachineName`)
+- (Manager password is strictly excluded)
+
+### 36.6 High-DPI Presentation Layout Rebuild & Root Cause of 240-DPI Failure
+During real user manual testing on a 1920×1080 display at 250% scaling (`DeviceDpi` ≈ 240), the previous implementation revealed severe visual defects:
+1. **Unscaled `TableLayoutPanel.RowStyles` Collision:**
+   - In WinForms, `TableLayoutPanel.RowStyles` configured with `SizeType.Absolute` are **never** scaled automatically by WinForms auto-scaling or PerMonitorV2.
+   - `_financialsGrid` had `RowStyles` fixed at `Absolute, 22F`. At 240 DPI, 9pt font text is ~32px tall. Placing 32px text rows at 22px intervals caused all 5 financial rows (`Customer`, `Current Outstanding`, `Current Credit Limit`, `New Sale Amount`, `Balance After Sale`) to collide and draw directly over one another.
+   - `_credentialsPanel` had `RowStyles` fixed at `Absolute, 34F`. At 240 DPI, DevExpress `TextEdit` requires ~38-40px minimum height. The two 34px rows squeezed `_lblUserName` and `_lblPassword` together into overlapping space, and `_passwordEdit` was clipped/hidden because the 68px panel could not accommodate two 40px editors.
+2. **Calling DPI Sizing in Constructor Before Handle Creation:**
+   - Calling `ScaleLayoutAtRuntime()` only from the constructor meant `this.DeviceDpi` evaluated to 96 DPI (before window handle creation), computing 96-DPI column widths and dimensions.
+   - Fixed by hooking `ScaleLayoutAtRuntime()` into `OnLoad(EventArgs e)`, ensuring the true display DPI (240 DPI) is captured once the native window handle is instantiated.
+3. **Empty 100% Percent Spacer Row Creating Giant White Space:**
+   - The root layout previously included an empty 100% height row that pushed the dialog to 998 physical pixels while the squashed content occupied only ~300px, leaving a 700px empty void.
+   - Fixed by removing the spacer row, giving `_rootLayout` 5 tight auto-sized rows, and calibrating `DesktopDialogSizing.Apply(this, 540, 450, 480, 380, ...)` to maintain a compact, professional modal dialog.
+4. **Structured Presentation Hierarchy:**
+   - Replaced loose controls inside `_cardPanel` with a dedicated 4-row `_summaryTable` (`TableLayoutPanel`):
+     - Row 0: Explanation label (`_lblInstruction`: *"Manager authorization is required to approve this credit sale."*).
+     - Row 1: Generic detail text (`_detailLabel`, visible for non-credit operations).
+     - Row 2: Financial breakdown grid (`_financialsGrid`, 2 columns x 5 rows, with `finRowH = DesktopDpi.Scale(26, dpi)` = 65px at 240 DPI).
+     - Row 3: Warning label (`_lblNotice`: *"Credit limit exceeded."* in bold Red-600 with top margin separation).
+   - Credential panel explicitly scales row height to `DesktopDpi.Scale(36, dpi)` (90px at 240 DPI) with `MinimumSize` on editors, ensuring both `_userNameEdit` and `_passwordEdit` remain fully visible, vertically aligned, and editable.
+
+### 36.7 Structural Automated Testing vs. Live UI Verification
+- **Why Previous Automated Tests Passed Despite Broken UI:**
+  - Automated tests verified property presence (`userNameEdit != null`, `Visible = true`, `Text.Length > 0`) or performed mathematical ratio calculations rather than checking live rendering bounds at 240 DPI.
+  - Because `_passwordEdit.Visible` was technically `true` in WinForms object state, basic unit tests assumed it was physically visible on screen, even though it was clipped to zero height by an unscaled parent panel.
+- **Strengthened Acceptance Assertions (`ManagerAuthorizationDialog_RuntimeLayoutMeetsAcceptanceCriteria`):**
+  - Parameterized across 96, 144, 192, and 240 DPI.
+  - Asserts positive width and height on both editors.
+  - Asserts `RectangleToScreen` bounds do NOT intersect between username and password editors.
+  - Asserts vertical alignment between labels and editors (`Math.Abs(lbl.Top - edit.Top) <= threshold`).
+  - Asserts all 5 financial summary rows do NOT intersect and sit strictly top-to-bottom.
+  - Asserts warning notice sits strictly below the financial rows with positive separation.
+  - Asserts all controls remain within form client bounds and 1920×1080 working area limits.
+- **Verification Rule:** Structural automated tests are necessary regression gates, but live user screenshots remain the definitive acceptance authority for high-DPI desktop visual quality.
+
+### 36.8 Test Results Summary
+- `ManagerAuthorizationFormTests`: **19 passed, 0 failed**.
+- `DesignerSafetyTests`: **8 passed, 0 failed**.
+- `Clovent.Desktop.Tests`: **615 passed, 0 failed, 7 skipped**.
+- `Clovent.Restaurant.Application.Tests`: **325 passed, 0 failed**.
+- Full Solution Build: **0 Errors**.

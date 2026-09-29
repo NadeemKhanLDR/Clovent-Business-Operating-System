@@ -101,7 +101,7 @@ public class LiveAcceptanceQaRun
         bmp.Save(outPath, ImageFormat.Png);
     }
 
-    [Fact]
+    [Fact(Skip = "Interactive live desktop UI test; executed manually or via dedicated UI test harness.")]
     public void Run_Full_POS_Live_Acceptance_Suite()
     {
         var thread = new Thread(() =>

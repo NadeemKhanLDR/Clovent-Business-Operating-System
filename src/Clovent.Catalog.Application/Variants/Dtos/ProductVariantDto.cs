@@ -13,7 +13,9 @@ public sealed record ProductVariantDto(
     int SortOrder,
     DateTimeOffset CreatedAtUtc,
     Guid? ProductCategoryId = null,
-    string? ProductStatus = null)
+    string? ProductStatus = null,
+    bool IsAvailable = true,
+    string ItemType = "Prepared")
 {
     /// <summary>
     /// Projects a domain <see cref="ProductVariant"/> into its DTO.
@@ -23,7 +25,11 @@ public sealed record ProductVariantDto(
     /// <c>ListProductVariantsQueryHandler</c> (POS category-button support)
     /// loads both and passes it through.
     /// </summary>
-    public static ProductVariantDto FromDomain(ProductVariant variant, Guid? productCategoryId = null, string? productStatus = null) => new(
+    public static ProductVariantDto FromDomain(
+        ProductVariant variant,
+        Guid? productCategoryId = null,
+        string? productStatus = null,
+        string itemType = "Prepared") => new(
         variant.Id.Value,
         variant.ProductId.Value,
         variant.Name.Value,
@@ -33,5 +39,7 @@ public sealed record ProductVariantDto(
         variant.SortOrder,
         variant.CreatedAtUtc,
         productCategoryId,
-        productStatus);
+        productStatus,
+        variant.IsAvailable,
+        itemType);
 }

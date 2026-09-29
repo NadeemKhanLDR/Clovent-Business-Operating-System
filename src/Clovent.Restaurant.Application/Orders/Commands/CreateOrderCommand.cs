@@ -7,13 +7,26 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Orders.Commands;
 
 /// <summary>Opens a new order. For <see cref="OrderType.DineIn"/>, also seats the given table.</summary>
-public sealed record CreateOrderCommand(OrderType OrderType, Guid WarehouseId, Guid? TableId = null) : IRequest<OrderDto>;
+public sealed record CreateOrderCommand(
+    OrderType OrderType,
+    Guid WarehouseId,
+    Guid? TableId = null,
+    OrderSource OrderSource = OrderSource.WalkIn,
+    string? DeliveryCustomerName = null,
+    string? DeliveryPhone = null,
+    string? DeliveryAddress = null,
+    string? DeliveryNotes = null,
+    decimal DeliveryFee = 0m,
+    string? RiderName = null,
+    string? RiderPhone = null,
+    Guid? CustomerId = null) : IRequest<OrderDto>;
 
 /// <summary>Handles <see cref="CreateOrderCommand"/>.</summary>
 public sealed class CreateOrderCommandHandler(
     IOrderRepository orderRepository,
     ITableRepository tableRepository,
-    IOrderNumberSequenceRepository orderNumberSequenceRepository)
+    IOrderNumberSequenceRepository orderNumberSequenceRepository,
+    Clovent.Restaurant.ServiceCharges.IServiceChargeRepository? serviceChargeRepository = null)
     : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -37,7 +50,36 @@ public sealed class CreateOrderCommandHandler(
             await orderNumberSequenceRepository.AddAsync(sequence, cancellationToken);
         }
 
-        var order = Order.Create(request.OrderType, new WarehouseId(request.WarehouseId), tableId, sequence.Next());
+        var order = Order.Create(request.OrderType, new WarehouseId(request.WarehouseId), tableId, sequence.Next(), request.OrderSource);
+
+        if (request.CustomerId.HasValue)
+        {
+            order.SetCustomer(new Clovent.Restaurant.Customers.CustomerId(request.CustomerId.Value));
+        }
+
+        if (request.OrderType == OrderType.Delivery)
+        {
+            order.SetDeliveryDetails(
+                request.OrderSource,
+                request.DeliveryCustomerName,
+                request.DeliveryPhone,
+                request.DeliveryAddress,
+                request.DeliveryNotes,
+                request.DeliveryFee,
+                request.RiderName,
+                request.RiderPhone);
+
+            if (request.DeliveryFee > 0 && serviceChargeRepository is not null)
+            {
+                var fee = Clovent.Restaurant.ServiceCharges.ServiceCharge.Create(
+                    order.Id,
+                    Clovent.Restaurant.ServiceCharges.ServiceChargeType.FixedAmount,
+                    request.DeliveryFee,
+                    "Delivery Fee");
+                await serviceChargeRepository.AddAsync(fee, cancellationToken);
+                order.ApplyServiceCharge(fee.Id);
+            }
+        }
 
         if (tableId is { } seatedTableId)
         {

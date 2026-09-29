@@ -201,6 +201,9 @@ public sealed partial class RestaurantPosForm : XtraForm
     
     // Active orders category filter selection: "ActiveOrders", "TakeAway", "Closed", "WaitList"
     private string _activeOrdersFilter = "ActiveOrders";
+    private readonly SimpleButton _newDiningButton = new();
+    private readonly SimpleButton _newDeliveryButton = new();
+    private OrderType _currentOrderType = OrderType.DineIn;
 
     private int _currentPage = 1;
     private int _pageSize = 50;
@@ -697,6 +700,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Load Active Orders sidebar state (collapsed/expanded) from user prefs
         _activeOrdersExpanded = !Clovent.Desktop.Forms.Base.PosSettingsStore.LoadActiveOrdersCollapsed();
 
+        // Load Default Order Mode from user prefs
+        _currentOrderType = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadDefaultOrderType();
+
         // Cart item column: primary line is the menu item name, secondary
         // line the portion ("Half"/"Full"), so the cell must wrap.
         _lineGridView.Appearance.Row.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
@@ -796,7 +802,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Set Parent = null on all designer-defined controls we want to keep
         // to prevent WinForms from disposing them when parents are cleared.
         foreach (Control c in new Control[] { 
-            _logoLabel, _cashierLabel, _newTakeAwayButton, 
+            _logoLabel, _cashierLabel, _newDiningButton, _newTakeAwayButton, _newDeliveryButton, 
             _orderStatusLabel, _refreshButton, _printBillButton, _paymentHistoryButton, 
             _moreActionsButton, _operationsButton, _logoutButton, _productSearchEdit, pnlSearch, _productTilesFlow, 
             _tilesEmptyLabel, _categoryButtonsPanel, _allCategoriesButton, 
@@ -957,8 +963,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             Name = "tlpHeaderNew",
             Dock = DockStyle.Fill,
-            ColumnCount = 10,
+            ColumnCount = 11,
             RowCount = 1,
+            GrowStyle = TableLayoutPanelGrowStyle.AddColumns,
             Margin = new Padding(0),
             BackColor = Color.White
         };
@@ -1014,23 +1021,33 @@ public sealed partial class RestaurantPosForm : XtraForm
         tlpHeaderNew.Controls.Add(lblBrand, 0, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 1: order starters. Dine-In has no button here any more -
-        // selecting a table in the table picker starts the Dine-In order
-        // automatically (see TablePicker_SelectionChanged).
-        StyleHeaderAction(_newTakeAwayButton, "+ Take Away", Color.FromArgb(15, 23, 42), Color.White);
-        tlpHeaderNew.Controls.Add(_newTakeAwayButton, 1, 0);
+        // Column 1: Dining order starter
+        StyleHeaderAction(_newDiningButton, "+ Dining", Color.FromArgb(15, 23, 42), Color.White);
+        _newDiningButton.Click += NewDiningButton_Click;
+        tlpHeaderNew.Controls.Add(_newDiningButton, 1, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 2: global search
+        // Column 2: Take Away order starter
+        StyleHeaderAction(_newTakeAwayButton, "+ Take Away", Color.FromArgb(15, 23, 42), Color.White);
+        tlpHeaderNew.Controls.Add(_newTakeAwayButton, 2, 0);
+        tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        // Column 3: Delivery order starter
+        StyleHeaderAction(_newDeliveryButton, "+ Delivery", Color.FromArgb(15, 23, 42), Color.White);
+        _newDeliveryButton.Click += NewDeliveryButton_Click;
+        tlpHeaderNew.Controls.Add(_newDeliveryButton, 3, 0);
+        tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        // Column 4: global search
         _productSearchEdit.Dock = DockStyle.Fill;
         _productSearchEdit.Margin = new Padding(8, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this), 8, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this));
         _productSearchEdit.Properties.NullValuePrompt = "Search menu, orders and more...";
         _productSearchEdit.Properties.NullValuePromptShowForEmptyValue = true;
         _productSearchEdit.Properties.NullText = "";
-        tlpHeaderNew.Controls.Add(_productSearchEdit, 2, 0);
+        tlpHeaderNew.Controls.Add(_productSearchEdit, 4, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
-        // Column 3: cashier identity
+        // Column 5: cashier identity
         _cashierLabel.Dock = DockStyle.Fill;
         _cashierLabel.AutoSizeMode = LabelAutoSizeMode.Horizontal;
         _cashierLabel.Margin = new Padding(8, 0, 6, 0);
@@ -1041,10 +1058,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _cashierLabel.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
         _cashierLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _cashierLabel.Appearance.Options.UseTextOptions = true;
-        tlpHeaderNew.Controls.Add(_cashierLabel, 3, 0);
+        tlpHeaderNew.Controls.Add(_cashierLabel, 5, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 4: compact order status badge
+        // Column 6: compact order status badge
         _orderStatusLabel.Dock = DockStyle.None;
         _orderStatusLabel.Anchor = AnchorStyles.None;
         _orderStatusLabel.AutoSizeMode = LabelAutoSizeMode.None;
@@ -1061,10 +1078,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _orderStatusLabel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
         _orderStatusLabel.Appearance.BorderColor = Color.FromArgb(153, 246, 228);
         _orderStatusLabel.Appearance.Options.UseBorderColor = true;
-        tlpHeaderNew.Controls.Add(_orderStatusLabel, 4, 0);
+        tlpHeaderNew.Controls.Add(_orderStatusLabel, 6, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Column 5: Cancel Order button
+        // Column 7: Cancel Order button
         _cancelOrderButton.Parent = null;
         _cancelOrderButton.Text = "Cancel Order";
         _cancelOrderButton.Dock = DockStyle.None;
@@ -1091,25 +1108,29 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Click is wired once in InitializeComponent (Designer); do NOT
         // subscribe again here - a second subscription made one click fire
         // CancelOrderButton_Click twice, showing the reason dialog twice.
-        tlpHeaderNew.Controls.Add(_cancelOrderButton, 5, 0);
+        tlpHeaderNew.Controls.Add(_cancelOrderButton, 7, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        // Columns 6-9: History / More Actions / Operations / Logout
+        // Columns 8-11: History / More Actions / Operations / Logout
         StyleHeaderAction(_paymentHistoryButton, "History", Color.White, Color.FromArgb(71, 85, 105));
         StyleHeaderAction(_moreActionsButton, "More ▼", Color.White, Color.FromArgb(71, 85, 105));
 
         StyleOperationsButton();
 
         StyleHeaderAction(_logoutButton, "Logout", Color.White, Color.FromArgb(220, 38, 38));
+        _logoutButton.Visible = true;
+        _logoutButton.Margin = new Padding(4, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(4, this));
         
-        tlpHeaderNew.Controls.Add(_paymentHistoryButton, 6, 0);
-        tlpHeaderNew.Controls.Add(_moreActionsButton, 7, 0);
-        tlpHeaderNew.Controls.Add(_operationsButton, 8, 0);
-        tlpHeaderNew.Controls.Add(_logoutButton, 9, 0);
+        tlpHeaderNew.Controls.Add(_paymentHistoryButton, 8, 0);
+        tlpHeaderNew.Controls.Add(_moreActionsButton, 9, 0);
+        tlpHeaderNew.Controls.Add(_operationsButton, 10, 0);
+        tlpHeaderNew.Controls.Add(_logoutButton, 11, 0);
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         tlpHeaderNew.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        UpdateOrderModeButtonsVisualState();
 
         var headerBorder = new Panel
         {
@@ -1843,17 +1864,23 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             popupView.Columns.Clear();
 
-            var colCode = popupView.Columns.AddVisible("CustomerCode", "Customer Code");
-            colCode.Width = 120;
-            colCode.MinWidth = 80;
+            // Customer Code is hidden from visible columns
+            var colCode = popupView.Columns.AddField("CustomerCode");
+            colCode.Visible = false;
 
             var colName = popupView.Columns.AddVisible("Name", "Name");
             colName.Width = 240;
             colName.MinWidth = 120;
 
             var colPhone = popupView.Columns.AddVisible("Phone", "Phone");
-            colPhone.Width = 130;
+            colPhone.Width = 120;
             colPhone.MinWidth = 90;
+
+            var colCreditAllowed = popupView.Columns.AddVisible("CreditAllowedDisplay", "Credit Allowed");
+            colCreditAllowed.Width = 100;
+            colCreditAllowed.MinWidth = 75;
+            colCreditAllowed.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            colCreditAllowed.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
 
             var colBalance = popupView.Columns.AddVisible("BalanceDisplay", "Balance");
             colBalance.Width = 110;
@@ -2998,15 +3025,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             return label;
         }
 
+        var isDelivery = order.OrderType == "Delivery";
         var (pillText, pillBack, pillFore) = isCompleted
             ? ("Served", Color.FromArgb(220, 252, 231), Color.FromArgb(21, 128, 61))
             : isHeld
                 ? ("Wait List", Color.FromArgb(254, 243, 199), Color.FromArgb(161, 98, 7))
                 : isTakeAway
                     ? ("Take Away", Color.FromArgb(254, 243, 199), Color.FromArgb(161, 98, 7))
-                    : ("Open", Color.FromArgb(204, 251, 241), Color.FromArgb(13, 148, 136));
+                    : isDelivery
+                        ? ("Delivery", Color.FromArgb(239, 246, 255), Color.FromArgb(29, 78, 216))
+                        : ("Open", Color.FromArgb(204, 251, 241), Color.FromArgb(13, 148, 136));
 
-        string orderTypeText = isTakeAway ? "Take Away" : tableCode is { } code ? $"Table {code}" : "Dine In";
+        string orderTypeText = isDelivery ? "Delivery" : isTakeAway ? "Take Away" : tableCode is { } code ? $"Table {code}" : "Dine In";
         var title = Label($"{orderTypeText} · {order.OrderNumber}", 8.5F, FontStyle.Bold, Color.FromArgb(15, 23, 42));
 
         var pill = new LabelControl
@@ -3634,11 +3664,131 @@ public sealed partial class RestaurantPosForm : XtraForm
         await TryRunAsync(OnTableSelectedAsync, "select this table");
     }
 
-    // Note: there is no "+ Dine In" header button any more. Dine-In orders are
-    // started automatically by table selection (OnTableSelectedAsync ->
-    // NewDineInAsync). NewDineInButton_Click was removed with the button.
+    private async Task SwitchOrderModeAsync(OrderType targetMode)
+    {
+        if (_currentOrder == null)
+        {
+            _currentOrderType = targetMode;
+            UpdateOrderModeButtonsVisualState();
+            switch (targetMode)
+            {
+                case OrderType.DineIn:
+                    await NewDineInAsync();
+                    break;
+                case OrderType.TakeAway:
+                    await NewTakeAwayAsync();
+                    break;
+                case OrderType.Delivery:
+                    await NewDeliveryAsync();
+                    break;
+            }
+            return;
+        }
 
-    private async void NewTakeAwayButton_Click(object? sender, EventArgs e) => await TryRunAsync(NewTakeAwayAsync, "start a new take-away order");
+        OrderType currentType = _currentOrder.OrderType switch
+        {
+            "TakeAway" => OrderType.TakeAway,
+            "Delivery" => OrderType.Delivery,
+            _ => OrderType.DineIn
+        };
+
+        if (currentType == targetMode)
+        {
+            return;
+        }
+
+        if (_currentOrderLines.Count == 0)
+        {
+            // Empty draft order: cleanly cancel and discard without prompting to release table / clear delivery state
+            try
+            {
+                await _mediator.Send(new CancelOrderCommand(_currentOrder.OrderId, "Order mode switched"));
+            }
+            catch
+            {
+                // Ignore cancel failure on empty drafts
+            }
+
+            _currentOrder = null;
+            _tablePicker.SelectId(null);
+            _hasUnsavedEdits = false;
+            _currentOrderType = targetMode;
+            UpdateOrderModeButtonsVisualState();
+            await ReloadTablesAsync();
+
+            switch (targetMode)
+            {
+                case OrderType.DineIn:
+                    await NewDineInAsync();
+                    break;
+                case OrderType.TakeAway:
+                    await NewTakeAwayAsync();
+                    break;
+                case OrderType.Delivery:
+                    await NewDeliveryAsync();
+                    break;
+            }
+        }
+        else
+        {
+            XtraMessageBox.Show(
+                this,
+                $"Order {_currentOrder.OrderNumber} has active items in the cart. Please hold, void, or complete the current order before switching mode.",
+                "Active Order in Progress",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+    }
+
+    private async void NewDiningButton_Click(object? sender, EventArgs e)
+    {
+        await TryRunAsync(() => SwitchOrderModeAsync(OrderType.DineIn), "switch to Dining mode");
+    }
+
+    private async void NewTakeAwayButton_Click(object? sender, EventArgs e)
+    {
+        await TryRunAsync(() => SwitchOrderModeAsync(OrderType.TakeAway), "switch to Take Away mode");
+    }
+
+    private async void NewDeliveryButton_Click(object? sender, EventArgs e)
+    {
+        await TryRunAsync(() => SwitchOrderModeAsync(OrderType.Delivery), "switch to Delivery mode");
+    }
+
+    private void UpdateOrderModeButtonsVisualState()
+    {
+        Color selectedBack = Color.FromArgb(13, 148, 136); // Teal-600
+        Color selectedFore = Color.White;
+        Color normalBack = Color.FromArgb(241, 245, 249);  // Slate-100
+        Color normalFore = Color.FromArgb(30, 41, 59);    // Slate-800
+
+        OrderType effectiveType = _currentOrder != null
+            ? (_currentOrder.OrderType switch
+            {
+                "TakeAway" => OrderType.TakeAway,
+                "Delivery" => OrderType.Delivery,
+                _ => OrderType.DineIn
+            })
+            : _currentOrderType;
+
+        void ApplyButtonVisual(SimpleButton btn, bool isSelected, string text)
+        {
+            btn.Text = text;
+            btn.Appearance.BackColor = isSelected ? selectedBack : normalBack;
+            btn.Appearance.ForeColor = isSelected ? selectedFore : normalFore;
+            btn.Appearance.Font = new Font("Segoe UI", 9F, isSelected ? FontStyle.Bold : FontStyle.Regular);
+            btn.Appearance.BorderColor = isSelected ? Color.FromArgb(15, 118, 110) : Color.FromArgb(203, 213, 225);
+            btn.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple;
+            btn.Appearance.Options.UseBackColor = true;
+            btn.Appearance.Options.UseForeColor = true;
+            btn.Appearance.Options.UseFont = true;
+            btn.Appearance.Options.UseBorderColor = true;
+        }
+
+        ApplyButtonVisual(_newDiningButton, effectiveType == OrderType.DineIn, "+ Dining");
+        ApplyButtonVisual(_newTakeAwayButton, effectiveType == OrderType.TakeAway, "+ Take Away");
+        ApplyButtonVisual(_newDeliveryButton, effectiveType == OrderType.Delivery, "+ Delivery");
+    }
 
     private async void HoldButton_Click(object? sender, EventArgs e) => await TryRunAsync(HoldOrderAsync, "hold this order");
 
@@ -3699,6 +3849,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task ProductTileTappedAsync(Guid variantId)
     {
+        if (_variantsById.TryGetValue(variantId, out var variantInfo) && !variantInfo.IsAvailable)
+        {
+            XtraMessageBox.Show(this, $"'{variantInfo.Name}' is currently SOLD OUT and cannot be added to an order.", "Item Sold Out", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         if (_currentOrder is null)
         {
             if (_activeOrdersFilter == "TakeAway")
@@ -4137,6 +4293,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                 .Select(v => v.ProductId)
                 .Distinct()
                 .Count();
+
+            if (count == 0) continue;
 
             var card = BuildCategoryCard(category.ProductCategoryId, category.Name, CategoryIcon(category.Name), count);
             _categoryButtonsPanel.Controls.Add(card);
@@ -4755,26 +4913,40 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (productVariants.Count == 1)
         {
             var price = _sellingPricesByVariantId.GetValueOrDefault(primaryVariant.ProductVariantId);
+            bool isAvailable = primaryVariant.IsAvailable;
 
             var priceButton = new DevExpress.XtraEditors.SimpleButton
             {
-                Text = CurrencyDisplay.FormatPlain(price),
+                Text = isAvailable ? CurrencyDisplay.FormatPlain(price) : "SOLD OUT",
                 Dock = DockStyle.Fill,
-                Cursor = Cursors.Hand,
+                Cursor = isAvailable ? Cursors.Hand : Cursors.Default,
                 Margin = new Padding(8, 2, 8, 2),
                 MinimumSize = new Size(0, 0),
             };
-            priceButton.Appearance.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            priceButton.Appearance.BackColor = Color.FromArgb(241, 245, 249);
-            priceButton.Appearance.ForeColor = TilePriceColor;
+            priceButton.Appearance.Font = new Font("Segoe UI", isAvailable ? 10F : 9F, FontStyle.Bold);
+            priceButton.Appearance.BackColor = isAvailable ? Color.FromArgb(241, 245, 249) : Color.FromArgb(254, 226, 226);
+            priceButton.Appearance.ForeColor = isAvailable ? TilePriceColor : Color.FromArgb(185, 28, 28);
             priceButton.Appearance.Options.UseFont = true;
             priceButton.Appearance.Options.UseBackColor = true;
             priceButton.Appearance.Options.UseForeColor = true;
-            priceButton.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(primaryVariant.ProductVariantId), "add this item");
 
-            WireTileClick(card, primaryVariant.ProductVariantId);
-            WireTileClick(topControl, primaryVariant.ProductVariantId);
-            WireTileClick(nameLabel, primaryVariant.ProductVariantId);
+            if (isAvailable)
+            {
+                priceButton.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(primaryVariant.ProductVariantId), "add this item");
+                WireTileClick(card, primaryVariant.ProductVariantId);
+                WireTileClick(topControl, primaryVariant.ProductVariantId);
+                WireTileClick(nameLabel, primaryVariant.ProductVariantId);
+            }
+            else
+            {
+                void ShowSoldOutNotice(object? s, EventArgs e) =>
+                    XtraMessageBox.Show(this, $"'{productName}' is currently SOLD OUT and cannot be added to an order.", "Item Sold Out", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                priceButton.Click += ShowSoldOutNotice;
+                card.Click += ShowSoldOutNotice;
+                topControl.Click += ShowSoldOutNotice;
+                nameLabel.Click += ShowSoldOutNotice;
+            }
             buttonsPanel = priceButton;
         }
         else
@@ -4802,25 +4974,34 @@ public sealed partial class RestaurantPosForm : XtraForm
                 var variant = productVariants[i];
                 var price = _sellingPricesByVariantId.GetValueOrDefault(variant.ProductVariantId);
                 string cleanName = GetVariantPosLabel(variant, productName);
+                bool isVariantAvailable = variant.IsAvailable;
 
                 var btn = new DevExpress.XtraEditors.SimpleButton
                 {
-                    Text = $"{cleanName}\n{CurrencyDisplay.FormatPlain(price)}",
+                    Text = isVariantAvailable ? $"{cleanName}\n{CurrencyDisplay.FormatPlain(price)}" : $"{cleanName}\nSOLD OUT",
                     Dock = DockStyle.Fill,
-                    Cursor = Cursors.Hand,
+                    Cursor = isVariantAvailable ? Cursors.Hand : Cursors.Default,
                     Margin = new Padding(1),
                     MinimumSize = new Size(0, 0),
                 };
                 btn.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-                btn.Appearance.BackColor = Color.FromArgb(241, 245, 249);
-                btn.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
+                btn.Appearance.BackColor = isVariantAvailable ? Color.FromArgb(241, 245, 249) : Color.FromArgb(254, 226, 226);
+                btn.Appearance.ForeColor = isVariantAvailable ? Color.FromArgb(15, 23, 42) : Color.FromArgb(185, 28, 28);
                 btn.Appearance.Options.UseFont = true;
                 btn.Appearance.Options.UseBackColor = true;
                 btn.Appearance.Options.UseForeColor = true;
                 btn.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
                 btn.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
                 btn.Appearance.Options.UseTextOptions = true;
-                btn.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(variant.ProductVariantId), "add this item");
+
+                if (isVariantAvailable)
+                {
+                    btn.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(variant.ProductVariantId), "add this item");
+                }
+                else
+                {
+                    btn.Click += (s, e) => XtraMessageBox.Show(this, $"'{productName} ({cleanName})' is currently SOLD OUT and cannot be added to an order.", "Item Sold Out", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
 
                 tlp.Controls.Add(btn, i, 0);
             }
@@ -4975,33 +5156,41 @@ public sealed partial class RestaurantPosForm : XtraForm
             var price = _sellingPricesByVariantId.GetValueOrDefault(variant.ProductVariantId);
             string cleanName = productVariants.Count > 1 ? GetVariantPosLabel(variant, productName) : "";
             
+            bool isVariantAvailable = variant.IsAvailable;
             string btnText = productVariants.Count == 1 
-                ? CurrencyDisplay.FormatPlain(price) 
-                : $"{cleanName}\n{CurrencyDisplay.FormatPlain(price)}";
+                ? (isVariantAvailable ? CurrencyDisplay.FormatPlain(price) : "SOLD OUT")
+                : (isVariantAvailable ? $"{cleanName}\n{CurrencyDisplay.FormatPlain(price)}" : $"{cleanName}\nSOLD OUT");
 
             var btn = new DevExpress.XtraEditors.SimpleButton
             {
                 Text = btnText,
-                Cursor = Cursors.Hand,
+                Cursor = isVariantAvailable ? Cursors.Hand : Cursors.Default,
                 Margin = new Padding(2, 0, 2, 0),
                 AutoSize = true,
                 MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(55, this), 0),
             };
             btn.Dock = DockStyle.Fill;
             btn.Appearance.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            btn.Appearance.BackColor = Color.FromArgb(241, 245, 249);
-            btn.Appearance.ForeColor = productVariants.Count == 1 ? TilePriceColor : Color.FromArgb(15, 23, 42);
+            btn.Appearance.BackColor = isVariantAvailable ? Color.FromArgb(241, 245, 249) : Color.FromArgb(254, 226, 226);
+            btn.Appearance.ForeColor = isVariantAvailable ? (productVariants.Count == 1 ? TilePriceColor : Color.FromArgb(15, 23, 42)) : Color.FromArgb(185, 28, 28);
             btn.Appearance.Options.UseFont = true;
             btn.Appearance.Options.UseBackColor = true;
             btn.Appearance.Options.UseForeColor = true;
             btn.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
             btn.Appearance.Options.UseTextOptions = true;
-            btn.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(variant.ProductVariantId), "add this item");
+            if (isVariantAvailable)
+            {
+                btn.Click += async (s, e) => await TryRunAsync(() => ProductTileTappedAsync(variant.ProductVariantId), "add this item");
+            }
+            else
+            {
+                btn.Click += (s, e) => XtraMessageBox.Show(this, $"'{productName}' is currently SOLD OUT and cannot be added to an order.", "Item Sold Out", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
             buttonsPanel.Controls.Add(btn, i, 0);
         }
         tlp.Controls.Add(buttonsPanel, 2, 0);
 
-        if (productVariants.Count == 1)
+        if (productVariants.Count == 1 && primaryVariant.IsAvailable)
         {
             WireTileClick(tlp, primaryVariant.ProductVariantId);
             WireTileClick(imgControl, primaryVariant.ProductVariantId);
@@ -5204,6 +5393,56 @@ public sealed partial class RestaurantPosForm : XtraForm
         await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Take Away)");
     }
 
+    private async Task NewDeliveryAsync()
+    {
+        if (_warehousePicker.SelectedId is not { } warehouseId)
+        {
+            XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        string? prefillName = null;
+        string? prefillPhone = null;
+        Guid? customerId = null;
+
+        var selectedCustId = _customerPicker?.EditValue is Guid cid && cid != Guid.Empty ? cid : _defaultCustomerId;
+        if (selectedCustId.HasValue)
+        {
+            var cust = await _mediator.Send(new GetCustomerByIdQuery(selectedCustId.Value));
+            if (cust != null && !cust.IsDefault)
+            {
+                prefillName = cust.Name;
+                prefillPhone = cust.MobileNumber;
+                customerId = cust.CustomerId;
+            }
+        }
+
+        using var dialog = new DeliveryDetailsDialog(customerName: prefillName, customerPhone: prefillPhone, mediator: _mediator);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _currentOrder = await _mediator.Send(new CreateOrderCommand(
+            OrderType.Delivery,
+            warehouseId,
+            TableId: null,
+            OrderSource: dialog.OrderSource,
+            DeliveryCustomerName: dialog.CustomerName,
+            DeliveryPhone: dialog.CustomerPhone,
+            DeliveryAddress: dialog.DeliveryAddress,
+            DeliveryNotes: dialog.DeliveryNotes,
+            DeliveryFee: dialog.DeliveryFee,
+            RiderName: string.IsNullOrWhiteSpace(dialog.DeliveryRiderName) ? null : dialog.DeliveryRiderName,
+            RiderPhone: string.IsNullOrWhiteSpace(dialog.DeliveryRiderPhone) ? null : dialog.DeliveryRiderPhone,
+            CustomerId: dialog.SelectedCustomerId ?? customerId));
+
+        _hasUnsavedEdits = true;
+        await RefreshOrderAsync();
+        await RefreshActiveOrdersAsync();
+        await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Delivery)");
+    }
+
     private async Task RunOrderActionAsync(IRequest<OrderDto> command)
     {
         _currentOrder = await _mediator.Send(command);
@@ -5371,6 +5610,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _currentOrderLines = [];
         _tablePicker.SelectId(null);
         _addQuantityEdit.Value = 1;
+        _currentOrderType = PosSettingsStore.LoadDefaultOrderType();
         _amountEdit.Text = string.Empty;
         _amountEntryIsPreset = true;
 
@@ -5432,31 +5672,25 @@ public sealed partial class RestaurantPosForm : XtraForm
     private async Task<ManagerAuthorizationResult?> RequestManagerAuthorizationAsync(
         string title,
         string detail,
-        string featureCode)
+        string featureCode,
+        CreditLimitOverrideContext? creditContext = null)
     {
-        using var dialog = new ManagerAuthorizationForm(title, detail);
+        string? prefilledUsername = null;
+        if (_currentSession.UserId is { } uid && await _featurePolicy.CanUseFeatureAsync(uid, featureCode))
+        {
+            prefilledUsername = _currentSession.UserName;
+        }
+
+        using var dialog = creditContext is not null
+            ? new ManagerAuthorizationForm(title, creditContext, _managerAuthorization, featureCode, prefilledUsername)
+            : new ManagerAuthorizationForm(title, detail, _managerAuthorization, featureCode, prefilledUsername);
+
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return null;
         }
 
-        var result = await _managerAuthorization.AuthorizeAsync(
-            dialog.ManagerUserName,
-            dialog.ManagerPassword,
-            featureCode);
-
-        if (!result.Succeeded)
-        {
-            XtraMessageBox.Show(
-                this,
-                result.ErrorMessage ?? "Manager authorization failed.",
-                "Authorization Failed",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-            return null;
-        }
-
-        return result;
+        return dialog.AuthorizationResult;
     }
 
     private async Task CancelOrderAsync()
@@ -5471,6 +5705,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             _currentOrder = null;
             _tablePicker.SelectId(null);
             _addQuantityEdit.Value = 1;
+            _currentOrderType = PosSettingsStore.LoadDefaultOrderType();
             await ReloadTablesAsync();
             await RefreshOrderAsync();
             await RefreshActiveOrdersAsync();
@@ -5503,6 +5738,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _currentOrder = null;
         _tablePicker.SelectId(null);
         _addQuantityEdit.Value = 1;
+        _currentOrderType = PosSettingsStore.LoadDefaultOrderType();
         await ReloadMenuItemsAsync();
         await ReloadTablesAsync();
         await RefreshOrderAsync();
@@ -5852,12 +6088,16 @@ public sealed partial class RestaurantPosForm : XtraForm
                 {
                     _customerPicker.Enabled = isEditable;
                     _newCustomerButton.Enabled = isEditable;
-                    SetSelectedCustomerId(_currentOrder.CustomerId ?? Guid.Empty);
                     if (customer is not null)
                     {
                         var codePrefix = !string.IsNullOrWhiteSpace(customer.Code) ? $"[{customer.Code}] " : string.Empty;
-                        _customerDetailsLabel.Text = $"{codePrefix}{customer.Name} • Outstanding: {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}";
-                        _customerDetailsLabel.ForeColor = customer.OutstandingBalance > 0 ? Color.Red : Color.Green;
+                        var creditStatus = customer.IsCreditAllowed
+                            ? $"Credit: Allowed (Limit: {CurrencyDisplay.FormatPlain(customer.CreditLimit)}, Avail: {CurrencyDisplay.FormatPlain(customer.AvailableCredit)})"
+                            : "Credit: Not Allowed";
+                        var advText = customer.AdvanceBalance > 0 ? $" • Advance: {CurrencyDisplay.FormatPlain(customer.AdvanceBalance)}" : string.Empty;
+                        var recText = CurrencyDisplay.FormatPlain(customer.ReceivableBalance > 0 ? customer.ReceivableBalance : customer.OutstandingBalance);
+                        _customerDetailsLabel.Text = $"{codePrefix}{customer.Name} • A/R: {recText}{advText} • {creditStatus}";
+                        _customerDetailsLabel.ForeColor = customer.OutstandingBalance > customer.CreditLimit ? Color.Red : (customer.OutstandingBalance > 0 ? Color.DarkOrange : Color.Green);
                     }
                     else
                     {
@@ -5906,9 +6146,15 @@ public sealed partial class RestaurantPosForm : XtraForm
 
                 if (_lblCartTableNo is not null)
                 {
-                    _lblCartTableNo.Text = _currentOrder.OrderType == "TakeAway" ? "Take Away" : tableCodes.TryGetValue(_currentOrder.TableId ?? Guid.Empty, out var code) ? $"Table No #{code}" : "Dine In";
+                    _lblCartTableNo.Text = _currentOrder.OrderType == "Delivery"
+                        ? "Delivery"
+                        : _currentOrder.OrderType == "TakeAway"
+                            ? "Take Away"
+                            : tableCodes.TryGetValue(_currentOrder.TableId ?? Guid.Empty, out var code)
+                                ? $"Table No #{code}"
+                                : "Dine In";
                 }
-                if (_currentOrder.OrderType == "TakeAway")
+                if (_currentOrder.OrderType == "TakeAway" || _currentOrder.OrderType == "Delivery")
                 {
                     _tablePicker.SelectId(null);
                     _tablePicker.Enabled = false;
@@ -6268,7 +6514,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         var warehouseId = _warehousePicker.SelectedId ?? Guid.Empty;
         var termName = "Terminal";
         var branchName = "Branch";
-        var businessDate = DateOnly.FromDateTime(DateTime.Today);
+        var businessDate = DateTimeDisplay.GetCurrentBusinessDate();
 
         try
         {
@@ -6428,7 +6674,9 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         var branchId = _activeShift?.BranchId ?? Guid.Empty;
         var branchName = "Branch";
-        var businessDate = DateOnly.FromDateTime(_activeShift?.OpenedAtUtc.LocalDateTime ?? DateTime.Today);
+        var businessDate = _activeShift != null
+            ? DateOnly.FromDateTime(BusinessDateTimeService.Instance.ConvertUtcToBusinessTime(_activeShift.OpenedAtUtc).DateTime)
+            : DateTimeDisplay.GetCurrentBusinessDate();
 
         try
         {
@@ -6754,7 +7002,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         var hasOrder = _currentOrder is not null;
         var canEdit = isOpen || isHeld;
 
+        _newDiningButton.Enabled = !hasOrder && Permit("create");
         _newTakeAwayButton.Enabled = !hasOrder && Permit("create");
+        _newDeliveryButton.Enabled = !hasOrder && Permit("create");
+        UpdateOrderModeButtonsVisualState();
 
         _holdButton.Enabled = isOpen && Permit("hold");
         _resumeButton.Enabled = isHeld && Permit("resume");
@@ -6836,6 +7087,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                 string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
                 c.Name,
                 c.MobileNumber ?? string.Empty,
+                c.IsCreditAllowed ? "Yes" : "No",
                 CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
             .ToList();
 
@@ -6891,7 +7143,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                     form.ShopNoValue,
                     form.Mobile2Value,
                     form.PhoneValue,
-                    form.IsDefaultValue));
+                    form.IsDefaultValue,
+                    form.IsCreditAllowedValue));
 
                 await ReloadCustomersAsync(newCustomer.CustomerId);
 
@@ -7338,7 +7591,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         var applied = Math.Min(tendered, _balance);
 
         var isCredit = string.Equals(methodName, "Credit", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(methodName, "Customer Credit", StringComparison.OrdinalIgnoreCase);
+                       string.Equals(methodName, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(methodName, "On Account", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(methodName, "Customer Account", StringComparison.OrdinalIgnoreCase);
 
         bool exceedCreditLimitApproved = false;
         if (isCredit)
@@ -7346,7 +7601,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             var order = await _mediator.Send(new GetOrderByIdQuery(orderId));
             if (order?.CustomerId is null)
             {
-                XtraMessageBox.Show(this, "A customer must be selected for Credit / Pay Later sales.", "No Customer Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                XtraMessageBox.Show(this, "A customer must be selected for On Account / Credit sales.", "No Customer Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -7354,6 +7609,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             if (customer is null)
             {
                 XtraMessageBox.Show(this, "The customer associated with this order could not be found.", "Customer Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (customer.Code == "C000" || customer.IsDefault)
+            {
+                XtraMessageBox.Show(this, "Walk-in guest cannot purchase on account / credit. Please select a registered customer.", "Walk-in Guest", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!customer.IsCreditAllowed)
+            {
+                XtraMessageBox.Show(this, $"Customer '{customer.Name}' is not allowed to purchase on credit.", "Credit Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -7379,6 +7646,12 @@ public sealed partial class RestaurantPosForm : XtraForm
                                     $"The new sale would increase the balance to {CurrencyDisplay.FormatPlain(customer.OutstandingBalance + applied)}, " +
                                     $"but the credit limit is {CurrencyDisplay.FormatPlain(customer.CreditLimit)}.";
 
+                    var creditContext = new CreditLimitOverrideContext(
+                        customer.Name,
+                        customer.OutstandingBalance,
+                        customer.CreditLimit,
+                        applied);
+
                     // Exceeding a credit limit is a manager decision whoever is
                     // standing at the till, so the challenge is unconditional.
                     // Previously an operator who happened to hold the permission
@@ -7388,7 +7661,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                     var authorization = await RequestManagerAuthorizationAsync(
                         "Manager Authorization - Credit Limit Override",
                         $"{situation}\n\nA manager must authorize this credit sale.",
-                        "pos.exceedcreditlimit");
+                        "pos.exceedcreditlimit",
+                        creditContext);
 
                     if (authorization is null)
                     {
@@ -7400,10 +7674,19 @@ public sealed partial class RestaurantPosForm : XtraForm
                     }
 
                     exceedCreditLimitApproved = true;
+                    var terminalName = Environment.MachineName;
+                    var cashierName = _currentSession.DisplayName ?? "Unknown";
+                    var orderNumber = _currentOrder?.OrderNumber ?? "Draft";
+                    var newOutstanding = customer.OutstandingBalance + applied;
+
                     await LogActivityAsync(
-                        "Override",
-                        $"Authorized credit limit override for customer '{customer.Name}' ({customer.Code}). " +
-                        $"Approved by manager '{authorization.ManagerDisplayName}'.");
+                        "CreditLimitOverride",
+                        $"Order: {orderNumber} | Customer: {customer.Name} ({customer.Code}) | " +
+                        $"Previous Outstanding: {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)} | " +
+                        $"Credit Limit: {CurrencyDisplay.FormatPlain(customer.CreditLimit)} | " +
+                        $"Sale Amount: {CurrencyDisplay.FormatPlain(applied)} | " +
+                        $"New Outstanding: {CurrencyDisplay.FormatPlain(newOutstanding)} | " +
+                        $"Cashier: {cashierName} | Authorizing Manager: {authorization.ManagerDisplayName} | Terminal: {terminalName}");
                 }
             }
         }
@@ -7438,7 +7721,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     }
 
     /// <summary>Row shape for <see cref="_customerPicker"/>'s popup grid - <see cref="BalanceDisplay"/> is pre-formatted (via <see cref="CurrencyDisplay"/>) rather than a raw <see cref="decimal"/> since the popup grid has no currency-aware column type of its own.</summary>
-    private sealed record CustomerPickerRow(Guid CustomerId, string CustomerCode, string Name, string Phone, string BalanceDisplay);
+    private sealed record CustomerPickerRow(Guid CustomerId, string CustomerCode, string Name, string Phone, string CreditAllowedDisplay, string BalanceDisplay);
 
     private Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? _activeShift;
 
@@ -8744,8 +9027,9 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_headerTable is { } header)
         {
-            header.Controls.Add(_rushModeBadge, header.ColumnCount, 0);
+            header.ColumnCount++;
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            header.Controls.Add(_rushModeBadge, header.ColumnCount - 1, 0);
         }
     }
 

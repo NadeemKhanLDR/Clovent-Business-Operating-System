@@ -28,6 +28,15 @@ internal sealed class CustomerLedgerEntryConfiguration : IEntityTypeConfiguratio
         builder.Property(e => e.Credit).HasPrecision(18, 2);
         builder.Property(e => e.RunningBalance).HasPrecision(18, 2);
 
+        builder.Property(e => e.ShiftId)
+            .HasConversion(ValueConverters.NullableShiftIdConverter)
+            .IsRequired(false);
+        builder.HasIndex(e => e.ShiftId);
+
+        builder.Property(e => e.PaymentMethod)
+            .HasMaxLength(50)
+            .IsRequired(false);
+
         builder.Ignore(e => e.DomainEvents);
     }
 }

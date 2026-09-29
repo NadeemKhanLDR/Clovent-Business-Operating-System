@@ -85,6 +85,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
     private void BuildUi()
     {
         Text = $"End of Day (Day Close) - {DateTimeDisplay.FormatDate(_businessDate)}";
+        AutoScaleMode = AutoScaleMode.None;
         DesktopDialogSizing.Apply(this, 760, 620, 650, 520, null, false);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;

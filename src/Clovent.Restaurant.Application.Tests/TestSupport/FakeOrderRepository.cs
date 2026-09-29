@@ -30,6 +30,9 @@ internal sealed class FakeOrderRepository : IOrderRepository
     public Task<IReadOnlyCollection<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Order>>([.. _orders.Values]);
 
+    public Task<IReadOnlyCollection<Order>> GetByCustomerIdAsync(Clovent.Restaurant.Customers.CustomerId customerId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyCollection<Order>>([.. _orders.Values.Where(o => o.CustomerId == customerId)]);
+
     public Task AddAsync(Order order, CancellationToken cancellationToken = default)
     {
         _orders[order.Id] = order;

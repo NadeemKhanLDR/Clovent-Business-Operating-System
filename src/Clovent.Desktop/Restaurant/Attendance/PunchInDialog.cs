@@ -76,10 +76,9 @@ public sealed class PunchInDialog : XtraForm
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
+        AutoScaleMode = AutoScaleMode.None;
 
         DesktopDialogSizing.Apply(this, 500, 440, 440, 380, null, false);
-
-        var nowLocal = DateTime.Now;
 
         var panel = new TableLayoutPanel
         {

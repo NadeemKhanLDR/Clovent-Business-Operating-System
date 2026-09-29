@@ -65,6 +65,9 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
     }
 
     /// <inheritdoc/>
+    public DateOnly Today => GetCurrentBusinessDate();
+
+    /// <inheritdoc/>
     public DateOnly GetCurrentBusinessDate()
     {
         var localTime = ConvertUtcToBusinessTime(DateTimeOffset.UtcNow);

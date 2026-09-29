@@ -16,7 +16,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// <summary>
 /// Professional DPI-aware modal dialog for reviewing a Smart Combo Opportunity.
 /// Displays structured items composition in a DevExpress grid, key sales metrics,
-/// interactive deal price & discount settings, cost/margin verification, and dismiss reason.
+/// interactive deal price &amp; discount settings, cost/margin verification, and dismiss reason.
 /// </summary>
 public sealed class SmartComboPreviewDialog : XtraForm
 {

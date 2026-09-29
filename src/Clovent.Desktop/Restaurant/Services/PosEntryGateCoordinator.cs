@@ -24,6 +24,9 @@ public sealed class PosEntryGateCoordinator(
     ICurrentSession currentSession,
     Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService? attendanceAccessService = null) : IPosEntryGateCoordinator
 {
+    internal static Action<IWin32Window?, string, string, MessageBoxButtons, MessageBoxIcon>? CustomMessageBoxShow { get; set; }
+    internal static Func<IWin32Window?, Form, DialogResult>? CustomDialogShow { get; set; }
+
     /// <inheritdoc/>
     public async Task<bool> EnsureShiftAndOpenPosAsync(IWin32Window? owner = null)
     {
@@ -56,7 +59,9 @@ public sealed class PosEntryGateCoordinator(
                     terminalRes.BranchName,
                     terminalRes.TerminalId);
 
-                var punchResult = punchInDialog.ShowDialog(owner);
+                var punchResult = CustomDialogShow != null
+                    ? CustomDialogShow(owner, punchInDialog)
+                    : (!Application.MessageLoop && owner == null ? DialogResult.Cancel : punchInDialog.ShowDialog(owner));
                 if (punchResult != DialogResult.OK || !punchInDialog.PunchedIn)
                 {
                     // Cancelled Punch In: remain in Back Office, do NOT open shift or POS
@@ -109,7 +114,9 @@ public sealed class PosEntryGateCoordinator(
                     terminalRes.BranchName,
                     accessRes.BusinessDate))
                 {
-                    var dialogResult = openDialog.ShowDialog(owner);
+                    var dialogResult = CustomDialogShow != null
+                        ? CustomDialogShow(owner, openDialog)
+                        : (!Application.MessageLoop && owner == null ? DialogResult.Cancel : openDialog.ShowDialog(owner));
                     if (dialogResult == DialogResult.OK && openDialog.OpenedShift != null)
                     {
                         await OpenPosWithShiftAsync(openDialog.OpenedShift);
@@ -152,6 +159,17 @@ public sealed class PosEntryGateCoordinator(
 
     private static void ShowWarning(IWin32Window? owner, string message, string caption)
     {
+        if (CustomMessageBoxShow != null)
+        {
+            CustomMessageBoxShow(owner, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (!Application.MessageLoop && owner == null)
+        {
+            return;
+        }
+
         if (owner is not null)
         {
             XtraMessageBox.Show(owner, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -164,6 +182,17 @@ public sealed class PosEntryGateCoordinator(
 
     private static void ShowError(IWin32Window? owner, string message, string caption)
     {
+        if (CustomMessageBoxShow != null)
+        {
+            CustomMessageBoxShow(owner, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (!Application.MessageLoop && owner == null)
+        {
+            return;
+        }
+
         if (owner is not null)
         {
             XtraMessageBox.Show(owner, message, caption, MessageBoxButtons.OK, MessageBoxIcon.Error);

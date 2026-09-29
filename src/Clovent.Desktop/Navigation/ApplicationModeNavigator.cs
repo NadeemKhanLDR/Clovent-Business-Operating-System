@@ -90,6 +90,13 @@ public sealed class ApplicationModeNavigator : IApplicationModeNavigator
             return tcs.Task;
         }
 
+        if (!Application.MessageLoop)
+        {
+            // In unit test or headless environments without an active Windows Forms message pump,
+            // calling BeginInvoke will post to a message queue that is never pumped, causing a permanent deadlock.
+            return action();
+        }
+
         if (_currentForm is not null && _currentForm.IsHandleCreated && !_currentForm.IsDisposed)
         {
             var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

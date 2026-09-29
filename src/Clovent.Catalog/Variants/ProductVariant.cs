@@ -33,6 +33,9 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
     /// <summary>The variant's current lifecycle state.</summary>
     public CatalogStatus Status { get; private set; }
 
+    /// <summary>Whether this variant is currently available for sale (false = Sold Out).</summary>
+    public bool IsAvailable { get; private set; }
+
     /// <summary>Manual display position for owner-driven drag-drop reordering (lower sorts first) - e.g. Menu Items/the POS tile wall. Defaults to 0 - every variant starts equally-ordered until an owner reorders them.</summary>
     public int SortOrder { get; private set; }
 
@@ -40,7 +43,7 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private ProductVariant(ProductVariantId id, ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId, CatalogStatus status, int sortOrder, DateTimeOffset createdAtUtc)
+    private ProductVariant(ProductVariantId id, ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId, CatalogStatus status, int sortOrder, DateTimeOffset createdAtUtc, bool isAvailable = true)
     {
         Id = id;
         ProductId = productId;
@@ -50,19 +53,29 @@ public sealed class ProductVariant : AggregateRoot<ProductVariantId>
         Status = status;
         SortOrder = sortOrder;
         CreatedAtUtc = createdAtUtc;
+        IsAvailable = isAvailable;
     }
 
     /// <summary>Creates a new, active variant under the given product.</summary>
-    public static ProductVariant Create(ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId)
+    public static ProductVariant Create(ProductId productId, VariantName name, Sku sku, UnitOfMeasureId unitOfMeasureId, bool isAvailable = true)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(sku);
 
         var now = DateTimeOffset.UtcNow;
-        var variant = new ProductVariant(ProductVariantId.New(), productId, name, sku, unitOfMeasureId, CatalogStatus.Active, 0, now);
+        var variant = new ProductVariant(ProductVariantId.New(), productId, name, sku, unitOfMeasureId, CatalogStatus.Active, 0, now, isAvailable);
         variant.AddDomainEvent(new ProductVariantCreated(variant.Id, variant.ProductId, variant.Name, variant.Sku, now));
         return variant;
     }
+
+    /// <summary>Marks this variant as available for sale.</summary>
+    public void MarkAvailable() => IsAvailable = true;
+
+    /// <summary>Marks this variant as sold out.</summary>
+    public void MarkSoldOut() => IsAvailable = false;
+
+    /// <summary>Sets availability state.</summary>
+    public void SetAvailability(bool isAvailable) => IsAvailable = isAvailable;
 
     /// <summary>Renames the variant. A no-op (no event raised) if unchanged.</summary>
     public void Rename(VariantName name)

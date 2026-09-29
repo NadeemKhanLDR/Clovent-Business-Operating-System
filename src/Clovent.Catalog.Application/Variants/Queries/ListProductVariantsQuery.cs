@@ -19,13 +19,15 @@ public sealed class ListProductVariantsQueryHandler(IProductVariantRepository re
         var products = await productRepository.GetAllAsync(cancellationToken);
         var categoryIdsByProductId = products.ToDictionary(p => p.Id, p => p.CategoryId?.Value);
         var productStatusesById = products.ToDictionary(p => p.Id, p => p.Status.ToString());
+        var itemTypesById = products.ToDictionary(p => p.Id, p => p.ItemType.ToString());
 
         return
         [
             .. variants.Select(variant => ProductVariantDto.FromDomain(
                 variant,
                 categoryIdsByProductId.GetValueOrDefault(variant.ProductId),
-                productStatusesById.GetValueOrDefault(variant.ProductId))),
+                productStatusesById.GetValueOrDefault(variant.ProductId),
+                itemTypesById.GetValueOrDefault(variant.ProductId, "Prepared"))),
         ];
     }
 }

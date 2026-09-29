@@ -114,15 +114,18 @@ public sealed class UpsellPerformanceView : XtraUserControl
             Margin = new Padding(0)
         };
 
-        var titleBox = new FlowLayoutPanel
+        var titleBox = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
+            ColumnCount = 1,
+            RowCount = 2,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Margin = new Padding(0)
         };
+        titleBox.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        titleBox.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        titleBox.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var titleLabel = new LabelControl
         {
@@ -140,8 +143,8 @@ public sealed class UpsellPerformanceView : XtraUserControl
             Margin = new Padding(0)
         };
 
-        titleBox.Controls.Add(titleLabel);
-        titleBox.Controls.Add(subTitleLabel);
+        titleBox.Controls.Add(titleLabel, 0, 0);
+        titleBox.Controls.Add(subTitleLabel, 0, 1);
         _headerPanel.Controls.Add(titleBox);
 
         // ---- 2. Standard Report Period Toolbar ----
@@ -193,13 +196,15 @@ public sealed class UpsellPerformanceView : XtraUserControl
         fromLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         fromLabel.Appearance.Options.UseTextOptions = true;
 
+        var dateFormat = BusinessDateTimeService.ExtractDateFormatPattern(DateTimeDisplay.FormatString);
+
         _fromEdit = new DateEdit
         {
             Margin = new Padding(0, 4, 14, 4),
             Properties =
             {
-                EditMask = "yyyy-MM-dd",
-                DisplayFormat = { FormatString = "yyyy-MM-dd", FormatType = DevExpress.Utils.FormatType.Custom }
+                EditMask = dateFormat,
+                DisplayFormat = { FormatString = dateFormat, FormatType = DevExpress.Utils.FormatType.Custom }
             }
         };
         _fromEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
@@ -218,11 +223,11 @@ public sealed class UpsellPerformanceView : XtraUserControl
 
         _toEdit = new DateEdit
         {
-            Margin = new Padding(0, 4, 16, 4),
+            Margin = new Padding(0, 4, 14, 4),
             Properties =
             {
-                EditMask = "yyyy-MM-dd",
-                DisplayFormat = { FormatString = "yyyy-MM-dd", FormatType = DevExpress.Utils.FormatType.Custom }
+                EditMask = dateFormat,
+                DisplayFormat = { FormatString = dateFormat, FormatType = DevExpress.Utils.FormatType.Custom }
             }
         };
         _toEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
@@ -411,11 +416,18 @@ public sealed class UpsellPerformanceView : XtraUserControl
 
             var from = range.From;
             var to = range.To;
-            _lblSummary.Text = $"{from:yyyy-MM-dd} – {to:yyyy-MM-dd}   |   " +
-                $"Offers: {rows.Sum(r => r.Offers)}   |   " +
-                $"Accepted: {rows.Sum(r => r.Accepted)}   |   " +
-                $"Conversion: {(rows.Sum(r => r.Offers) == 0 ? 0m : Math.Round(100m * rows.Sum(r => r.Accepted) / rows.Sum(r => r.Offers), 1))}%   |   " +
-                $"Upsell Revenue: {CurrencyDisplay.FormatPlain(rows.Sum(r => r.UpsellRevenue))}";
+            var totalOffers = rows.Sum(r => r.Offers);
+            var totalAccepted = rows.Sum(r => r.Accepted);
+            var totalDismissed = rows.Sum(r => r.Dismissed);
+            var overallConversion = totalOffers == 0 ? 0m : Math.Round(100m * totalAccepted / totalOffers, 1);
+            var totalRevenue = rows.Sum(r => r.UpsellRevenue);
+
+            _lblSummary.Text = $"{DateTimeDisplay.FormatDate(from)} – {DateTimeDisplay.FormatDate(to)}   |   " +
+                $"Offers: {totalOffers}   |   " +
+                $"Accepted: {totalAccepted}   |   " +
+                $"Dismissed: {totalDismissed}   |   " +
+                $"Conversion: {overallConversion:0.0}%   |   " +
+                $"Upsell Revenue: {CurrencyDisplay.Format(totalRevenue)}";
         }
         finally
         {
@@ -434,6 +446,7 @@ public sealed class UpsellPerformanceView : XtraUserControl
         {
             var column = _gridView.Columns.AddVisible(fieldName, caption);
             column.Width = DesktopDpi.Scale(width, this);
+            column.MinWidth = DesktopDpi.Scale(Math.Min(width, 70), this);
             column.OptionsColumn.AllowEdit = false;
             column.AppearanceCell.TextOptions.HAlignment = alignment;
             column.AppearanceCell.Options.UseTextOptions = true;
@@ -442,10 +455,10 @@ public sealed class UpsellPerformanceView : XtraUserControl
         }
 
         AddColumn(nameof(PerformanceGridRow.ProductName), "Recommended Item", 220);
-        AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 150);
-        AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 80, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 80, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 80, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 140);
+        AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 85, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 85, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 85, DevExpress.Utils.HorzAlignment.Far);
         AddColumn(nameof(PerformanceGridRow.ConversionText), "Conversion %", 100, DevExpress.Utils.HorzAlignment.Far);
         AddColumn(nameof(PerformanceGridRow.UpsellRevenueText), "Upsell Revenue", 120, DevExpress.Utils.HorzAlignment.Far);
     }

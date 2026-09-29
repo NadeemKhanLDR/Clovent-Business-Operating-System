@@ -20,6 +20,7 @@ partial class RestaurantSetupView
     private readonly ComboBoxEdit _itemsPerRowCombo = new();
     private readonly RadioGroup _activeOrdersRadioGroup = new();
     private readonly ComboBoxEdit _defaultPaymentMethodCombo = new();
+    private readonly RadioGroup _defaultOrderModeRadioGroup = new();
 
     private readonly SimpleButton _saveSettingsButton = new() { Text = "Save Settings" };
     private readonly LabelControl _statusLabel = new();
@@ -45,6 +46,7 @@ partial class RestaurantSetupView
         ((System.ComponentModel.ISupportInitialize)_itemsPerRowCombo.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_activeOrdersRadioGroup.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_defaultPaymentMethodCombo.Properties).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)_defaultOrderModeRadioGroup.Properties).BeginInit();
         SuspendLayout();
 
         Dock = DockStyle.Fill;
@@ -208,13 +210,23 @@ partial class RestaurantSetupView
         _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
 
+        _defaultOrderModeRadioGroup.Name = "_defaultOrderModeRadioGroup";
+        _defaultOrderModeRadioGroup.Width = 320;
+        _defaultOrderModeRadioGroup.Properties.Appearance.Font = new Font("Segoe UI", 9F);
+        _defaultOrderModeRadioGroup.Properties.Appearance.Options.UseFont = true;
+        _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("DineIn", "Dining"));
+        _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("TakeAway", "Take Away"));
+        _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("Delivery", "Delivery"));
+        _defaultOrderModeRadioGroup.Properties.Columns = 3;
+
         _posCard = BuildCard("POS LAYOUT");
         var posForm = BuildFieldTable();
         AddRow(posForm, "Items Per Row:", _itemsPerRowCombo);
         AddRow(posForm, "Active Orders:", _activeOrdersRadioGroup, topPaddingAdjustment: 4);
         AddRow(posForm, "Default Payment Method:", _defaultPaymentMethodCombo);
+        AddRow(posForm, "Default Order Mode:", _defaultOrderModeRadioGroup, topPaddingAdjustment: 4);
 
-        var posNote = BuildNote("Controls menu density, Active Orders visibility, and the default tender method.");
+        var posNote = BuildNote("Controls menu density, Active Orders visibility, default tender method, and initial POS order mode.");
         AddNoteRow(posForm, posNote);
 
         _posCard.Controls.Add(posForm);
@@ -286,6 +298,7 @@ partial class RestaurantSetupView
         ((System.ComponentModel.ISupportInitialize)_itemsPerRowCombo.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_activeOrdersRadioGroup.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_defaultPaymentMethodCombo.Properties).EndInit();
+        ((System.ComponentModel.ISupportInitialize)_defaultOrderModeRadioGroup.Properties).EndInit();
         ResumeLayout(false);
     }
 

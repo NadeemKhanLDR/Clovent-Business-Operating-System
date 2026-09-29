@@ -87,6 +87,27 @@ partial class DashboardView
         pnlKitchenQueue = new DevExpress.XtraEditors.PanelControl();
         lblKitchenQueueValue = new DevExpress.XtraEditors.LabelControl();
         lblKitchenQueueCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlDeliveryOrders = new DevExpress.XtraEditors.PanelControl();
+        lblDeliveryOrdersValue = new DevExpress.XtraEditors.LabelControl();
+        lblDeliveryOrdersCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlTotalReceivables = new DevExpress.XtraEditors.PanelControl();
+        lblTotalReceivablesValue = new DevExpress.XtraEditors.LabelControl();
+        lblTotalReceivablesCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlCustomersWithBalance = new DevExpress.XtraEditors.PanelControl();
+        lblCustomersWithBalanceValue = new DevExpress.XtraEditors.LabelControl();
+        lblCustomersWithBalanceCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlCustomerAdvances = new DevExpress.XtraEditors.PanelControl();
+        lblCustomerAdvancesValue = new DevExpress.XtraEditors.LabelControl();
+        lblCustomerAdvancesCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlTodaysOnAccount = new DevExpress.XtraEditors.PanelControl();
+        lblTodaysOnAccountValue = new DevExpress.XtraEditors.LabelControl();
+        lblTodaysOnAccountCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlTodaysCollections = new DevExpress.XtraEditors.PanelControl();
+        lblTodaysCollectionsValue = new DevExpress.XtraEditors.LabelControl();
+        lblTodaysCollectionsCaption = new DevExpress.XtraEditors.LabelControl();
+        pnlNetReceivables = new DevExpress.XtraEditors.PanelControl();
+        lblNetReceivablesValue = new DevExpress.XtraEditors.LabelControl();
+        lblNetReceivablesCaption = new DevExpress.XtraEditors.LabelControl();
         tlpLists = new TableLayoutPanel();
         pnlRecentActivity = new DevExpress.XtraEditors.PanelControl();
         lstRecentActivity = new DevExpress.XtraEditors.ListBoxControl();
@@ -139,6 +160,20 @@ partial class DashboardView
         pnlRunningOrders.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)pnlKitchenQueue).BeginInit();
         pnlKitchenQueue.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlDeliveryOrders).BeginInit();
+        pnlDeliveryOrders.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTotalReceivables).BeginInit();
+        pnlTotalReceivables.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlCustomersWithBalance).BeginInit();
+        pnlCustomersWithBalance.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlCustomerAdvances).BeginInit();
+        pnlCustomerAdvances.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTodaysOnAccount).BeginInit();
+        pnlTodaysOnAccount.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTodaysCollections).BeginInit();
+        pnlTodaysCollections.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlNetReceivables).BeginInit();
+        pnlNetReceivables.SuspendLayout();
         tlpLists.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)pnlRecentActivity).BeginInit();
         pnlRecentActivity.SuspendLayout();
@@ -389,30 +424,39 @@ partial class DashboardView
         // 
         // tlpKpi
         // 
-        tlpKpi.ColumnCount = 4;
-        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
-        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+        tlpKpi.ColumnCount = 6;
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
+        tlpKpi.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 16.66667F));
         tlpKpi.Controls.Add(pnlActiveSessions, 0, 0);
         tlpKpi.Controls.Add(pnlRecentLogins, 1, 0);
         tlpKpi.Controls.Add(pnlNotificationsCount, 2, 0);
         tlpKpi.Controls.Add(pnlTotalProducts, 3, 0);
-        tlpKpi.Controls.Add(pnlLowStock, 0, 1);
-        tlpKpi.Controls.Add(pnlOutOfStock, 1, 1);
-        tlpKpi.Controls.Add(pnlInventoryValue, 2, 1);
-        tlpKpi.Controls.Add(pnlTodaysSales, 3, 1);
-        tlpKpi.Controls.Add(pnlOpenTables, 0, 2);
-        tlpKpi.Controls.Add(pnlRunningOrders, 1, 2);
-        tlpKpi.Controls.Add(pnlKitchenQueue, 2, 2);
+        tlpKpi.Controls.Add(pnlLowStock, 4, 0);
+        tlpKpi.Controls.Add(pnlOutOfStock, 5, 0);
+        tlpKpi.Controls.Add(pnlInventoryValue, 0, 1);
+        tlpKpi.Controls.Add(pnlTodaysSales, 1, 1);
+        tlpKpi.Controls.Add(pnlOpenTables, 2, 1);
+        tlpKpi.Controls.Add(pnlRunningOrders, 3, 1);
+        tlpKpi.Controls.Add(pnlKitchenQueue, 4, 1);
+        tlpKpi.Controls.Add(pnlDeliveryOrders, 5, 1);
+        tlpKpi.Controls.Add(pnlTotalReceivables, 0, 2);
+        tlpKpi.Controls.Add(pnlCustomersWithBalance, 1, 2);
+        tlpKpi.Controls.Add(pnlCustomerAdvances, 2, 2);
+        tlpKpi.Controls.Add(pnlTodaysOnAccount, 3, 2);
+        tlpKpi.Controls.Add(pnlTodaysCollections, 4, 2);
+        tlpKpi.Controls.Add(pnlNetReceivables, 5, 2);
         tlpKpi.Dock = DockStyle.Fill;
         tlpKpi.Location = new Point(8, 220);
         tlpKpi.Margin = new Padding(0, 0, 0, 8);
         tlpKpi.Name = "tlpKpi";
         tlpKpi.RowCount = 3;
-        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
-        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
-        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33F));
+        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
+        tlpKpi.RowStyles.Add(new RowStyle(SizeType.Percent, 33.33333F));
         tlpKpi.Size = new Size(2030, 435);
         tlpKpi.TabIndex = 2;
         // 
@@ -812,6 +856,258 @@ partial class DashboardView
         lblKitchenQueueCaption.TabIndex = 0;
         lblKitchenQueueCaption.Text = "Kitchen Queue";
         // 
+        // pnlDeliveryOrders
+        // 
+        pnlDeliveryOrders.Controls.Add(lblDeliveryOrdersValue);
+        pnlDeliveryOrders.Controls.Add(lblDeliveryOrdersCaption);
+        pnlDeliveryOrders.Dock = DockStyle.Fill;
+        pnlDeliveryOrders.Location = new Point(0, 0);
+        pnlDeliveryOrders.Margin = new Padding(6);
+        pnlDeliveryOrders.Name = "pnlDeliveryOrders";
+        pnlDeliveryOrders.Size = new Size(320, 133);
+        pnlDeliveryOrders.TabIndex = 11;
+        // 
+        // lblDeliveryOrdersValue
+        // 
+        lblDeliveryOrdersValue.Appearance.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
+        lblDeliveryOrdersValue.Appearance.Options.UseFont = true;
+        lblDeliveryOrdersValue.Appearance.Options.UseTextOptions = true;
+        lblDeliveryOrdersValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblDeliveryOrdersValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblDeliveryOrdersValue.Dock = DockStyle.Fill;
+        lblDeliveryOrdersValue.Location = new Point(3, 36);
+        lblDeliveryOrdersValue.Name = "lblDeliveryOrdersValue";
+        lblDeliveryOrdersValue.Size = new Size(39, 89);
+        lblDeliveryOrdersValue.TabIndex = 1;
+        lblDeliveryOrdersValue.Text = "0";
+        // 
+        // lblDeliveryOrdersCaption
+        // 
+        lblDeliveryOrdersCaption.Appearance.Options.UseTextOptions = true;
+        lblDeliveryOrdersCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblDeliveryOrdersCaption.Dock = DockStyle.Top;
+        lblDeliveryOrdersCaption.Location = new Point(3, 3);
+        lblDeliveryOrdersCaption.Name = "lblDeliveryOrdersCaption";
+        lblDeliveryOrdersCaption.Size = new Size(180, 33);
+        lblDeliveryOrdersCaption.TabIndex = 0;
+        lblDeliveryOrdersCaption.Text = "Delivery Orders Today";
+        // 
+        // pnlTotalReceivables
+        // 
+        pnlTotalReceivables.Controls.Add(lblTotalReceivablesValue);
+        pnlTotalReceivables.Controls.Add(lblTotalReceivablesCaption);
+        pnlTotalReceivables.Dock = DockStyle.Fill;
+        pnlTotalReceivables.Location = new Point(0, 0);
+        pnlTotalReceivables.Margin = new Padding(6);
+        pnlTotalReceivables.Name = "pnlTotalReceivables";
+        pnlTotalReceivables.Size = new Size(320, 133);
+        pnlTotalReceivables.TabIndex = 12;
+        // 
+        // lblTotalReceivablesValue
+        // 
+        lblTotalReceivablesValue.Appearance.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+        lblTotalReceivablesValue.Appearance.Options.UseFont = true;
+        lblTotalReceivablesValue.Appearance.Options.UseTextOptions = true;
+        lblTotalReceivablesValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTotalReceivablesValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblTotalReceivablesValue.Dock = DockStyle.Fill;
+        lblTotalReceivablesValue.Location = new Point(3, 36);
+        lblTotalReceivablesValue.Name = "lblTotalReceivablesValue";
+        lblTotalReceivablesValue.Size = new Size(39, 89);
+        lblTotalReceivablesValue.TabIndex = 1;
+        lblTotalReceivablesValue.Text = "0.00";
+        // 
+        // lblTotalReceivablesCaption
+        // 
+        lblTotalReceivablesCaption.Appearance.Options.UseTextOptions = true;
+        lblTotalReceivablesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTotalReceivablesCaption.Dock = DockStyle.Top;
+        lblTotalReceivablesCaption.Location = new Point(3, 3);
+        lblTotalReceivablesCaption.Name = "lblTotalReceivablesCaption";
+        lblTotalReceivablesCaption.Size = new Size(180, 33);
+        lblTotalReceivablesCaption.TabIndex = 0;
+        lblTotalReceivablesCaption.Text = "Total Receivables";
+        // 
+        // pnlCustomersWithBalance
+        // 
+        pnlCustomersWithBalance.Controls.Add(lblCustomersWithBalanceValue);
+        pnlCustomersWithBalance.Controls.Add(lblCustomersWithBalanceCaption);
+        pnlCustomersWithBalance.Dock = DockStyle.Fill;
+        pnlCustomersWithBalance.Location = new Point(0, 0);
+        pnlCustomersWithBalance.Margin = new Padding(6);
+        pnlCustomersWithBalance.Name = "pnlCustomersWithBalance";
+        pnlCustomersWithBalance.Size = new Size(320, 133);
+        pnlCustomersWithBalance.TabIndex = 13;
+        // 
+        // lblCustomersWithBalanceValue
+        // 
+        lblCustomersWithBalanceValue.Appearance.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
+        lblCustomersWithBalanceValue.Appearance.Options.UseFont = true;
+        lblCustomersWithBalanceValue.Appearance.Options.UseTextOptions = true;
+        lblCustomersWithBalanceValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblCustomersWithBalanceValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblCustomersWithBalanceValue.Dock = DockStyle.Fill;
+        lblCustomersWithBalanceValue.Location = new Point(3, 36);
+        lblCustomersWithBalanceValue.Name = "lblCustomersWithBalanceValue";
+        lblCustomersWithBalanceValue.Size = new Size(39, 89);
+        lblCustomersWithBalanceValue.TabIndex = 1;
+        lblCustomersWithBalanceValue.Text = "0";
+        // 
+        // lblCustomersWithBalanceCaption
+        // 
+        lblCustomersWithBalanceCaption.Appearance.Options.UseTextOptions = true;
+        lblCustomersWithBalanceCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblCustomersWithBalanceCaption.Dock = DockStyle.Top;
+        lblCustomersWithBalanceCaption.Location = new Point(3, 3);
+        lblCustomersWithBalanceCaption.Name = "lblCustomersWithBalanceCaption";
+        lblCustomersWithBalanceCaption.Size = new Size(180, 33);
+        lblCustomersWithBalanceCaption.TabIndex = 0;
+        lblCustomersWithBalanceCaption.Text = "Customers With Balance";
+        // 
+        // pnlCustomerAdvances
+        // 
+        pnlCustomerAdvances.Controls.Add(lblCustomerAdvancesValue);
+        pnlCustomerAdvances.Controls.Add(lblCustomerAdvancesCaption);
+        pnlCustomerAdvances.Dock = DockStyle.Fill;
+        pnlCustomerAdvances.Location = new Point(0, 0);
+        pnlCustomerAdvances.Margin = new Padding(6);
+        pnlCustomerAdvances.Name = "pnlCustomerAdvances";
+        pnlCustomerAdvances.Size = new Size(320, 133);
+        pnlCustomerAdvances.TabIndex = 14;
+        // 
+        // lblCustomerAdvancesValue
+        // 
+        lblCustomerAdvancesValue.Appearance.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+        lblCustomerAdvancesValue.Appearance.Options.UseFont = true;
+        lblCustomerAdvancesValue.Appearance.Options.UseTextOptions = true;
+        lblCustomerAdvancesValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblCustomerAdvancesValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblCustomerAdvancesValue.Dock = DockStyle.Fill;
+        lblCustomerAdvancesValue.Location = new Point(3, 36);
+        lblCustomerAdvancesValue.Name = "lblCustomerAdvancesValue";
+        lblCustomerAdvancesValue.Size = new Size(39, 89);
+        lblCustomerAdvancesValue.TabIndex = 1;
+        lblCustomerAdvancesValue.Text = "0.00";
+        // 
+        // lblCustomerAdvancesCaption
+        // 
+        lblCustomerAdvancesCaption.Appearance.Options.UseTextOptions = true;
+        lblCustomerAdvancesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblCustomerAdvancesCaption.Dock = DockStyle.Top;
+        lblCustomerAdvancesCaption.Location = new Point(3, 3);
+        lblCustomerAdvancesCaption.Name = "lblCustomerAdvancesCaption";
+        lblCustomerAdvancesCaption.Size = new Size(180, 33);
+        lblCustomerAdvancesCaption.TabIndex = 0;
+        lblCustomerAdvancesCaption.Text = "Customer Advances";
+        // 
+        // pnlTodaysOnAccount
+        // 
+        pnlTodaysOnAccount.Controls.Add(lblTodaysOnAccountValue);
+        pnlTodaysOnAccount.Controls.Add(lblTodaysOnAccountCaption);
+        pnlTodaysOnAccount.Dock = DockStyle.Fill;
+        pnlTodaysOnAccount.Location = new Point(0, 0);
+        pnlTodaysOnAccount.Margin = new Padding(6);
+        pnlTodaysOnAccount.Name = "pnlTodaysOnAccount";
+        pnlTodaysOnAccount.Size = new Size(320, 133);
+        pnlTodaysOnAccount.TabIndex = 15;
+        // 
+        // lblTodaysOnAccountValue
+        // 
+        lblTodaysOnAccountValue.Appearance.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+        lblTodaysOnAccountValue.Appearance.Options.UseFont = true;
+        lblTodaysOnAccountValue.Appearance.Options.UseTextOptions = true;
+        lblTodaysOnAccountValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTodaysOnAccountValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblTodaysOnAccountValue.Dock = DockStyle.Fill;
+        lblTodaysOnAccountValue.Location = new Point(3, 36);
+        lblTodaysOnAccountValue.Name = "lblTodaysOnAccountValue";
+        lblTodaysOnAccountValue.Size = new Size(39, 89);
+        lblTodaysOnAccountValue.TabIndex = 1;
+        lblTodaysOnAccountValue.Text = "0.00";
+        // 
+        // lblTodaysOnAccountCaption
+        // 
+        lblTodaysOnAccountCaption.Appearance.Options.UseTextOptions = true;
+        lblTodaysOnAccountCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTodaysOnAccountCaption.Dock = DockStyle.Top;
+        lblTodaysOnAccountCaption.Location = new Point(3, 3);
+        lblTodaysOnAccountCaption.Name = "lblTodaysOnAccountCaption";
+        lblTodaysOnAccountCaption.Size = new Size(180, 33);
+        lblTodaysOnAccountCaption.TabIndex = 0;
+        lblTodaysOnAccountCaption.Text = "Today's On Account";
+        // 
+        // pnlTodaysCollections
+        // 
+        pnlTodaysCollections.Controls.Add(lblTodaysCollectionsValue);
+        pnlTodaysCollections.Controls.Add(lblTodaysCollectionsCaption);
+        pnlTodaysCollections.Dock = DockStyle.Fill;
+        pnlTodaysCollections.Location = new Point(0, 0);
+        pnlTodaysCollections.Margin = new Padding(6);
+        pnlTodaysCollections.Name = "pnlTodaysCollections";
+        pnlTodaysCollections.Size = new Size(320, 133);
+        pnlTodaysCollections.TabIndex = 16;
+        // 
+        // lblTodaysCollectionsValue
+        // 
+        lblTodaysCollectionsValue.Appearance.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+        lblTodaysCollectionsValue.Appearance.Options.UseFont = true;
+        lblTodaysCollectionsValue.Appearance.Options.UseTextOptions = true;
+        lblTodaysCollectionsValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTodaysCollectionsValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblTodaysCollectionsValue.Dock = DockStyle.Fill;
+        lblTodaysCollectionsValue.Location = new Point(3, 36);
+        lblTodaysCollectionsValue.Name = "lblTodaysCollectionsValue";
+        lblTodaysCollectionsValue.Size = new Size(39, 89);
+        lblTodaysCollectionsValue.TabIndex = 1;
+        lblTodaysCollectionsValue.Text = "0.00";
+        // 
+        // lblTodaysCollectionsCaption
+        // 
+        lblTodaysCollectionsCaption.Appearance.Options.UseTextOptions = true;
+        lblTodaysCollectionsCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblTodaysCollectionsCaption.Dock = DockStyle.Top;
+        lblTodaysCollectionsCaption.Location = new Point(3, 3);
+        lblTodaysCollectionsCaption.Name = "lblTodaysCollectionsCaption";
+        lblTodaysCollectionsCaption.Size = new Size(180, 33);
+        lblTodaysCollectionsCaption.TabIndex = 0;
+        lblTodaysCollectionsCaption.Text = "Today's Collections";
+        // 
+        // pnlNetReceivables
+        // 
+        pnlNetReceivables.Controls.Add(lblNetReceivablesValue);
+        pnlNetReceivables.Controls.Add(lblNetReceivablesCaption);
+        pnlNetReceivables.Dock = DockStyle.Fill;
+        pnlNetReceivables.Location = new Point(0, 0);
+        pnlNetReceivables.Margin = new Padding(6);
+        pnlNetReceivables.Name = "pnlNetReceivables";
+        pnlNetReceivables.Size = new Size(320, 133);
+        pnlNetReceivables.TabIndex = 17;
+        // 
+        // lblNetReceivablesValue
+        // 
+        lblNetReceivablesValue.Appearance.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
+        lblNetReceivablesValue.Appearance.Options.UseFont = true;
+        lblNetReceivablesValue.Appearance.Options.UseTextOptions = true;
+        lblNetReceivablesValue.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblNetReceivablesValue.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblNetReceivablesValue.Dock = DockStyle.Fill;
+        lblNetReceivablesValue.Location = new Point(3, 36);
+        lblNetReceivablesValue.Name = "lblNetReceivablesValue";
+        lblNetReceivablesValue.Size = new Size(39, 89);
+        lblNetReceivablesValue.TabIndex = 1;
+        lblNetReceivablesValue.Text = "0.00";
+        // 
+        // lblNetReceivablesCaption
+        // 
+        lblNetReceivablesCaption.Appearance.Options.UseTextOptions = true;
+        lblNetReceivablesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+        lblNetReceivablesCaption.Dock = DockStyle.Top;
+        lblNetReceivablesCaption.Location = new Point(3, 3);
+        lblNetReceivablesCaption.Name = "lblNetReceivablesCaption";
+        lblNetReceivablesCaption.Size = new Size(180, 33);
+        lblNetReceivablesCaption.TabIndex = 0;
+        lblNetReceivablesCaption.Text = "Net A/R Balance";
+        // 
         // tlpLists
         // 
         tlpLists.ColumnCount = 4;
@@ -1100,6 +1396,27 @@ partial class DashboardView
         ((System.ComponentModel.ISupportInitialize)pnlKitchenQueue).EndInit();
         pnlKitchenQueue.ResumeLayout(false);
         pnlKitchenQueue.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlDeliveryOrders).EndInit();
+        pnlDeliveryOrders.ResumeLayout(false);
+        pnlDeliveryOrders.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTotalReceivables).EndInit();
+        pnlTotalReceivables.ResumeLayout(false);
+        pnlTotalReceivables.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlCustomersWithBalance).EndInit();
+        pnlCustomersWithBalance.ResumeLayout(false);
+        pnlCustomersWithBalance.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlCustomerAdvances).EndInit();
+        pnlCustomerAdvances.ResumeLayout(false);
+        pnlCustomerAdvances.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTodaysOnAccount).EndInit();
+        pnlTodaysOnAccount.ResumeLayout(false);
+        pnlTodaysOnAccount.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlTodaysCollections).EndInit();
+        pnlTodaysCollections.ResumeLayout(false);
+        pnlTodaysCollections.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)pnlNetReceivables).EndInit();
+        pnlNetReceivables.ResumeLayout(false);
+        pnlNetReceivables.PerformLayout();
         tlpLists.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)pnlRecentActivity).EndInit();
         pnlRecentActivity.ResumeLayout(false);
@@ -1176,6 +1493,27 @@ partial class DashboardView
     private DevExpress.XtraEditors.PanelControl pnlKitchenQueue;
     private DevExpress.XtraEditors.LabelControl lblKitchenQueueCaption;
     private DevExpress.XtraEditors.LabelControl lblKitchenQueueValue;
+    private DevExpress.XtraEditors.PanelControl pnlDeliveryOrders;
+    private DevExpress.XtraEditors.LabelControl lblDeliveryOrdersCaption;
+    private DevExpress.XtraEditors.LabelControl lblDeliveryOrdersValue;
+    private DevExpress.XtraEditors.PanelControl pnlTotalReceivables;
+    private DevExpress.XtraEditors.LabelControl lblTotalReceivablesCaption;
+    private DevExpress.XtraEditors.LabelControl lblTotalReceivablesValue;
+    private DevExpress.XtraEditors.PanelControl pnlCustomersWithBalance;
+    private DevExpress.XtraEditors.LabelControl lblCustomersWithBalanceCaption;
+    private DevExpress.XtraEditors.LabelControl lblCustomersWithBalanceValue;
+    private DevExpress.XtraEditors.PanelControl pnlCustomerAdvances;
+    private DevExpress.XtraEditors.LabelControl lblCustomerAdvancesCaption;
+    private DevExpress.XtraEditors.LabelControl lblCustomerAdvancesValue;
+    private DevExpress.XtraEditors.PanelControl pnlTodaysOnAccount;
+    private DevExpress.XtraEditors.LabelControl lblTodaysOnAccountCaption;
+    private DevExpress.XtraEditors.LabelControl lblTodaysOnAccountValue;
+    private DevExpress.XtraEditors.PanelControl pnlTodaysCollections;
+    private DevExpress.XtraEditors.LabelControl lblTodaysCollectionsCaption;
+    private DevExpress.XtraEditors.LabelControl lblTodaysCollectionsValue;
+    private DevExpress.XtraEditors.PanelControl pnlNetReceivables;
+    private DevExpress.XtraEditors.LabelControl lblNetReceivablesCaption;
+    private DevExpress.XtraEditors.LabelControl lblNetReceivablesValue;
     private TableLayoutPanel tlpLists;
     private DevExpress.XtraEditors.PanelControl pnlRecentActivity;
     private DevExpress.XtraEditors.LabelControl lblRecentActivityCaption;

@@ -18,7 +18,8 @@ public sealed class VoidOrderCommandHandler(
     IPaymentRepository paymentRepository,
     ICustomerRepository customerRepository,
     ICustomerLedgerEntryRepository ledgerRepository,
-    IPaymentMethodRepository paymentMethodRepository)
+    IPaymentMethodRepository paymentMethodRepository,
+    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null)
     : IRequestHandler<VoidOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -35,7 +36,9 @@ public sealed class VoidOrderCommandHandler(
             var paymentMethod = await paymentMethodRepository.GetByIdAsync(payment.PaymentMethodId, cancellationToken);
             if (paymentMethod is not null)
             {
-                var isCredit = string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase) ||
+                var isCredit = string.Equals(paymentMethod.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(paymentMethod.Name.Value, "Customer Account", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase) ||
                                string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase);
 
                 if (isCredit && order.CustomerId is { } customerId)
@@ -58,6 +61,15 @@ public sealed class VoidOrderCommandHandler(
                 }
             }
             payment.Void();
+        }
+
+        if (allocationRepository is not null)
+        {
+            var allocations = await allocationRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+            foreach (var alloc in allocations)
+            {
+                await allocationRepository.RemoveAsync(alloc, cancellationToken);
+            }
         }
 
         if (order.TableId is { } tableId)

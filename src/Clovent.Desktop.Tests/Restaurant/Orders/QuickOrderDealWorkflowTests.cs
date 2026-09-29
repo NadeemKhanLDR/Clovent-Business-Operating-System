@@ -63,6 +63,9 @@ public sealed class QuickOrderDealWorkflowTests
 
         public Task<IReadOnlyCollection<Order>> GetAllAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<Order>>([.. Orders.Values]);
+
+        public Task<IReadOnlyCollection<Order>> GetByCustomerIdAsync(Clovent.Restaurant.Customers.CustomerId customerId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<Order>>([.. Orders.Values.Where(o => o.CustomerId == customerId)]);
     }
 
     private sealed class InMemoryTableRepo : ITableRepository

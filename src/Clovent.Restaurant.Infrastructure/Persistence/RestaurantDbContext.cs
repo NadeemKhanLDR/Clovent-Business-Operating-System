@@ -67,6 +67,9 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     /// <summary>CustomerLedgerEntry aggregates.</summary>
     public DbSet<CustomerLedgerEntry> CustomerLedgerEntries => Set<CustomerLedgerEntry>();
 
+    /// <summary>CustomerPaymentAllocation aggregates.</summary>
+    public DbSet<CustomerPaymentAllocation> CustomerPaymentAllocations => Set<CustomerPaymentAllocation>();
+
     /// <summary>Shift aggregates.</summary>
     public DbSet<Shift> Shifts => Set<Shift>();
 

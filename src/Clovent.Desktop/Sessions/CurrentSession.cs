@@ -16,19 +16,27 @@ public sealed class CurrentSession : ICurrentSession
     public string? DisplayName { get; private set; }
 
     /// <inheritdoc/>
+    public string? UserName { get; private set; }
+
+    /// <inheritdoc/>
     public event EventHandler? Changed;
 
     /// <inheritdoc/>
-    public void SignIn(Guid userId, Guid sessionId, string displayName)
+    public void SignIn(Guid userId, Guid sessionId, string displayName, string? userName = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
 
         UserId = userId;
         SessionId = sessionId;
         DisplayName = displayName;
+        UserName = userName;
         IsAuthenticated = true;
         Changed?.Invoke(this, EventArgs.Empty);
     }
+
+    /// <inheritdoc/>
+    public void SignIn(Guid userId, Guid sessionId, string displayName)
+        => SignIn(userId, sessionId, displayName, null);
 
     /// <inheritdoc/>
     public void SignOut()
@@ -36,6 +44,7 @@ public sealed class CurrentSession : ICurrentSession
         UserId = null;
         SessionId = null;
         DisplayName = null;
+        UserName = null;
         IsAuthenticated = false;
         Changed?.Invoke(this, EventArgs.Empty);
     }

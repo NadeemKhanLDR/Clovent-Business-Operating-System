@@ -146,6 +146,10 @@ public sealed partial class RestaurantSetupView : XtraUserControl
         _activeOrdersRadioGroup.Height = editorH;
         _activeOrdersRadioGroup.MaximumSize = new Size(0, editorH);
         _activeOrdersRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(2, this), 0, DesktopDpi.Scale(2, this));
+        _defaultOrderModeRadioGroup.Width = DesktopDpi.Scale(320, this);
+        _defaultOrderModeRadioGroup.Height = editorH;
+        _defaultOrderModeRadioGroup.MaximumSize = new Size(0, editorH);
+        _defaultOrderModeRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(2, this), 0, DesktopDpi.Scale(2, this));
         _defaultPaymentMethodCombo.Width = DesktopDpi.Scale(240, this);
 
         _saveSettingsButton.Size = new Size(DesktopDpi.Scale(150, this), DesktopDpi.Scale(38, this));
@@ -238,6 +242,8 @@ public sealed partial class RestaurantSetupView : XtraUserControl
         {
             _defaultPaymentMethodCombo.SelectedIndex = 0;
         }
+
+        _defaultOrderModeRadioGroup.EditValue = PosSettingsStore.LoadDefaultOrderMode();
 
         _statusLabel.Text = string.Empty;
     }
@@ -332,12 +338,17 @@ public sealed partial class RestaurantSetupView : XtraUserControl
                 : "Cash";
             PosSettingsStore.SaveDefaultPaymentMethod(defaultMethod);
 
+            string defaultOrderMode = _defaultOrderModeRadioGroup.EditValue is string dom && !string.IsNullOrWhiteSpace(dom)
+                ? dom
+                : "DineIn";
+            PosSettingsStore.SaveDefaultOrderMode(defaultOrderMode);
+
             // 4. Activity Log (Audit)
             try
             {
                 await _mediator.Send(new RecordActivityCommand(
                     "Setup Changes",
-                    $"Restaurant Setup saved: Order prefix '{sequence.Prefix}', next number {sequence.NextNumber}, language '{cultureCode}', items per row {itemsPerRow}, active orders {(hideActiveOrders ? "hidden" : "visible")}, default payment '{defaultMethod}'.",
+                    $"Restaurant Setup saved: Order prefix '{sequence.Prefix}', next number {sequence.NextNumber}, language '{cultureCode}', items per row {itemsPerRow}, active orders {(hideActiveOrders ? "hidden" : "visible")}, default payment '{defaultMethod}', default order mode '{defaultOrderMode}'.",
                     _currentSession.DisplayName ?? "Unknown",
                     Environment.MachineName));
             }

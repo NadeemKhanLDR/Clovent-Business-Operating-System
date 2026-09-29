@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Clovent.Catalog.Application.Products.Queries;
 using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Desktop.Forms.Base;
@@ -21,11 +27,10 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Clovent.Desktop.Restaurant.EndOfDay;
 
 /// <summary>
-/// Sales Summary - the Restaurant owner's name for what the domain/Application
-/// layer still calls the Day-End / Z-report (<c>GetEndOfDayReportQuery</c>,
-/// unchanged): Total Bills, Total Sales, Cash, Card, Top Selling Items,
-/// Bills, plus Inventory Movement and Stock Remaining composed from
-/// <c>Clovent.Inventory.Application</c>'s existing queries.
+/// Sales Summary (Day-End / Z-Report): Comprehensive sales overview across 11 tabs:
+/// Summary KPIs, Orders/Bills (master-detail lines + preview), Items (with margins &amp; food cost),
+/// Customers, Payments (tenders &amp; AR), Receivables Movement, Order Types, Item Types/Profitability,
+/// Cash Summary, Inventory Movement, and Stock Remaining.
 /// </summary>
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed partial class EndOfDayReportView : XtraUserControl
@@ -81,7 +86,7 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         _isUpdatingPeriod = true;
         try
         {
-            var range = ReportPeriodCalculator.CalculateRange(period, DateOnly.FromDateTime(DateTime.Today));
+            var range = ReportPeriodCalculator.CalculateRange(period, BusinessDateTimeService.Instance.Today);
             _fromDateEdit.EditValue = range.From.ToDateTime(TimeOnly.MinValue);
             _toDateEdit.EditValue = range.To.ToDateTime(TimeOnly.MinValue);
         }
@@ -144,22 +149,61 @@ public sealed partial class EndOfDayReportView : XtraUserControl
 
     private GridControl? GetCurrentTabGrid() => _tabControl.SelectedTabPageIndex switch
     {
-        1 => _itemsSoldGrid,
-        2 => _cashSummaryGrid,
-        3 => _billsGrid,
-        4 => _inventoryMovementGrid,
-        5 => _stockRemainingGrid,
+        1 => _ordersGrid,
+        2 => _itemsGrid,
+        3 => _customersGrid,
+        4 => _paymentsGrid,
+        5 => _receivablesGrid,
+        6 => _orderTypesGrid,
+        7 => _itemTypesGrid,
+        8 => _cashSummaryGrid,
+        9 => _inventoryMovementGrid,
+        10 => _stockRemainingGrid,
         _ => null
     };
 
+    private static readonly string[] PrintableOrderColumns =
+    [
+        "OrderNumber", "OrderType", "CustomerName", "ItemsCount",
+        "Subtotal", "Discount", "Tax", "Total", "PaidAmount",
+        "OnAccountAmount", "PaymentSummary", "Status", "CreatedAtUtc"
+    ];
+
+    private string GetCurrentTabReportTitle() => _tabControl.SelectedTabPageIndex switch
+    {
+        1 => "ORDERS & BILLS REGISTER",
+        2 => "ITEM SALES PERFORMANCE",
+        3 => "CUSTOMER SALES & RECEIVABLES",
+        4 => "PAYMENT TENDER SUMMARY",
+        5 => "RECEIVABLES MOVEMENT & AGING",
+        6 => "ORDER TYPE PERFORMANCE BREAKDOWN",
+        7 => "ITEM CLASSIFICATION & PROFITABILITY",
+        8 => "CASH SUMMARY",
+        9 => "INVENTORY MOVEMENT",
+        10 => "STOCK REMAINING",
+        _ => "SALES SUMMARY"
+    };
+
+    private string GetDateRangeSubtitle()
+    {
+        var from = _fromDateEdit.EditValue is DateTime f ? f : BusinessDateTimeService.Instance.Today.ToDateTime(TimeOnly.MinValue);
+        var to = _toDateEdit.EditValue is DateTime t ? t : BusinessDateTimeService.Instance.Today.ToDateTime(TimeOnly.MinValue);
+        return $"Period: {from:dd-MMM-yyyy} to {to:dd-MMM-yyyy}";
+    }
+
     private string GetCurrentTabExportName() => _tabControl.SelectedTabPageIndex switch
     {
-        1 => "TopSellingItems",
-        2 => "CashSummary",
-        3 => "Bills",
-        4 => "InventoryMovement",
-        5 => "StockRemaining",
-        _ => "SalesSummary"
+        1 => "OrdersBills",
+        2 => "Items",
+        3 => "Customers",
+        4 => "Payments",
+        5 => "ReceivablesMovement",
+        6 => "OrderTypes",
+        7 => "ItemProfitability",
+        8 => "CashSummary",
+        9 => "InventoryMovement",
+        10 => "StockRemaining",
+        _ => "Report"
     };
 
     private void PreviewButton_Click(object? sender, EventArgs e)
@@ -170,7 +214,20 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             return;
         }
 
-        GetCurrentTabGrid()?.ShowPrintPreview();
+        var grid = GetCurrentTabGrid();
+        if (grid == null) return;
+
+        var title = GetCurrentTabReportTitle();
+        var subtitle = GetDateRangeSubtitle();
+
+        if (grid == _ordersGrid)
+        {
+            GridReportingPrintService.ShowPreview(grid, title, subtitle, this, landscape: true, visiblePrintColumns: PrintableOrderColumns);
+        }
+        else
+        {
+            GridReportingPrintService.ShowPreview(grid, title, subtitle, this, landscape: true);
+        }
     }
 
     private void PrintButton_Click(object? sender, EventArgs e)
@@ -181,63 +238,75 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             return;
         }
 
-        GetCurrentTabGrid()?.ShowRibbonPrintPreview();
+        var grid = GetCurrentTabGrid();
+        if (grid == null) return;
+
+        var title = GetCurrentTabReportTitle();
+        var subtitle = GetDateRangeSubtitle();
+
+        if (grid == _ordersGrid)
+        {
+            GridReportingPrintService.Print(grid, title, subtitle, this, landscape: true, visiblePrintColumns: PrintableOrderColumns);
+        }
+        else
+        {
+            GridReportingPrintService.Print(grid, title, subtitle, this, landscape: true);
+        }
     }
 
     private void ExportPdfButton_Click(object? sender, EventArgs e)
     {
         var grid = GetCurrentTabGrid();
-        if (grid is null) return;
-        var name = GetCurrentTabExportName();
-        ExportGrid(grid, "PDF files (*.pdf)|*.pdf", $"{name}.pdf", (g, path) => g.ExportToPdf(path));
+        if (grid == null) return;
+
+        var title = GetCurrentTabReportTitle();
+        var subtitle = GetDateRangeSubtitle();
+
+        if (grid == _ordersGrid)
+        {
+            GridReportingPrintService.ExportToPdf(grid, title, subtitle, this, landscape: true, visiblePrintColumns: PrintableOrderColumns);
+        }
+        else
+        {
+            GridReportingPrintService.ExportToPdf(grid, title, subtitle, this, landscape: true);
+        }
     }
 
     private void ExportExcelButton_Click(object? sender, EventArgs e)
     {
         var grid = GetCurrentTabGrid();
-        if (grid is null) return;
+        if (grid == null) return;
         var name = GetCurrentTabExportName();
         ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{name}.xlsx", (g, path) => g.ExportToXlsx(path));
     }
 
     private async void EndOfDayReportView_Load(object? sender, EventArgs e)
     {
-        _periodCombo.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(130, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
-        _fromDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(135, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
-        _toDateEdit.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(135, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(32, this));
-        _generateButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(110, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-        _previewButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(80, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-        _printButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(70, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-        _exportPdfButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(95, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-        _exportExcelButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(100, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-        _printSummaryButton.MinimumSize = new Size(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(130, this), Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this));
-
+        ScaleLayoutAtRuntime();
+        DpiChangedAfterParent += (_, _) => ScaleLayoutAtRuntime();
         UpdateActionEnablement();
         AppearanceManager.Apply(this, "Restaurant", nameof(EndOfDayReportView));
         await LoadAndShowTodayAsync();
     }
 
-    /// <summary>
-    /// Loads locations and immediately shows Today's figures - a restaurant
-    /// owner opening this screen for the first time should see today's
-    /// sales right away, not a blank "0.00" dashboard waiting for a click
-    /// they don't know to make.
-    /// </summary>
+    /// <inheritdoc/>
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        ScaleLayoutAtRuntime();
+    }
+
     private async Task LoadAndShowTodayAsync()
     {
         await LoadWarehousesAsync();
 
-        // Only auto-generate once there is actually a location to report
-        // on - silently doing nothing here (rather than GenerateAsync's own
-        // "Select a location first" warning) avoids popping a dialog the
-        // instant this screen opens, before the owner has done anything.
         if (_warehousePicker.SelectedId is not null)
         {
-            await SetDateRangeAndGenerateAsync(DateTime.UtcNow.Date, DateTime.UtcNow.Date);
+            var today = BusinessDateTimeService.Instance.Today.ToDateTime(TimeOnly.MinValue);
+            await SetDateRangeAndGenerateAsync(today, today);
         }
     }
 
-    /// <summary>Sets both date edits and regenerates - backs the Today/Yesterday one-click quick filters.</summary>
     private async Task SetDateRangeAndGenerateAsync(DateTime from, DateTime to)
     {
         _isUpdatingPeriod = true;
@@ -304,7 +373,6 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         }
     }
 
-    /// <summary>The half-dozen sequential reads behind one Generate (report, every variant, every transaction, every stock line) are the slowest single action in this screen - worth a wait cursor, unlike the quick per-tab Preview/Print/Export actions.</summary>
     private async Task GenerateCoreAsync(Guid warehouseId, DateOnly fromDate, DateOnly toDate)
     {
         await CurrencyDisplayLoader.ConfigureAsync(_mediator);
@@ -320,30 +388,141 @@ public sealed partial class EndOfDayReportView : XtraUserControl
                 productNameByProductId.GetValueOrDefault(v.ProductId, string.Empty)
             ));
 
+        ExpandedSalesSummaryDto? expanded = null;
+        try
+        {
+            expanded = await _mediator.Send(new GetExpandedSalesSummaryQuery(warehouseId, fromDate, toDate));
+        }
+        catch { }
+
         var report = await _mediator.Send(new GetEndOfDayReportQuery(warehouseId, fromDate, toDate));
 
-        _totalBillsValueLabel.Text = report.ReceiptCount.ToString();
-        _totalSalesValueLabel.Text = CurrencyDisplay.Format(report.TotalSales);
-        _cashValueLabel.Text = CurrencyDisplay.Format(report.CashCollected);
-        _cardValueLabel.Text = CurrencyDisplay.Format(report.CardCollected);
-        _voidedCountLabel.Text = $"{report.VoidedOrderCount}";
-        _averageSaleLabel.Text = CurrencyDisplay.Format(report.AverageSale);
-        _summaryText = BuildSummaryText(report, fromDate, toDate);
+        _totalBillsValueLabel.Text = (expanded?.Kpis.TotalOrders ?? report.ReceiptCount).ToString();
+        _totalSalesValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.GrossSales ?? report.TotalSales);
+        _cashValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected);
+        _cardValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.CardCollected ?? report.CardCollected);
+        _voidedCountLabel.Text = $"{expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}";
+        _averageSaleLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.AverageOrderValue ?? report.AverageSale);
+        _summaryText = BuildSummaryText(report, expanded, fromDate, toDate);
 
-        // Presentation-only: an empty period shows the professional empty
-        // state in the Summary body instead of a blank white area.
-        _summaryEmptyStateLabel.Visible = report.ReceiptCount == 0;
+        _summaryEmptyStateLabel.Visible = (expanded?.Kpis.TotalOrders ?? report.ReceiptCount) == 0;
 
-        _itemsSoldGrid.DataSource = report.ItemsSold
-            .Select(i => new ItemSoldRow(ResolveSku(i.ProductVariantId), ResolveName(i.ProductVariantId), i.Quantity, i.Total))
-            .ToList();
+        // 1. Orders / Bills
+        if (expanded != null && expanded.Orders.Count > 0)
+        {
+            _ordersGrid.DataSource = expanded.Orders;
+        }
+        else
+        {
+            _ordersGrid.DataSource = report.Bills.Select(b => new ExpandedOrderRowDto(
+                Guid.Empty,
+                b.OrderNumber,
+                null,
+                "DineIn",
+                "WalkIn",
+                "-",
+                "Guest",
+                1,
+                b.Total,
+                0m,
+                0m,
+                0m,
+                b.Total,
+                "Completed",
+                b.CompletedAtUtc,
+                b.PaymentMethodSummary,
+                b.Total,
+                0m,
+                0m,
+                null)).ToList();
+        }
 
-        _cashSummaryGrid.DataSource = report.CashSummary.ToList();
+        // 2. Items
+        if (expanded != null && expanded.Items.Count > 0)
+        {
+            _itemsGrid.DataSource = expanded.Items;
+        }
+        else
+        {
+            _itemsGrid.DataSource = report.ItemsSold.Select(i => new ExpandedItemRowDto(
+                i.ProductVariantId,
+                "-",
+                ResolveName(i.ProductVariantId),
+                "Prepared",
+                i.Quantity,
+                i.Quantity > 0 ? Math.Round(i.Total / i.Quantity, 2) : 0m,
+                0m,
+                i.Total,
+                0m,
+                i.Total,
+                100m,
+                report.TotalSales > 0 ? Math.Round(i.Total / report.TotalSales * 100m, 2) : 0m)).ToList();
+        }
 
-        _billsGrid.DataSource = report.Bills
-            .Select(b => new BillRow(b.OrderNumber, b.CompletedAtUtc, b.Total, b.PaymentMethodSummary))
-            .ToList();
+        // 3. Customers
+        if (expanded != null && expanded.Customers.Count > 0)
+        {
+            _customersGrid.DataSource = expanded.Customers;
+        }
+        else
+        {
+            _customersGrid.DataSource = new List<ExpandedCustomerRowDto>();
+        }
 
+        // 4. Payments
+        if (expanded != null && expanded.Payments.Count > 0)
+        {
+            _paymentsGrid.DataSource = expanded.Payments;
+        }
+        else
+        {
+            _paymentsGrid.DataSource = report.CashSummary.Select(c => new ExpandedPaymentRowDto(
+                c.PaymentMethodName,
+                1,
+                c.Total,
+                report.TotalSales > 0 ? Math.Round(c.Total / report.TotalSales * 100m, 2) : 0m,
+                "Order Settlement")).ToList();
+        }
+
+        // 5. Receivables Movement
+        if (expanded != null && expanded.Receivables.Count > 0)
+        {
+            _receivablesGrid.DataSource = expanded.Receivables;
+        }
+        else
+        {
+            _receivablesGrid.DataSource = new List<ExpandedReceivableActivityRowDto>();
+        }
+
+        // 6. Order Types
+        if (expanded != null && expanded.OrderTypes.Count > 0)
+        {
+            _orderTypesGrid.DataSource = expanded.OrderTypes;
+        }
+        else
+        {
+            _orderTypesGrid.DataSource = new List<ExpandedOrderTypeBreakdownDto>();
+        }
+
+        // 7. Item Types / Profitability
+        if (expanded != null && expanded.ItemTypes.Count > 0)
+        {
+            _itemTypesGrid.DataSource = expanded.ItemTypes;
+        }
+        else
+        {
+            _itemTypesGrid.DataSource = new List<ExpandedItemClassificationBreakdownDto>();
+        }
+
+        // 8. Cash Summary
+        var cashSummary = report.CashSummary.ToList();
+        if (expanded != null && expanded.Kpis.OnAccountCreated > 0 && !cashSummary.Any(c => c.PaymentMethodName.Contains("Account", StringComparison.OrdinalIgnoreCase)))
+        {
+            cashSummary.Add(new EndOfDayPaymentMethodTotalDto("On Account (Credit)", expanded.Kpis.OnAccountCreated));
+        }
+        _cashSummaryGrid.DataSource = cashSummary;
+
+        // 9. Inventory Movement
         var transactions = await _mediator.Send(new ListInventoryTransactionsByWarehouseQuery(warehouseId));
         _inventoryMovementGrid.DataSource = transactions
             .Where(t =>
@@ -355,12 +534,49 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             .Select(t => new MovementRow(ResolveSku(t.ProductVariantId), ResolveName(t.ProductVariantId), t.TransactionType, t.Quantity, t.OccurredAtUtc))
             .ToList();
 
+        // 10. Stock Remaining
         var stocks = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId));
         _stockRemainingGrid.DataSource = stocks
             .Select(s => new StockRow(ResolveSku(s.ProductVariantId), ResolveName(s.ProductVariantId), s.QuantityOnHand, s.QuantityAvailable))
             .ToList();
 
         UpdateActionEnablement();
+    }
+
+    private void OrdersGridView_DoubleClick(object? sender, EventArgs e)
+    {
+        if (_ordersGridView.GetFocusedRow() is ExpandedOrderRowDto row)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Clovent Business Operating System");
+            sb.AppendLine($"Order Details - {row.OrderNumber}");
+            sb.AppendLine(new string('-', 40));
+            sb.AppendLine($"Date:       {DateTimeDisplay.Format(row.CreatedAtUtc)}");
+            sb.AppendLine($"Type:       {row.OrderType} ({row.OrderSource})");
+            sb.AppendLine($"Customer:   {row.CustomerName}");
+            sb.AppendLine($"Status:     {row.Status}");
+            sb.AppendLine(new string('-', 40));
+            if (row.Lines != null && row.Lines.Count > 0)
+            {
+                sb.AppendLine("Line Items:");
+                foreach (var line in row.Lines)
+                {
+                    sb.AppendLine($"  {line.Quantity:0.##}x {line.ItemName} @ {CurrencyDisplay.Format(line.UnitPrice)} = {CurrencyDisplay.Format(line.LineTotal)}");
+                }
+                sb.AppendLine(new string('-', 40));
+            }
+            sb.AppendLine($"Subtotal:   {CurrencyDisplay.Format(row.Subtotal)}");
+            if (row.Discount > 0) sb.AppendLine($"Discount:   -{CurrencyDisplay.Format(row.Discount)}");
+            if (row.ServiceAndDeliveryFee > 0) sb.AppendLine($"Fee/Charge: +{CurrencyDisplay.Format(row.ServiceAndDeliveryFee)}");
+            if (row.Tax > 0) sb.AppendLine($"Tax:        +{CurrencyDisplay.Format(row.Tax)}");
+            sb.AppendLine($"Total:      {CurrencyDisplay.Format(row.Total)}");
+            sb.AppendLine($"Paid:       {CurrencyDisplay.Format(row.PaidAmount)}");
+            if (row.OnAccountAmount > 0) sb.AppendLine($"On Account: {CurrencyDisplay.Format(row.OnAccountAmount)}");
+            sb.AppendLine($"Payment:    {row.PaymentSummary}");
+
+            using var preview = new ReceiptPreviewForm(sb.ToString());
+            preview.ShowDialog(this);
+        }
     }
 
     private void PrintSummary()
@@ -375,7 +591,7 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         preview.ShowDialog(this);
     }
 
-    private static string BuildSummaryText(EndOfDayReportDto report, DateOnly fromDate, DateOnly toDate)
+    private static string BuildSummaryText(EndOfDayReportDto report, ExpandedSalesSummaryDto? expanded, DateOnly fromDate, DateOnly toDate)
     {
         var rangeText = fromDate == toDate ? $"{fromDate:yyyy-MM-dd}" : $"{fromDate:yyyy-MM-dd} to {toDate:yyyy-MM-dd}";
 
@@ -383,57 +599,90 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         sb.AppendLine("Clovent Business Operating System");
         sb.AppendLine($"Sales Summary - {rangeText}");
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Total Bills:     {report.ReceiptCount}");
-        sb.AppendLine($"Total Sales:     {CurrencyDisplay.Format(report.TotalSales)}");
-        sb.AppendLine($"Cash:            {CurrencyDisplay.Format(report.CashCollected)}");
-        sb.AppendLine($"Card:            {CurrencyDisplay.Format(report.CardCollected)}");
-        sb.AppendLine($"Voided Orders:   {report.VoidedOrderCount}");
-        sb.AppendLine($"Average Sale:    {CurrencyDisplay.Format(report.AverageSale)}");
+        sb.AppendLine($"Total Bills:     {expanded?.Kpis.TotalOrders ?? report.ReceiptCount}");
+        sb.AppendLine($"Total Sales:     {CurrencyDisplay.Format(expanded?.Kpis.GrossSales ?? report.TotalSales)}");
+        sb.AppendLine($"Cash:            {CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected)}");
+        sb.AppendLine($"Card:            {CurrencyDisplay.Format(expanded?.Kpis.CardCollected ?? report.CardCollected)}");
+        if (expanded != null && expanded.Kpis.OnAccountCreated > 0)
+        {
+            sb.AppendLine($"On Account:      {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
+        }
+        sb.AppendLine($"Voided Orders:   {expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}");
+        sb.AppendLine($"Average Sale:    {CurrencyDisplay.Format(expanded?.Kpis.AverageOrderValue ?? report.AverageSale)}");
         sb.AppendLine(new string('-', 40));
         sb.AppendLine("Cash Summary:");
         foreach (var method in report.CashSummary)
         {
             sb.AppendLine($"  {method.PaymentMethodName}: {CurrencyDisplay.Format(method.Total)}");
         }
+        if (expanded != null && expanded.Kpis.OnAccountCreated > 0 && !report.CashSummary.Any(c => c.PaymentMethodName.Contains("Account", StringComparison.OrdinalIgnoreCase)))
+        {
+            sb.AppendLine($"  On Account: {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
+        }
+
+        if (expanded != null && expanded.OrderTypes.Count > 0)
+        {
+            sb.AppendLine(new string('-', 40));
+            sb.AppendLine("Sales by Order Type:");
+            foreach (var ot in expanded.OrderTypes)
+            {
+                sb.AppendLine($"  {ot.OrderType}: {ot.OrdersCount} orders, {CurrencyDisplay.Format(ot.TotalSales)} ({ot.PercentOfTotal:F1}%)");
+            }
+        }
+
+        if (expanded != null && expanded.ItemTypes.Count > 0)
+        {
+            sb.AppendLine(new string('-', 40));
+            sb.AppendLine("Sales by Item Classification:");
+            foreach (var it in expanded.ItemTypes)
+            {
+                var costStr = it.TotalCost.HasValue ? CurrencyDisplay.Format(it.TotalCost.Value) : "N/A";
+                var profitStr = it.GrossProfit.HasValue ? CurrencyDisplay.Format(it.GrossProfit.Value) : "N/A";
+                var marginStr = it.MarginPercent.HasValue ? $"{it.MarginPercent.Value:F1}%" : "N/A";
+                sb.AppendLine($"  {it.ItemType}: {CurrencyDisplay.Format(it.TotalSales)} (Cost: {costStr}, Profit: {profitStr}, Margin: {marginStr})");
+            }
+        }
+
+        if (expanded != null && expanded.Receivables.Count > 0)
+        {
+            var totalOnAccount = expanded.Receivables.Sum(r => r.NewOnAccountSales);
+            var totalPayments = expanded.Receivables.Sum(r => r.CustomerPayments);
+            var netChange = totalOnAccount - totalPayments;
+            if (totalOnAccount > 0 || totalPayments > 0)
+            {
+                sb.AppendLine(new string('-', 40));
+                sb.AppendLine("Customer Receivables Activity:");
+                sb.AppendLine($"  + On Account:    {CurrencyDisplay.Format(totalOnAccount)}");
+                sb.AppendLine($"  - Collections:   {CurrencyDisplay.Format(totalPayments)}");
+                sb.AppendLine($"  Net Change:      {CurrencyDisplay.Format(netChange)}");
+            }
+        }
 
         return sb.ToString();
     }
 
-    private string ResolveSku(Guid variantId) => _variantsById.TryGetValue(variantId, out var v) ? v.Sku : "(unknown)";
+    private string ResolveSku(Guid variantId) =>
+        _variantsById.TryGetValue(variantId, out var info) && !string.IsNullOrEmpty(info.Sku)
+            ? info.Sku
+            : "-";
 
     private string ResolveName(Guid variantId)
     {
         if (!_variantsById.TryGetValue(variantId, out var info))
         {
-            return "(unknown)";
+            return "-";
         }
 
-        var (_, variantName, productName) = info;
-        if (string.IsNullOrWhiteSpace(productName))
-        {
-            return string.IsNullOrWhiteSpace(variantName) ? "(unknown)" : variantName;
-        }
-
-        if (string.IsNullOrWhiteSpace(variantName) ||
-            variantName.Equals(productName, StringComparison.OrdinalIgnoreCase) ||
-            variantName == "-")
-        {
-            return productName;
-        }
-
-        if (variantName.StartsWith(productName, StringComparison.OrdinalIgnoreCase))
-        {
-            return variantName;
-        }
-
-        return $"{productName} - {variantName}";
+        return string.IsNullOrEmpty(info.ProductName) || info.ProductName == info.VariantName
+            ? info.VariantName
+            : $"{info.ProductName} - {info.VariantName}";
     }
 
     private sealed record ItemSoldRow(string Sku, string Name, decimal Quantity, decimal Total);
 
+    private sealed record BillRow(string OrderNumber, DateTimeOffset CompletedAtUtc, decimal Total, string PaymentMethodSummary);
+
     private sealed record MovementRow(string Sku, string Name, string TransactionType, decimal Quantity, DateTimeOffset OccurredAtUtc);
 
     private sealed record StockRow(string Sku, string Name, decimal QuantityOnHand, decimal QuantityAvailable);
-
-    private sealed record BillRow(string OrderNumber, DateTimeOffset CompletedAtUtc, decimal Total, string PaymentMethodSummary);
 }

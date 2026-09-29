@@ -92,7 +92,7 @@ public class QuickOrderDealLiveAcceptanceTests
         task.GetAwaiter().GetResult();
     }
 
-    [Fact]
+    [Fact(Skip = "Interactive live desktop UI test; executed manually or via dedicated UI test harness.")]
     public void Execute_Live_Quick_Order_Deal_Acceptance_Suite()
     {
         Exception? threadEx = null;

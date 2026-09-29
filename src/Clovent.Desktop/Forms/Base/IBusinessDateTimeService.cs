@@ -28,6 +28,9 @@ public interface IBusinessDateTimeService
     DateTimeOffset ConvertUtcToBusinessTime(DateTimeOffset utc);
 
     /// <summary>Gets the current operational business date according to the configured business timezone.</summary>
+    DateOnly Today { get; }
+
+    /// <summary>Gets the current operational business date according to the configured business timezone.</summary>
     DateOnly GetCurrentBusinessDate();
 
     /// <summary>Formats a DateOnly using the date portion of the configured format pattern.</summary>

@@ -43,6 +43,26 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
             .HasConversion(ValueConverters.NullableCustomerIdConverter);
         builder.HasIndex(o => o.CustomerId);
 
+        builder.Property(o => o.OrderSource)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(OrderSource.WalkIn)
+            .IsRequired();
+
+        builder.Property(o => o.DeliveryStatus)
+            .HasConversion<string>()
+            .HasMaxLength(30)
+            .HasDefaultValue(DeliveryStatus.None)
+            .IsRequired();
+
+        builder.Property(o => o.DeliveryCustomerName).HasMaxLength(150);
+        builder.Property(o => o.DeliveryPhone).HasMaxLength(50);
+        builder.Property(o => o.DeliveryAddress).HasMaxLength(500);
+        builder.Property(o => o.DeliveryNotes).HasMaxLength(500);
+        builder.Property(o => o.DeliveryFee).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(o => o.RiderName).HasMaxLength(150);
+        builder.Property(o => o.RiderPhone).HasMaxLength(50);
+
         builder.Property(o => o.WarehouseId)
             .HasConversion(ValueConverters.WarehouseIdConverter)
             .IsRequired();

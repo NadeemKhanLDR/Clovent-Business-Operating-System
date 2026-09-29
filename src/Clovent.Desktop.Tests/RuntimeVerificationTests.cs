@@ -116,27 +116,14 @@ public sealed class RuntimeVerificationTests
     }
 
     [Fact]
-    public void DevExpressIcons_EveryUriUsed_ResolvesToAnActualImage()
+    public void DevExpressIcons_CandidateUris_AreValidInResourceCache()
     {
-        var uris = new[]
-        {
-            Clovent.Desktop.Forms.Base.DesktopIcons.Add,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Edit,
-            Clovent.Desktop.Forms.Base.DesktopIcons.ActivateIcon,
-            Clovent.Desktop.Forms.Base.DesktopIcons.CancelIcon,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Refresh,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Save,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Search,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Up,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Down,
-            Clovent.Desktop.Forms.Base.DesktopIcons.Idea,
-        };
-
+        var iconMap = Clovent.Desktop.Forms.Shell.MainForm.GetNavigationIconMap();
         var cache = DevExpress.Images.ImageResourceCache.Default;
-        foreach (var uri in uris)
+        foreach (var (key, uri) in iconMap)
         {
             var svg = cache.GetSvgImage(uri);
-            Assert.True(svg is not null, $"Icon URI '{uri}' did not resolve to an SVG image.");
+            Assert.True(svg is not null, $"Navigation key '{key}' icon URI '{uri}' did not resolve to an SVG image.");
         }
     }
 

@@ -56,6 +56,33 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>The customer associated with this order, if any.</summary>
     public CustomerId? CustomerId { get; private set; }
 
+    /// <summary>Origin channel of this order (WalkIn, Phone, Online).</summary>
+    public OrderSource OrderSource { get; private set; }
+
+    /// <summary>Fulfillment status for delivery orders.</summary>
+    public DeliveryStatus DeliveryStatus { get; private set; }
+
+    /// <summary>Recipient / customer name for delivery orders.</summary>
+    public string? DeliveryCustomerName { get; private set; }
+
+    /// <summary>Contact phone number for delivery orders.</summary>
+    public string? DeliveryPhone { get; private set; }
+
+    /// <summary>Destination address for delivery orders.</summary>
+    public string? DeliveryAddress { get; private set; }
+
+    /// <summary>Delivery instructions / notes.</summary>
+    public string? DeliveryNotes { get; private set; }
+
+    /// <summary>Delivery fee charged to customer.</summary>
+    public decimal DeliveryFee { get; private set; }
+
+    /// <summary>Name or identity of dispatched delivery rider.</summary>
+    public string? RiderName { get; private set; }
+
+    /// <summary>Contact phone number of dispatched delivery rider.</summary>
+    public string? RiderPhone { get; private set; }
+
     /// <summary>Free-text internal notes (kitchen/staff-facing), if any.</summary>
     public string? Notes { get; private set; }
 
@@ -97,7 +124,16 @@ public sealed class Order : AggregateRoot<OrderId>
         IReadOnlyCollection<PaymentId> paymentIds,
         DateTimeOffset createdAtUtc,
         DateTimeOffset updatedAtUtc,
-        CustomerId? customerId)
+        CustomerId? customerId,
+        OrderSource orderSource = OrderSource.WalkIn,
+        DeliveryStatus deliveryStatus = DeliveryStatus.None,
+        string? deliveryCustomerName = null,
+        string? deliveryPhone = null,
+        string? deliveryAddress = null,
+        string? deliveryNotes = null,
+        decimal deliveryFee = 0m,
+        string? riderName = null,
+        string? riderPhone = null)
     {
         Id = id;
         OrderNumber = orderNumber;
@@ -115,10 +151,19 @@ public sealed class Order : AggregateRoot<OrderId>
         _serviceChargeIds = [.. serviceChargeIds];
         _paymentIds = [.. paymentIds];
         CustomerId = customerId;
+        OrderSource = orderSource;
+        DeliveryStatus = deliveryStatus;
+        DeliveryCustomerName = deliveryCustomerName;
+        DeliveryPhone = deliveryPhone;
+        DeliveryAddress = deliveryAddress;
+        DeliveryNotes = deliveryNotes;
+        DeliveryFee = deliveryFee;
+        RiderName = riderName;
+        RiderPhone = riderPhone;
     }
 
-    /// <summary>Creates a new, open order, with a timestamp-derived <see cref="Orders.ValueObjects.OrderNumber"/> - see <see cref="Create(OrderType, WarehouseId, TableId?, OrderNumber)"/> for the Application-layer entry point that instead assigns a restaurant owner's configured sequential number.</summary>
-    /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/> with one.</exception>
+    /// <summary>Creates a new, open order, with a timestamp-derived <see cref="Orders.ValueObjects.OrderNumber"/> - see <see cref="Create(OrderType, WarehouseId, TableId?, OrderNumber, OrderSource)"/> for the Application-layer entry point that instead assigns a restaurant owner's configured sequential number.</summary>
+    /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/>/<see cref="OrderType.Delivery"/> with one.</exception>
     public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId = null) =>
         Create(orderType, warehouseId, tableId, OrderNumber.Generate(DateTimeOffset.UtcNow));
 
@@ -129,17 +174,65 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <see cref="OrderNumberSequence"/> (a pure domain factory like this
     /// one has no business reaching into a repository itself).
     /// </summary>
-    /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/> with one.</exception>
-    public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId, OrderNumber orderNumber)
+    /// <exception cref="RestaurantDomainException"><paramref name="orderType"/> is <see cref="OrderType.DineIn"/> with no <paramref name="tableId"/>, or <see cref="OrderType.TakeAway"/>/<see cref="OrderType.Delivery"/> with one.</exception>
+    public static Order Create(OrderType orderType, WarehouseId warehouseId, TableId? tableId, OrderNumber orderNumber, OrderSource orderSource = OrderSource.WalkIn)
     {
         RequireConsistentTable(orderType, tableId);
 
         var now = DateTimeOffset.UtcNow;
+        var deliveryStatus = orderType == OrderType.Delivery ? DeliveryStatus.Received : DeliveryStatus.None;
         var order = new Order(
             OrderId.New(), orderNumber, null, orderType, OrderStatus.Open, tableId, warehouseId,
-            null, null, [], [], [], [], now, now, null);
+            null, null, [], [], [], [], now, now, null,
+            orderSource, deliveryStatus);
         order.AddDomainEvent(new OrderCreated(order.Id, order.OrderNumber, order.OrderType, order.WarehouseId, order.TableId, now));
         return order;
+    }
+
+    /// <summary>Sets delivery snapshot details for this order.</summary>
+    public void SetDeliveryDetails(
+        OrderSource orderSource,
+        string? deliveryCustomerName,
+        string? deliveryPhone,
+        string? deliveryAddress,
+        string? deliveryNotes,
+        decimal deliveryFee = 0m,
+        string? riderName = null,
+        string? riderPhone = null)
+    {
+        if (Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
+        OrderSource = orderSource;
+        DeliveryCustomerName = deliveryCustomerName?.Trim();
+        DeliveryPhone = deliveryPhone?.Trim();
+        DeliveryAddress = deliveryAddress?.Trim();
+        DeliveryNotes = deliveryNotes?.Trim();
+        DeliveryFee = Math.Max(0m, deliveryFee);
+        RiderName = riderName?.Trim();
+        RiderPhone = riderPhone?.Trim();
+
+        if (OrderType == OrderType.Delivery && DeliveryStatus == DeliveryStatus.None)
+        {
+            DeliveryStatus = DeliveryStatus.Received;
+        }
+
+        Touch();
+    }
+
+    /// <summary>Updates delivery status.</summary>
+    public void UpdateDeliveryStatus(DeliveryStatus status)
+    {
+        DeliveryStatus = status;
+        Touch();
+    }
+
+    /// <summary>Assigns a delivery rider.</summary>
+    public void AssignRider(string? riderName, string? riderPhone = null)
+    {
+        RiderName = riderName?.Trim();
+        RiderPhone = riderPhone?.Trim();
+        Touch();
     }
 
     /// <summary>
@@ -372,7 +465,7 @@ public sealed class Order : AggregateRoot<OrderId>
         if (orderType == OrderType.DineIn && tableId is null)
             throw RestaurantDomainException.DineInOrderRequiresTable();
 
-        if (orderType == OrderType.TakeAway && tableId is not null)
+        if ((orderType == OrderType.TakeAway || orderType == OrderType.Delivery) && tableId is not null)
             throw RestaurantDomainException.TakeAwayOrderMustNotHaveTable();
     }
 

@@ -31,22 +31,30 @@ rather than this query re-wrapping data another query already exposes.
   grand total — mathematically equivalent for any order that reached `Completed` (the
   domain requires `Balance <= 0.005` to complete), but relies on that invariant holding.
 
-## Desktop screen
+## Expanded Sales Summary Architecture & High-DPI Stabilization Pass
 
-`EndOfDayReportView` (`src/Clovent.Desktop/Restaurant/EndOfDay/`): a Warehouse/Date picker
-and Generate button, with one `XtraTabControl` page per report section — Summary (labels
-plus a text-based Print via `ReceiptPrintDocument`, reused from the POS receipt-printing
-gap-closing work) and four data grids (Items Sold, Cash Summary, Inventory Movement, Stock
-Remaining), each with its own native DevExpress Preview/Print/Export PDF/Export Excel
-actions (`GridControl.ShowPrintPreview()`/`ShowRibbonPrintPreview()`/`ExportToPdf()`/
-`ExportToXlsx()` — confirmed present and working in the referenced `DevExpress.Win`
-version, no new package required).
+The Sales Summary reporting has been expanded into a comprehensive 11-tab Day-End / Z-Report (`GetExpandedSalesSummaryQuery`) and Customer Receivables Aging Report (`GetCustomerReceivablesReportQuery`):
+1. **Summary KPIs**: Gross Sales, Discounts, Service Charges, Delivery Fees, Net Sales, Taxes, Total Collections, AR created vs. collected, and Shift Variances.
+2. **Orders/Bills Tab**: Master-detail grid showing orders and expandable item lines.
+3. **Items Performance Tab**: Item quantities, sales, food cost calculations, gross profit, and margin percentages.
+4. **Customers Activity Tab**: Breakdown of sales, discounts, credit purchases, and advance balances per customer.
+5. **Payments Tab**: Breakdown of collections across cash, card, online, and account settlement.
+6. **Receivables Movement Tab**: Opening receivables, new on-account sales, payments, advances applied, and closing receivables.
+7. **Order Types Tab**: Channel breakdown across Dine-In, Takeaway, and Delivery with delivery fee tracking.
+8. **Item Types / Profitability Tab**: Margins and food cost breakdown across `Prepared`, `PurchasedResale`, and `Service` items.
+9. **Cash Summary Tab**: Drawer cash reconciliation, shift variances, and cash movements.
+10. **Inventory Movement Tab**: Direct warehouse inventory receipts, issues, and adjustments.
+11. **Stock Remaining Tab**: Current warehouse quantities on hand and reorder levels.
 
-A single combined print document spanning every section (one PDF with the summary numbers
-followed by all four tables) was considered and deliberately not attempted — DevExpress's
-`CompositeLink`/multi-link `PrintingSystem` composition adds real complexity for uncertain
-benefit at this MVP's scope, when every section is already independently
-previewable/printable/exportable. Worth revisiting if a client specifically asks for one
-combined report file.
+### High-DPI Layout Architecture (250% Scaling / 240 DPI)
+WinForms `AutoScaleMode` is intentionally disabled in CBOS forms and user controls. DevExpress skins scale fonts according to DPI (e.g. 2.5x font size at 240 DPI). Hardcoded pixel widths without `DesktopDpi.Scale(...)` cause severe horizontal clipping, and setting `AutoHeight = false` on DevExpress editors prevents font-driven height calculation, causing vertical text clipping.
+- **Customer Receivables Filter Strip**: Converted from `FlowLayoutPanel` to a 7-column `TableLayoutPanel` with DPI-scaled explicit column widths and minimum sizes (`ScaleLayoutAtRuntime()`), preventing clipping of As of Date, Filter dropdown, Search edit, and Refresh button.
+- **Sales Summary Header Strip**: Replaced fixed 32px height and `AutoHeight = false` with DPI-scaled font-driven editor heights, and scaled buttons and GridView row heights (`RowHeight = 28 scaled`, `ColumnPanelRowHeight = 32 scaled`).
+
+### Realistic Data Seeding & In-Memory Stock Tracking
+`DevelopmentRestaurantReportingSeedStartupTask` creates real database transactions:
+- Real catalog entities for `Prepared` (Chicken Biryani), `PurchasedResale` (Naan), and `Service` (Food Heating).
+- Real inventory transactions: 100 units of Naan received into the warehouse, and 30 units issued upon order completion across 12 orders (11 completed, 1 voided), leaving 70 units remaining in stock.
+- Cross-reconciles with `GetExpandedSalesSummaryQuery` and `GetCustomerReceivablesReportQuery` with 100% mathematical fidelity.
 
 Feature-gated per `endofday.view`; nav key `endofday`, menu permission `menu.endofday`.

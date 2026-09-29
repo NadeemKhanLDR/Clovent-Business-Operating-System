@@ -244,6 +244,12 @@ public class DealPreviewTests
             return Task.FromResult<IReadOnlyCollection<Order>>([]);
         }
 
+        public Task<IReadOnlyCollection<Order>> GetByCustomerIdAsync(Clovent.Restaurant.Customers.CustomerId customerId, CancellationToken cancellationToken = default)
+        {
+            Reads++;
+            return Task.FromResult<IReadOnlyCollection<Order>>([]);
+        }
+
         public Task<IReadOnlySet<TableId>> GetActiveTableIdsAsync(CancellationToken cancellationToken = default)
         {
             Reads++;

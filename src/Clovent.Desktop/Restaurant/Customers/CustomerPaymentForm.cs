@@ -10,8 +10,9 @@ using DevExpress.XtraEditors;
 namespace Clovent.Desktop.Restaurant.Customers;
 
 /// <summary>
-/// Receive Customer Payment Dialog: collects payment details (amount, method, ref, notes)
-/// and validates the values. Visual Studio Designer compatible.
+/// Receive Customer Payment Dialog: collects payment details (amount, method, ref, notes),
+/// shows live calculations for A/R application vs advance created, and validates values.
+/// Visual Studio Designer compatible.
 /// </summary>
 public sealed partial class CustomerPaymentForm : XtraForm
 {
@@ -28,14 +29,6 @@ public sealed partial class CustomerPaymentForm : XtraForm
     }
 
     /// <summary>Builds the payment receipt dialog for a customer.</summary>
-    /// <param name="customer">The customer the payment is being received from.</param>
-    /// <param name="paymentMethodNames">
-    /// The active payment methods, as configured by the owner and read from
-    /// the same source the POS tender strip uses. Supplied by the caller
-    /// rather than fetched here so this dialog keeps no data access of its
-    /// own, and never falls back to a hardcoded list that would drift out of
-    /// step with what is actually configured (defect D9).
-    /// </param>
     public CustomerPaymentForm(CustomerDto customer, IReadOnlyList<string> paymentMethodNames)
     {
         ArgumentNullException.ThrowIfNull(paymentMethodNames);
@@ -48,12 +41,15 @@ public sealed partial class CustomerPaymentForm : XtraForm
             return;
 
         _txtCustomer.Text = $"{_customer.Name} ({_customer.Code})";
-        _txtOutstanding.Text = CurrencyDisplay.FormatPlain(_customer.OutstandingBalance);
+        var recBal = _customer.ReceivableBalance > 0 ? _customer.ReceivableBalance : _customer.OutstandingBalance;
+        _txtOutstanding.Text = CurrencyDisplay.FormatPlain(recBal);
+        _txtAdvance.Text = CurrencyDisplay.FormatPlain(_customer.AdvanceBalance);
 
-        _spinAmount.Value = Math.Max(0.01m, _customer.OutstandingBalance);
+        _spinAmount.Value = recBal > 0 ? recBal : 0.00m;
         _spinAmount.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _spinAmount.Properties.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
         _spinAmount.Properties.Mask.UseMaskAsDisplayFormat = true;
+        _spinAmount.EditValueChanged += (s, e) => UpdateCalculations();
 
         _comboPaymentMethod.Properties.Items.Clear();
         foreach (var name in paymentMethodNames)
@@ -65,6 +61,21 @@ public sealed partial class CustomerPaymentForm : XtraForm
         {
             _comboPaymentMethod.SelectedIndex = 0;
         }
+
+        UpdateCalculations();
+    }
+
+    private void UpdateCalculations()
+    {
+        if (DesignModeHelper.IsInDesignMode || _customer == null) return;
+
+        var amount = _spinAmount.Value;
+        var rec = _customer.ReceivableBalance > 0 ? _customer.ReceivableBalance : Math.Max(0, _customer.OutstandingBalance);
+        var applied = Math.Min(amount, rec);
+        var newAdvance = Math.Max(0, amount - rec);
+
+        _txtApplied.Text = CurrencyDisplay.FormatPlain(applied);
+        _txtNewAdvance.Text = CurrencyDisplay.FormatPlain(newAdvance);
     }
 
     /// <summary>The validated payment amount.</summary>
@@ -113,19 +124,21 @@ public sealed partial class CustomerPaymentForm : XtraForm
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        DesktopDialogSizing.Apply(this, 520, 460, 480, 400, null, false);
+        DesktopDialogSizing.Apply(this, 540, 520, 500, 480, null, false);
 
         root.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(50));
 
-        fieldTable.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(140));
-        fieldTable.RowStyles[0] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
-        fieldTable.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
-        fieldTable.RowStyles[2] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
-        fieldTable.RowStyles[3] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
-        fieldTable.RowStyles[4] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(36));
-        fieldTable.RowStyles[5] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(80));
+        fieldTable.ColumnStyles[0] = new ColumnStyle(SizeType.Absolute, LogicalToDeviceUnits(150));
+        fieldTable.RowStyles[0] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[1] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[2] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[3] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[4] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[5] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[6] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
+        fieldTable.RowStyles[7] = new RowStyle(SizeType.Absolute, LogicalToDeviceUnits(34));
 
-        _btnCancel.MinimumSize = LogicalToDeviceUnits(new Size(100, 36));
-        _btnSubmit.MinimumSize = LogicalToDeviceUnits(new Size(140, 36));
+        _btnCancel.MinimumSize = LogicalToDeviceUnits(new Size(95, 34));
+        _btnSubmit.MinimumSize = LogicalToDeviceUnits(new Size(140, 34));
     }
 }

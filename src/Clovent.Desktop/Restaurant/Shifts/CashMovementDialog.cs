@@ -55,6 +55,7 @@ public sealed class CashMovementDialog : XtraForm
     private void BuildUi()
     {
         Text = "Record Cash In / Cash Out";
+        AutoScaleMode = AutoScaleMode.None;
         DesktopDialogSizing.Apply(this, 520, 440, 460, 380, null, false);
 
         var panel = new TableLayoutPanel
@@ -92,9 +93,11 @@ public sealed class CashMovementDialog : XtraForm
         var lblAmount = new LabelControl { Text = $"Amount ({CurrencyDisplay.SymbolOrCode}):", Anchor = AnchorStyles.Left };
         _spnAmount = new SpinEdit
         {
-            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left,
+            Width = DesktopDpi.Scale(170, this),
             Value = 10m
         };
+        _spnAmount.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
         _spnAmount.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _spnAmount.Properties.Mask.EditMask = "n2";
         _spnAmount.Properties.Mask.UseMaskAsDisplayFormat = true;

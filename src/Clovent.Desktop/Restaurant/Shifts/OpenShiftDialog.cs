@@ -28,9 +28,9 @@ public sealed class OpenShiftDialog : XtraForm
     private readonly string _branchName;
     private readonly DateOnly _businessDate;
 
-    private TextEdit _txtCashierName = null!;
-    private TextEdit _txtTerminal = null!;
-    private TextEdit _txtBusinessDate = null!;
+    private LabelControl _lblCashierVal = null!;
+    private LabelControl _lblTerminalVal = null!;
+    private LabelControl _lblBusinessDateVal = null!;
     private SpinEdit _spnStartingCash = null!;
     private MemoEdit _txtNotes = null!;
     private SimpleButton _btnOpen = null!;
@@ -51,7 +51,7 @@ public sealed class OpenShiftDialog : XtraForm
         _terminalId = Guid.Empty;
         _terminalName = "T-001";
         _branchName = "Main Branch";
-        _businessDate = DateOnly.FromDateTime(DateTime.Today);
+        _businessDate = BusinessDateTimeService.Instance.Today;
         BuildUi();
     }
 
@@ -73,7 +73,7 @@ public sealed class OpenShiftDialog : XtraForm
         _terminalId = terminalId;
         _terminalName = string.IsNullOrWhiteSpace(terminalName) ? "POS Terminal" : terminalName;
         _branchName = string.IsNullOrWhiteSpace(branchName) ? "Main Branch" : branchName;
-        _businessDate = businessDate ?? DateOnly.FromDateTime(DateTime.Today);
+        _businessDate = businessDate ?? BusinessDateTimeService.Instance.Today;
 
         BuildUi();
     }
@@ -81,88 +81,228 @@ public sealed class OpenShiftDialog : XtraForm
     private void BuildUi()
     {
         Text = "Open Cash Register Shift";
-        DesktopDialogSizing.Apply(this, 540, 480, 480, 420, null, false);
+        AutoScaleMode = AutoScaleMode.None;
+        DesktopDialogSizing.Apply(this, 540, 410, 480, 360, null, false);
 
-        var panel = new TableLayoutPanel
+        var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(DesktopDpi.Scale(16, this)),
-            RowCount = 7,
-            ColumnCount = 2
+            Padding = new Padding(DesktopDpi.Scale(20, this)),
+            RowCount = 5,
+            ColumnCount = 1
         };
 
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(130, this)));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(44, this))); // Header title & subtitle
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(84, this))); // Read-only context info
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(44, this))); // Opening cash input
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));                         // Notes memo edit
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(44, this))); // Action buttons
 
-        for (int i = 0; i < 5; i++)
+        // --- 1. Header Banner ---
+        var headerPanel = new Panel
         {
-            panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(40, this)));
-        }
-        panel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // Notes
-        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this))); // Buttons
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 0, 0, DesktopDpi.Scale(4, this))
+        };
 
-        var lblCashier = new LabelControl { Text = "Cashier:", Anchor = AnchorStyles.Left };
-        _txtCashierName = new TextEdit
+        var lblTitle = new LabelControl
+        {
+            Text = "OPEN CASH REGISTER SHIFT",
+            Location = new Point(0, 0),
+            Appearance =
+            {
+                Font = new Font(Font.FontFamily, 11f, FontStyle.Bold),
+                ForeColor = Color.FromArgb(13, 148, 136)
+            }
+        };
+
+        var lblSubtitle = new LabelControl
+        {
+            Text = "Start a new cash-register shift",
+            Location = new Point(0, DesktopDpi.Scale(22, this)),
+            Appearance =
+            {
+                Font = new Font(Font.FontFamily, 8.75f, FontStyle.Regular),
+                ForeColor = Color.FromArgb(100, 116, 139)
+            }
+        };
+
+        headerPanel.Controls.Add(lblTitle);
+        headerPanel.Controls.Add(lblSubtitle);
+        root.Controls.Add(headerPanel, 0, 0);
+
+        // --- 2. Read-only Context (Cashier, Terminal, Business Date) ---
+        var contextGrid = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 3,
+            Margin = new Padding(0, DesktopDpi.Scale(2, this), 0, DesktopDpi.Scale(4, this))
+        };
+        contextGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(110, this)));
+        contextGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        for (int i = 0; i < 3; i++)
+        {
+            contextGrid.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(26, this)));
+        }
+
+        var lblCashierTitle = new LabelControl
+        {
+            Text = "Cashier",
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(100, 116, 139), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) }
+        };
+        _lblCashierVal = new LabelControl
         {
             Text = UserDisplayNameHelper.GetCurrentCashierDisplayName(_currentSession),
-            ReadOnly = true,
-            Dock = DockStyle.Fill
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(15, 23, 42), Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) }
         };
-        _txtCashierName.Properties.ReadOnly = true;
 
-        var lblTerminal = new LabelControl { Text = "Terminal:", Anchor = AnchorStyles.Left };
-        _txtTerminal = new TextEdit
+        var lblTerminalTitle = new LabelControl
+        {
+            Text = "Terminal",
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(100, 116, 139), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) }
+        };
+        _lblTerminalVal = new LabelControl
         {
             Text = $"{_terminalName} ({_branchName})",
-            ReadOnly = true,
-            Dock = DockStyle.Fill
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(15, 23, 42), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) }
         };
-        _txtTerminal.Properties.ReadOnly = true;
 
-        var lblBusinessDate = new LabelControl { Text = "Business Date:", Anchor = AnchorStyles.Left };
-        _txtBusinessDate = new TextEdit
+        var lblBusinessDateTitle = new LabelControl
+        {
+            Text = "Business Date",
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(100, 116, 139), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) }
+        };
+        _lblBusinessDateVal = new LabelControl
         {
             Text = DateTimeDisplay.FormatDate(_businessDate),
-            ReadOnly = true,
-            Dock = DockStyle.Fill
+            Anchor = AnchorStyles.Left,
+            TabStop = false,
+            Appearance = { ForeColor = Color.FromArgb(15, 23, 42), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) }
         };
-        _txtBusinessDate.Properties.ReadOnly = true;
 
-        var lblStartingCash = new LabelControl { Text = $"Opening Cash ({CurrencyDisplay.SymbolOrCode}):", Anchor = AnchorStyles.Left, Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) } };
-        _spnStartingCash = new SpinEdit
+        contextGrid.Controls.Add(lblCashierTitle, 0, 0);
+        contextGrid.Controls.Add(_lblCashierVal, 1, 0);
+        contextGrid.Controls.Add(lblTerminalTitle, 0, 1);
+        contextGrid.Controls.Add(_lblTerminalVal, 1, 1);
+        contextGrid.Controls.Add(lblBusinessDateTitle, 0, 2);
+        contextGrid.Controls.Add(_lblBusinessDateVal, 1, 2);
+        root.Controls.Add(contextGrid, 0, 1);
+
+        // --- 3. Opening Cash Input ---
+        var cashRow = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(4, this))
+        };
+        cashRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(110, this)));
+        cashRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(180, this)));
+        cashRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        cashRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+        var lblStartingCash = new LabelControl
+        {
+            Text = "Opening Cash",
+            Anchor = AnchorStyles.Left,
+            Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) }
+        };
+
+        _spnStartingCash = new SpinEdit
+        {
+            Anchor = AnchorStyles.Left,
+            Width = DesktopDpi.Scale(170, this),
             Value = 0m,
-            Font = new Font(Font.FontFamily, 10.5f, FontStyle.Bold)
+            Font = new Font(Font.FontFamily, 10f, FontStyle.Bold),
+            TabIndex = 0
         };
         _spnStartingCash.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _spnStartingCash.Properties.Mask.EditMask = "n2";
         _spnStartingCash.Properties.Mask.UseMaskAsDisplayFormat = true;
         _spnStartingCash.Properties.MinValue = 0;
         _spnStartingCash.Properties.MaxValue = 1000000;
+        _spnStartingCash.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
 
-        var lblNotes = new LabelControl { Text = "Notes:", Anchor = AnchorStyles.Top | AnchorStyles.Left };
-        _txtNotes = new MemoEdit { Dock = DockStyle.Fill };
+        var lblCurrencyBadge = new LabelControl
+        {
+            Text = CurrencyDisplay.SymbolOrCode,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(DesktopDpi.Scale(8, this), 0, 0, 0),
+            Appearance =
+            {
+                ForeColor = Color.FromArgb(71, 85, 105),
+                Font = new Font(Font.FontFamily, 9f, FontStyle.Bold)
+            }
+        };
 
+        cashRow.Controls.Add(lblStartingCash, 0, 0);
+        cashRow.Controls.Add(_spnStartingCash, 1, 0);
+        cashRow.Controls.Add(lblCurrencyBadge, 2, 0);
+        root.Controls.Add(cashRow, 0, 2);
+
+        // --- 4. Notes Input ---
+        var notesPanel = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(4, this))
+        };
+        notesPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(110, this)));
+        notesPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        notesPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
+
+        var lblNotes = new LabelControl
+        {
+            Text = "Notes",
+            Anchor = AnchorStyles.Top | AnchorStyles.Left,
+            Appearance = { ForeColor = Color.FromArgb(100, 116, 139), Font = new Font(Font.FontFamily, 9.25f, FontStyle.Regular) },
+            Margin = new Padding(0, DesktopDpi.Scale(4, this), 0, 0)
+        };
+        _txtNotes = new MemoEdit
+        {
+            Dock = DockStyle.Fill,
+            TabIndex = 1
+        };
+        _txtNotes.Properties.NullValuePrompt = "Optional shift opening notes...";
+
+        notesPanel.Controls.Add(lblNotes, 0, 0);
+        notesPanel.Controls.Add(_txtNotes, 1, 0);
+        root.Controls.Add(notesPanel, 0, 3);
+
+        // --- 5. Action Buttons ---
         var btnPanel = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
-            Padding = new Padding(0, DesktopDpi.Scale(8, this), 0, 0)
+            Padding = new Padding(0, DesktopDpi.Scale(6, this), 0, 0)
         };
 
         _btnCancel = new SimpleButton
         {
             Text = "Cancel",
             DialogResult = DialogResult.Cancel,
-            Size = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(38, this))
+            Size = new Size(DesktopDpi.Scale(105, this), DesktopDpi.Scale(34, this)),
+            TabIndex = 3
         };
 
         _btnOpen = new SimpleButton
         {
             Text = "Open Shift",
-            Size = new Size(DesktopDpi.Scale(140, this), DesktopDpi.Scale(38, this)),
-            Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) }
+            Size = new Size(DesktopDpi.Scale(125, this), DesktopDpi.Scale(34, this)),
+            Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) },
+            TabIndex = 2
         };
         _btnOpen.Appearance.BackColor = Color.FromArgb(13, 148, 136);
         _btnOpen.Appearance.ForeColor = Color.White;
@@ -170,29 +310,11 @@ public sealed class OpenShiftDialog : XtraForm
         _btnOpen.Appearance.Options.UseForeColor = true;
         _btnOpen.Click += BtnOpen_Click;
 
-        btnPanel.Controls.Add(_btnCancel);
         btnPanel.Controls.Add(_btnOpen);
+        btnPanel.Controls.Add(_btnCancel);
+        root.Controls.Add(btnPanel, 0, 4);
 
-        panel.Controls.Add(lblCashier, 0, 0);
-        panel.Controls.Add(_txtCashierName, 1, 0);
-
-        panel.Controls.Add(lblTerminal, 0, 1);
-        panel.Controls.Add(_txtTerminal, 1, 1);
-
-        panel.Controls.Add(lblBusinessDate, 0, 2);
-        panel.Controls.Add(_txtBusinessDate, 1, 2);
-
-        panel.Controls.Add(lblStartingCash, 0, 3);
-        panel.Controls.Add(_spnStartingCash, 1, 3);
-
-        panel.Controls.Add(lblNotes, 0, 4);
-        panel.Controls.Add(_txtNotes, 1, 4);
-        panel.SetRowSpan(_txtNotes, 2);
-
-        panel.Controls.Add(btnPanel, 0, 6);
-        panel.SetColumnSpan(btnPanel, 2);
-
-        Controls.Add(panel);
+        Controls.Add(root);
         AcceptButton = _btnOpen;
         CancelButton = _btnCancel;
 
@@ -209,7 +331,7 @@ public sealed class OpenShiftDialog : XtraForm
         }
 
         var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var cashierName = UserDisplayNameHelper.FormatCashierName(_txtCashierName.Text);
+        var cashierName = UserDisplayNameHelper.FormatCashierName(_lblCashierVal.Text);
 
         _btnOpen.Enabled = false;
         try

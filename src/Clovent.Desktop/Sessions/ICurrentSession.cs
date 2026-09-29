@@ -24,8 +24,14 @@ public interface ICurrentSession
     /// <summary>The signed-in user's display name, or <see langword="null"/> if <see cref="IsAuthenticated"/> is <see langword="false"/> - shown by the Shell's profile menu (Milestone 11).</summary>
     string? DisplayName { get; }
 
+    /// <summary>The signed-in user's login username, or <see langword="null"/> if not authenticated or not supplied.</summary>
+    string? UserName => null;
+
     /// <summary>Establishes the current session after a successful login.</summary>
     void SignIn(Guid userId, Guid sessionId, string displayName);
+
+    /// <summary>Establishes the current session with optional username after a successful login.</summary>
+    void SignIn(Guid userId, Guid sessionId, string displayName, string? userName = null) => SignIn(userId, sessionId, displayName);
 
     /// <summary>Clears the current session.</summary>
     void SignOut();

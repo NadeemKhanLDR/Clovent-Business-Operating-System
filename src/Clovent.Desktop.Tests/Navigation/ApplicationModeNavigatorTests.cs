@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Navigation;
 using Clovent.Desktop.Restaurant.Orders;
+using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Startup;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -319,15 +320,95 @@ public class ApplicationModeNavigatorTests
     }
 
     [Fact]
-    public async Task OpenPosAsync_FromThreadPoolThread_MarshalsToUiThread()
+    public void OpenPosAsync_FromThreadPoolThread_MarshalsToUiThread()
+    {
+        Exception? threadException = null;
+        var thread = new System.Threading.Thread(() =>
+        {
+            try
+            {
+                var services = new ServiceCollection();
+                var fakeErrorService = new FakeErrorDialogService();
+                var appContext = new CbosApplicationContext();
+
+                services.AddTransient<RestaurantPosForm>();
+                services.AddTransient<MainForm>(_ => throw new InvalidOperationException("Not needed"));
+                services.AddSingleton<INavigationService>(sp => new NavigationService(sp, NullLogger<NavigationService>.Instance));
+
+                var provider = services.BuildServiceProvider();
+                var navigator = new ApplicationModeNavigator(
+                    provider,
+                    appContext,
+                    fakeErrorService,
+                    NullLogger<ApplicationModeNavigator>.Instance);
+
+                var uiThreadId = Environment.CurrentManagedThreadId;
+                SendOrPostCallback? postedCallback = null;
+                object? postedState = null;
+                var postEvent = new System.Threading.ManualResetEventSlim(false);
+
+                var customSyncContext = new TestSyncContext((callback, state) =>
+                {
+                    postedCallback = callback;
+                    postedState = state;
+                    postEvent.Set();
+                });
+
+                navigator.SetUiSynchronizationContext(customSyncContext);
+
+                Task? openTask = null;
+                var navTask = Task.Run(async () =>
+                {
+                    Assert.NotEqual(uiThreadId, Environment.CurrentManagedThreadId);
+                    openTask = navigator.OpenPosAsync();
+                    await openTask;
+                });
+
+                // Wait for worker thread to post work
+                Assert.True(postEvent.Wait(TimeSpan.FromSeconds(5)), "Background thread must post work to SynchronizationContext");
+                Assert.NotNull(postedCallback);
+
+                // Simulate UI message loop executing the posted callback
+                postedCallback(postedState);
+                navTask.GetAwaiter().GetResult();
+
+                Assert.NotNull(navigator.CurrentForm);
+                Assert.IsType<RestaurantPosForm>(navigator.CurrentForm);
+                Assert.Same(navigator.CurrentForm, appContext.MainForm);
+
+                navigator.CurrentForm.Dispose();
+            }
+            catch (Exception ex)
+            {
+                threadException = ex;
+            }
+        });
+        thread.SetApartmentState(System.Threading.ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+
+        if (threadException is not null)
+        {
+            throw threadException;
+        }
+    }
+
+    [Fact]
+    public async Task OpenLoginAsync_SetsCurrentForm_ClearsSession_AndDisposesPreviousForm()
     {
         var services = new ServiceCollection();
         var fakeErrorService = new FakeErrorDialogService();
         var appContext = new CbosApplicationContext();
+        var session = new CurrentSession();
+        session.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Admin");
 
+        var previousForm = new TrackingForm();
+        previousForm.Show();
+
+        services.AddTransient<Clovent.Desktop.Forms.Identity.LoginForm>();
         services.AddTransient<RestaurantPosForm>();
         services.AddTransient<MainForm>(_ => throw new InvalidOperationException("Not needed"));
-        services.AddSingleton<INavigationService>(sp => new NavigationService(sp, NullLogger<NavigationService>.Instance));
+        services.AddSingleton<ICurrentSession>(session);
 
         var provider = services.BuildServiceProvider();
         var navigator = new ApplicationModeNavigator(
@@ -336,39 +417,18 @@ public class ApplicationModeNavigatorTests
             fakeErrorService,
             NullLogger<ApplicationModeNavigator>.Instance);
 
-        var uiThreadId = Environment.CurrentManagedThreadId;
-        SendOrPostCallback? postedCallback = null;
-        object? postedState = null;
-        var postEvent = new System.Threading.ManualResetEventSlim(false);
+        typeof(ApplicationModeNavigator)
+            .GetField("_currentForm", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+            .SetValue(navigator, previousForm);
 
-        var customSyncContext = new TestSyncContext((callback, state) =>
-        {
-            postedCallback = callback;
-            postedState = state;
-            postEvent.Set();
-        });
-
-        navigator.SetUiSynchronizationContext(customSyncContext);
-
-        Task? openTask = null;
-        var navTask = Task.Run(async () =>
-        {
-            Assert.NotEqual(uiThreadId, Environment.CurrentManagedThreadId);
-            openTask = navigator.OpenPosAsync();
-            await openTask;
-        });
-
-        // Wait for worker thread to post work
-        Assert.True(postEvent.Wait(TimeSpan.FromSeconds(5)), "Background thread must post work to SynchronizationContext");
-        Assert.NotNull(postedCallback);
-
-        // Simulate UI message loop executing the posted callback
-        postedCallback(postedState);
-        await navTask;
+        await navigator.OpenLoginAsync();
 
         Assert.NotNull(navigator.CurrentForm);
-        Assert.IsType<RestaurantPosForm>(navigator.CurrentForm);
+        Assert.IsType<Clovent.Desktop.Forms.Identity.LoginForm>(navigator.CurrentForm);
         Assert.Same(navigator.CurrentForm, appContext.MainForm);
+        Assert.True(previousForm.IsDisposed);
+        Assert.False(session.IsAuthenticated);
+        Assert.False(navigator.IsTransitioning);
 
         navigator.CurrentForm.Dispose();
     }

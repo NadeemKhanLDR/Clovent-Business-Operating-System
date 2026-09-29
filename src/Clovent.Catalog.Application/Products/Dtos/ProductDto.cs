@@ -14,7 +14,8 @@ public sealed record ProductDto(
     decimal TaxRatePercentage,
     bool TaxIsInclusive,
     string Status,
-    DateTimeOffset CreatedAtUtc)
+    DateTimeOffset CreatedAtUtc,
+    string ItemType = "Prepared")
 {
     /// <summary>Projects a domain <see cref="Product"/> into its DTO.</summary>
     public static ProductDto FromDomain(Product product) => new(
@@ -28,5 +29,6 @@ public sealed record ProductDto(
         product.TaxConfiguration.RatePercentage,
         product.TaxConfiguration.IsInclusive,
         product.Status.ToString(),
-        product.CreatedAtUtc);
+        product.CreatedAtUtc,
+        product.ItemType.ToString());
 }

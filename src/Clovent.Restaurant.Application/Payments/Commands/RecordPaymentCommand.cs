@@ -33,7 +33,8 @@ public sealed class RecordPaymentCommandHandler(
     IPaymentMethodRepository paymentMethodRepository,
     IOrderLineRepository orderLineRepository,
     IDiscountRepository discountRepository,
-    IServiceChargeRepository serviceChargeRepository)
+    IServiceChargeRepository serviceChargeRepository,
+    ICustomerPaymentAllocationRepository? allocationRepository = null)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
     /// <summary>
@@ -56,8 +57,65 @@ public sealed class RecordPaymentCommandHandler(
 
         await RequireWithinOutstandingBalanceAsync(orderId, request.Amount, cancellationToken);
 
-        var isCredit = string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase);
+        var isAdvance = string.Equals(paymentMethod.Name.Value, "Customer Advance", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(paymentMethod.Name.Value, "Advance", StringComparison.OrdinalIgnoreCase);
+
+        if (isAdvance)
+        {
+            if (order.CustomerId is null)
+            {
+                throw new InvalidOperationException("A customer must be selected to use Customer Advance.");
+            }
+
+            var customer = await customerRepository.GetByIdAsync(order.CustomerId.Value, cancellationToken)
+                ?? throw new NotFoundException(nameof(Customer), order.CustomerId.Value.Value);
+
+            if (!customer.IsActive)
+            {
+                throw new InvalidOperationException($"The customer '{customer.Name}' is inactive.");
+            }
+
+            if (customer.AdvanceBalance < request.Amount)
+            {
+                throw new InvalidOperationException(
+                    $"Insufficient customer advance balance ({customer.AdvanceBalance:N2}) for this payment ({request.Amount:N2}).");
+            }
+
+            customer.AdjustBalance(request.Amount);
+            await customerRepository.UpdateAsync(customer, cancellationToken);
+
+            var ledgerEntry = CustomerLedgerEntry.Create(
+                customer.Id,
+                order.OrderNumber.Value,
+                $"Customer Advance Settlement ({order.OrderNumber.Value})",
+                request.Amount,
+                0m,
+                customer.OutstandingBalance,
+                null,
+                paymentMethod.Name.Value);
+            await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
+
+            if (allocationRepository is not null)
+            {
+                var alloc = CustomerPaymentAllocation.Create(
+                    customer.Id,
+                    order.Id,
+                    request.Amount,
+                    ledgerEntry.Id,
+                    $"Customer advance applied to order {order.OrderNumber.Value}");
+                await allocationRepository.AddAsync(alloc, cancellationToken);
+            }
+
+            var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, null);
+            order.RecordPayment(advPayment.Id);
+            await paymentRepository.AddAsync(advPayment, cancellationToken);
+
+            return PaymentDto.FromDomain(advPayment);
+        }
+
+        var isCredit = string.Equals(paymentMethod.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(paymentMethod.Name.Value, "Customer Account", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase);
 
         if (isCredit)
         {
@@ -74,12 +132,26 @@ public sealed class RecordPaymentCommandHandler(
                 throw new InvalidOperationException($"The customer '{customer.Name}' is inactive.");
             }
 
-            if (customer.OutstandingBalance + request.Amount > customer.CreditLimit && !request.ExceedCreditLimitApproved)
+            if (customer.IsDefault)
+            {
+                throw new InvalidOperationException("Walk-in / Counter Guest cannot use On Account credit.");
+            }
+
+            if (!customer.IsCreditAllowed)
+            {
+                throw new InvalidOperationException($"Credit is not allowed for customer '{customer.Name}'.");
+            }
+
+            var advanceBefore = customer.AdvanceBalance;
+            var advanceApplied = Math.Min(request.Amount, advanceBefore);
+
+            var netAfter = customer.OutstandingBalance + request.Amount;
+            if (netAfter > customer.CreditLimit && !request.ExceedCreditLimitApproved)
             {
                 throw new InvalidOperationException(
                     $"Credit limit exceeded.\n\n" +
-                    $"This customer currently owes {customer.OutstandingBalance:N2}.\n" +
-                    $"The new sale would increase the balance to {(customer.OutstandingBalance + request.Amount):N2}, " +
+                    $"This customer currently owes {customer.ReceivableBalance:N2}.\n" +
+                    $"The new sale would increase the balance to {netAfter:N2}, " +
                     $"but the credit limit is {customer.CreditLimit:N2}.\n\n" +
                     $"Collect a payment or ask an authorized manager to approve the credit sale.");
             }
@@ -88,15 +160,36 @@ public sealed class RecordPaymentCommandHandler(
             customer.AdjustBalance(request.Amount);
             await customerRepository.UpdateAsync(customer, cancellationToken);
 
+            ShiftId? shiftIdForEntry = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+
+            var desc = advanceApplied > 0
+                ? $"On Account Sale ({order.OrderNumber.Value}) [{advanceApplied:N2} Advance Applied]"
+                : string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase)
+                    ? "Credit Sale"
+                    : $"On Account Sale ({order.OrderNumber.Value})";
+
             // Add ledger entry
             var ledgerEntry = CustomerLedgerEntry.Create(
                 customer.Id,
                 order.OrderNumber.Value,
-                "Credit Sale",
+                desc,
                 request.Amount,
                 0m,
-                customer.OutstandingBalance);
+                customer.OutstandingBalance,
+                shiftIdForEntry,
+                paymentMethod.Name.Value);
             await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
+
+            if (advanceApplied > 0 && allocationRepository is not null)
+            {
+                var alloc = CustomerPaymentAllocation.Create(
+                    customer.Id,
+                    order.Id,
+                    advanceApplied,
+                    ledgerEntry.Id,
+                    $"Customer advance applied to order {order.OrderNumber.Value}");
+                await allocationRepository.AddAsync(alloc, cancellationToken);
+            }
         }
 
         ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
