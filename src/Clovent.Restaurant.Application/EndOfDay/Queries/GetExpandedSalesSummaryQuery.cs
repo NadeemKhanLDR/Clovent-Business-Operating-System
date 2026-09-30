@@ -139,7 +139,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
         var variantAggregates = new Dictionary<Guid, (decimal Quantity, decimal GrossSales, decimal Discount, decimal NetSales, decimal Cost)>();
         var paymentMethodTotals = new Dictionary<string, (int Count, decimal Total, string Category)>();
-        var customerSales = new Dictionary<Guid, (int Count, decimal Qty, decimal Gross, decimal Disc, decimal Net, decimal Paid, decimal OnAccount)>();
+        var customerSales = new Dictionary<Guid, (int Count, decimal Qty, decimal ItemSales, decimal Disc, decimal Fees, decimal BillTotal, decimal Paid, decimal OnAccount)>();
 
         foreach (var order in completedOrders)
         {
@@ -313,13 +313,14 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             if (effectiveCustomerId.HasValue)
             {
                 var cId = effectiveCustomerId.Value;
-                var (cCount, cQty, cGross, cDisc, cNet, cPaid, cOnAccount) = customerSales.GetValueOrDefault(cId);
+                var (cCount, cQty, cItemSales, cDisc, cFees, cBillTotal, cPaid, cOnAccount) = customerSales.GetValueOrDefault(cId);
                 customerSales[cId] = (
                     cCount + 1,
                     cQty + orderQtyTotal,
-                    cGross + orderSubtotal,
+                    cItemSales + orderSubtotal,
                     cDisc + orderDiscount,
-                    cNet + (orderSubtotal - orderDiscount),
+                    cFees + orderServiceAndDelivery,
+                    cBillTotal + orderTotal,
                     cPaid + orderPaid,
                     cOnAccount + orderOnAccount);
             }
@@ -378,40 +379,79 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 ? priorEntries.Last().RunningBalance
                 : (customer.CreatedAtUtc.LocalDateTime < fromDateTime ? customer.OpeningBalance : 0m);
 
+            decimal openReceivable = Math.Max(0m, priorNet);
+            decimal openAdvance = Math.Max(0m, -priorNet);
+
+            decimal running = priorNet;
+            decimal newOnAccount = 0m;
+            decimal collectionsAppliedToAR = 0m;
+            decimal advanceAppliedToAR = 0m;
+            decimal advanceCreated = 0m;
+            decimal advanceUsed = 0m;
+            decimal totalCustomerPayments = 0m;
+
+            foreach (var pe in periodEntries)
+            {
+                if (pe.Debit > 0m)
+                {
+                    bool isAdvanceSettlement = pe.Description.StartsWith("Customer Advance Settlement", StringComparison.OrdinalIgnoreCase);
+
+                    if (running < 0m)
+                    {
+                        decimal existingAdvance = -running;
+                        decimal absorbed = Math.Min(pe.Debit, existingAdvance);
+                        advanceUsed += absorbed;
+
+                        if (!isAdvanceSettlement)
+                        {
+                            newOnAccount += pe.Debit;
+                            advanceAppliedToAR += absorbed;
+                        }
+                    }
+                    else
+                    {
+                        if (!isAdvanceSettlement)
+                        {
+                            newOnAccount += pe.Debit;
+                        }
+                    }
+                    running += pe.Debit;
+                }
+
+                if (pe.Credit > 0m)
+                {
+                    totalCustomerPayments += pe.Credit;
+                    var pmName = !string.IsNullOrWhiteSpace(pe.PaymentMethod) ? pe.PaymentMethod : "Cash";
+                    var cur = customerPaymentsByMethod.GetValueOrDefault(pmName);
+                    customerPaymentsByMethod[pmName] = (cur.Count + 1, cur.Total + pe.Credit);
+                    periodCustomerPaymentsCollected += pe.Credit;
+
+                    if (running > 0m)
+                    {
+                        decimal applied = Math.Min(pe.Credit, running);
+                        decimal excess = pe.Credit - applied;
+                        collectionsAppliedToAR += applied;
+                        advanceCreated += excess;
+                    }
+                    else
+                    {
+                        advanceCreated += pe.Credit;
+                    }
+                    running -= pe.Credit;
+                }
+            }
+
             decimal closingNet = periodEntries.Count > 0
                 ? periodEntries.Last().RunningBalance
                 : priorNet;
 
-            decimal openReceivable = Math.Max(0m, priorNet);
-            decimal openAdvance = Math.Max(0m, -priorNet);
-
             decimal closingReceivable = Math.Max(0m, closingNet);
             decimal closingAdvance = Math.Max(0m, -closingNet);
 
-            decimal newOnAccount = periodEntries.Sum(e => e.Debit);
-            decimal custPaymentsInPeriod = periodEntries.Sum(e => e.Credit);
-
-            foreach (var pe in periodEntries.Where(e => e.Credit > 0))
-            {
-                var pmName = !string.IsNullOrWhiteSpace(pe.PaymentMethod) ? pe.PaymentMethod : "Cash";
-                var cur = customerPaymentsByMethod.GetValueOrDefault(pmName);
-                customerPaymentsByMethod[pmName] = (cur.Count + 1, cur.Total + pe.Credit);
-                periodCustomerPaymentsCollected += pe.Credit;
-            }
-
-            decimal advanceReceivedInPeriod = periodEntries
-                .Where(e => e.Credit > 0 && (e.Description.Contains("Advance", StringComparison.OrdinalIgnoreCase) || e.RunningBalance < 0))
-                .Sum(e => e.Credit);
-
-            decimal advanceUsedInPeriod = periodEntries
-                .Where(e => e.Debit > 0 && (e.Description.Contains("Advance Applied", StringComparison.OrdinalIgnoreCase) ||
-                                            e.Description.Contains("Advance Settlement", StringComparison.OrdinalIgnoreCase)))
-                .Sum(e => e.Debit);
-
-            periodAdvancesReceived += advanceReceivedInPeriod;
+            periodAdvancesReceived += advanceCreated;
 
             // Only report customer if they have activity or non-zero balance
-            if (openReceivable > 0 || newOnAccount > 0 || custPaymentsInPeriod > 0 || closingReceivable > 0 || openAdvance > 0 || closingAdvance > 0)
+            if (openReceivable > 0 || newOnAccount > 0 || collectionsAppliedToAR > 0 || closingReceivable > 0 || openAdvance > 0 || advanceCreated > 0 || advanceUsed > 0 || closingAdvance > 0)
             {
                 receivableRows.Add(new ExpandedReceivableActivityRowDto(
                     customer.Id.Value,
@@ -419,17 +459,17 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     customer.Name,
                     openReceivable,
                     newOnAccount,
-                    custPaymentsInPeriod,
-                    advanceUsedInPeriod,
+                    collectionsAppliedToAR,
+                    advanceAppliedToAR,
                     closingReceivable,
                     openAdvance,
-                    advanceReceivedInPeriod,
-                    advanceUsedInPeriod,
+                    advanceCreated,
+                    advanceUsed,
                     closingAdvance));
             }
 
-            var (ordCount, qtyTotal, cGross, cDisc, cNet, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);
-            if (ordCount > 0 || custPaymentsInPeriod > 0 || closingReceivable > 0 || closingAdvance > 0)
+            var (ordCount, qtyTotal, cItemSales, cDisc, cFees, cBillTotal, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);
+            if (ordCount > 0 || totalCustomerPayments > 0 || closingReceivable > 0 || closingAdvance > 0)
             {
                 customerReportRows.Add(new ExpandedCustomerRowDto(
                     customer.Id.Value,
@@ -438,18 +478,19 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     customer.MobileNumber,
                     ordCount,
                     qtyTotal,
-                    cGross,
+                    cItemSales,
                     cDisc,
-                    cNet,
+                    cFees,
+                    cBillTotal,
                     cPaid,
                     cOnAcc,
-                    custPaymentsInPeriod,
+                    totalCustomerPayments,
                     closingReceivable,
                     closingAdvance));
             }
         }
 
-        // Shifts summary in range
+        // Shifts summary in range & cash drawer reconciliation
         var shiftsInRange = await shiftRepository.SearchShiftsAsync(
             fromDateUtc: fromDateTime.ToUniversalTime(),
             toDateUtc: toDateTime.ToUniversalTime(),
@@ -457,9 +498,54 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         int shiftCount = shiftsInRange.Count;
         decimal totalShiftVariance = shiftsInRange.Sum(s => s.CashVariance);
 
-        decimal netSales = grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges;
+        var shiftDrawerRows = new List<ShiftDrawerCashSummaryDto>();
+        foreach (var s in shiftsInRange.OrderBy(s => s.ShiftNumber))
+        {
+            var shiftPayments = await paymentRepository.GetByShiftIdAsync(s.Id, cancellationToken);
+            decimal shiftCashSales = 0m;
+            foreach (var p in shiftPayments.Where(p => !p.IsVoided))
+            {
+                if (paymentMethods.TryGetValue(p.PaymentMethodId, out var pm) &&
+                    string.Equals(pm.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
+                {
+                    shiftCashSales += p.Amount;
+                }
+            }
+
+            var shiftLedger = await ledgerRepository.GetByShiftIdAsync(s.Id, cancellationToken);
+            decimal shiftCashCollections = shiftLedger
+                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Sum(e => e.Credit);
+
+            decimal shiftCashIn = s.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
+            decimal shiftCashOut = s.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
+
+            decimal shiftExpected = s.Status == ShiftStatus.Closed
+                ? s.ExpectedCash
+                : (s.StartingCash + shiftCashIn + shiftCashSales + shiftCashCollections - shiftCashOut);
+
+            decimal shiftCounted = s.Status == ShiftStatus.Closed ? s.CountedCash : 0m;
+            decimal shiftVariance = s.Status == ShiftStatus.Closed ? s.CashVariance : (shiftCounted - shiftExpected);
+
+            shiftDrawerRows.Add(new ShiftDrawerCashSummaryDto(
+                s.Id.Value,
+                s.ShiftNumber,
+                s.CashierName,
+                s.StartingCash,
+                shiftCashSales,
+                shiftCashCollections,
+                shiftCashIn,
+                shiftCashOut,
+                shiftExpected,
+                shiftCounted,
+                shiftVariance,
+                s.Status.ToString()));
+        }
+
+        decimal itemSales = grossSales;
+        decimal totalBillSales = grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges;
         int totalOrders = completedOrders.Count;
-        decimal averageOrderValue = totalOrders > 0 ? (grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges) / totalOrders : 0m;
+        decimal averageOrderValue = totalOrders > 0 ? totalBillSales / totalOrders : 0m;
         decimal closingTotalReceivables = receivableRows.Sum(r => r.ClosingReceivable);
 
         var kpis = new SalesSummaryKpiDto(
@@ -467,7 +553,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             totalDiscounts,
             totalServiceCharges,
             totalDeliveryFees,
-            netSales,
+            totalBillSales,
             totalTax,
             totalCollected,
             cashCollected,
@@ -484,7 +570,9 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             voidedOrders.Count,
             voidedOrdersAmount,
             shiftCount,
-            totalShiftVariance);
+            totalShiftVariance,
+            itemSales,
+            totalBillSales);
 
         // Build Items rows (Detailed Items tab)
         var itemRows = new List<ExpandedItemRowDto>();
@@ -585,18 +673,18 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             var matchingOrders = completedOrders.Where(o => o.OrderType == oType).ToList();
             var oCount = matchingOrders.Count;
             var oRows = orderRows.Where(r => r.OrderType == oType.ToString()).ToList();
-            var oLinesCount = oRows.Sum(r => r.ItemsCount);
+            var oQtySold = oRows.Sum(r => r.Lines?.Sum(l => l.Quantity) ?? 0m);
             var oGross = oRows.Sum(r => r.Subtotal);
             var oDisc = oRows.Sum(r => r.Discount);
             var oFees = matchingOrders.Sum(o => o.DeliveryFee);
             var oNet = oGross - oDisc + oFees;
             var aov = oCount > 0 ? oNet / oCount : 0m;
-            var pct = netSales > 0 ? (oNet / netSales) * 100m : 0m;
+            var pct = totalBillSales > 0 ? (oNet / totalBillSales) * 100m : 0m;
 
             orderTypeRows.Add(new ExpandedOrderTypeBreakdownDto(
                 oType.ToString(),
                 oCount,
-                oLinesCount,
+                oQtySold,
                 oGross,
                 oDisc,
                 oFees,
@@ -686,6 +774,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             [.. paymentRows.OrderBy(p => p.Category).ThenByDescending(p => p.TotalCollected)],
             [.. receivableRows.OrderByDescending(r => r.ClosingReceivable)],
             orderTypeRows,
-            itemClassRows);
+            itemClassRows,
+            shiftDrawerRows);
     }
 }

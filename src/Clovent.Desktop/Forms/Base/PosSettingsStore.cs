@@ -16,6 +16,14 @@ public static class PosSettingsStore
     private static readonly object _lock = new();
     private static PosSettingsData? _cachedData;
 
+    internal static void ResetCacheForTesting()
+    {
+        lock (_lock)
+        {
+            _cachedData = null;
+        }
+    }
+
     private class PosSettingsData
     {
         public int ItemsPerRow { get; set; } = 4;

@@ -18,7 +18,8 @@ public sealed record GetShiftSummaryQuery(Guid ShiftId) : IRequest<ShiftSummaryD
 public sealed class GetShiftSummaryQueryHandler(
     IShiftRepository shiftRepository,
     IPaymentRepository paymentRepository,
-    IPaymentMethodRepository paymentMethodRepository) : IRequestHandler<GetShiftSummaryQuery, ShiftSummaryDto>
+    IPaymentMethodRepository paymentMethodRepository,
+    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null) : IRequestHandler<GetShiftSummaryQuery, ShiftSummaryDto>
 {
     /// <inheritdoc/>
     public async Task<ShiftSummaryDto> Handle(GetShiftSummaryQuery request, CancellationToken cancellationToken)
@@ -66,7 +67,17 @@ public sealed class GetShiftSummaryQueryHandler(
         decimal cashIn = shift.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
         decimal cashOut = shift.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
 
-        decimal expectedCash = shift.StartingCash + cashIn + cashSales - cashOut;
+        decimal cashCustomerPayments = 0m;
+        if (ledgerRepository is not null)
+        {
+            var shiftLedgerEntries = await ledgerRepository.GetByShiftIdAsync(shiftId, cancellationToken);
+            cashCustomerPayments = shiftLedgerEntries
+                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Sum(e => e.Credit);
+        }
+
+        decimal calculatedExpectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashOut;
+        decimal expectedCash = shift.Status == ShiftStatus.Closed ? shift.ExpectedCash : calculatedExpectedCash;
 
         decimal countedCash = shift.Status == ShiftStatus.Closed ? shift.CountedCash : 0m;
         decimal variance = shift.Status == ShiftStatus.Closed ? shift.CashVariance : (countedCash - expectedCash);
@@ -86,6 +97,7 @@ public sealed class GetShiftSummaryQueryHandler(
             countedCash,
             variance,
             validPayments.Select(p => p.OrderId).Distinct().Count(),
-            movementDtos);
+            movementDtos,
+            cashCustomerPayments);
     }
 }

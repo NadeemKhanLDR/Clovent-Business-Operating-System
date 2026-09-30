@@ -112,6 +112,8 @@ public static class DesktopServiceCollectionExtensions
         services.AddScoped<IStartupTask, DevelopmentRestaurantSeedStartupTask>();
         services.AddScoped<DevelopmentRestaurantReportingSeedStartupTask>();
         services.AddScoped<IStartupTask>(sp => sp.GetRequiredService<DevelopmentRestaurantReportingSeedStartupTask>());
+        services.AddScoped<DevelopmentRestaurantReportingSeedPhase2StartupTask>();
+        services.AddScoped<IStartupTask>(sp => sp.GetRequiredService<DevelopmentRestaurantReportingSeedPhase2StartupTask>());
         services.AddScoped<IStartupTask, TableOccupancyReconciliationStartupTask>();
         services.AddScoped<IStartupTask, WorldCurrencySeedStartupTask>();
         services.AddScoped<IStartupTask, WorldTimeZoneSeedStartupTask>();

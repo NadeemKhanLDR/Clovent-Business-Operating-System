@@ -17,4 +17,5 @@ public sealed record ShiftSummaryDto(
     decimal CountedCash,
     decimal Variance,
     int TotalTransactions,
-    IReadOnlyList<CashMovementDto> CashMovements);
+    IReadOnlyList<CashMovementDto> CashMovements,
+    decimal CashCollections = 0m);

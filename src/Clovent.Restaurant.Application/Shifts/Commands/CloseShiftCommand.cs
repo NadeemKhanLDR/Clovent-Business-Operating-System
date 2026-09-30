@@ -119,6 +119,7 @@ public sealed class CloseShiftCommandHandler(
             shift.CountedCash,
             shift.CashVariance,
             validPayments.Select(p => p.OrderId).Distinct().Count(),
-            movementDtos);
+            movementDtos,
+            cashCustomerPayments);
     }
 }

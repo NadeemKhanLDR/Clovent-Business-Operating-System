@@ -30,9 +30,11 @@ public sealed class ShiftDetailDialog : XtraForm
 
     private LabelControl _lblStartingVal = null!;
     private LabelControl _lblCashSalesVal = null!;
+    private LabelControl _lblCashCollectionsVal = null!;
     private LabelControl _lblCardSalesVal = null!;
     private LabelControl _lblOtherSalesVal = null!;
     private LabelControl _lblExpectedVal = null!;
+    private LabelControl _lblCountedVal = null!;
     private LabelControl _lblVarianceVal = null!;
 
     private GridControl _gridMovements = null!;
@@ -61,7 +63,7 @@ public sealed class ShiftDetailDialog : XtraForm
     {
         Text = "Shift Session Details";
         AutoScaleMode = AutoScaleMode.None;
-        DesktopDialogSizing.Apply(this, 720, 620, 640, 540, null, true);
+        DesktopDialogSizing.Apply(this, 760, 660, 680, 560, null, true);
 
         var mainPanel = new TableLayoutPanel
         {
@@ -72,7 +74,7 @@ public sealed class ShiftDetailDialog : XtraForm
         };
 
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(35, this)));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(200, this)));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(240, this)));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this)));
 
@@ -84,17 +86,20 @@ public sealed class ShiftDetailDialog : XtraForm
         };
 
         // Summary Card
-        var grpInfo = new GroupControl { Text = "Shift Summary", Dock = DockStyle.Fill };
+        var grpInfo = new GroupControl { Text = "Shift Summary & Cash Drawer Reconciliation", Dock = DockStyle.Fill };
         var infoGrid = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(10),
-            RowCount = 5,
+            RowCount = 6,
             ColumnCount = 4
         };
 
-        for (int c = 0; c < 4; c++) infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
-        for (int r = 0; r < 5; r++) infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
+        infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
+        for (int r = 0; r < 6; r++) infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66f));
 
         infoGrid.Controls.Add(new LabelControl { Text = "Status:" }, 0, 0);
         _lblStatusVal = new LabelControl { Text = "---", Appearance = { Font = new Font(Font.FontFamily, 9f, FontStyle.Bold) } };
@@ -112,7 +117,7 @@ public sealed class ShiftDetailDialog : XtraForm
         _lblClosedVal = new LabelControl { Text = "---" };
         infoGrid.Controls.Add(_lblClosedVal, 3, 1);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Starting Cash:" }, 0, 2);
+        infoGrid.Controls.Add(new LabelControl { Text = "Starting Float:" }, 0, 2);
         _lblStartingVal = new LabelControl { Text = "0.00" };
         infoGrid.Controls.Add(_lblStartingVal, 1, 2);
 
@@ -120,21 +125,25 @@ public sealed class ShiftDetailDialog : XtraForm
         _lblCashSalesVal = new LabelControl { Text = "0.00" };
         infoGrid.Controls.Add(_lblCashSalesVal, 3, 2);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Card Sales:" }, 0, 3);
-        _lblCardSalesVal = new LabelControl { Text = "0.00" };
-        infoGrid.Controls.Add(_lblCardSalesVal, 1, 3);
+        infoGrid.Controls.Add(new LabelControl { Text = "Cash Collections:" }, 0, 3);
+        _lblCashCollectionsVal = new LabelControl { Text = "0.00" };
+        infoGrid.Controls.Add(_lblCashCollectionsVal, 1, 3);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Other Sales:" }, 2, 3);
-        _lblOtherSalesVal = new LabelControl { Text = "0.00" };
-        infoGrid.Controls.Add(_lblOtherSalesVal, 3, 3);
+        infoGrid.Controls.Add(new LabelControl { Text = "Card / Non-Cash:" }, 2, 3);
+        _lblCardSalesVal = new LabelControl { Text = "0.00" };
+        infoGrid.Controls.Add(_lblCardSalesVal, 3, 3);
 
         infoGrid.Controls.Add(new LabelControl { Text = "Expected Cash:" }, 0, 4);
         _lblExpectedVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold), ForeColor = Color.FromArgb(13, 148, 136) } };
         infoGrid.Controls.Add(_lblExpectedVal, 1, 4);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Counted / Variance:" }, 2, 4);
+        infoGrid.Controls.Add(new LabelControl { Text = "Counted Cash:" }, 2, 4);
+        _lblCountedVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) } };
+        infoGrid.Controls.Add(_lblCountedVal, 3, 4);
+
+        infoGrid.Controls.Add(new LabelControl { Text = "Cash Variance:" }, 0, 5);
         _lblVarianceVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) } };
-        infoGrid.Controls.Add(_lblVarianceVal, 3, 4);
+        infoGrid.Controls.Add(_lblVarianceVal, 1, 5);
 
         grpInfo.Controls.Add(infoGrid);
 
@@ -189,13 +198,26 @@ public sealed class ShiftDetailDialog : XtraForm
 
                 _lblStartingVal.Text = CurrencyDisplay.Format(summary.StartingCash);
                 _lblCashSalesVal.Text = CurrencyDisplay.Format(summary.CashSales);
-                _lblCardSalesVal.Text = CurrencyDisplay.Format(summary.CardSales);
-                _lblOtherSalesVal.Text = CurrencyDisplay.Format(summary.OtherSales);
+                _lblCashCollectionsVal.Text = CurrencyDisplay.Format(summary.CashCollections);
+                _lblCardSalesVal.Text = CurrencyDisplay.Format(summary.CardSales + summary.OtherSales);
 
                 _lblExpectedVal.Text = CurrencyDisplay.Format(summary.ExpectedCash);
-                _lblVarianceVal.Text = summary.Shift.Status == "Closed"
-                    ? $"{CurrencyDisplay.Format(summary.CountedCash)} (Variance: {CurrencyDisplay.Format(summary.Variance)})"
+                _lblCountedVal.Text = summary.Shift.Status == "Closed"
+                    ? CurrencyDisplay.Format(summary.CountedCash)
                     : "Shift Open";
+
+                if (summary.Shift.Status == "Closed")
+                {
+                    _lblVarianceVal.Text = CurrencyDisplay.Format(summary.Variance);
+                    _lblVarianceVal.Appearance.ForeColor = summary.Variance == 0m
+                        ? Color.FromArgb(13, 148, 136)
+                        : (summary.Variance < 0 ? Color.FromArgb(220, 38, 38) : Color.FromArgb(37, 99, 235));
+                }
+                else
+                {
+                    _lblVarianceVal.Text = "-";
+                    _lblVarianceVal.Appearance.ForeColor = Color.Empty;
+                }
 
                 _gridMovements.DataSource = summary.CashMovements;
             }

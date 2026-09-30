@@ -14,6 +14,8 @@ public class PosSettingsStoreTests : IDisposable
         _testSettingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "pos_settings.json");
 
+        PosSettingsStore.ResetCacheForTesting();
+
         // Clear any existing test settings
         if (File.Exists(_testSettingsPath))
         {
@@ -30,6 +32,8 @@ public class PosSettingsStoreTests : IDisposable
 
     public void Dispose()
     {
+        PosSettingsStore.ResetCacheForTesting();
+
         if (File.Exists(_testSettingsPath))
         {
             try

@@ -86,7 +86,7 @@ partial class EndOfDayReportView
             ("OrderSource", "Source", 75),
             ("CustomerName", "Customer", 130),
             ("TableOrRider", "Table / Rider", 100),
-            ("ItemsCount", "Items", 55),
+            ("ItemsCount", "Line Items", 70),
             ("Subtotal", "Subtotal", 90),
             ("Discount", "Discount", 75),
             ("ServiceAndDeliveryFee", "Fee/Service", 85),
@@ -133,15 +133,17 @@ partial class EndOfDayReportView
         BuildGrid(_customersGrid, _customersGridView,
         [
             ("CustomerCode", "Code", 75),
-            ("CustomerName", "Customer Name", 160),
+            ("CustomerName", "Customer Name", 150),
             ("MobileNumber", "Mobile", 95),
             ("OrdersCount", "Orders", 65),
-            ("NetSales", "Sales", 95),
-            ("TotalPaid", "Paid", 95),
-            ("OnAccountIncurred", "On Account", 95),
-            ("AccountPaymentsCollected", "Payments Recv", 105),
-            ("EndingReceivable", "A/R Balance", 100),
-            ("AdvanceBalance", "Advance", 95)
+            ("GrossSales", "Item Sales", 95),
+            ("Fees", "Fees", 75),
+            ("NetSales", "Bill Total", 95),
+            ("TotalPaid", "Paid", 90),
+            ("OnAccountIncurred", "On Account", 90),
+            ("AccountPaymentsCollected", "Payments Recv", 100),
+            ("EndingReceivable", "A/R Balance", 95),
+            ("AdvanceBalance", "Advance", 90)
         ]);
 
         // Tab 4: Payments
@@ -175,7 +177,7 @@ partial class EndOfDayReportView
         [
             ("OrderType", "Order Type", 130),
             ("OrdersCount", "Orders", 80),
-            ("QuantitySold", "Items Sold", 90),
+            ("QuantitySold", "Qty Sold", 90),
             ("DeliveryFees", "Delivery Fees", 100),
             ("TotalSales", "Total Sales", 120),
             ("AverageOrderValue", "Avg Order Value", 110),
@@ -194,11 +196,20 @@ partial class EndOfDayReportView
             ("MarginPercent", "Margin %", 85)
         ]);
 
-        // Tab 8: Cash Summary
+        // Tab 8: Cash Summary (Cash Drawer Reconciliation by Shift)
         BuildGrid(_cashSummaryGrid, _cashSummaryGridView,
         [
-            ("PaymentMethodName", "Payment Method", 200),
-            ("Total", "Total Collected", 130),
+            ("ShiftNumber", "Shift #", 65),
+            ("CashierName", "Cashier", 130),
+            ("OpeningFloat", "Opening Float", 95),
+            ("CashSales", "Cash Sales", 95),
+            ("CashCollections", "Collections", 95),
+            ("CashIn", "Cash In", 80),
+            ("CashOut", "Cash Out", 80),
+            ("ExpectedCash", "Expected Cash", 105),
+            ("CountedCash", "Counted Cash", 105),
+            ("Variance", "Variance", 85),
+            ("Status", "Status", 75)
         ]);
 
         // Tab 9: Inventory Movement
@@ -389,13 +400,14 @@ partial class EndOfDayReportView
         "AccountPaymentsCollected", "EndingReceivable", "AdvanceBalance", "TotalCollected",
         "OpeningReceivable", "NewOnAccountSales", "CustomerPayments", "AdvanceApplied",
         "ClosingReceivable", "OpeningAdvance", "AdvanceReceived", "AdvanceUsed", "ClosingAdvance",
-        "DeliveryFees", "AverageOrderValue", "LineTotal", "ServiceCharge"
+        "DeliveryFees", "AverageOrderValue", "LineTotal", "ServiceCharge", "Fees",
+        "OpeningFloat", "CashSales", "CashCollections", "CashIn", "CashOut", "ExpectedCash", "CountedCash", "Variance"
     ];
 
     private static readonly string[] NumericFieldNames =
     [
         "Quantity", "QuantityOnHand", "QuantityAvailable", "QuantitySold", "OrdersCount",
-        "ItemsCount", "TransactionsCount"
+        "ItemsCount", "TransactionsCount", "ShiftNumber"
     ];
 
     private static void BuildGrid(GridControl grid, GridView view, (string FieldName, string Caption, int Width)[] columns)

@@ -9,6 +9,7 @@ using Clovent.Restaurant.Application.ActivityLogs.Commands;
 using Clovent.Restaurant.Application.Shifts.Commands;
 using Clovent.Restaurant.Application.Shifts.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
+using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.PaymentMethods.ValueObjects;
@@ -218,5 +219,60 @@ public class ShiftHandlerTests
 
         Assert.Single(t1Shifts);
         Assert.Empty(t2Shifts);
+    }
+
+    [Fact]
+    public async Task GetShiftSummaryQueryHandler_ClosedShift_ReturnsExactPersistedExpectedCashAndVariance()
+    {
+        var (branchId, warehouseId, terminalId, cashierId) = CreateGuids();
+        var openHandler = new OpenShiftCommandHandler(_shiftRepository, _activityLogRepository);
+        var shiftDto = await openHandler.Handle(new OpenShiftCommand(branchId, warehouseId, terminalId, cashierId, "Hamza Cashier", 4000m), CancellationToken.None);
+
+        var shiftId = new ShiftId(shiftDto.ShiftId);
+        var shift = await _shiftRepository.GetByIdAsync(shiftId, CancellationToken.None);
+        Assert.NotNull(shift);
+
+        shift.AddCashMovement(CashMovementType.CashIn, 1000m, "Change Float Topup", new UserId(cashierId));
+        shift.AddCashMovement(CashMovementType.CashOut, 500m, "Cleaning Supplies", new UserId(cashierId));
+        await _shiftRepository.UpdateAsync(shift, CancellationToken.None);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        await _paymentMethodRepository.AddAsync(cashMethod, CancellationToken.None);
+
+        var orderId = OrderId.New();
+        var payment = Payment.Create(orderId, cashMethod.Id, 13875m, shiftId);
+        await _paymentRepository.AddAsync(payment, CancellationToken.None);
+
+        var ledgerRepo = new FakeCustomerLedgerEntryRepository();
+        var customerId = CustomerId.New();
+        var cashCollectionEntry = CustomerLedgerEntry.Create(
+            customerId,
+            "PAY-001",
+            "Customer Payment (Cash)",
+            0m,
+            2800m,
+            -2800m,
+            shiftId,
+            "Cash");
+        await ledgerRepo.AddAsync(cashCollectionEntry, CancellationToken.None);
+
+        var closeHandler = new CloseShiftCommandHandler(_shiftRepository, _paymentRepository, _paymentMethodRepository, _activityLogRepository, ledgerRepo);
+        var closeResult = await closeHandler.Handle(new CloseShiftCommand(shiftDto.ShiftId, 21175m, null), CancellationToken.None);
+
+        Assert.Equal(21175m, closeResult.ExpectedCash);
+        Assert.Equal(21175m, closeResult.CountedCash);
+        Assert.Equal(0m, closeResult.Variance);
+        Assert.Equal(2800m, closeResult.CashCollections);
+
+        // Verify GetShiftSummaryQueryHandler returns the exact same financials
+        var queryHandler = new GetShiftSummaryQueryHandler(_shiftRepository, _paymentRepository, _paymentMethodRepository, ledgerRepo);
+        var queryResult = await queryHandler.Handle(new GetShiftSummaryQuery(shiftDto.ShiftId), CancellationToken.None);
+
+        Assert.Equal(21175m, queryResult.ExpectedCash);
+        Assert.Equal(21175m, queryResult.CountedCash);
+        Assert.Equal(0m, queryResult.Variance);
+        Assert.Equal(2800m, queryResult.CashCollections);
+        Assert.Equal(13875m, queryResult.CashSales);
+        Assert.Equal(4000m, queryResult.StartingCash);
     }
 }

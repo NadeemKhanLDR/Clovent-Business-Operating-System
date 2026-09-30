@@ -398,7 +398,7 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         var report = await _mediator.Send(new GetEndOfDayReportQuery(warehouseId, fromDate, toDate));
 
         _totalBillsValueLabel.Text = (expanded?.Kpis.TotalOrders ?? report.ReceiptCount).ToString();
-        _totalSalesValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.GrossSales ?? report.TotalSales);
+        _totalSalesValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.TotalBillSalesValue ?? report.TotalSales);
         _cashValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected);
         _cardValueLabel.Text = CurrencyDisplay.Format(expanded?.Kpis.CardCollected ?? report.CardCollected);
         _voidedCountLabel.Text = $"{expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}";
@@ -514,13 +514,15 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             _itemTypesGrid.DataSource = new List<ExpandedItemClassificationBreakdownDto>();
         }
 
-        // 8. Cash Summary
-        var cashSummary = report.CashSummary.ToList();
-        if (expanded != null && expanded.Kpis.OnAccountCreated > 0 && !cashSummary.Any(c => c.PaymentMethodName.Contains("Account", StringComparison.OrdinalIgnoreCase)))
+        // 8. Cash Summary (Cash Drawer Reconciliation by Shift)
+        if (expanded?.ShiftDrawers != null && expanded.ShiftDrawers.Count > 0)
         {
-            cashSummary.Add(new EndOfDayPaymentMethodTotalDto("On Account (Credit)", expanded.Kpis.OnAccountCreated));
+            _cashSummaryGrid.DataSource = expanded.ShiftDrawers;
         }
-        _cashSummaryGrid.DataSource = cashSummary;
+        else
+        {
+            _cashSummaryGrid.DataSource = new List<ShiftDrawerCashSummaryDto>();
+        }
 
         // 9. Inventory Movement
         var transactions = await _mediator.Send(new ListInventoryTransactionsByWarehouseQuery(warehouseId));
@@ -599,25 +601,37 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         sb.AppendLine("Clovent Business Operating System");
         sb.AppendLine($"Sales Summary - {rangeText}");
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine($"Total Bills:     {expanded?.Kpis.TotalOrders ?? report.ReceiptCount}");
-        sb.AppendLine($"Total Sales:     {CurrencyDisplay.Format(expanded?.Kpis.GrossSales ?? report.TotalSales)}");
-        sb.AppendLine($"Cash:            {CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected)}");
-        sb.AppendLine($"Card:            {CurrencyDisplay.Format(expanded?.Kpis.CardCollected ?? report.CardCollected)}");
+        sb.AppendLine($"Total Bills:         {expanded?.Kpis.TotalOrders ?? report.ReceiptCount}");
+        sb.AppendLine($"Item Sales:          {CurrencyDisplay.Format(expanded?.Kpis.ItemSalesValue ?? report.TotalSales)}");
+        if (expanded != null && expanded.Kpis.DeliveryFees > 0)
+        {
+            sb.AppendLine($"Delivery Fees:       {CurrencyDisplay.Format(expanded.Kpis.DeliveryFees)}");
+        }
+        sb.AppendLine($"Total Bill Sales:    {CurrencyDisplay.Format(expanded?.Kpis.TotalBillSalesValue ?? report.TotalSales)}");
+        sb.AppendLine($"Cash:                {CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected)}");
+        sb.AppendLine($"Card:                {CurrencyDisplay.Format(expanded?.Kpis.CardCollected ?? report.CardCollected)}");
         if (expanded != null && expanded.Kpis.OnAccountCreated > 0)
         {
-            sb.AppendLine($"On Account:      {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
+            sb.AppendLine($"On Account:          {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
         }
-        sb.AppendLine($"Voided Orders:   {expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}");
-        sb.AppendLine($"Average Sale:    {CurrencyDisplay.Format(expanded?.Kpis.AverageOrderValue ?? report.AverageSale)}");
+        sb.AppendLine($"Voided Orders:       {expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}");
+        sb.AppendLine($"Average Sale / Bill: {CurrencyDisplay.Format(expanded?.Kpis.AverageOrderValue ?? report.AverageSale)}");
         sb.AppendLine(new string('-', 40));
-        sb.AppendLine("Cash Summary:");
-        foreach (var method in report.CashSummary)
+        if (expanded?.ShiftDrawers != null && expanded.ShiftDrawers.Count > 0)
         {
-            sb.AppendLine($"  {method.PaymentMethodName}: {CurrencyDisplay.Format(method.Total)}");
+            sb.AppendLine("Cash Drawer Reconciliation (by Shift):");
+            foreach (var d in expanded.ShiftDrawers)
+            {
+                sb.AppendLine($"  Shift #{d.ShiftNumber} ({d.CashierName}): Expected {CurrencyDisplay.Format(d.ExpectedCash)}, Counted {CurrencyDisplay.Format(d.CountedCash)}, Variance {CurrencyDisplay.Format(d.Variance)} [{d.Status}]");
+            }
         }
-        if (expanded != null && expanded.Kpis.OnAccountCreated > 0 && !report.CashSummary.Any(c => c.PaymentMethodName.Contains("Account", StringComparison.OrdinalIgnoreCase)))
+        else
         {
-            sb.AppendLine($"  On Account: {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
+            sb.AppendLine("Cash Summary:");
+            foreach (var method in report.CashSummary)
+            {
+                sb.AppendLine($"  {method.PaymentMethodName}: {CurrencyDisplay.Format(method.Total)}");
+            }
         }
 
         if (expanded != null && expanded.OrderTypes.Count > 0)

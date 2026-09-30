@@ -27,7 +27,7 @@ public sealed class DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTest
         var desktopPath = @"D:\Clovent Business Operating System\src\Clovent.Desktop";
 
         var bootstrapper = ApplicationBootstrapper
-            .Create(basePath: desktopPath)
+            .Create(basePath: desktopPath, environmentName: "Development")
             .WithLogging()
             .WithPlatform();
 

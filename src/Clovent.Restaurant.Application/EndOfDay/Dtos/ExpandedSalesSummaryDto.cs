@@ -26,10 +26,16 @@ public sealed record SalesSummaryKpiDto(
     int VoidedOrdersCount,
     decimal VoidedOrdersAmount,
     int ShiftCount,
-    decimal TotalShiftVariance)
+    decimal TotalShiftVariance,
+    decimal ItemSales = 0m,
+    decimal TotalBillSales = 0m)
 {
     /// <summary>Compatibility alias for DeliveryFees.</summary>
     public decimal TotalDeliveryFees => DeliveryFees;
+    /// <summary>Resolved item sales subtotal.</summary>
+    public decimal ItemSalesValue => ItemSales > 0m ? ItemSales : GrossSales;
+    /// <summary>Resolved total bill sales (including delivery/service fees).</summary>
+    public decimal TotalBillSalesValue => TotalBillSales > 0m ? TotalBillSales : NetSales;
 }
 
 /// <summary>Order line item for master-detail expansion in Sales Summary.</summary>
@@ -65,7 +71,11 @@ public sealed record ExpandedOrderRowDto(
     decimal PaidAmount = 0m,
     decimal OnAccountAmount = 0m,
     decimal OutstandingAmount = 0m,
-    IReadOnlyList<ExpandedOrderLineRowDto>? Lines = null);
+    IReadOnlyList<ExpandedOrderLineRowDto>? Lines = null)
+{
+    /// <summary>Distinct line items count alias.</summary>
+    public int LineItemsCount => ItemsCount;
+}
 
 /// <summary>Item performance row for the expanded sales summary report.</summary>
 public sealed record ExpandedItemRowDto(
@@ -92,12 +102,19 @@ public sealed record ExpandedCustomerRowDto(
     decimal Quantity,
     decimal GrossSales,
     decimal Discount,
+    decimal Fees,
     decimal NetSales,
     decimal TotalPaid,
     decimal OnAccountIncurred,
     decimal AccountPaymentsCollected,
     decimal EndingReceivable,
-    decimal AdvanceBalance);
+    decimal AdvanceBalance)
+{
+    /// <summary>Compatibility alias for item sales subtotal.</summary>
+    public decimal ItemSales => GrossSales;
+    /// <summary>Compatibility alias for total bill sales.</summary>
+    public decimal BillTotal => NetSales;
+}
 
 /// <summary>Payment method performance row for the expanded sales summary report.</summary>
 public sealed record ExpandedPaymentRowDto(
@@ -154,6 +171,21 @@ public sealed record ExpandedItemClassificationBreakdownDto(
     public string CostDisplayText => CostDisplay;
 }
 
+/// <summary>Cash drawer reconciliation row by shift for the Cash Summary tab.</summary>
+public sealed record ShiftDrawerCashSummaryDto(
+    Guid ShiftId,
+    int ShiftNumber,
+    string CashierName,
+    decimal OpeningFloat,
+    decimal CashSales,
+    decimal CashCollections,
+    decimal CashIn,
+    decimal CashOut,
+    decimal ExpectedCash,
+    decimal CountedCash,
+    decimal Variance,
+    string Status);
+
 /// <summary>Root aggregated response of the Expanded Sales Summary query.</summary>
 public sealed record ExpandedSalesSummaryDto(
     Guid WarehouseId,
@@ -166,4 +198,5 @@ public sealed record ExpandedSalesSummaryDto(
     IReadOnlyList<ExpandedPaymentRowDto> Payments,
     IReadOnlyList<ExpandedReceivableActivityRowDto> Receivables,
     IReadOnlyList<ExpandedOrderTypeBreakdownDto> OrderTypes,
-    IReadOnlyList<ExpandedItemClassificationBreakdownDto> ItemTypes);
+    IReadOnlyList<ExpandedItemClassificationBreakdownDto> ItemTypes,
+    IReadOnlyList<ShiftDrawerCashSummaryDto>? ShiftDrawers = null);

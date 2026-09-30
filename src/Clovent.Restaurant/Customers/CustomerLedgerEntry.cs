@@ -69,7 +69,8 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
         decimal credit,
         decimal runningBalance,
         Clovent.Restaurant.Shifts.ShiftId? shiftId = null,
-        string? paymentMethod = null)
+        string? paymentMethod = null,
+        DateTimeOffset? date = null)
     {
         if (string.IsNullOrWhiteSpace(reference))
             throw new ArgumentException("Reference is required.", nameof(reference));
@@ -79,7 +80,7 @@ public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
         return new CustomerLedgerEntry(
             CustomerLedgerEntryId.New(),
             customerId,
-            DateTimeOffset.UtcNow,
+            date ?? DateTimeOffset.UtcNow,
             reference.Trim(),
             description.Trim(),
             debit,
