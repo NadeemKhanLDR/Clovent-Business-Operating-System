@@ -87,14 +87,28 @@ partial class PaymentHistoryDialog
             }
         };
 
-        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.RightToLeft };
-        foreach (var button in new[] { _closeButton, _receiptButton, _voidButton })
+        var actionPanel = new FlowLayoutPanel
         {
-            button.AutoSize = true;
-            button.MinimumSize = new Size(120, 40);
-            button.Margin = new Padding(6, 4, 0, 4);
-            actionPanel.Controls.Add(button);
-        }
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink
+        };
+
+        _closeButton.AutoSize = true;
+        _closeButton.MinimumSize = new Size(120, 40);
+        _closeButton.Margin = new Padding(6, 4, 0, 4);
+        actionPanel.Controls.Add(_closeButton);
+
+        _receiptButton.AutoSize = true;
+        _receiptButton.MinimumSize = new Size(120, 40);
+        _receiptButton.Margin = new Padding(6, 4, 0, 4);
+        actionPanel.Controls.Add(_receiptButton);
+
+        _voidButton.AutoSize = true;
+        _voidButton.MinimumSize = new Size(120, 40);
+        _voidButton.Margin = new Padding(6, 4, 0, 4);
+        actionPanel.Controls.Add(_voidButton);
 
         root.Controls.Add(_paymentsGrid, 0, 0);
         root.Controls.Add(actionPanel, 0, 1);
@@ -104,7 +118,7 @@ partial class PaymentHistoryDialog
 
     private void WireEvents()
     {
-        _voidButton.Click += async (_, _) => await TryRunAsync(VoidPaymentAsync, "void this payment");
-        _receiptButton.Click += async (_, _) => await TryRunAsync(ShowReceiptAsync, "show the receipt preview");
+        _voidButton.Click += VoidButton_Click;
+        _receiptButton.Click += ReceiptButton_Click;
     }
 }

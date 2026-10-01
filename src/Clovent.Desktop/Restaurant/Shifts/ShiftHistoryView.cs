@@ -106,38 +106,25 @@ public sealed class ShiftHistoryView : XtraUserControl
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 4,
             Padding = new Padding(16, 12, 16, 12)
         };
 
         mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Header + Filters
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // Grid
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize)); // Action Bar
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));    // Row 0: Header
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));    // Row 1: Filters
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));    // Row 2: Actions
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // Row 3: Grid
 
-        // ---- Top Header & Filter Container ----
-        var topContainer = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Margin = new Padding(0, 0, 0, 10)
-        };
-        topContainer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-        topContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        topContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        // Title and Subtitle
+        // Row 0: Title and Subtitle
         var titlePanel = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             ColumnCount = 1,
             RowCount = 2,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Margin = new Padding(0, 0, 0, 8)
+            Margin = new Padding(0, 0, 0, 6)
         };
         titlePanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
         titlePanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -156,21 +143,21 @@ public sealed class ShiftHistoryView : XtraUserControl
             Font = new Font("Segoe UI", 9.5F, FontStyle.Regular),
             ForeColor = Color.Gray,
             Dock = DockStyle.Top,
-            Margin = new Padding(0, 0, 0, 4)
+            Margin = new Padding(0, 0, 0, 2)
         };
         titlePanel.Controls.Add(titleLabel, 0, 0);
         titlePanel.Controls.Add(subtitleLabel, 0, 1);
 
-        // Filter Bar
+        // Row 1: Filter Bar
         _filterPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(0, 4, 0, 4),
-            Margin = new Padding(0)
+            Padding = new Padding(0, 2, 0, 2),
+            Margin = new Padding(0, 0, 0, 6)
         };
 
         void AddFilterControl(Control c, int rightMargin = 12)
@@ -252,65 +239,19 @@ public sealed class ShiftHistoryView : XtraUserControl
         _btnClear.Click += BtnClear_Click;
         AddFilterControl(_btnClear, 0);
 
-        topContainer.Controls.Add(titlePanel, 0, 0);
-        topContainer.Controls.Add(_filterPanel, 0, 1);
-
         // Set default period to This Month
         _cboPeriod.SelectedItem = "This Month";
 
-        // ---- Grid ----
-        _gridControl = new GridControl { Dock = DockStyle.Fill };
-        _gridView = new GridView(_gridControl)
-        {
-            OptionsBehavior = { Editable = false },
-            OptionsView = { ShowGroupPanel = false, ShowAutoFilterRow = true, ShowFooter = true },
-            RowHeight = 30,
-            ColumnPanelRowHeight = 32
-        };
-        _gridControl.MainView = _gridView;
-        _gridView.DoubleClick += GridView_DoubleClick;
-        _gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
-
-        // Explicit business-facing columns — hides raw GUID IDs from manager view
-        AddShiftColumn("ShiftNumber",    "Shift #",        60,  DevExpress.Utils.HorzAlignment.Center);
-        AddShiftColumn("CashierName",    "Cashier",        130, DevExpress.Utils.HorzAlignment.Near);
-        AddShiftColumn("OpenedAtUtc",    "Opened",         155, DevExpress.Utils.HorzAlignment.Near);
-        AddShiftColumn("ClosedAtUtc",    "Closed",         155, DevExpress.Utils.HorzAlignment.Near);
-        AddShiftColumn("Status",         "Status",         80,  DevExpress.Utils.HorzAlignment.Center);
-        AddShiftColumn("StartingCash",   "Starting Cash",  110, DevExpress.Utils.HorzAlignment.Far);
-        AddShiftColumn("ExpectedCash",   "Expected Cash",  110, DevExpress.Utils.HorzAlignment.Far);
-        AddShiftColumn("CountedCash",    "Counted Cash",   110, DevExpress.Utils.HorzAlignment.Far);
-        AddShiftColumn("CashVariance",   "Variance",       100, DevExpress.Utils.HorzAlignment.Far);
-        AddShiftColumn("VarianceReason", "Reason",         160, DevExpress.Utils.HorzAlignment.Near);
-        AddShiftColumn("Notes",          "Notes",          200, DevExpress.Utils.HorzAlignment.Near);
-
-        // Empty state overlay
-        _gridView.CustomDrawEmptyForeground += (sender, e) =>
-        {
-            if (_shifts.Count == 0)
-            {
-                const string message = "No shifts found for the selected period.";
-                using var font = new Font("Segoe UI", 11F, FontStyle.Regular);
-                using var brush = new SolidBrush(Color.FromArgb(100, 116, 139));
-                using var format = new StringFormat
-                {
-                    Alignment = StringAlignment.Center,
-                    LineAlignment = StringAlignment.Center
-                };
-                e.Graphics.DrawString(message, font, brush, e.Bounds, format);
-            }
-        };
-
-        // ---- Bottom Action Bar ----
+        // Row 2: Action Bar (placed ABOVE the grid)
         _actionBar = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = true,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Padding = new Padding(0, 10, 0, 0),
-            Margin = new Padding(0)
+            Padding = new Padding(0, 2, 0, 2),
+            Margin = new Padding(0, 0, 0, 8)
         };
 
         _btnOpenShift = new SimpleButton
@@ -348,8 +289,8 @@ public sealed class ShiftHistoryView : XtraUserControl
         void AddActionButton(SimpleButton btn)
         {
             btn.AutoSize = true;
-            btn.Padding = new Padding(14, 6, 14, 6);
-            btn.Margin = new Padding(0, 0, 10, 0);
+            btn.Padding = new Padding(12, 5, 12, 5);
+            btn.Margin = new Padding(0, 0, 8, 0);
             _actionBar.Controls.Add(btn);
         }
 
@@ -358,9 +299,54 @@ public sealed class ShiftHistoryView : XtraUserControl
         AddActionButton(_btnCloseShift);
         AddActionButton(_btnViewDetails);
 
-        mainLayout.Controls.Add(topContainer, 0, 0);
-        mainLayout.Controls.Add(_gridControl, 0, 1);
+        // Row 3: Grid (fills remaining screen height)
+        _gridControl = new GridControl { Dock = DockStyle.Fill, Margin = new Padding(0) };
+        _gridView = new GridView(_gridControl)
+        {
+            OptionsBehavior = { Editable = false },
+            OptionsView = { ShowGroupPanel = false, ShowAutoFilterRow = true, ShowFooter = true, EnableAppearanceEvenRow = true, ColumnAutoWidth = true },
+            OptionsFilter = { AllowAutoFilterConditionChange = DevExpress.Utils.DefaultBoolean.False },
+            RowHeight = 30,
+            ColumnPanelRowHeight = 32
+        };
+        _gridControl.MainView = _gridView;
+        _gridView.DoubleClick += GridView_DoubleClick;
+        _gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
+
+        // Explicit business-facing columns — hides raw GUID IDs from manager view
+        AddShiftColumn("ShiftNumber",    "Shift #",        75,  DevExpress.Utils.HorzAlignment.Center, DevExpress.XtraGrid.Columns.AutoFilterCondition.Equals);
+        AddShiftColumn("CashierName",    "Cashier",        140, DevExpress.Utils.HorzAlignment.Near,   DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+        AddShiftColumn("OpenedAtUtc",    "Opened",         155, DevExpress.Utils.HorzAlignment.Near,   DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+        AddShiftColumn("ClosedAtUtc",    "Closed",         155, DevExpress.Utils.HorzAlignment.Near,   DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+        AddShiftColumn("Status",         "Status",         85,  DevExpress.Utils.HorzAlignment.Center, DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+        AddShiftColumn("StartingCash",   "Starting Cash",  115, DevExpress.Utils.HorzAlignment.Far,    DevExpress.XtraGrid.Columns.AutoFilterCondition.Equals);
+        AddShiftColumn("ExpectedCash",   "Expected Cash",  115, DevExpress.Utils.HorzAlignment.Far,    DevExpress.XtraGrid.Columns.AutoFilterCondition.Equals);
+        AddShiftColumn("CountedCash",    "Counted Cash",   115, DevExpress.Utils.HorzAlignment.Far,    DevExpress.XtraGrid.Columns.AutoFilterCondition.Equals);
+        AddShiftColumn("CashVariance",   "Variance",       105, DevExpress.Utils.HorzAlignment.Far,    DevExpress.XtraGrid.Columns.AutoFilterCondition.Equals);
+        AddShiftColumn("VarianceReason", "Reason",         160, DevExpress.Utils.HorzAlignment.Near,   DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+        AddShiftColumn("Notes",          "Notes",          200, DevExpress.Utils.HorzAlignment.Near,   DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains);
+
+        // Empty state overlay
+        _gridView.CustomDrawEmptyForeground += (sender, e) =>
+        {
+            if (_shifts.Count == 0)
+            {
+                const string message = "No shifts found for the selected period.";
+                using var font = new Font("Segoe UI", 11F, FontStyle.Regular);
+                using var brush = new SolidBrush(Color.FromArgb(100, 116, 139));
+                using var format = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                };
+                e.Graphics.DrawString(message, font, brush, e.Bounds, format);
+            }
+        };
+
+        mainLayout.Controls.Add(titlePanel, 0, 0);
+        mainLayout.Controls.Add(_filterPanel, 0, 1);
         mainLayout.Controls.Add(_actionBar, 0, 2);
+        mainLayout.Controls.Add(_gridControl, 0, 3);
 
         Controls.Add(mainLayout);
 
@@ -368,18 +354,27 @@ public sealed class ShiftHistoryView : XtraUserControl
         AppearanceManager.Apply(this, "Restaurant", nameof(ShiftHistoryView));
     }
 
-    private void AddShiftColumn(string fieldName, string caption, int width, DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near)
+    private void AddShiftColumn(
+        string fieldName,
+        string caption,
+        int width,
+        DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near,
+        DevExpress.XtraGrid.Columns.AutoFilterCondition filterCondition = DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains)
     {
         var col = _gridView.Columns.AddVisible(fieldName, caption);
         col.Width = width;
         col.AppearanceHeader.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         col.AppearanceHeader.Options.UseFont = true;
+        col.AppearanceHeader.TextOptions.HAlignment = alignment;
+        col.AppearanceHeader.Options.UseTextOptions = true;
         col.AppearanceCell.TextOptions.HAlignment = alignment;
         col.AppearanceCell.Options.UseTextOptions = true;
+        col.OptionsFilter.AutoFilterCondition = filterCondition;
     }
 
     private void GridView_CustomColumnDisplayText(object? sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
     {
+        if (e.ListSourceRowIndex < 0) return;
         if (e.Value == null || e.Value == DBNull.Value) return;
 
         switch (e.Column.FieldName)
@@ -483,6 +478,8 @@ public sealed class ShiftHistoryView : XtraUserControl
     {
         try
         {
+            await CurrencyDisplayLoader.ConfigureAsync(_mediator);
+
             DateTimeOffset? fromDate = null;
             DateTimeOffset? toDate = null;
 

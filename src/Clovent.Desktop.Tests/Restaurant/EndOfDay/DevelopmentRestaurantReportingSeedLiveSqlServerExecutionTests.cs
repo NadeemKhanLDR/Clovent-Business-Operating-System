@@ -121,5 +121,24 @@ public sealed class DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTest
         Assert.Equal(100m, heatingItem.MarginPercent);
 
         Assert.NotNull(biryaniItem);
+
+        // 5. Query EXACT SINGLE DAY: today (Current Business Date)
+        var summarySingleDay = await mediator.Send(new GetExpandedSalesSummaryQuery(warehouse.Id.Value, today, today));
+        Assert.NotNull(summarySingleDay);
+        Assert.True(summarySingleDay.Kpis.TotalOrders >= 10, "Expected at least 10 completed orders today");
+        Assert.True(summarySingleDay.Kpis.GrossSales > 0, "Today sales must be > 0");
+
+        // Verify discount applied today
+        Assert.True(summarySingleDay.Kpis.Discounts >= 50m, "Expected at least Rs.50 discount on single day");
+
+        // Verify delivery orders and fees
+        Assert.True(summarySingleDay.Orders.Any(o => o.OrderType == "Delivery"), "Expected at least 1 delivery order today");
+        Assert.True(summarySingleDay.Kpis.DeliveryFees >= 150m, "Expected delivery fee of at least 150");
+
+        // Verify customer receivables activity
+        var rcvB = summarySingleDay.Receivables.FirstOrDefault(r => r.CustomerCode == "CUST-RPT-B");
+        var rcvC = summarySingleDay.Receivables.FirstOrDefault(r => r.CustomerCode == "CUST-RPT-C");
+        Assert.NotNull(rcvB);
+        Assert.NotNull(rcvC);
     }
 }

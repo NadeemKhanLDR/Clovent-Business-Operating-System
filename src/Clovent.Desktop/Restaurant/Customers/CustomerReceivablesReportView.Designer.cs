@@ -328,38 +328,22 @@ partial class CustomerReceivablesReportView
         _gridView.OptionsView.ShowFooter = true;
         _gridView.RowHeight = 28;
 
-        (string FieldName, string Caption, int Width, bool IsRight)[] cols =
-        [
-            ("CustomerCode", "Code", 75, false),
-            ("CustomerName", "Customer Name", 160, false),
-            ("MobileNumber", "Mobile", 95, false),
-            ("CreditLimit", "Credit Limit", 95, true),
-            ("Receivable", "Receivable (A/R)", 105, true),
-            ("Advance", "Advance", 95, true),
-            ("CurrentBalance", "Net Balance", 100, true),
-            ("AvailableCredit", "Avail. Credit", 95, true),
-            ("LastTransactionDate", "Last Activity", 115, false),
-            ("CurrentBucket", "Current (0d)", 85, true),
-            ("Days1To7Bucket", "1–7 Days", 85, true),
-            ("Days8To15Bucket", "8–15 Days", 85, true),
-            ("Days16To30Bucket", "16–30 Days", 85, true),
-            ("Days31To60Bucket", "31–60 Days", 85, true),
-            ("Days60PlusBucket", "60+ Days", 85, true),
-            ("Status", "Status", 70, false),
-        ];
-
-        foreach (var (fieldName, caption, width, isRight) in cols)
-        {
-            var col = _gridView.Columns.AddVisible(fieldName, caption);
-            col.Width = width;
-            if (isRight)
-            {
-                col.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
-                col.AppearanceCell.Options.UseTextOptions = true;
-                col.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
-                col.AppearanceHeader.Options.UseTextOptions = true;
-            }
-        }
+        AddGridColumn("CustomerCode", "Code", 75, false);
+        AddGridColumn("CustomerName", "Customer Name", 160, false);
+        AddGridColumn("MobileNumber", "Mobile", 95, false);
+        AddGridColumn("CreditLimit", "Credit Limit", 95, true);
+        AddGridColumn("Receivable", "Receivable (A/R)", 105, true);
+        AddGridColumn("Advance", "Advance", 95, true);
+        AddGridColumn("CurrentBalance", "Net Balance", 100, true);
+        AddGridColumn("AvailableCredit", "Avail. Credit", 95, true);
+        AddGridColumn("LastTransactionDate", "Last Activity", 115, false);
+        AddGridColumn("CurrentBucket", "Current (0d)", 85, true);
+        AddGridColumn("Days1To7Bucket", "1–7 Days", 85, true);
+        AddGridColumn("Days8To15Bucket", "8–15 Days", 85, true);
+        AddGridColumn("Days16To30Bucket", "16–30 Days", 85, true);
+        AddGridColumn("Days31To60Bucket", "31–60 Days", 85, true);
+        AddGridColumn("Days60PlusBucket", "60+ Days", 85, true);
+        AddGridColumn("Status", "Status", 70, false);
 
         // Configure summaries on footers
         _gridView.Columns["CustomerName"].SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Custom;
@@ -378,6 +362,19 @@ partial class CustomerReceivablesReportView
         _gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
         _gridView.RowStyle += GridView_RowStyle;
         _gridView.CustomDrawEmptyForeground += GridView_CustomDrawEmptyForeground;
+    }
+
+    private void AddGridColumn(string fieldName, string caption, int width, bool isRight)
+    {
+        var col = _gridView.Columns.AddVisible(fieldName, caption);
+        col.Width = width;
+        if (isRight)
+        {
+            col.AppearanceCell.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+            col.AppearanceCell.Options.UseTextOptions = true;
+            col.AppearanceHeader.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+            col.AppearanceHeader.Options.UseTextOptions = true;
+        }
     }
 
     public void ScaleLayoutAtRuntime()

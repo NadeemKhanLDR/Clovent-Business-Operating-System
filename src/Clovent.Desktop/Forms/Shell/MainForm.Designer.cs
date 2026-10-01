@@ -119,7 +119,10 @@ public sealed partial class MainForm
             var groupKey = $"{item.RibbonPage}_{item.RibbonGroup}";
             if (!_navigationGroupsByKey.TryGetValue(groupKey, out var group))
             {
-                group = new RibbonPageGroup(item.RibbonGroup);
+                group = new RibbonPageGroup(item.RibbonGroup)
+                {
+                    AllowTextClipping = false
+                };
                 page.Groups.Add(group);
                 _navigationGroupsByKey[groupKey] = group;
             }

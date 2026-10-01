@@ -123,6 +123,8 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         Width = 1366;
         Height = 800;
         MinimumSize = new Size(1024, 640);
+        AutoScroll = false;
+        AutoScrollMinSize = Size.Empty;
 
         InitializeComponent();
 

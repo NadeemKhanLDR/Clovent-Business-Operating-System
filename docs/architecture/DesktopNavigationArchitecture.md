@@ -17,9 +17,9 @@ Every ribbon page appears in the exact order below:
 3. **Inventory**: Warehouse stock control, stock adjustments, transfers, and stock movements.
 4. **Purchases**: Module-ready clean placeholder group for future procurement workflows (Purchase Orders, Goods Receipt, Vendor Bills). No fabricated mock actions.
 5. **POS**: Front-of-house operational point of sale (Touch POS, Running Orders, Kitchen Tickets, Shift Open/Close, Cash Movements).
-6. **Manager Panel**: Supervisory functions (Sales summary, daily closing, quick order templates, recommendation rules, smart combo deals).
+6. **Manager Panel**: Management operations, supervisory workflows, approvals, and financial operations (Customer receivables & A/R collections, quick order templates, recommendation rules, smart combo deals).
 7. **Users**: Security and identity governance (User accounts, roles & permissions, branch access, audit trail).
-8. **Reports**: Operational, analytical, and financial reports (Sales analysis, customer receivables aging, shift reconciliation, inventory valuation).
+8. **Reports**: Read-only business intelligence, reporting, statements, historical summaries, printing, and data export (Sales summary Day-End/Z-report, shift history report, upsell performance analytics).
 9. **Settings**: System and peripheral configuration (Business profile, POS terminals, printer setup, appearance skins, mode switcher).
 
 ```mermaid
@@ -33,6 +33,25 @@ flowchart LR
     Users --> Reports["8. Reports"]
     Reports --> Settings["9. Settings"]
 ```
+
+### 1.2 Navigation Ownership Principles: Manager Panel vs. Reports
+
+A strict architectural separation governs module ownership across the application:
+
+* **MANAGER PANEL (Operational & Financial Controls)**:
+  - Canonical owner of operational management, approvals, financial workflows, transaction processing, and supervisory actions.
+  - **Customer Receivables** belongs strictly under **Manager Panel** (`Financial / A/R` group) because it contains transactional operations:
+    - *Receive Payment* (single customer A/R settlement transaction)
+    - *Bulk Receive* (multi-customer batch cash/cheque receipt transaction)
+    - *View Ledger* and *Customer Statement*
+    - Document export and printing
+  - One feature = one primary navigation location. Customer Receivables has exactly one canonical navigation entry and is not duplicated in Reports.
+
+* **REPORTS (Read-Only Analysis & Historical Summaries)**:
+  - Canonical owner of read-only business intelligence, analytics, audits, historical summaries, and print/export utilities.
+  - No transactional or financial write actions are exposed under Reports.
+  - **Sales Summary** (Day-End / Z-Report) belongs under **Reports** (`Sales` group) and is not duplicated in Manager Panel.
+  - **Shift History** belongs under **Reports** (`Operations` group).
 
 ---
 
@@ -145,6 +164,26 @@ In high-DPI environments, nesting multiple `AutoSize` containers inside TableLay
 
 ---
 
+### 4.5 ShiftHistoryView Layout & Grid Quality Refinement
+
+- **Elimination of Vertical Blank Gap**:
+  - Previously, Shift History suffered from an inflated vertical gap between filters and grid due to an intermediate `topContainer` TableLayoutPanel whose `AutoSize` row measured an unconstrained `FlowLayoutPanel` (`_filterPanel`) with `WrapContents = true`.
+  - Replaced with a clean 4-row root `TableLayoutPanel`:
+    - Row 0: Header banner AutoSize (Title, Subtitle)
+    - Row 1: Filter bar AutoSize (`_filterPanel` FlowLayoutPanel)
+    - Row 2: Action toolbar AutoSize (`_actionPanel` FlowLayoutPanel directly above grid)
+    - Row 3: Grid Percent 100% (Consumes all remaining vertical screen space)
+- **Action Toolbar Relocation**:
+  - Relocated operational shift buttons (`Open Shift`, `Cash In / Cash Out`, `Close Shift`, `View Details`) from the bottom of the form to directly above the grid (Row 2), ensuring action controls are immediately proximate to the selected shift row context.
+- **AutoFilterRow Glyph Artifact Fix**:
+  - DevExpress XtraGrid AutoFilterRow condition button renders raster icons (`[ABC]`, `[=]`) that distort and display visual noise at ~250% high DPI.
+  - Disabled condition button via `_gridView.OptionsFilter.AllowAutoFilterConditionChange = DevExpress.Utils.DefaultBoolean.False;` and assigned clean `Contains` filter condition to text columns.
+  - Guarded `CustomColumnDisplayText` against negative row handles / AutoFilterRow indices (`if (e.ListSourceRowIndex < 0) return;`).
+- **High-DPI Metric Alignment**:
+  - Currency and numeric columns (`Starting Cash`, `Expected Cash`, `Counted Cash`, `Variance`) align headers and cells to `Far` with uniform currency formatting (`CurrencyDisplayLoader`).
+
+---
+
 ## 5. POS Order Modes & Configurable Defaults
 
 ### 5.1 Front-of-House Order Mode Selection
@@ -172,6 +211,7 @@ In high-DPI environments, nesting multiple `AutoSize` containers inside TableLay
 2. **Document Activated Synchronization**: When switching documents, `TabbedView_DocumentActivated` queries `NavigationRegistry.GetCanonicalPageForKey(key)` and synchronizes `RibbonControl.SelectedPage` seamlessly without triggering re-navigation loops.
 3. **Canonical Feature Placement**:
    - `Masters`: `Categories` (Order: 110) strictly precedes `Menu Items` (Order: 120).
-   - `Reports`: Canonical home for `Customer Receivables` (Financial & A/R group) and `Sales Summary` (Sales group). No duplicate shortcuts in Manager Panel or Masters.
+   - `Manager Panel`: Canonical home for `Customer Receivables` (`Financial / A/R` group, Order: 600).
+   - `Reports`: Canonical home for `Sales Summary` (`Sales` group) and `Shift History` (`Operations` group). No duplicate shortcuts in Manager Panel or Masters.
    - `Punch Out`: Standalone ribbon action in Session group; removed from Administrator profile dropdown.
 4. **Visual Studio Designer Safety**: All business forms and dialogs implement design-time guards (`DesignModeHelper.IsInDesignMode`), ensuring parameterless constructors operate without invoking MediatR, Entity Framework Core, or runtime dependency injection services.

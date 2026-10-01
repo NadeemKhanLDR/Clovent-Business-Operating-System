@@ -18,7 +18,7 @@ partial class EndOfDayReportView
 
     private readonly LabelControl _titleLabel = new() { Text = "Sales Summary" };
     private readonly LabelControl _subtitleLabel = new() { Text = "Sales performance and comprehensive transaction overview" };
-    private readonly EntityPicker _warehousePicker = new("Location:");
+    private readonly EntityPicker _warehousePicker = new("Location:", comboWidth: 140);
     private readonly ComboBoxEdit _periodCombo = new();
     private readonly DateEdit _fromDateEdit = new() { EditValue = DateTime.Today };
     private readonly DateEdit _toDateEdit = new() { EditValue = DateTime.Today };
@@ -220,6 +220,10 @@ partial class EndOfDayReportView
             ("Quantity", "Quantity", 100),
             ("OccurredAtUtc", "Occurred", 170),
         ]);
+        if (_inventoryMovementGridView.Columns["Quantity"] != null)
+        {
+            _inventoryMovementGridView.Columns["Quantity"].SummaryItem.SetSummary(DevExpress.Data.SummaryItemType.None, string.Empty);
+        }
 
         // Tab 10: Stock Remaining
         BuildGrid(_stockRemainingGrid, _stockRemainingGridView,
@@ -284,98 +288,155 @@ partial class EndOfDayReportView
         periodLabel.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
         periodLabel.Appearance.Options.UseFont = true;
         periodLabel.Appearance.Options.UseForeColor = true;
-        periodLabel.Padding = new Padding(0, 6, 0, 0);
+        periodLabel.Margin = new Padding(0, 5, 4, 0);
 
         var fromLabel = new LabelControl { Text = "From:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         fromLabel.Appearance.ForeColor = Color.Gray;
         fromLabel.Appearance.Options.UseForeColor = true;
-        fromLabel.Padding = new Padding(0, 6, 0, 0);
+        fromLabel.Margin = new Padding(0, 5, 4, 0);
 
         var toLabel = new LabelControl { Text = "To:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         toLabel.Appearance.ForeColor = Color.Gray;
         toLabel.Appearance.Options.UseForeColor = true;
-        toLabel.Padding = new Padding(0, 6, 0, 0);
+        toLabel.Margin = new Padding(0, 5, 4, 0);
 
         _periodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _periodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _periodCombo.Properties.Appearance.Options.UseFont = true;
         _periodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _periodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
-        _periodCombo.Size = new Size(180, 32);
+        _periodCombo.Size = new Size(110, 30);
+        _periodCombo.Margin = new Padding(0);
 
         _fromDateEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _fromDateEdit.Properties.Appearance.Options.UseFont = true;
-        _fromDateEdit.Size = new Size(160, 32);
+        _fromDateEdit.Size = new Size(115, 30);
         _fromDateEdit.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _fromDateEdit.Properties.DisplayFormat.FormatString = "dd-MMM-yyyy";
         _fromDateEdit.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _fromDateEdit.Properties.EditFormat.FormatString = "dd-MMM-yyyy";
         _fromDateEdit.Properties.Mask.EditMask = "dd-MMM-yyyy";
+        _fromDateEdit.Margin = new Padding(0);
 
         _toDateEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _toDateEdit.Properties.Appearance.Options.UseFont = true;
-        _toDateEdit.Size = new Size(160, 32);
+        _toDateEdit.Size = new Size(115, 30);
         _toDateEdit.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _toDateEdit.Properties.DisplayFormat.FormatString = "dd-MMM-yyyy";
         _toDateEdit.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _toDateEdit.Properties.EditFormat.FormatString = "dd-MMM-yyyy";
         _toDateEdit.Properties.Mask.EditMask = "dd-MMM-yyyy";
+        _toDateEdit.Margin = new Padding(0);
 
         foreach (var button in new[] { _generateButton, _previewButton, _printButton, _exportPdfButton, _exportExcelButton, _printSummaryButton })
         {
             button.AutoSize = true;
-            button.MinimumSize = new Size(0, 32);
-            button.Padding = new Padding(10, 4, 10, 4);
+            button.MinimumSize = new Size(0, 30);
+            button.Padding = new Padding(8, 4, 8, 4);
+            button.Margin = new Padding(2, 0, 2, 0);
             button.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             button.Appearance.Options.UseFont = true;
             button.Cursor = Cursors.Hand;
         }
 
-        _generateButton.MinimumSize = new Size(100, 32);
+        _generateButton.MinimumSize = new Size(80, 30);
         _generateButton.Appearance.BackColor = Color.FromArgb(13, 148, 136); // Teal-600
         _generateButton.Appearance.ForeColor = Color.White;
         _generateButton.Appearance.Options.UseBackColor = true;
         _generateButton.Appearance.Options.UseForeColor = true;
 
-        _printSummaryButton.MinimumSize = new Size(120, 32);
+        _previewButton.MinimumSize = new Size(70, 30);
+        _printButton.MinimumSize = new Size(65, 30);
+        _exportPdfButton.MinimumSize = new Size(80, 30);
+        _exportExcelButton.MinimumSize = new Size(85, 30);
+
+        _printSummaryButton.MinimumSize = new Size(95, 30);
         _printSummaryButton.Appearance.BackColor = Color.FromArgb(71, 85, 105);
         _printSummaryButton.Appearance.ForeColor = Color.White;
         _printSummaryButton.Appearance.Options.UseBackColor = true;
         _printSummaryButton.Appearance.Options.UseForeColor = true;
 
-        var filterBar = new FlowLayoutPanel
+        var periodPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(2, 0, 4, 0),
+            Padding = new Padding(0)
+        };
+        periodPanel.Controls.Add(periodLabel);
+        periodPanel.Controls.Add(_periodCombo);
+
+        var fromPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(2, 0, 4, 0),
+            Padding = new Padding(0)
+        };
+        fromPanel.Controls.Add(fromLabel);
+        fromPanel.Controls.Add(_fromDateEdit);
+
+        var toPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(2, 0, 4, 0),
+            Padding = new Padding(0)
+        };
+        toPanel.Controls.Add(toLabel);
+        toPanel.Controls.Add(_toDateEdit);
+
+        _warehousePicker.Margin = new Padding(0, 0, 4, 0);
+
+        var filterBar = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            Padding = new Padding(16, 2, 16, 4),
+            ColumnCount = 10,
+            RowCount = 1,
+            Padding = new Padding(12, 2, 12, 4),
         };
-
-        void AddControl(Control c)
+        filterBar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        for (int i = 0; i < 10; i++)
         {
-            c.Margin = new Padding(4, 3, 8, 3);
-            filterBar.Controls.Add(c);
+            filterBar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         }
 
-        AddControl(_warehousePicker);
-        AddControl(periodLabel);
-        AddControl(_periodCombo);
-        AddControl(fromLabel);
-        AddControl(_fromDateEdit);
-        AddControl(toLabel);
-        AddControl(_toDateEdit);
-        AddControl(_generateButton);
-        AddControl(_previewButton);
-        AddControl(_printButton);
-        AddControl(_exportPdfButton);
-        AddControl(_exportExcelButton);
-        AddControl(_printSummaryButton);
+        filterBar.Controls.Add(_warehousePicker, 0, 0);
+        filterBar.Controls.Add(periodPanel, 1, 0);
+        filterBar.Controls.Add(fromPanel, 2, 0);
+        filterBar.Controls.Add(toPanel, 3, 0);
+        filterBar.Controls.Add(_generateButton, 4, 0);
+        filterBar.Controls.Add(_previewButton, 5, 0);
+        filterBar.Controls.Add(_printButton, 6, 0);
+        filterBar.Controls.Add(_exportPdfButton, 7, 0);
+        filterBar.Controls.Add(_exportExcelButton, 8, 0);
+        filterBar.Controls.Add(_printSummaryButton, 9, 0);
+
+        _warehousePicker.TabIndex = 0;
+        _periodCombo.TabIndex = 1;
+        _fromDateEdit.TabIndex = 2;
+        _toDateEdit.TabIndex = 3;
+        _generateButton.TabIndex = 4;
+        _previewButton.TabIndex = 5;
+        _printButton.TabIndex = 6;
+        _exportPdfButton.TabIndex = 7;
+        _exportExcelButton.TabIndex = 8;
+        _printSummaryButton.TabIndex = 9;
 
         Controls.Add(_tabControl);
         Controls.Add(filterBar);
         Controls.Add(titleBar);
+
+        AutoScroll = false;
+        AutoScrollMinSize = Size.Empty;
 
         _periodCombo.SelectedIndexChanged += PeriodCombo_SelectedIndexChanged;
         _fromDateEdit.EditValueChanged += DateEdit_EditValueChanged;
@@ -392,23 +453,36 @@ partial class EndOfDayReportView
 
     #endregion
 
-    private static readonly string[] MoneyFieldNames =
+    internal static readonly string[] MoneyFieldNames =
     [
         "Total", "Amount", "TotalSales", "TotalCost", "GrossProfit", "UnitPrice", "CostPrice",
-        "EstimatedCost", "Subtotal", "Discount", "ServiceAndDeliveryFee", "Tax", "PaidAmount",
-        "OnAccountAmount", "OutstandingAmount", "NetSales", "TotalPaid", "OnAccountIncurred",
-        "AccountPaymentsCollected", "EndingReceivable", "AdvanceBalance", "TotalCollected",
-        "OpeningReceivable", "NewOnAccountSales", "CustomerPayments", "AdvanceApplied",
-        "ClosingReceivable", "OpeningAdvance", "AdvanceReceived", "AdvanceUsed", "ClosingAdvance",
-        "DeliveryFees", "AverageOrderValue", "LineTotal", "ServiceCharge", "Fees",
-        "OpeningFloat", "CashSales", "CashCollections", "CashIn", "CashOut", "ExpectedCash", "CountedCash", "Variance"
+        "EstimatedCost", "TotalCost", "GrossSales", "ItemSales", "BillTotal", "Discount",
+        "ServiceAndDeliveryFee", "Tax", "PaidAmount", "OnAccountAmount", "OutstandingAmount",
+        "NetSales", "TotalPaid", "OnAccountIncurred", "AccountPaymentsCollected",
+        "EndingReceivable", "AdvanceBalance", "TotalCollected", "OpeningReceivable",
+        "NewOnAccountSales", "CustomerPayments", "AdvanceApplied", "ClosingReceivable",
+        "OpeningAdvance", "AdvanceReceived", "AdvanceUsed", "ClosingAdvance", "DeliveryFees",
+        "AverageOrderValue", "LineTotal", "ServiceCharge", "Fees", "Subtotal",
+        "OpeningFloat", "StartingCash", "CashSales", "CashCollections", "CashIn", "CashOut",
+        "ExpectedCash", "CountedCash", "Variance", "CashVariance",
+        "CreditLimit", "Receivable", "Advance", "CurrentBalance", "AvailableCredit"
     ];
 
     private static readonly string[] NumericFieldNames =
     [
         "Quantity", "QuantityOnHand", "QuantityAvailable", "QuantitySold", "OrdersCount",
-        "ItemsCount", "TransactionsCount", "ShiftNumber"
+        "ItemsCount", "TransactionsCount"
     ];
+
+    private static readonly System.Collections.Generic.HashSet<string> ExcludedFromSumSummary = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "UnitPrice", "CostPrice", "AverageOrderValue", "MarginPercent", "PercentOfTotalSales", "PercentOfTotal", "Percent", "ShiftNumber", "ShiftId", "Status"
+    };
+
+    private static readonly System.Collections.Generic.HashSet<string> CustomCostSummaryFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "EstimatedCost", "TotalCost", "GrossProfit"
+    };
 
     private static void BuildGrid(GridControl grid, GridView view, (string FieldName, string Caption, int Width)[] columns)
     {
@@ -422,9 +496,19 @@ partial class EndOfDayReportView
         view.OptionsView.ShowFooter = true;
         view.RowHeight = 26;
 
+        decimal costSum = 0m;
+        int costCount = 0;
+        decimal gpSum = 0m;
+        int gpCount = 0;
+
         bool first = true;
-        foreach (var (fieldName, caption, width) in columns)
+        for (int i = 0; i < columns.Length; i++)
         {
+            var col = columns[i];
+            string fieldName = col.FieldName;
+            string caption = col.Caption;
+            int width = col.Width;
+
             var column = view.Columns.AddVisible(fieldName, caption);
             column.Width = width;
 
@@ -444,19 +528,174 @@ partial class EndOfDayReportView
 
                 if (MoneyFieldNames.Contains(fieldName))
                 {
-                    column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
-                    column.SummaryItem.DisplayFormat = "{0:n2}";
+                    column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                    column.DisplayFormat.FormatString = "n2";
+                }
+                else if (fieldName.EndsWith("Percent"))
+                {
+                    column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                    column.DisplayFormat.FormatString = "0.0%";
                 }
                 else if (NumericFieldNames.Contains(fieldName))
                 {
-                    column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
-                    column.SummaryItem.DisplayFormat = "{0:n0}";
+                    column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                    column.DisplayFormat.FormatString = "0.##";
+                }
+
+                if (!ExcludedFromSumSummary.Contains(fieldName))
+                {
+                    if (CustomCostSummaryFields.Contains(fieldName))
+                    {
+                        column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Custom;
+                        column.SummaryItem.DisplayFormat = "{0}";
+                    }
+                    else if (MoneyFieldNames.Contains(fieldName))
+                    {
+                        column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
+                        column.SummaryItem.DisplayFormat = "{0:n2}";
+                    }
+                    else if (NumericFieldNames.Contains(fieldName))
+                    {
+                        column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
+                        column.SummaryItem.DisplayFormat = "{0:n0}";
+                    }
                 }
             }
         }
 
+        view.CustomSummaryCalculate += (_, e) =>
+        {
+            if (e.Item is not GridSummaryItem item) return;
+            var isCost = string.Equals(item.FieldName, "EstimatedCost", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(item.FieldName, "TotalCost", StringComparison.OrdinalIgnoreCase);
+            var isGp = string.Equals(item.FieldName, "GrossProfit", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCost && !isGp) return;
+
+            if (e.SummaryProcess == DevExpress.Data.CustomSummaryProcess.Start)
+            {
+                if (isCost) { costSum = 0m; costCount = 0; }
+                if (isGp) { gpSum = 0m; gpCount = 0; }
+            }
+            else if (e.SummaryProcess == DevExpress.Data.CustomSummaryProcess.Calculate)
+            {
+                if (e.FieldValue != null && e.FieldValue != DBNull.Value)
+                {
+                    try
+                    {
+                        var val = Convert.ToDecimal(e.FieldValue);
+                        if (isCost) { costSum += val; costCount++; }
+                        if (isGp) { gpSum += val; gpCount++; }
+                    }
+                    catch { }
+                }
+            }
+            else if (e.SummaryProcess == DevExpress.Data.CustomSummaryProcess.Finalize)
+            {
+                if (isCost)
+                {
+                    e.TotalValue = costCount > 0 ? (object)CurrencyDisplay.FormatPlain(costSum) : "N/A";
+                }
+                else if (isGp)
+                {
+                    e.TotalValue = gpCount > 0 ? (object)$"Known GP: {CurrencyDisplay.FormatPlain(gpSum)}" : "Known GP: N/A";
+                }
+            }
+        };
+
+        view.CustomDrawFooterCell += (_, e) =>
+        {
+            var isCost = string.Equals(e.Column.FieldName, "EstimatedCost", StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(e.Column.FieldName, "TotalCost", StringComparison.OrdinalIgnoreCase);
+            var isGp = string.Equals(e.Column.FieldName, "GrossProfit", StringComparison.OrdinalIgnoreCase);
+
+            if (!isCost && !isGp) return;
+
+            if (isCost)
+            {
+                if (costCount == 0 || e.Info.Value == null || e.Info.Value == DBNull.Value || string.Equals(e.Info.Value?.ToString(), "N/A", StringComparison.OrdinalIgnoreCase))
+                {
+                    e.Info.DisplayText = "N/A";
+                }
+                else
+                {
+                    try
+                    {
+                        var val = Convert.ToDecimal(e.Info.Value);
+                        e.Info.DisplayText = CurrencyDisplay.FormatPlain(val);
+                    }
+                    catch
+                    {
+                        e.Info.DisplayText = e.Info.Value?.ToString() ?? "N/A";
+                    }
+                }
+            }
+            else if (isGp)
+            {
+                if (gpCount == 0 || e.Info.Value == null || e.Info.Value == DBNull.Value || e.Info.Value?.ToString()?.Contains("N/A") == true)
+                {
+                    e.Info.DisplayText = "Known GP: N/A";
+                }
+                else
+                {
+                    try
+                    {
+                        var val = Convert.ToDecimal(e.Info.Value);
+                        e.Info.DisplayText = $"Known GP: {CurrencyDisplay.FormatPlain(val)}";
+                    }
+                    catch
+                    {
+                        e.Info.DisplayText = e.Info.Value?.ToString() ?? "Known GP: N/A";
+                    }
+                }
+            }
+        };
+
         view.CustomColumnDisplayText += (_, e) =>
         {
+            if (e.Column.FieldName == "CostPrice")
+            {
+                if (e.Value == null || e.Value == DBNull.Value)
+                {
+                    e.DisplayText = "N/A";
+                    return;
+                }
+                if (e.ListSourceRowIndex >= 0 && view.GetRow(view.GetRowHandle(e.ListSourceRowIndex)) is Clovent.Restaurant.Application.EndOfDay.Dtos.ExpandedItemRowDto itemRow)
+                {
+                    if (string.Equals(itemRow.ItemType, "Prepared", StringComparison.OrdinalIgnoreCase) && (itemRow.CostPrice == null || itemRow.CostPrice <= 0))
+                    {
+                        e.DisplayText = "N/A";
+                        return;
+                    }
+                }
+            }
+            else if (e.Column.FieldName == "EstimatedCost" || e.Column.FieldName == "TotalCost" ||
+                     e.Column.FieldName == "GrossProfit" || e.Column.FieldName == "MarginPercent")
+            {
+                if (e.Value == null || e.Value == DBNull.Value)
+                {
+                    e.DisplayText = "N/A";
+                    return;
+                }
+                if (e.ListSourceRowIndex >= 0 && view.GetRow(view.GetRowHandle(e.ListSourceRowIndex)) is Clovent.Restaurant.Application.EndOfDay.Dtos.ExpandedItemRowDto itemRow)
+                {
+                    if (string.Equals(itemRow.ItemType, "Prepared", StringComparison.OrdinalIgnoreCase) && (itemRow.CostPrice == null || itemRow.CostPrice <= 0))
+                    {
+                        e.DisplayText = "N/A";
+                        return;
+                    }
+                }
+            }
+
+            if (e.Column.FieldName == "CountedCash" || e.Column.FieldName == "Variance")
+            {
+                if (e.Value == null || e.Value == DBNull.Value)
+                {
+                    e.DisplayText = "N/A";
+                    return;
+                }
+            }
+
             if (e.Value != null && e.Value != DBNull.Value)
             {
                 if (MoneyFieldNames.Contains(e.Column.FieldName))
@@ -517,8 +756,13 @@ partial class EndOfDayReportView
         view.RowHeight = 24;
 
         bool first = true;
-        foreach (var (fieldName, caption, width) in columns)
+        for (int i = 0; i < columns.Length; i++)
         {
+            var col = columns[i];
+            string fieldName = col.FieldName;
+            string caption = col.Caption;
+            int width = col.Width;
+
             var column = view.Columns.AddVisible(fieldName, caption);
             column.Width = width;
 
@@ -538,11 +782,15 @@ partial class EndOfDayReportView
 
                 if (MoneyFieldNames.Contains(fieldName))
                 {
+                    column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                    column.DisplayFormat.FormatString = "n2";
                     column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
                     column.SummaryItem.DisplayFormat = "{0:n2}";
                 }
                 else if (NumericFieldNames.Contains(fieldName))
                 {
+                    column.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                    column.DisplayFormat.FormatString = "0.##";
                     column.SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Sum;
                     column.SummaryItem.DisplayFormat = "{0:n0}";
                 }
@@ -577,7 +825,7 @@ partial class EndOfDayReportView
 
     private XtraTabPage BuildSummaryPage()
     {
-        var page = new XtraTabPage { Text = "Summary", Padding = new Padding(12) };
+        var page = new XtraTabPage { Text = "Summary", Padding = new Padding(12), AutoScroll = false };
 
         var captionFont = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         var valueFont = new Font("Segoe UI", 18F, FontStyle.Bold);
@@ -601,8 +849,8 @@ partial class EndOfDayReportView
         }
 
         cardsRow.Controls.Add(BuildStatCard("TOTAL BILLS", _totalBillsValueLabel, Color.FromArgb(41, 128, 185), "Bills generated this period", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 0, 0);
-        cardsRow.Controls.Add(BuildStatCard("TOTAL SALES", _totalSalesValueLabel, Color.FromArgb(39, 174, 96), "Gross sales across all tenders", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 1, 0);
-        cardsRow.Controls.Add(BuildStatCard("CASH COLLECTED", _cashValueLabel, Color.FromArgb(230, 126, 34), "Cash payments received", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 2, 0);
+        cardsRow.Controls.Add(BuildStatCard("TOTAL SALES", _totalSalesValueLabel, Color.FromArgb(39, 174, 96), "Completed bill sales including fees", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 1, 0);
+        cardsRow.Controls.Add(BuildStatCard("CASH SALES", _cashValueLabel, Color.FromArgb(230, 126, 34), "Cash order settlements", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 2, 0);
         cardsRow.Controls.Add(BuildStatCard("CARD COLLECTED", _cardValueLabel, Color.FromArgb(142, 68, 173), "Electronic / card payments received", captionFont, valueFont, subFont, captionHeight, valueHeight, subHeight), 3, 0);
 
         var voidedCaption = new LabelControl { Text = "Voided Orders:" };
@@ -700,7 +948,7 @@ partial class EndOfDayReportView
 
     private static XtraTabPage BuildGridPage(string title, GridControl grid)
     {
-        var page = new XtraTabPage { Text = title };
+        var page = new XtraTabPage { Text = title, AutoScroll = false };
         grid.Dock = DockStyle.Fill;
         page.Controls.Add(grid);
         return page;
@@ -719,22 +967,22 @@ partial class EndOfDayReportView
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        int editorH = DesktopDpi.Scale(32, this);
-        _periodCombo.MinimumSize = new Size(DesktopDpi.Scale(180, this), editorH);
+        int editorH = DesktopDpi.Scale(30, this);
+        _periodCombo.MinimumSize = new Size(DesktopDpi.Scale(110, this), editorH);
         _periodCombo.Size = _periodCombo.MinimumSize;
 
-        _fromDateEdit.MinimumSize = new Size(DesktopDpi.Scale(160, this), editorH);
+        _fromDateEdit.MinimumSize = new Size(DesktopDpi.Scale(115, this), editorH);
         _fromDateEdit.Size = _fromDateEdit.MinimumSize;
 
-        _toDateEdit.MinimumSize = new Size(DesktopDpi.Scale(160, this), editorH);
+        _toDateEdit.MinimumSize = new Size(DesktopDpi.Scale(115, this), editorH);
         _toDateEdit.Size = _toDateEdit.MinimumSize;
 
-        _generateButton.MinimumSize = new Size(DesktopDpi.Scale(100, this), editorH);
-        _previewButton.MinimumSize = new Size(DesktopDpi.Scale(90, this), editorH);
-        _printButton.MinimumSize = new Size(DesktopDpi.Scale(90, this), editorH);
-        _exportPdfButton.MinimumSize = new Size(DesktopDpi.Scale(100, this), editorH);
-        _exportExcelButton.MinimumSize = new Size(DesktopDpi.Scale(100, this), editorH);
-        _printSummaryButton.MinimumSize = new Size(DesktopDpi.Scale(120, this), editorH);
+        _generateButton.MinimumSize = new Size(DesktopDpi.Scale(80, this), editorH);
+        _previewButton.MinimumSize = new Size(DesktopDpi.Scale(70, this), editorH);
+        _printButton.MinimumSize = new Size(DesktopDpi.Scale(65, this), editorH);
+        _exportPdfButton.MinimumSize = new Size(DesktopDpi.Scale(80, this), editorH);
+        _exportExcelButton.MinimumSize = new Size(DesktopDpi.Scale(85, this), editorH);
+        _printSummaryButton.MinimumSize = new Size(DesktopDpi.Scale(95, this), editorH);
 
         var allViews = new[]
         {

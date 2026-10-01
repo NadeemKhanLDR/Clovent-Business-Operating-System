@@ -85,7 +85,7 @@ public sealed record ExpandedItemRowDto(
     string ItemType,
     decimal QuantitySold,
     decimal UnitPrice,
-    decimal CostPrice,
+    decimal? CostPrice,
     decimal TotalSales,
     decimal? EstimatedCost,
     decimal? GrossProfit,
@@ -182,8 +182,8 @@ public sealed record ShiftDrawerCashSummaryDto(
     decimal CashIn,
     decimal CashOut,
     decimal ExpectedCash,
-    decimal CountedCash,
-    decimal Variance,
+    decimal? CountedCash,
+    decimal? Variance,
     string Status);
 
 /// <summary>Root aggregated response of the Expanded Sales Summary query.</summary>

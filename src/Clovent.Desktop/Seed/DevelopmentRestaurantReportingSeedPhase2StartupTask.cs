@@ -5,19 +5,27 @@ using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Catalog.Application.Products.Queries;
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Theming;
+using Clovent.Identity.Branches;
 using Clovent.Identity.Organizations;
 using Clovent.Identity.Users;
 using Clovent.Inventory.Infrastructure.Persistence;
 using Clovent.Inventory.Transactions;
 using Clovent.Inventory.WarehouseStocks;
+using Clovent.MasterData.Infrastructure.Persistence;
 using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.MasterData.Warehouses;
+using Clovent.MasterData.Warehouses.ValueObjects;
 using Clovent.Platform.Bootstrap;
 using Clovent.Restaurant.Application.Customers.Commands;
+using Clovent.Restaurant.Application.Discounts.Commands;
+using Clovent.Restaurant.Application.Payments.Commands;
 using Clovent.Restaurant.Application.Shifts.Commands;
+using Clovent.Restaurant.Application.Shifts.Services;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DiningAreas;
+using Clovent.Restaurant.Discounts;
 using Clovent.Restaurant.Infrastructure.Persistence;
 using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
@@ -36,24 +44,30 @@ using Microsoft.Extensions.Options;
 namespace Clovent.Desktop.Seed;
 
 /// <summary>
-/// Development-only Phase 2 seed: provisions reporting transactions covering all remaining
-/// operational reporting scenarios using pure domain entities and application workflows.
+/// Development-only Phase 2 seed: provisions a complete, real reporting acceptance dataset
+/// for the CURRENT CONFIGURED BUSINESS DATE using pure domain aggregates and application workflows.
 /// <para>
+/// Acceptance Run ID: RUN-20261001-DEV-ACCEPTANCE
 /// 100% legitimate workflows:
 /// <list type="bullet">
+///   <item>Prepared items: Chicken Biryani, Chicken Karahi, Chicken Haleem (Half/Full Plate portion variants)</item>
+///   <item>Resale item: Naan received via Goods Receipt, adjusted, transferred, and issued via POS sales</item>
 ///   <item>Service item: Food Heating (100% margin, zero stock impact)</item>
-///   <item>Resale item: Naan received via Goods Receipt and issued via POS orders</item>
-///   <item>Prepared item: Chicken Biryani and Chicken Karahi</item>
-///   <item>Dine-In, Take Away, Delivery (with rider details and delivery fee)</item>
-///   <item>Tenders: Cash, Credit Card, Mobile Wallet, On Account, Customer Advance, Split</item>
-///   <item>Customer overpayment creating advance credit, advance applied to subsequent order</item>
-///   <item>Customer partial payments and bulk collection batch across 3 accounts</item>
-///   <item>Held order, Running order, and Kitchen Ticket</item>
+///   <item>Tenders: Cash, Credit Card, Mobile Wallet, On Account, Customer Advance, Split Payment</item>
+///   <item>Prepaid / Customer Advance: Overpayment creating advance credit, advance applied to subsequent order</item>
+///   <item>Collections: Partial payments and bulk collection batch across 3 accounts</item>
+///   <item>Credit Limit Override: Authorized manager override for customer exceeding credit limit</item>
+///   <item>Discounts: Legitimate order discount via ApplyDiscountToOrderCommand</item>
+///   <item>Price Override: Supervisor price override with audit trail</item>
+///   <item>Order &amp; Line Notes: Kitchen/staff instructions and item-level customization</item>
+///   <item>Order Types: Dine-In, Take Away, Delivery (with rider details and delivery fee)</item>
+///   <item>Held Order, Running Order, and Kitchen Ticket</item>
 ///   <item>Upsell recommendation events (Offered, Accepted, Dismissed)</item>
-///   <item>Shift balancing: Starting cash, Cash In, Cash Out, Cash Sales, Collections, Expected = Counted, 0 variance</item>
+///   <item>Voided transaction with reason for audit reporting</item>
+///   <item>Shift balancing: Starting float, Cash In, Cash Out, Cash Sales, Collections, Expected = Counted, 0 variance</item>
 /// </list>
 /// </para>
-/// Fully idempotent: skips execution once verified clean dataset is in place.
+/// Fully idempotent: skips execution once verified clean dataset is in place for today's business date.
 /// </summary>
 public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
     IOrganizationRepository organizationRepository,
@@ -75,10 +89,12 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
     IInventoryTransactionRepository transactionRepository,
     InventoryDbContext inventoryDbContext,
     IMediator mediator,
-    IOptions<DesktopOptions> options) : IStartupTask
+    IOptions<DesktopOptions> options,
+    IBusinessDateProvider? businessDateProvider = null) : IStartupTask
 {
+    public const string AcceptanceRunId = "RUN-20261001-DEV-ACCEPTANCE";
+    public const string CleanSeedTag = $"[{AcceptanceRunId}]";
     private const string CheckOrderNumber = "ORD-RPT-S2-001";
-    private const string CleanSeedTag = "[V2-CLEAN-SEED]";
 
     /// <inheritdoc/>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
@@ -86,55 +102,46 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         if (!options.Value.SeedDevelopmentRestaurantData)
             return;
 
+        var currentBusinessDate = businessDateProvider?.GetCurrentBusinessDate()
+            ?? BusinessDateTimeService.Instance.Today;
+
         // ── 1. Resolve Warehouse ──────────────────────────────────────────────
         var warehouses = await warehouseRepository.GetAllAsync(cancellationToken);
         if (warehouses.Count == 0) return;
         var warehouse = warehouses.First();
         var warehouseId = warehouse.Id;
 
+        // Resolve or create secondary warehouse WH-02 for inventory transfer testing
+        Warehouse? wh02 = warehouses.FirstOrDefault(w => w.Code.Value == "WH-02");
+        if (wh02 is null)
+        {
+            wh02 = Warehouse.Create(warehouse.BranchId, WarehouseName.Create("Kitchen Backup Warehouse"), EntityCode.Create("WH-02"));
+            await warehouseRepository.AddAsync(wh02, cancellationToken);
+        }
+
         // ── 2. Resolve Catalog Variants ───────────────────────────────────────
         var products = await mediator.Send(new ListProductsQuery(), cancellationToken);
         var variants = await mediator.Send(new ListProductVariantsQuery(), cancellationToken);
 
-        var biryaniProduct = products.FirstOrDefault(p =>
-            string.Equals(p.Name, "Chicken Biryani", StringComparison.OrdinalIgnoreCase) ||
-            p.Sku.Contains("BIRYANI", StringComparison.OrdinalIgnoreCase));
-        var naanProduct = products.FirstOrDefault(p =>
-            string.Equals(p.Name, "Naan", StringComparison.OrdinalIgnoreCase) ||
-            p.Sku.Contains("NAAN", StringComparison.OrdinalIgnoreCase));
-        var heatingProduct = products.FirstOrDefault(p =>
-            string.Equals(p.Name, "Food Heating", StringComparison.OrdinalIgnoreCase) ||
-            p.Sku.Contains("HEAT", StringComparison.OrdinalIgnoreCase));
-        var karahiProduct = products.FirstOrDefault(p =>
-            string.Equals(p.Name, "Chicken Karahi", StringComparison.OrdinalIgnoreCase) ||
-            p.Sku.Contains("KARAHI", StringComparison.OrdinalIgnoreCase));
+        Clovent.Catalog.Variants.ProductVariantId? ResolveVariantId(string sku, string nameKeyword)
+        {
+            var match = variants.FirstOrDefault(v =>
+                string.Equals(v.Sku, sku, StringComparison.OrdinalIgnoreCase) ||
+                v.Sku.Contains(sku, StringComparison.OrdinalIgnoreCase) ||
+                v.Name.Contains(nameKeyword, StringComparison.OrdinalIgnoreCase));
+            return match != null ? new Clovent.Catalog.Variants.ProductVariantId(match.ProductVariantId) : null;
+        }
 
-        var biryaniVariant = variants.FirstOrDefault(v =>
-            (biryaniProduct != null && v.ProductId == biryaniProduct.ProductId) ||
-            v.Sku.Contains("BIRYANI", StringComparison.OrdinalIgnoreCase) ||
-            v.Name.Contains("Biryani", StringComparison.OrdinalIgnoreCase));
-        var naanVariant = variants.FirstOrDefault(v =>
-            (naanProduct != null && v.ProductId == naanProduct.ProductId) ||
-            v.Sku.Contains("NAAN", StringComparison.OrdinalIgnoreCase) ||
-            v.Name.Contains("Naan", StringComparison.OrdinalIgnoreCase));
-        var heatingVariant = variants.FirstOrDefault(v =>
-            (heatingProduct != null && v.ProductId == heatingProduct.ProductId) ||
-            v.Sku.Contains("HEAT", StringComparison.OrdinalIgnoreCase) ||
-            v.Name.Contains("Heating", StringComparison.OrdinalIgnoreCase));
-        var karahiVariant = variants.FirstOrDefault(v =>
-            (karahiProduct != null && v.ProductId == karahiProduct.ProductId) ||
-            v.Sku.Contains("KARAHI", StringComparison.OrdinalIgnoreCase) ||
-            v.Name.Contains("Karahi", StringComparison.OrdinalIgnoreCase));
+        var vBiryaniId = ResolveVariantId("CHICKEN-BIRYANI-STD", "Biryani");
+        var vNaanId = ResolveVariantId("NAAN-STD", "Naan");
+        var vHeatingId = ResolveVariantId("FOOD-HEATING-STD", "Heating");
+        var vKarahiId = ResolveVariantId("CHICKEN-KARAHI-STD", "Karahi");
+        var vHaleemHalfId = ResolveVariantId("CHICKEN-HALEEM-HALF", "Haleem");
+        var vHaleemFullId = ResolveVariantId("CHICKEN-HALEEM-FULL", "Haleem");
+        var vQormaId = ResolveVariantId("ALOO-CHICKEN-QORMA-STD", "Qorma");
 
-        if (biryaniVariant is null || naanVariant is null || heatingVariant is null)
+        if (vBiryaniId is null || vNaanId is null || vHeatingId is null)
             return;
-
-        var vBiryaniId = new Clovent.Catalog.Variants.ProductVariantId(biryaniVariant.ProductVariantId);
-        var vNaanId = new Clovent.Catalog.Variants.ProductVariantId(naanVariant.ProductVariantId);
-        var vHeatingId = new Clovent.Catalog.Variants.ProductVariantId(heatingVariant.ProductVariantId);
-        Clovent.Catalog.Variants.ProductVariantId? vKarahiId = karahiVariant != null
-            ? new Clovent.Catalog.Variants.ProductVariantId(karahiVariant.ProductVariantId)
-            : null;
 
         // ── 3. Resolve Tables ─────────────────────────────────────────────────
         var tables = (await tableRepository.GetAllAsync(cancellationToken)).ToList();
@@ -161,25 +168,35 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         var s2001 = existingOrders.FirstOrDefault(o => o.OrderNumber.Value == CheckOrderNumber);
         var s2005 = existingOrders.FirstOrDefault(o => o.OrderNumber.Value == "ORD-RPT-S2-005");
         var srvOrder = existingOrders.FirstOrDefault(o => o.OrderNumber.Value == "ORD-RPT-S2-SRV");
+        var discOrder = existingOrders.FirstOrDefault(o => o.OrderNumber.Value == "ORD-RPT-S2-011");
+
+        DateOnly? s2001Date = s2001 != null
+            ? (businessDateProvider != null
+                ? businessDateProvider.GetBusinessDateForUtc(s2001.CreatedAtUtc)
+                : DateOnly.FromDateTime(s2001.CreatedAtUtc.LocalDateTime))
+            : null;
 
         bool isCleanV2Present = s2001 != null &&
                                 s2005 != null &&
                                 srvOrder != null &&
+                                discOrder != null &&
+                                s2001Date == currentBusinessDate &&
+                                existingOrders.Any(o => o.OrderNumber.Value == "ORD-RPT-S2-007" && o.RiderPhone != null) &&
                                 await restaurantDbContext.CustomerLedgerEntries.AnyAsync(
                                     l => l.Description != null && l.Description.Contains(CleanSeedTag), cancellationToken);
 
         if (isCleanV2Present)
         {
-            // Already cleanly seeded through domain workflows. Ensure open shift and active held/running orders then return.
-            await EnsureOpenShiftForTestingAsync(cancellationToken);
-            await EnsureRunningAndHeldOrdersAsync(warehouseId, vBiryaniId, vNaanId, t01, t03, cancellationToken);
+            // Already cleanly seeded for today through domain workflows. Ensure open shift and active held/running orders then return.
+            await EnsureOpenShiftForTestingAsync(warehouseId, cancellationToken);
+            await EnsureRunningAndHeldOrdersAsync(warehouseId, vBiryaniId.Value, vNaanId.Value, t01, t03, cancellationToken);
             return;
         }
 
-        // Clean up any existing Phase 2 entities using domain DbContexts/repositories
+        // Clean up any existing Phase 2 entities from older runs or business dates
         if (existingOrders.Any(o => o.OrderNumber.Value.StartsWith("ORD-RPT-S2-")))
         {
-            await CleanPhase2DataAsync(warehouseId, vNaanId, cancellationToken);
+            await CleanPhase2DataAsync(warehouseId, vNaanId.Value, cancellationToken);
         }
 
         // ── 5. Resolve Payment Methods ────────────────────────────────────────
@@ -217,7 +234,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             var created = Customer.Create(
                 EntityCode.Create(code), name, mobile, address,
                 email: null, openingBalance: 0m, creditLimit: creditLimit,
-                notes: "Reporting Coverage Run - 29-Sep-2026",
+                notes: $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy}",
                 shopNo: null, mobile2: null, phone: mobile,
                 isDefault: isDefault, isCreditAllowed: isCreditAllowed);
             customerRepository.AddAsync(created, cancellationToken).GetAwaiter().GetResult();
@@ -229,6 +246,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         var custC = GetOrCreateCustomer("CUST-RPT-C", "Hassan Brothers Trading", "0321-5552222", "Blue Area, Islamabad", 15_000m);
         var custD = GetOrCreateCustomer("CUST-RPT-D", "Sana Textile & General", "0311-5553333", "F-8 Markaz, Islamabad", 20_000m);
         var custE = GetOrCreateCustomer("CUST-RPT-E", "Rizwan Home Delivery", "0333-5554444", "House 7, Street 9, F-10/3, Islamabad", 5_000m);
+        var custF = GetOrCreateCustomer("CUST-RPT-F", "Zubair Traders", "0345-5556666", "I-9 Industrial Area, Islamabad", 200m);
         var walkInCustomer = existingCusts.FirstOrDefault(c => c.IsDefault || c.Code.Value == "C000") ??
                              GetOrCreateCustomer("C000", "Walk-in Guest", "0000-0000000", "Counter", 0m, isCreditAllowed: false, isDefault: true);
         var corpCustomer = existingCusts.FirstOrDefault(c => c.Code.Value == "CUST-CORP-01" || string.Equals(c.Name, "Corporate Lunch Account", StringComparison.OrdinalIgnoreCase));
@@ -238,6 +256,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         custC.AdjustBalance(-custC.OutstandingBalance);
         custD.AdjustBalance(-custD.OutstandingBalance);
         custE.AdjustBalance(-custE.OutstandingBalance);
+        custF.AdjustBalance(-custF.OutstandingBalance);
         if (corpCustomer != null)
             corpCustomer.AdjustBalance(130m - corpCustomer.OutstandingBalance);
 
@@ -245,52 +264,146 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         await customerRepository.UpdateAsync(custC, cancellationToken);
         await customerRepository.UpdateAsync(custD, cancellationToken);
         await customerRepository.UpdateAsync(custE, cancellationToken);
+        await customerRepository.UpdateAsync(custF, cancellationToken);
         if (corpCustomer != null)
             await customerRepository.UpdateAsync(corpCustomer, cancellationToken);
         await restaurantDbContext.SaveChangesAsync(cancellationToken);
 
-        // ── 7. Resolve Shift #1003 (The Reporting Test Shift) ──────────────────
+        // ── 7. Resolve / Prepare Reporting Shift for today ─────────────────────
         var allShifts = await shiftRepository.SearchShiftsAsync(cancellationToken: cancellationToken);
-        var shift1003 = allShifts.FirstOrDefault(s => s.ShiftNumber == 1003);
-        ShiftId? targetShiftId = shift1003?.Id;
+        var openShifts = allShifts.Where(s => s.Status == ShiftStatus.Open).ToList();
 
-        if (shift1003 != null && shift1003.Status == ShiftStatus.Open)
+        // Close any prior open shift to start clean for today's acceptance run
+        foreach (var priorOpenShift in openShifts)
         {
-            var cashierId = shift1003.CashierId;
-            if (!shift1003.CashMovements.Any(m => m.Reason == "Petty cash replenishment" && m.Amount == 1000m))
-            {
-                shift1003.AddCashMovement(CashMovementType.CashIn, 1000m, "Petty cash replenishment", cashierId, "Reporting Coverage Run - 29-Sep-2026");
-            }
-            if (!shift1003.CashMovements.Any(m => m.Reason == "Kitchen supplies purchase" && m.Amount == 500m))
-            {
-                shift1003.AddCashMovement(CashMovementType.CashOut, 500m, "Kitchen supplies purchase", cashierId, "Reporting Coverage Run - 29-Sep-2026");
-            }
-            await shiftRepository.UpdateAsync(shift1003, cancellationToken);
+            var pPays = await paymentRepository.GetByShiftIdAsync(priorOpenShift.Id, cancellationToken);
+            decimal pCashSales = pPays.Where(p => !p.IsVoided && p.PaymentMethodId == cashMethod.Id).Sum(p => p.Amount);
+            var pLedgers = await ledgerRepository.GetByShiftIdAsync(priorOpenShift.Id, cancellationToken);
+            decimal pCashColls = pLedgers.Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase)).Sum(e => e.Credit);
+            decimal pCashIn = priorOpenShift.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
+            decimal pCashOut = priorOpenShift.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
+            decimal pExpected = priorOpenShift.StartingCash + pCashIn + pCashSales + pCashColls - pCashOut;
+
+            await mediator.Send(new CloseShiftCommand(
+                priorOpenShift.Id.Value,
+                pExpected,
+                null,
+                "Pre-seed shift balance and close"), cancellationToken);
+        }
+
+        // Open dedicated reporting shift for today's acceptance run
+        var lastShift = (await shiftRepository.SearchShiftsAsync(cancellationToken: cancellationToken))
+            .OrderByDescending(s => s.ShiftNumber)
+            .FirstOrDefault();
+
+        var branchId = lastShift?.BranchId ?? warehouse.BranchId;
+        var terminalId = lastShift?.TerminalId ?? new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var cashierId = lastShift?.CashierId ?? new UserId(Guid.NewGuid());
+        var cashierName = lastShift?.CashierName ?? "Admin Cashier";
+
+        var openShiftDto = await mediator.Send(new OpenShiftCommand(
+            branchId.Value,
+            warehouseId.Value,
+            terminalId.Value,
+            cashierId.Value,
+            cashierName,
+            4000m,
+            $"Reporting Acceptance Shift - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}"), cancellationToken);
+
+        var targetShift = await shiftRepository.GetByIdAsync(new ShiftId(openShiftDto.ShiftId), cancellationToken);
+        var targetShiftId = targetShift?.Id;
+
+        if (targetShift != null)
+        {
+            targetShift.AddCashMovement(CashMovementType.CashIn, 1000m, "Petty cash replenishment", cashierId, $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy}");
+            targetShift.AddCashMovement(CashMovementType.CashOut, 500m, "Kitchen supplies purchase", cashierId, $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy}");
+            await shiftRepository.UpdateAsync(targetShift, cancellationToken);
             await restaurantDbContext.SaveChangesAsync(cancellationToken);
         }
 
-        // ── 8. Inventory Setup: GRN-2026-09-001 Goods Receipt ────────────────
-        var naanStock = await warehouseStockRepository.GetByWarehouseAndVariantAsync(warehouseId, vNaanId, cancellationToken);
+        // ── 8. Inventory Setup: Goods Receipt, Adjustments & Transfer ───────────
+        var naanStock = await warehouseStockRepository.GetByWarehouseAndVariantAsync(warehouseId, vNaanId.Value, cancellationToken);
         if (naanStock is null)
         {
-            naanStock = WarehouseStock.Create(warehouseId, vNaanId, minimumStock: 10, maximumStock: 500);
-            naanStock.Receive(70m); // Baseline from Phase 1 (100 received - 30 issued)
+            naanStock = WarehouseStock.Create(warehouseId, vNaanId.Value, minimumStock: 10, maximumStock: 500);
+            naanStock.Receive(70m); // Baseline
             await warehouseStockRepository.AddAsync(naanStock, cancellationToken);
             await inventoryDbContext.SaveChangesAsync(cancellationToken);
         }
 
-        // Execute legitimate Goods Receipt: GRN-2026-09-001 (100 Naan @ Rs.20 cost)
+        // Legitimate Goods Receipt: GRN-2026-10-001 (100 Naan @ Rs.20 cost)
         naanStock.Receive(100m);
         var grnTx = InventoryTransaction.Create(
             warehouseId,
-            vNaanId,
+            vNaanId.Value,
             InventoryTransactionType.Receipt,
             100m,
             referenceType: "GoodsReceipt",
             referenceId: null,
-            notes: "GRN-2026-09-001: Direct Vendor Delivery (100 Naan @ Rs.20 cost)",
+            notes: $"GRN-2026-10-001: Direct Vendor Delivery (100 Naan @ Rs.20 cost) {CleanSeedTag}",
             occurredAtUtc: DateTimeOffset.UtcNow);
         await transactionRepository.AddAsync(grnTx, cancellationToken);
+
+        // Positive stock adjustment (+10 Naan)
+        naanStock.Receive(10m);
+        var posAdjTx = InventoryTransaction.Create(
+            warehouseId,
+            vNaanId.Value,
+            InventoryTransactionType.Adjustment,
+            10m,
+            referenceType: "StockAdjustment",
+            referenceId: null,
+            notes: $"Physical count surplus adjustment (+10 Naan) {CleanSeedTag}",
+            occurredAtUtc: DateTimeOffset.UtcNow);
+        await transactionRepository.AddAsync(posAdjTx, cancellationToken);
+
+        // Negative stock adjustment (-5 Naan)
+        naanStock.Issue(5m);
+        var negAdjTx = InventoryTransaction.Create(
+            warehouseId,
+            vNaanId.Value,
+            InventoryTransactionType.Adjustment,
+            5m,
+            referenceType: "StockAdjustment",
+            referenceId: null,
+            notes: $"Damaged packaging write-off (-5 Naan) {CleanSeedTag}",
+            occurredAtUtc: DateTimeOffset.UtcNow);
+        await transactionRepository.AddAsync(negAdjTx, cancellationToken);
+
+        // Internal warehouse transfer (-10 Naan from WH-01 to WH-02)
+        if (wh02 != null)
+        {
+            naanStock.Issue(10m);
+            var trfOutTx = InventoryTransaction.Create(
+                warehouseId,
+                vNaanId.Value,
+                InventoryTransactionType.TransferOut,
+                10m,
+                referenceType: "StockTransfer",
+                referenceId: wh02.Id.Value,
+                notes: $"Internal transfer to Kitchen Backup (-10 Naan) {CleanSeedTag}",
+                occurredAtUtc: DateTimeOffset.UtcNow);
+            await transactionRepository.AddAsync(trfOutTx, cancellationToken);
+
+            var wh02Stock = await warehouseStockRepository.GetByWarehouseAndVariantAsync(wh02.Id, vNaanId.Value, cancellationToken);
+            if (wh02Stock is null)
+            {
+                wh02Stock = WarehouseStock.Create(wh02.Id, vNaanId.Value, minimumStock: 5, maximumStock: 200);
+                await warehouseStockRepository.AddAsync(wh02Stock, cancellationToken);
+            }
+            wh02Stock.Receive(10m);
+            var trfInTx = InventoryTransaction.Create(
+                wh02.Id,
+                vNaanId.Value,
+                InventoryTransactionType.TransferIn,
+                10m,
+                referenceType: "StockTransfer",
+                referenceId: warehouseId.Value,
+                notes: $"Internal transfer received from Main Warehouse (+10 Naan) {CleanSeedTag}",
+                occurredAtUtc: DateTimeOffset.UtcNow);
+            await transactionRepository.AddAsync(trfInTx, cancellationToken);
+        }
+
         await inventoryDbContext.SaveChangesAsync(cancellationToken);
 
         // ── 9. Order Factory Helper ───────────────────────────────────────────
@@ -308,24 +421,49 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             string? delivCust = null,
             string? delivPhone = null,
             string? delivAddr = null,
-            string? rider = null)
+            string? rider = null,
+            string? riderPhone = null,
+            string? orderNotes = null,
+            string? custNotes = null,
+            (int lineIndex, string note)[]? lineNotes = null,
+            (int lineIndex, decimal overridePrice, string reason, string by)? priceOverride = null)
         {
             var order = Order.Create(type, warehouseId, tbl?.Id, OrderNumber.Create(orderNum), src);
             if (cust != null && !cust.IsDefault)
                 order.SetCustomer(cust.Id);
 
+            if (!string.IsNullOrWhiteSpace(orderNotes))
+                order.SetNotes(orderNotes);
+            if (!string.IsNullOrWhiteSpace(custNotes))
+                order.SetCustomerNotes(custNotes);
+
             if (type == OrderType.Delivery)
             {
                 order.SetDeliveryDetails(src, delivCust, delivPhone, delivAddr,
-                    "Reporting Coverage Run - 29-Sep-2026", deliveryFee, rider);
+                    $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy}", deliveryFee, rider, riderPhone);
                 order.UpdateDeliveryStatus(DeliveryStatus.Delivered);
             }
 
             await orderRepository.AddAsync(order, cancellationToken);
 
-            foreach (var (vId, qty, price) in lines)
+            for (int i = 0; i < lines.Length; i++)
             {
+                var (vId, qty, price) = lines[i];
                 var line = OrderLine.Create(order.Id, vId, qty, price, 0m, false);
+
+                if (lineNotes != null)
+                {
+                    foreach (var (lIdx, n) in lineNotes)
+                    {
+                        if (lIdx == i) line.SetNotes(n);
+                    }
+                }
+
+                if (priceOverride.HasValue && priceOverride.Value.lineIndex == i)
+                {
+                    line.OverridePrice(priceOverride.Value.overridePrice, priceOverride.Value.reason, priceOverride.Value.by);
+                }
+
                 await orderLineRepository.AddAsync(line, cancellationToken);
                 order.AddOrderLine(line.Id);
             }
@@ -339,7 +477,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
 
             order.Complete();
 
-            // Issue physical stock through aggregate Issue() and record InventoryTransaction
+            // Issue physical stock for Resale items
             foreach (var (vId, qty, _) in lines)
             {
                 if (vId == vNaanId && naanStock != null)
@@ -349,7 +487,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
                         warehouseId, vId,
                         InventoryTransactionType.Issue, qty,
                         order.OrderNumber.Value, order.Id.Value,
-                        $"Sale for {order.OrderNumber.Value} (Phase 2 seed)",
+                        $"Sale for {order.OrderNumber.Value} ({CleanSeedTag})",
                         now);
                     await transactionRepository.AddAsync(issueTx, cancellationToken);
                 }
@@ -364,16 +502,16 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         var ordS2001 = await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-001", OrderType.DineIn, t01, OrderSource.WalkIn, walkInCustomer,
-            [(vBiryaniId, 1m, 450m), (vNaanId, 2m, 25m)],
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 2m, 25m)],
             [(mobileWallet, 500m)]);
 
         // ══════════════════════════════════════════════════════════════════════
-        // S2-002: TakeAway, Credit Card (today)
+        // S2-002: TakeAway, Credit Card
         // Biryani 450 + 4x Naan 100 = 550, Credit Card
         // ══════════════════════════════════════════════════════════════════════
         await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-002", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
-            [(vBiryaniId, 1m, 450m), (vNaanId, 4m, 25m)],
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 4m, 25m)],
             [(cardMethod, 550m)]);
 
         // ══════════════════════════════════════════════════════════════════════
@@ -382,7 +520,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-003", OrderType.DineIn, t02, OrderSource.WalkIn, walkInCustomer,
-            [(vBiryaniId, 1m, 450m), (vNaanId, 2m, 25m)],
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 2m, 25m)],
             [(cashMethod, 250m), (mobileWallet, 250m)]);
 
         // ══════════════════════════════════════════════════════════════════════
@@ -391,13 +529,13 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         var ordS2004 = await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-004", OrderType.DineIn, t03, OrderSource.WalkIn, custB,
-            [(vBiryaniId, 2m, 450m), (vNaanId, 4m, 25m)],
+            [(vBiryaniId.Value, 2m, 450m), (vNaanId.Value, 4m, 25m)],
             [(onAccountMethod, 1000m)]);
 
         custB.AdjustBalance(1000m);
         var ledgerS2004 = CustomerLedgerEntry.Create(
             custB.Id, "ORD-RPT-S2-004",
-            $"On Account Sale (ORD-RPT-S2-004) - Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"On Account Sale (ORD-RPT-S2-004) - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             1000m, 0m, 1000m, targetShiftId, "On Account");
         await ledgerRepository.AddAsync(ledgerS2004, cancellationToken);
 
@@ -409,13 +547,13 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         var ordS2005 = await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-005", OrderType.DineIn, t01, OrderSource.WalkIn, custC,
-            [(vBiryaniId, 4m, 450m), (vNaanId, 8m, 25m)],
+            [(vBiryaniId.Value, 4m, 450m), (vNaanId.Value, 8m, 25m)],
             [(onAccountMethod, 2000m)]);
 
         custC.AdjustBalance(2000m);
         var ledgerS2005 = CustomerLedgerEntry.Create(
             custC.Id, "ORD-RPT-S2-005",
-            $"On Account Sale (ORD-RPT-S2-005) - Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"On Account Sale (ORD-RPT-S2-005) - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             2000m, 0m, 2000m, targetShiftId, "On Account");
         await ledgerRepository.AddAsync(ledgerS2005, cancellationToken);
         await customerRepository.UpdateAsync(custC, cancellationToken);
@@ -427,7 +565,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             800m,
             "Cash",
             "PAY-RPT-S2-C01",
-            $"Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             targetShiftId?.Value), cancellationToken);
 
         // Partial payment 2 via Application Command: Rs.500 Cash
@@ -436,7 +574,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             500m,
             "Cash",
             "PAY-RPT-S2-C02",
-            $"Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             targetShiftId?.Value), cancellationToken);
 
         // ══════════════════════════════════════════════════════════════════════
@@ -447,13 +585,13 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         var ordS2006 = await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-006", OrderType.TakeAway, null, OrderSource.WalkIn, custD,
-            [(vBiryaniId, 1m, 450m), (vNaanId, 1m, 25m)],
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 1m, 25m)],
             [(onAccountMethod, 475m)]);
 
         custD.AdjustBalance(475m);
         var ledgerS2006 = CustomerLedgerEntry.Create(
             custD.Id, "ORD-RPT-S2-006",
-            $"On Account Sale (ORD-RPT-S2-006) - Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"On Account Sale (ORD-RPT-S2-006) - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             475m, 0m, 475m, targetShiftId, "On Account");
         await ledgerRepository.AddAsync(ledgerS2006, cancellationToken);
         await customerRepository.UpdateAsync(custD, cancellationToken);
@@ -465,25 +603,25 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             700m,
             "Cash",
             "PAY-RPT-S2-D01",
-            $"Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             targetShiftId?.Value), cancellationToken);
 
         // New order using Customer D's advance: Biryani 450 (225 advance + 225 cash)
         var ordS2006B = await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-006B", OrderType.DineIn, t02, OrderSource.WalkIn, custD,
-            [(vBiryaniId, 1m, 450m)],
+            [(vBiryaniId.Value, 1m, 450m)],
             [(advanceMethod, 225m), (cashMethod, 225m)]);
 
         // Consume the advance
         custD.AdjustBalance(225m);
         var ledgerD_Adv = CustomerLedgerEntry.Create(
             custD.Id, "ORD-RPT-S2-006B",
-            $"Customer Advance Settlement (ORD-RPT-S2-006B) - Reporting Coverage Run - 29-Sep-2026 {CleanSeedTag}",
+            $"Customer Advance Settlement (ORD-RPT-S2-006B) - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}",
             225m, 0m, custD.OutstandingBalance, targetShiftId, "Customer Advance");
         await ledgerRepository.AddAsync(ledgerD_Adv, cancellationToken);
         await allocationRepository.AddAsync(
             CustomerPaymentAllocation.Create(custD.Id, ordS2006B.Id, 225m, ledgerD_Adv.Id,
-                "Customer advance applied to ORD-RPT-S2-006B"),
+                $"Customer advance applied to ORD-RPT-S2-006B {CleanSeedTag}"),
             cancellationToken);
 
         // ══════════════════════════════════════════════════════════════════════
@@ -492,16 +630,213 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ══════════════════════════════════════════════════════════════════════
         await CreateAndCompleteOrderAsync(
             "ORD-RPT-S2-007", OrderType.Delivery, null, OrderSource.Phone, custE,
-            [(vBiryaniId, 1m, 450m), (vNaanId, 2m, 25m)],
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 2m, 25m)],
             [(mobileWallet, 650m)],
             deliveryFee: 150m,
             delivCust: custE.Name,
             delivPhone: custE.MobileNumber,
             delivAddr: custE.Address,
-            rider: "Kamran Rider");
+            rider: "Kamran Rider",
+            riderPhone: "0300-9876543");
 
         // ══════════════════════════════════════════════════════════════════════
-        // S2-008: Bulk Collection Batch RCV-BATCH-S2-001 via Application Command
+        // S2-SRV: Real Service Order — Food Heating x2 @ Rs. 30 = Rs. 60 Cash
+        // Direct cost = 0, Gross Profit = 100%, 0 physical inventory movement
+        // ══════════════════════════════════════════════════════════════════════
+        await CreateAndCompleteOrderAsync(
+            "ORD-RPT-S2-SRV", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
+            [(vHeatingId.Value, 2m, 30m)],
+            [(cashMethod, 60m)]);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-010: Portion / Variant Reconciliation (Chicken Haleem Half & Full)
+        // Half Plate 260 + Full Plate 420 = 680 Cash
+        // ══════════════════════════════════════════════════════════════════════
+        if (vHaleemHalfId.HasValue && vHaleemFullId.HasValue)
+        {
+            await CreateAndCompleteOrderAsync(
+                "ORD-RPT-S2-010", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
+                [(vHaleemHalfId.Value, 1m, 260m), (vHaleemFullId.Value, 1m, 420m)],
+                [(cashMethod, 680m)]);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-011: Legitimate Discount via ApplyDiscountToOrderCommand
+        // Aloo Chicken Qorma 650 + 2x Naan 50 = 700. Fixed discount 50 -> Net 650 Cash
+        // ══════════════════════════════════════════════════════════════════════
+        if (vQormaId.HasValue)
+        {
+            var ordS2011 = Order.Create(OrderType.TakeAway, warehouseId, null, OrderNumber.Create("ORD-RPT-S2-011"), OrderSource.WalkIn);
+            await orderRepository.AddAsync(ordS2011, cancellationToken);
+
+            var qormaLine = OrderLine.Create(ordS2011.Id, vQormaId.Value, 1m, 650m, 0m, false);
+            var naanLine11 = OrderLine.Create(ordS2011.Id, vNaanId.Value, 2m, 25m, 0m, false);
+            await orderLineRepository.AddAsync(qormaLine, cancellationToken);
+            await orderLineRepository.AddAsync(naanLine11, cancellationToken);
+            ordS2011.AddOrderLine(qormaLine.Id);
+            ordS2011.AddOrderLine(naanLine11.Id);
+            await restaurantDbContext.SaveChangesAsync(cancellationToken);
+
+            // Apply genuine order discount via MediatR handler
+            await mediator.Send(new ApplyDiscountToOrderCommand(
+                ordS2011.Id.Value,
+                DiscountType.FixedAmount,
+                50m,
+                $"Loyalty customer discount voucher {CleanSeedTag}"), cancellationToken);
+
+            var pay11 = Payment.Create(ordS2011.Id, cashMethod.Id, 650m, targetShiftId);
+            await paymentRepository.AddAsync(pay11, cancellationToken);
+            ordS2011.RecordPayment(pay11.Id);
+            ordS2011.Complete();
+
+            naanStock.Issue(2m);
+            var issueTx11 = InventoryTransaction.Create(
+                warehouseId, vNaanId.Value,
+                InventoryTransactionType.Issue, 2m,
+                ordS2011.OrderNumber.Value, ordS2011.Id.Value,
+                $"Sale for {ordS2011.OrderNumber.Value} ({CleanSeedTag})",
+                now);
+            await transactionRepository.AddAsync(issueTx11, cancellationToken);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-012: Price Override with Supervisor Audit Trail
+        // Biryani (catalog 450) overridden to 400 = 400 Cash
+        // ══════════════════════════════════════════════════════════════════════
+        await CreateAndCompleteOrderAsync(
+            "ORD-RPT-S2-012", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
+            [(vBiryaniId.Value, 1m, 450m)],
+            [(cashMethod, 400m)],
+            priceOverride: (0, 400m, "Manager special promo markdown", "Supervisor Imran"));
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-013: Order Notes & Item Notes
+        // Biryani 450 ("Extra spicy, no raita") + 2x Naan 50 = 500 Cash
+        // Order notes: "Pack separately - customer travelling"
+        // ══════════════════════════════════════════════════════════════════════
+        await CreateAndCompleteOrderAsync(
+            "ORD-RPT-S2-013", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
+            [(vBiryaniId.Value, 1m, 450m), (vNaanId.Value, 2m, 25m)],
+            [(cashMethod, 500m)],
+            orderNotes: "Pack separately - customer travelling",
+            custNotes: "Thank you for dining with Clovent!",
+            lineNotes: [(0, "Extra spicy, no raita")]);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-014: Credit Limit Override Transaction
+        // Customer F (Credit Limit 200) purchases Biryani 450 + 2x Naan 50 = 500 On Account
+        // Approved via manager override parameter ExceedCreditLimitApproved: true
+        // ══════════════════════════════════════════════════════════════════════
+        var ordS2014 = Order.Create(OrderType.TakeAway, warehouseId, null, OrderNumber.Create("ORD-RPT-S2-014"), OrderSource.WalkIn);
+        ordS2014.SetCustomer(custF.Id);
+        await orderRepository.AddAsync(ordS2014, cancellationToken);
+
+        var biryaniLine14 = OrderLine.Create(ordS2014.Id, vBiryaniId.Value, 1m, 450m, 0m, false);
+        var naanLine14 = OrderLine.Create(ordS2014.Id, vNaanId.Value, 2m, 25m, 0m, false);
+        await orderLineRepository.AddAsync(biryaniLine14, cancellationToken);
+        await orderLineRepository.AddAsync(naanLine14, cancellationToken);
+        ordS2014.AddOrderLine(biryaniLine14.Id);
+        ordS2014.AddOrderLine(naanLine14.Id);
+        await restaurantDbContext.SaveChangesAsync(cancellationToken);
+
+        await mediator.Send(new RecordPaymentCommand(
+            ordS2014.Id.Value,
+            onAccountMethod.Id.Value,
+            500m,
+            ExceedCreditLimitApproved: true,
+            ShiftId: targetShiftId?.Value), cancellationToken);
+
+        ordS2014.Complete();
+
+        naanStock.Issue(2m);
+        var issueTx14 = InventoryTransaction.Create(
+            warehouseId, vNaanId.Value,
+            InventoryTransactionType.Issue, 2m,
+            ordS2014.OrderNumber.Value, ordS2014.Id.Value,
+            $"Sale for {ordS2014.OrderNumber.Value} ({CleanSeedTag})",
+            now);
+        await transactionRepository.AddAsync(issueTx14, cancellationToken);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-VOID: Voided Order — Chicken Biryani 450, Voided with Reason
+        // Tracked in Voided Orders audit, excluded from sales totals
+        // ══════════════════════════════════════════════════════════════════════
+        var ordVoid = Order.Create(OrderType.TakeAway, warehouseId, null, OrderNumber.Create("ORD-RPT-S2-VOID"), OrderSource.WalkIn);
+        await orderRepository.AddAsync(ordVoid, cancellationToken);
+        var voidLine = OrderLine.Create(ordVoid.Id, vBiryaniId.Value, 1m, 450m, 0m, false);
+        await orderLineRepository.AddAsync(voidLine, cancellationToken);
+        ordVoid.AddOrderLine(voidLine.Id);
+        ordVoid.Void("Customer left without payment / ordered by mistake");
+        await restaurantDbContext.SaveChangesAsync(cancellationToken);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-HELD: HELD ORDER — Chicken Biryani 450, remains Held
+        // ══════════════════════════════════════════════════════════════════════
+        var heldOrder = Order.Create(
+            OrderType.DineIn, warehouseId, t03?.Id,
+            OrderNumber.Create("ORD-RPT-S2-HELD"), OrderSource.WalkIn);
+        await orderRepository.AddAsync(heldOrder, cancellationToken);
+        var heldLine = OrderLine.Create(heldOrder.Id, vBiryaniId.Value, 1m, 450m, 0m, false);
+        await orderLineRepository.AddAsync(heldLine, cancellationToken);
+        heldOrder.AddOrderLine(heldLine.Id);
+        heldOrder.Hold();
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-RUN: RUNNING ORDER — Biryani x2 + 4x Naan = 1,000, remains Open
+        // ══════════════════════════════════════════════════════════════════════
+        var runningOrder = Order.Create(
+            OrderType.DineIn, warehouseId, t01?.Id,
+            OrderNumber.Create("ORD-RPT-S2-RUN"), OrderSource.WalkIn);
+        await orderRepository.AddAsync(runningOrder, cancellationToken);
+        var runLine1 = OrderLine.Create(runningOrder.Id, vBiryaniId.Value, 2m, 450m, 0m, false);
+        var runLine2 = OrderLine.Create(runningOrder.Id, vNaanId.Value, 4m, 25m, 0m, false);
+        await orderLineRepository.AddAsync(runLine1, cancellationToken);
+        await orderLineRepository.AddAsync(runLine2, cancellationToken);
+        runningOrder.AddOrderLine(runLine1.Id);
+        runningOrder.AddOrderLine(runLine2.Id);
+
+        // Kitchen Ticket for Running Order
+        var kitchenTicket = KitchenTicket.Create(runningOrder.Id, [runLine1.Id, runLine2.Id]);
+        await kitchenTicketRepository.AddAsync(kitchenTicket, cancellationToken);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-SUGG: UPSELL SUGGESTION EVENTS
+        // ══════════════════════════════════════════════════════════════════════
+        var lines001 = await orderLineRepository.GetByOrderIdAsync(ordS2001.Id, cancellationToken);
+        var naanLine001 = lines001.FirstOrDefault(l => l.ProductVariantId == vNaanId.Value);
+
+        var offeredNaan = SuggestionEvent.Offered(
+            ordS2001.Id.Value,
+            vNaanId.Value,
+            vBiryaniId.Value.Value);
+        await suggestionEventRepository.AddAsync(offeredNaan, cancellationToken);
+
+        var acceptedNaan = SuggestionEvent.Accepted(
+            ordS2001.Id.Value,
+            vNaanId.Value,
+            vBiryaniId.Value.Value,
+            naanLine001?.Id.Value,
+            2m,
+            25m);
+        await suggestionEventRepository.AddAsync(acceptedNaan, cancellationToken);
+
+        if (vKarahiId.HasValue)
+        {
+            var offeredKarahi = SuggestionEvent.Offered(
+                ordS2001.Id.Value,
+                vKarahiId.Value,
+                vBiryaniId.Value.Value);
+            await suggestionEventRepository.AddAsync(offeredKarahi, cancellationToken);
+
+            var dismissedKarahi = SuggestionEvent.Dismissed(
+                ordS2001.Id.Value,
+                vKarahiId.Value,
+                vBiryaniId.Value.Value);
+            await suggestionEventRepository.AddAsync(dismissedKarahi, cancellationToken);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // S2-BULK: Bulk Collection Batch RCV-BATCH-S2-001 via Application Command
         // 3 customers receive collections simultaneously
         // ══════════════════════════════════════════════════════════════════════
         var bulkItems = new List<BulkCustomerPaymentItem>();
@@ -517,89 +852,43 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             ShiftId: targetShiftId?.Value,
             BatchReference: "RCV-BATCH-S2-001"), cancellationToken);
 
-        // ══════════════════════════════════════════════════════════════════════
-        // S2-SRV: Real Service Order — Food Heating x2 @ Rs. 30 = Rs. 60 Cash
-        // ══════════════════════════════════════════════════════════════════════
-        await CreateAndCompleteOrderAsync(
-            "ORD-RPT-S2-SRV", OrderType.TakeAway, null, OrderSource.WalkIn, walkInCustomer,
-            [(vHeatingId, 2m, 30m)],
-            [(cashMethod, 60m)]);
-
-        // ══════════════════════════════════════════════════════════════════════
-        // S2-009: HELD ORDER — Chicken Biryani 450, remains Held
-        // ══════════════════════════════════════════════════════════════════════
-        var heldOrder = Order.Create(
-            OrderType.DineIn, warehouseId, t03?.Id,
-            OrderNumber.Create("ORD-RPT-S2-HELD"), OrderSource.WalkIn);
-        await orderRepository.AddAsync(heldOrder, cancellationToken);
-        var heldLine = OrderLine.Create(heldOrder.Id, vBiryaniId, 1m, 450m, 0m, false);
-        await orderLineRepository.AddAsync(heldLine, cancellationToken);
-        heldOrder.AddOrderLine(heldLine.Id);
-        heldOrder.Hold();
-
-        // ══════════════════════════════════════════════════════════════════════
-        // S2-010: RUNNING ORDER — Biryani x2 + 4x Naan = 1,000, remains Open
-        // ══════════════════════════════════════════════════════════════════════
-        var runningOrder = Order.Create(
-            OrderType.DineIn, warehouseId, t01?.Id,
-            OrderNumber.Create("ORD-RPT-S2-RUN"), OrderSource.WalkIn);
-        await orderRepository.AddAsync(runningOrder, cancellationToken);
-        var runLine1 = OrderLine.Create(runningOrder.Id, vBiryaniId, 2m, 450m, 0m, false);
-        var runLine2 = OrderLine.Create(runningOrder.Id, vNaanId, 4m, 25m, 0m, false);
-        await orderLineRepository.AddAsync(runLine1, cancellationToken);
-        await orderLineRepository.AddAsync(runLine2, cancellationToken);
-        runningOrder.AddOrderLine(runLine1.Id);
-        runningOrder.AddOrderLine(runLine2.Id);
-
-        // Kitchen Ticket for Running Order
-        var kitchenTicket = KitchenTicket.Create(runningOrder.Id, [runLine1.Id, runLine2.Id]);
-        await kitchenTicketRepository.AddAsync(kitchenTicket, cancellationToken);
-
-        // ══════════════════════════════════════════════════════════════════════
-        // S2-011: UPSELL SUGGESTION EVENTS
-        // ══════════════════════════════════════════════════════════════════════
-        var lines001 = await orderLineRepository.GetByOrderIdAsync(ordS2001.Id, cancellationToken);
-        var naanLine001 = lines001.FirstOrDefault(l => l.ProductVariantId == vNaanId);
-
-        var offeredNaan = SuggestionEvent.Offered(
-            ordS2001.Id.Value,
-            vNaanId,
-            biryaniVariant.ProductVariantId);
-        await suggestionEventRepository.AddAsync(offeredNaan, cancellationToken);
-
-        var acceptedNaan = SuggestionEvent.Accepted(
-            ordS2001.Id.Value,
-            vNaanId,
-            biryaniVariant.ProductVariantId,
-            naanLine001?.Id.Value,
-            2m,
-            25m);
-        await suggestionEventRepository.AddAsync(acceptedNaan, cancellationToken);
-
-        if (vKarahiId.HasValue)
-        {
-            var offeredKarahi = SuggestionEvent.Offered(
-                ordS2001.Id.Value,
-                vKarahiId.Value,
-                biryaniVariant.ProductVariantId);
-            await suggestionEventRepository.AddAsync(offeredKarahi, cancellationToken);
-
-            var dismissedKarahi = SuggestionEvent.Dismissed(
-                ordS2001.Id.Value,
-                vKarahiId.Value,
-                biryaniVariant.ProductVariantId);
-            await suggestionEventRepository.AddAsync(dismissedKarahi, cancellationToken);
-        }
-
         await customerRepository.UpdateAsync(custB, cancellationToken);
         await customerRepository.UpdateAsync(custC, cancellationToken);
         await customerRepository.UpdateAsync(custD, cancellationToken);
+        await customerRepository.UpdateAsync(custE, cancellationToken);
+        await customerRepository.UpdateAsync(custF, cancellationToken);
 
         await restaurantDbContext.SaveChangesAsync(cancellationToken);
         await inventoryDbContext.SaveChangesAsync(cancellationToken);
 
-        // ── 10. Close Shift #1003 (with 0 variance) & Open Shift #1004 ────────
-        await EnsureShiftBalanceAndOpenShiftAsync(cashMethod, cancellationToken);
+        // ── 10. Close Test Shift (with 0 variance) & Open Live Shift ───────────
+        if (targetShift != null)
+        {
+            var payments = await paymentRepository.GetByShiftIdAsync(targetShift.Id, cancellationToken);
+            decimal cashSales = payments
+                .Where(p => !p.IsVoided && p.PaymentMethodId == cashMethod.Id)
+                .Sum(p => p.Amount);
+
+            var ledgerEntries = await ledgerRepository.GetByShiftIdAsync(targetShift.Id, cancellationToken);
+            decimal cashCollections = ledgerEntries
+                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Sum(e => e.Credit);
+
+            decimal cashIn = targetShift.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
+            decimal cashOut = targetShift.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
+
+            decimal expectedCash = targetShift.StartingCash + cashIn + cashSales + cashCollections - cashOut;
+
+            // Close reporting test shift with counted cash = expected cash (0 variance)
+            await mediator.Send(new CloseShiftCommand(
+                targetShift.Id.Value,
+                expectedCash,
+                null,
+                $"Reporting Acceptance shift reconciliation close - {currentBusinessDate:dd-MMM-yyyy} {CleanSeedTag}"), cancellationToken);
+        }
+
+        // Open a live shift so POS is immediately usable
+        await EnsureOpenShiftForTestingAsync(warehouseId, cancellationToken);
     }
 
     private async Task CleanPhase2DataAsync(WarehouseId warehouseId, Clovent.Catalog.Variants.ProductVariantId vNaanId, CancellationToken cancellationToken)
@@ -650,7 +939,16 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             restaurantDbContext.CustomerLedgerEntries.RemoveRange(ledgers);
         }
 
-        // 5. Payments
+        // 5. Discounts applied to Phase 2 orders
+        var discounts = restaurantDbContext.Discounts
+            .Where(d => phase2OrderIds.Contains(d.OrderId))
+            .ToList();
+        if (discounts.Count > 0)
+        {
+            restaurantDbContext.Discounts.RemoveRange(discounts);
+        }
+
+        // 6. Payments
         var payments = restaurantDbContext.Payments
             .Where(p => phase2OrderIds.Contains(p.OrderId))
             .ToList();
@@ -659,7 +957,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             restaurantDbContext.Payments.RemoveRange(payments);
         }
 
-        // 6. Order lines
+        // 7. Order lines
         var lines = restaurantDbContext.OrderLines
             .Where(l => phase2OrderIds.Contains(l.OrderId))
             .ToList();
@@ -668,7 +966,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             restaurantDbContext.OrderLines.RemoveRange(lines);
         }
 
-        // 7. Orders
+        // 8. Orders
         if (phase2Orders.Count > 0)
         {
             restaurantDbContext.Orders.RemoveRange(phase2Orders);
@@ -676,17 +974,17 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
 
         await restaurantDbContext.SaveChangesAsync(cancellationToken);
 
-        // 8. Remove Phase 2 inventory transactions
+        // 9. Remove Phase 2 inventory transactions
         var s2Txs = inventoryDbContext.InventoryTransactions
             .Where(t => (t.ReferenceType != null && t.ReferenceType.StartsWith("ORD-RPT-S2-")) ||
-                        (t.Notes != null && (t.Notes.Contains("Phase 2 seed") || t.Notes.Contains("GRN-2026-09-001"))))
+                        (t.Notes != null && (t.Notes.Contains("Phase 2 seed") || t.Notes.Contains("GRN-2026-") || t.Notes.Contains("RUN-20261001-DEV-ACCEPTANCE"))))
             .ToList();
         if (s2Txs.Count > 0)
         {
             inventoryDbContext.InventoryTransactions.RemoveRange(s2Txs);
         }
 
-        // 9. Reset Naan warehouse stock to exactly 70m (Phase 1 baseline: 100 receipt - 30 issues)
+        // 10. Reset Naan warehouse stock to exactly 70m (baseline)
         var naanStock = await warehouseStockRepository.GetByWarehouseAndVariantAsync(warehouseId, vNaanId, cancellationToken);
         if (naanStock != null)
         {
@@ -702,35 +1000,6 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         }
 
         await inventoryDbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task EnsureShiftBalanceAndOpenShiftAsync(PaymentMethod cashMethod, CancellationToken cancellationToken)
-    {
-        var allShifts = await shiftRepository.SearchShiftsAsync(cancellationToken: cancellationToken);
-        var shift1003 = allShifts.FirstOrDefault(s => s.ShiftNumber == 1003);
-
-        if (shift1003 != null && shift1003.Status == ShiftStatus.Open)
-        {
-            var payments = await paymentRepository.GetByShiftIdAsync(shift1003.Id, cancellationToken);
-            decimal cashSales = payments
-                .Where(p => !p.IsVoided && p.PaymentMethodId == cashMethod.Id)
-                .Sum(p => p.Amount);
-
-            var ledgerEntries = await ledgerRepository.GetByShiftIdAsync(shift1003.Id, cancellationToken);
-            decimal cashCollections = ledgerEntries
-                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
-                .Sum(e => e.Credit);
-
-            decimal cashIn = shift1003.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
-            decimal cashOut = shift1003.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
-
-            decimal expectedCash = shift1003.StartingCash + cashIn + cashSales + cashCollections - cashOut;
-
-            // Close Shift 1003 with counted cash = expected cash (0 variance)
-            await mediator.Send(new CloseShiftCommand(shift1003.Id.Value, expectedCash, null, "Reporting reconciliation close"), cancellationToken);
-        }
-
-        await EnsureOpenShiftForTestingAsync(cancellationToken);
     }
 
     private async Task EnsureRunningAndHeldOrdersAsync(
@@ -794,7 +1063,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         }
     }
 
-    private async Task EnsureOpenShiftForTestingAsync(CancellationToken cancellationToken)
+    private async Task EnsureOpenShiftForTestingAsync(WarehouseId warehouseId, CancellationToken cancellationToken)
     {
         var openShifts = await shiftRepository.SearchShiftsAsync(status: ShiftStatus.Open, cancellationToken: cancellationToken);
         if (!openShifts.Any())
@@ -805,7 +1074,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
             {
                 await mediator.Send(new OpenShiftCommand(
                     lastShift.BranchId.Value,
-                    lastShift.WarehouseId.Value,
+                    warehouseId.Value,
                     lastShift.TerminalId.Value,
                     lastShift.CashierId.Value,
                     lastShift.CashierName,

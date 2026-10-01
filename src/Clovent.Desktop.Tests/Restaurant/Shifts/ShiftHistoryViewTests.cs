@@ -322,4 +322,175 @@ public class ShiftHistoryViewTests
             Assert.Equal("Variance", colVariance.Caption);
         }
     }
+
+    [Fact]
+    public void ShiftHistoryView_LayoutHierarchy_PlacesActionToolbarAboveGrid_WithNoGiantGap()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            view.Size = new Size(1366, 768);
+            view.CreateControl();
+            view.PerformLayout();
+
+            var filterPanel = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_filterPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var actionBar = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_actionBar", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var grid = (GridControl)typeof(ShiftHistoryView).GetField("_gridControl", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            Assert.NotNull(filterPanel);
+            Assert.NotNull(actionBar);
+            Assert.NotNull(grid);
+
+            // Filter bar is below title
+            Assert.True(filterPanel.Top >= 0);
+
+            // Action toolbar is strictly BELOW filters and ABOVE grid
+            Assert.True(actionBar.Top >= filterPanel.Bottom, $"Action bar Top ({actionBar.Top}) must be >= filter panel Bottom ({filterPanel.Bottom})");
+            Assert.True(grid.Top >= actionBar.Bottom, $"Grid Top ({grid.Top}) must be >= action bar Bottom ({actionBar.Bottom})");
+
+            // Grid begins immediately after action bar with only normal padding/margin (no giant blank gap)
+            int gapBetweenActionAndGrid = grid.Top - actionBar.Bottom;
+            Assert.True(gapBetweenActionAndGrid <= 24, $"Gap between action bar and grid ({gapBetweenActionAndGrid}px) exceeds allowable spacing (<= 24px)");
+
+            // Grid expands to fill remaining space
+            Assert.True(grid.Height > 400, $"Grid height ({grid.Height}) should consume the remaining window space");
+            Assert.True(grid.Bottom <= view.Height, $"Grid bottom ({grid.Bottom}) must not overflow view height ({view.Height})");
+        }
+    }
+
+    [Theory]
+    [InlineData(1024, 768)]
+    [InlineData(1366, 768)]
+    [InlineData(1920, 1080)]
+    public void ShiftHistoryView_LayoutAcrossResolutions_PreservesToolbarAboveGridHierarchy(int width, int height)
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            view.Size = new Size(width, height);
+            view.CreateControl();
+            view.PerformLayout();
+
+            var filterPanel = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_filterPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var actionBar = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_actionBar", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var grid = (GridControl)typeof(ShiftHistoryView).GetField("_gridControl", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            Assert.True(actionBar.Top >= filterPanel.Bottom);
+            Assert.True(grid.Top >= actionBar.Bottom);
+            Assert.True(grid.Top - actionBar.Bottom <= 24);
+            Assert.True(grid.Bottom <= view.Height);
+        }
+    }
+
+    [Fact]
+    public void ShiftHistoryView_AutoFilterRow_HasConditionChangeDisabled_PreventingGlyphCorruption()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var gridView = (GridView)typeof(ShiftHistoryView).GetField("_gridView", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            Assert.NotNull(gridView);
+
+            // Auto filter row must be enabled for inline filtering
+            Assert.True(gridView.OptionsView.ShowAutoFilterRow);
+
+            // AllowAutoFilterConditionChange must be False to eliminate ABC / = condition button artifacts
+            Assert.Equal(DevExpress.Utils.DefaultBoolean.False, gridView.OptionsFilter.AllowAutoFilterConditionChange);
+
+            // Text columns must use Contains filter condition
+            var stringFields = new[] { "CashierName", "Status", "VarianceReason", "Notes" };
+            foreach (var field in stringFields)
+            {
+                var col = gridView.Columns[field];
+                Assert.NotNull(col);
+                Assert.Equal(DevExpress.XtraGrid.Columns.AutoFilterCondition.Contains, col.OptionsFilter.AutoFilterCondition);
+            }
+        }
+    }
+
+    [Fact]
+    public void ShiftHistoryView_NumericAndMoneyColumns_AlignFarForHeadersAndCells()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var gridView = (GridView)typeof(ShiftHistoryView).GetField("_gridView", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            Assert.NotNull(gridView);
+
+            var farFields = new[] { "StartingCash", "ExpectedCash", "CountedCash", "CashVariance" };
+            foreach (var field in farFields)
+            {
+                var col = gridView.Columns[field];
+                Assert.NotNull(col);
+                Assert.Equal(DevExpress.Utils.HorzAlignment.Far, col.AppearanceCell.TextOptions.HAlignment);
+                Assert.Equal(DevExpress.Utils.HorzAlignment.Far, col.AppearanceHeader.TextOptions.HAlignment);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(96)]
+    [InlineData(144)]
+    [InlineData(192)]
+    [InlineData(240)]
+    public void ShiftHistoryView_HighDpiSimulation_ElementsFitAndGridStartsImmediatelyBelowActionBar(int dpi)
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            // Simulate display dimensions at specified DPI
+            float factor = dpi / 96f;
+            int width = (int)(1024 * factor);
+            int height = (int)(768 * factor);
+            view.Size = new Size(width, height);
+            view.CreateControl();
+            view.PerformLayout();
+
+            var filterPanel = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_filterPanel", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var actionBar = (FlowLayoutPanel)typeof(ShiftHistoryView).GetField("_actionBar", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var grid = (GridControl)typeof(ShiftHistoryView).GetField("_gridControl", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var gridView = (GridView)grid.MainView;
+
+            Assert.True(filterPanel.Visible);
+            Assert.True(actionBar.Visible);
+            Assert.True(grid.Visible);
+
+            // Action bar sits directly under filters
+            Assert.True(actionBar.Top >= filterPanel.Bottom);
+
+            // Grid starts immediately under action bar (no giant gap)
+            int gap = grid.Top - actionBar.Bottom;
+            Assert.True(gap >= 0 && gap <= 24, $"Spacing between action bar and grid ({gap}px) must be normal padding, not a giant spacer");
+
+            // Grid height consumes remaining window height
+            Assert.True(grid.Height > 500, $"Grid height ({grid.Height}) must consume remaining viewport");
+            Assert.True(grid.Bottom <= view.Height);
+
+            // All columns remain inside layout bounds and visible
+            foreach (DevExpress.XtraGrid.Columns.GridColumn col in gridView.VisibleColumns)
+            {
+                Assert.True(col.Visible);
+                Assert.True(col.Width > 0);
+            }
+        }
+    }
+
+    [Fact]
+    public void ShiftHistoryView_DesignModeSafe_DoesNotThrowInDesignMode()
+    {
+        // Parameterless or design mode construction must not fail
+        // Using reflection to invoke the parameterless constructor for designer verification
+        var ctor = typeof(ShiftHistoryView).GetConstructor(
+            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null,
+            Type.EmptyTypes,
+            null);
+
+        Assert.NotNull(ctor);
+#pragma warning disable CS0618
+        using var control = (ShiftHistoryView)ctor.Invoke(null);
+#pragma warning restore CS0618
+        Assert.NotNull(control);
+        Assert.NotNull(control.Controls);
+    }
 }

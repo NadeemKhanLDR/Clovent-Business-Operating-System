@@ -68,6 +68,14 @@ public sealed partial class RunningOrdersView : XtraUserControl
         _currentSession = currentSession;
     }
 
+    private void ComboOrderTypeFilter_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_listView != null)
+        {
+            _ = _listView.RefreshAsync();
+        }
+    }
+
     private async void RunningOrdersView_Load(object? sender, EventArgs e)
     {
         if (DesignModeHelper.IsInDesignMode)

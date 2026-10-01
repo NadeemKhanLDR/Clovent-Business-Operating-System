@@ -355,12 +355,22 @@ public static class NavigationRegistry
         // ==========================================
         // 5. MANAGER PANEL
         // ==========================================
+        new(
+            Key: "customerreceivables",
+            Caption: "Customer Receivables",
+            RibbonPage: NavigationPage.ManagerPanel,
+            RibbonGroup: "Financial / A/R",
+            IconUri: "svgimages/business%20objects/bo_sale.svg",
+            Permission: "menu.customerreceivables",
+            Order: 600,
+            IsPrimaryAction: true,
+            Description: "A/R aging, credit balances, payment collection, statements"),
 
         new(
             Key: "quickordertemplates",
             Caption: "Quick Order Templates",
             RibbonPage: NavigationPage.ManagerPanel,
-            RibbonGroup: "POS Management",
+            RibbonGroup: "Operations / Controls",
             IconUri: "devav/actions/add.svg",
             Permission: "menu.quickordertemplates",
             Order: 610,
@@ -371,7 +381,7 @@ public static class NavigationRegistry
             Key: "smartcombos",
             Caption: "Smart Combo Builder",
             RibbonPage: NavigationPage.ManagerPanel,
-            RibbonGroup: "POS Management",
+            RibbonGroup: "Operations / Controls",
             IconUri: "svgimages/icon%20builder/business_idea.svg",
             Permission: "menu.smartcombos",
             Order: 620,
@@ -382,7 +392,7 @@ public static class NavigationRegistry
             Key: "recommendationrules",
             Caption: "Recommendation Rules",
             RibbonPage: NavigationPage.ManagerPanel,
-            RibbonGroup: "POS Management",
+            RibbonGroup: "Operations / Controls",
             IconUri: "svgimages/setup/properties.svg",
             Permission: "menu.recommendationrules",
             Order: 630,
@@ -438,17 +448,6 @@ public static class NavigationRegistry
             Order: 800,
             IsPrimaryAction: true,
             Description: "Comprehensive sales analytics, breakdown by bill/item/type"),
-
-        new(
-            Key: "customerreceivables",
-            Caption: "Customer Receivables",
-            RibbonPage: NavigationPage.Reports,
-            RibbonGroup: "Financial & A/R",
-            IconUri: "svgimages/business%20objects/bo_sale.svg",
-            Permission: "menu.customerreceivables",
-            Order: 805,
-            IsPrimaryAction: true,
-            Description: "A/R aging, credit balances, payment collection, statements"),
 
         new(
             Key: "shifts",

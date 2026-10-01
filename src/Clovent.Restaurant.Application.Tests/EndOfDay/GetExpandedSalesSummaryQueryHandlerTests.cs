@@ -516,4 +516,256 @@ public class GetExpandedSalesSummaryQueryHandlerTests
         // Drawer identity: Opening + CashSales + CashCollections + CashIn - CashOut = ExpectedCash
         Assert.Equal(drawer.ExpectedCash, drawer.OpeningFloat + drawer.CashSales + drawer.CashCollections + drawer.CashIn - drawer.CashOut);
     }
+
+    [Fact]
+    public async Task Handle_PreparedItemWithNoConfiguredCost_ReturnsNullCostPriceAndNullEstimatedCost()
+    {
+        // Arrange
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var customerLedgerRepository = new FakeCustomerLedgerEntryRepository();
+        var discountRepository = new FakeDiscountRepository();
+        var serviceChargeRepository = new FakeServiceChargeRepository();
+        var shiftRepository = new FakeShiftRepository();
+        var tableRepository = new FakeTableRepository();
+
+        var warehouseId = WarehouseId.New();
+        var variantId = ProductVariantId.New();
+        var productId = Guid.NewGuid();
+
+        var order = Order.Create(OrderType.TakeAway, warehouseId);
+        var line = OrderLine.Create(order.Id, variantId, 1, 800m, 0, false);
+        order.AddOrderLine(line.Id);
+        orderLineRepository.Add(line);
+
+        var method = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(method);
+        var payment = Payment.Create(order.Id, method.Id, 800m);
+        order.RecordPayment(payment.Id);
+        paymentRepository.Add(payment);
+
+        order.Complete();
+        orderRepository.Add(order);
+
+        // No cost prices returned for this variant
+        var mockVariants = new List<ProductVariantDto>
+        {
+            CatalogFakes.Variant(variantId.Value, productId, "Single")
+        };
+
+        var mockProducts = new List<ProductDto>
+        {
+            CatalogFakes.Product(productId, "Mutton Karahi")
+        };
+
+        var fakeMediator = new FakeMediator(req =>
+        {
+            if (req is ListActiveProductPricesByTypeQuery)
+            {
+                return Task.FromResult<object?>(new List<ProductPriceDto>());
+            }
+            if (req is ListProductVariantsQuery)
+            {
+                return Task.FromResult<object?>(mockVariants);
+            }
+            if (req is ListProductsQuery)
+            {
+                return Task.FromResult<object?>(mockProducts);
+            }
+            return Task.FromResult<object?>(null);
+        });
+
+        var handler = new GetExpandedSalesSummaryQueryHandler(
+            orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository,
+            customerRepository, customerLedgerRepository, discountRepository, serviceChargeRepository,
+            shiftRepository, tableRepository, fakeMediator);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Act
+        var result = await handler.Handle(new GetExpandedSalesSummaryQuery(warehouseId.Value, today, today), CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        var item = Assert.Single(result.Items);
+        Assert.Equal("Mutton Karahi", item.ItemName);
+        Assert.Equal("Prepared", item.ItemType);
+        // Cost must be null (not 0.00) because prepared recipe costing is unavailable
+        Assert.Null(item.CostPrice);
+        Assert.Null(item.EstimatedCost);
+        Assert.Null(item.GrossProfit);
+    }
+
+    [Fact]
+    public async Task Handle_MixedKnownAndUnknownCostItems_PreservesDistinctionBetweenNullCostAndLegitimateZeroCost()
+    {
+        // Arrange
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var customerLedgerRepository = new FakeCustomerLedgerEntryRepository();
+        var discountRepository = new FakeDiscountRepository();
+        var serviceChargeRepository = new FakeServiceChargeRepository();
+        var shiftRepository = new FakeShiftRepository();
+        var tableRepository = new FakeTableRepository();
+
+        var warehouseId = WarehouseId.New();
+        var preparedVariantId = ProductVariantId.New();
+        var resaleVariantId = ProductVariantId.New();
+        var serviceVariantId = ProductVariantId.New();
+
+        var preparedProdId = Guid.NewGuid();
+        var resaleProdId = Guid.NewGuid();
+        var serviceProdId = Guid.NewGuid();
+
+        var order = Order.Create(OrderType.TakeAway, warehouseId);
+        // Prepared: 2 x 600 = 1200
+        var line1 = OrderLine.Create(order.Id, preparedVariantId, 2, 600m, 0, false);
+        // Resale (Naan): 5 x 115 = 575
+        var line2 = OrderLine.Create(order.Id, resaleVariantId, 5, 115m, 0, false);
+        // Service (Food Heating): 1 x 60 = 60
+        var line3 = OrderLine.Create(order.Id, serviceVariantId, 1, 60m, 0, false);
+
+        order.AddOrderLine(line1.Id);
+        order.AddOrderLine(line2.Id);
+        order.AddOrderLine(line3.Id);
+        orderLineRepository.Add(line1);
+        orderLineRepository.Add(line2);
+        orderLineRepository.Add(line3);
+
+        var method = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        paymentMethodRepository.Add(method);
+        var payment = Payment.Create(order.Id, method.Id, 1835m);
+        order.RecordPayment(payment.Id);
+        paymentRepository.Add(payment);
+
+        order.Complete();
+        orderRepository.Add(order);
+
+        // Prices: Resale has cost 92 (5 * 92 = 460). Service has cost 0. Prepared has no price.
+        var mockPrices = new List<ProductPriceDto>
+        {
+            new(Guid.NewGuid(), resaleVariantId.Value, "Cost", 92m, Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(-1), "Active", DateTimeOffset.UtcNow),
+            new(Guid.NewGuid(), serviceVariantId.Value, "Cost", 0m, Guid.NewGuid(), DateTimeOffset.UtcNow.AddDays(-1), "Active", DateTimeOffset.UtcNow)
+        };
+
+        var mockVariants = new List<ProductVariantDto>
+        {
+            CatalogFakes.Variant(preparedVariantId.Value, preparedProdId, "Single", itemType: "Prepared"),
+            CatalogFakes.Variant(resaleVariantId.Value, resaleProdId, "Single", itemType: "PurchasedResale"),
+            CatalogFakes.Variant(serviceVariantId.Value, serviceProdId, "Single", itemType: "Service")
+        };
+
+        var mockProducts = new List<ProductDto>
+        {
+            CatalogFakes.Product(preparedProdId, "Chicken Biryani"),
+            CatalogFakes.Product(resaleProdId, "Naan"),
+            CatalogFakes.Product(serviceProdId, "Food Heating")
+        };
+
+        var fakeMediator = new FakeMediator(req =>
+        {
+            if (req is ListActiveProductPricesByTypeQuery q && q.PriceType == Clovent.Catalog.Prices.PriceType.Cost)
+            {
+                return Task.FromResult<object?>(mockPrices);
+            }
+            if (req is ListActiveProductPricesByTypeQuery)
+            {
+                return Task.FromResult<object?>(new List<ProductPriceDto>());
+            }
+            if (req is ListProductVariantsQuery)
+            {
+                return Task.FromResult<object?>(mockVariants);
+            }
+            if (req is ListProductsQuery)
+            {
+                return Task.FromResult<object?>(mockProducts);
+            }
+            return Task.FromResult<object?>(null);
+        });
+
+        var handler = new GetExpandedSalesSummaryQueryHandler(
+            orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository,
+            customerRepository, customerLedgerRepository, discountRepository, serviceChargeRepository,
+            shiftRepository, tableRepository, fakeMediator);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Act
+        var result = await handler.Handle(new GetExpandedSalesSummaryQuery(warehouseId.Value, today, today), CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(3, result.Items.Count);
+
+        var prepItem = Assert.Single(result.Items, i => i.ItemName == "Chicken Biryani");
+        Assert.Null(prepItem.CostPrice);
+        Assert.Null(prepItem.EstimatedCost);
+        Assert.Null(prepItem.GrossProfit);
+        Assert.Null(prepItem.MarginPercent);
+
+        var resaleItem = Assert.Single(result.Items, i => i.ItemName == "Naan");
+        Assert.Equal(92m, resaleItem.CostPrice);
+        Assert.Equal(460m, resaleItem.EstimatedCost);
+        Assert.Equal(115m, resaleItem.GrossProfit);
+        Assert.Equal(20m, resaleItem.MarginPercent);
+
+        var serviceItem = Assert.Single(result.Items, i => i.ItemName == "Food Heating");
+        Assert.Equal(0m, serviceItem.CostPrice);
+        Assert.Equal(0m, serviceItem.EstimatedCost);
+        Assert.Equal(60m, serviceItem.GrossProfit);
+        Assert.Equal(100m, serviceItem.MarginPercent);
+    }
+
+    [Fact]
+    public async Task Handle_WithOpenShift_ReturnsNullCountedCashAndNullVariance()
+    {
+        // Arrange
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var paymentRepository = new FakePaymentRepository();
+        var paymentMethodRepository = new FakePaymentMethodRepository();
+        var customerRepository = new FakeCustomerRepository();
+        var customerLedgerRepository = new FakeCustomerLedgerEntryRepository();
+        var discountRepository = new FakeDiscountRepository();
+        var serviceChargeRepository = new FakeServiceChargeRepository();
+        var shiftRepository = new FakeShiftRepository();
+        var tableRepository = new FakeTableRepository();
+
+        var warehouseId = WarehouseId.New();
+        var branchId = BranchId.New();
+        var terminalId = TerminalId.New();
+        var userId = UserId.New();
+
+        // Create an open shift
+        var openShift = Shift.Open(1009, branchId, warehouseId, terminalId, userId, "Test Cashier", 4000m);
+        await shiftRepository.AddAsync(openShift);
+
+        var fakeMediator = new FakeMediator(req => Task.FromResult<object?>(null));
+
+        var handler = new GetExpandedSalesSummaryQueryHandler(
+            orderRepository, orderLineRepository, paymentRepository, paymentMethodRepository,
+            customerRepository, customerLedgerRepository, discountRepository, serviceChargeRepository,
+            shiftRepository, tableRepository, fakeMediator);
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Act
+        var result = await handler.Handle(new GetExpandedSalesSummaryQuery(warehouseId.Value, today, today), CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        var drawer = Assert.Single(result.ShiftDrawers);
+        Assert.Equal(1009, drawer.ShiftNumber);
+        Assert.Equal("Open", drawer.Status);
+        Assert.Equal(4000m, drawer.OpeningFloat);
+        Assert.Null(drawer.CountedCash);
+        Assert.Null(drawer.Variance);
+    }
 }
+

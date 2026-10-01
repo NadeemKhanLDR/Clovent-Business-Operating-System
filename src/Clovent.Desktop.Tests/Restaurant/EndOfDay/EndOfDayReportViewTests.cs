@@ -7,6 +7,7 @@ using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
+using Clovent.Restaurant.Application.EndOfDay.Dtos;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -319,11 +320,11 @@ public class EndOfDayReportViewTests
             var generateBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_generateButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
             var printSummaryBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printSummaryButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
 
-            int expectedPeriodW = DesktopDpi.Scale(180, view);
-            int expectedFromW = DesktopDpi.Scale(160, view);
-            int expectedToW = DesktopDpi.Scale(160, view);
-            int expectedGenW = DesktopDpi.Scale(100, view);
-            int expectedSummaryW = DesktopDpi.Scale(120, view);
+            int expectedPeriodW = DesktopDpi.Scale(110, view);
+            int expectedFromW = DesktopDpi.Scale(115, view);
+            int expectedToW = DesktopDpi.Scale(115, view);
+            int expectedGenW = DesktopDpi.Scale(80, view);
+            int expectedSummaryW = DesktopDpi.Scale(95, view);
 
             Assert.True(periodCombo.MinimumSize.Width >= expectedPeriodW);
             Assert.True(fromDate.MinimumSize.Width >= expectedFromW);
@@ -332,4 +333,306 @@ public class EndOfDayReportViewTests
             Assert.True(printSummaryBtn.MinimumSize.Width >= expectedSummaryW);
         }
     }
+
+    [Fact]
+    public void EndOfDayReportView_KpiCards_HaveAccurateSubtitlesAndCaptions()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var tabControl = GetAllControls(view).OfType<DevExpress.XtraTab.XtraTabControl>().FirstOrDefault();
+            Assert.NotNull(tabControl);
+            var summaryPage = tabControl.TabPages[0];
+            var cardsRow = summaryPage.Controls.OfType<TableLayoutPanel>().FirstOrDefault();
+            Assert.NotNull(cardsRow);
+
+            var statCards = cardsRow.Controls.OfType<PanelControl>().ToList();
+            Assert.Equal(4, statCards.Count);
+
+            // Find all label controls in the cards
+            var allLabels = statCards.SelectMany(c => c.Controls.OfType<LabelControl>()).ToList();
+
+            // Total Sales subtitle
+            var totalSalesSubtitle = allLabels.FirstOrDefault(l => l.Text == "Completed bill sales including fees");
+            Assert.NotNull(totalSalesSubtitle);
+
+            // Cash Sales title and subtitle
+            var cashSalesTitle = allLabels.FirstOrDefault(l => l.Text == "CASH SALES");
+            var cashSalesSubtitle = allLabels.FirstOrDefault(l => l.Text == "Cash order settlements");
+            Assert.NotNull(cashSalesTitle);
+            Assert.NotNull(cashSalesSubtitle);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_ItemsGridFooters_DoNotSumAverages()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var itemsGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_itemsGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var itemsView = (DevExpress.XtraGrid.Views.Grid.GridView)itemsGrid.MainView;
+
+            // Unit Price (Avg Price) must NOT be summed
+            var unitPriceCol = itemsView.Columns["UnitPrice"];
+            Assert.NotNull(unitPriceCol);
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, unitPriceCol.SummaryItem.SummaryType);
+
+            // Cost Price (Unit Cost) must NOT be summed
+            var costPriceCol = itemsView.Columns["CostPrice"];
+            Assert.NotNull(costPriceCol);
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, costPriceCol.SummaryItem.SummaryType);
+
+            // Quantity Sold must be SUM
+            var qtyCol = itemsView.Columns["QuantitySold"];
+            Assert.NotNull(qtyCol);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Sum, qtyCol.SummaryItem.SummaryType);
+
+            // Total Sales must be SUM
+            var salesCol = itemsView.Columns["TotalSales"];
+            Assert.NotNull(salesCol);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Sum, salesCol.SummaryItem.SummaryType);
+
+            // Gross Profit summary format must be "Known GP" or "Known"
+            var gpCol = itemsView.Columns["GrossProfit"];
+            Assert.NotNull(gpCol);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Custom, gpCol.SummaryItem.SummaryType);
+            Assert.Contains("{0}", gpCol.SummaryItem.DisplayFormat);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_ItemsFooter_WhenAllItemsHaveUnknownCost_ShowsNA_NotZero()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var itemsGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_itemsGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var itemsView = (DevExpress.XtraGrid.Views.Grid.GridView)itemsGrid.MainView;
+
+            var items = new List<ExpandedItemRowDto>
+            {
+                new(Guid.NewGuid(), "Main Course", "Chicken Haleem", "Prepared", 5, 400m, null, 2000m, null, null, null, 50m),
+                new(Guid.NewGuid(), "Main Course", "Chicken Biryani", "Prepared", 3, 500m, null, 1500m, null, null, null, 50m)
+            };
+
+            itemsGrid.DataSource = items;
+            itemsGrid.ForceInitialize();
+            itemsView.UpdateTotalSummary();
+
+            var costCol = itemsView.Columns["EstimatedCost"];
+            var gpCol = itemsView.Columns["GrossProfit"];
+
+            Assert.NotNull(costCol);
+            Assert.NotNull(gpCol);
+
+            // Summary type must be Custom
+            Assert.Equal(DevExpress.Data.SummaryItemType.Custom, costCol.SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Custom, gpCol.SummaryItem.SummaryType);
+
+            // With zero costed items, the summary value must NOT be 0.00
+            Assert.Equal("N/A", costCol.SummaryItem.SummaryValue?.ToString());
+            Assert.Equal("Known GP: N/A", gpCol.SummaryItem.SummaryValue?.ToString());
+
+            // Test display text
+            var costDisplayText = costCol.SummaryText;
+            var gpDisplayText = gpCol.SummaryText;
+
+            Assert.Contains("N/A", costDisplayText);
+            Assert.DoesNotContain("0.00", costDisplayText);
+
+            Assert.Contains("Known GP: N/A", gpDisplayText);
+            Assert.DoesNotContain("0.00", gpDisplayText);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_ItemsFooter_WithMixedDataset_SumsOnlyKnownCostRows()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var itemsGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_itemsGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var itemsView = (DevExpress.XtraGrid.Views.Grid.GridView)itemsGrid.MainView;
+
+            var items = new List<ExpandedItemRowDto>
+            {
+                // Naan: Sales 575, Cost 460, GP 115
+                new(Guid.NewGuid(), "Breads", "Naan", "PurchasedResale", 5, 115m, 92m, 575m, 460m, 115m, 20m, 30m),
+                // Food Heating: Sales 60, Known Cost 0, GP 60
+                new(Guid.NewGuid(), "Services", "Food Heating", "Service", 1, 60m, 0m, 60m, 0m, 60m, 100m, 5m),
+                // Prepared: Sales 1200, Cost unknown
+                new(Guid.NewGuid(), "Main Course", "Chicken Biryani", "Prepared", 2, 600m, null, 1200m, null, null, null, 65m)
+            };
+
+            itemsGrid.DataSource = items;
+            itemsGrid.ForceInitialize();
+            itemsView.UpdateTotalSummary();
+
+            var costCol = itemsView.Columns["EstimatedCost"];
+            var gpCol = itemsView.Columns["GrossProfit"];
+
+            Assert.NotNull(costCol);
+            Assert.NotNull(gpCol);
+
+            // Known Cost = 460 + 0 = 460
+            Assert.NotNull(costCol.SummaryItem.SummaryValue);
+            Assert.Equal("460.00", costCol.SummaryItem.SummaryValue?.ToString());
+
+            // Known GP = 115 + 60 = 175
+            Assert.NotNull(gpCol.SummaryItem.SummaryValue);
+            Assert.Equal("Known GP: 175.00", gpCol.SummaryItem.SummaryValue?.ToString());
+
+            // Display text formatting
+            Assert.Contains("460", costCol.SummaryText);
+            Assert.Contains("Known GP: 175", gpCol.SummaryText);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_ItemsFooter_DoesNotSumAveragesOrPercentages()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var itemsGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_itemsGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var itemsView = (DevExpress.XtraGrid.Views.Grid.GridView)itemsGrid.MainView;
+
+            // Average/Rate columns must be None
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, itemsView.Columns["UnitPrice"].SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, itemsView.Columns["CostPrice"].SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, itemsView.Columns["MarginPercent"].SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, itemsView.Columns["PercentOfTotalSales"].SummaryItem.SummaryType);
+
+            // Quantity and Sales must be Sum
+            Assert.Equal(DevExpress.Data.SummaryItemType.Sum, itemsView.Columns["QuantitySold"].SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Sum, itemsView.Columns["TotalSales"].SummaryItem.SummaryType);
+
+            // Cost Amount and Gross Profit must be Custom
+            Assert.Equal(DevExpress.Data.SummaryItemType.Custom, itemsView.Columns["EstimatedCost"].SummaryItem.SummaryType);
+            Assert.Equal(DevExpress.Data.SummaryItemType.Custom, itemsView.Columns["GrossProfit"].SummaryItem.SummaryType);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_HighDpi_HasNoUnnecessaryWorkspaceHorizontalScrollbar()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            // View itself must have AutoScroll disabled and empty AutoScrollMinSize
+            Assert.False(view.AutoScroll);
+            Assert.Equal(System.Drawing.Size.Empty, view.AutoScrollMinSize);
+
+            // All child tab pages must have AutoScroll disabled
+            var tabControl = (DevExpress.XtraTab.XtraTabControl)typeof(EndOfDayReportView)
+                .GetField("_tabControl", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            foreach (DevExpress.XtraTab.XtraTabPage page in tabControl.TabPages)
+            {
+                Assert.False(page.AutoScroll);
+            }
+
+            // Verify in a simulated high-DPI shell window (1920x1080 at 240 DPI)
+            var form = new System.Windows.Forms.Form { Width = 1920, Height = 1080, AutoScroll = false };
+            form.Controls.Add(view);
+            view.Dock = System.Windows.Forms.DockStyle.Fill;
+            form.Show();
+
+            view.ScaleLayoutAtRuntime();
+
+            // Form and view must not show horizontal scrollbars
+            Assert.False(form.HorizontalScroll.Visible);
+            Assert.False(view.HorizontalScroll.Visible);
+
+            form.Close();
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_Toolbar_IsSingleRowTableLayoutPanel_WithZeroWrapping_AndExactButtonOrder()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var genBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_generateButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var prevBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_previewButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var printBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var pdfBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_exportPdfButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var excelBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_exportExcelButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var summaryBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printSummaryButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var picker = (Control)typeof(EndOfDayReportView).GetField("_warehousePicker", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            var tlp = Assert.IsType<TableLayoutPanel>(genBtn.Parent);
+            Assert.Equal(1, tlp.RowCount);
+            Assert.Equal(10, tlp.ColumnCount);
+
+            // Columns and order
+            Assert.Equal(0, tlp.GetColumn(picker));
+            Assert.Equal(4, tlp.GetColumn(genBtn));
+            Assert.Equal(5, tlp.GetColumn(prevBtn));
+            Assert.Equal(6, tlp.GetColumn(printBtn));
+            Assert.Equal(7, tlp.GetColumn(pdfBtn));
+            Assert.Equal(8, tlp.GetColumn(excelBtn));
+            Assert.Equal(9, tlp.GetColumn(summaryBtn));
+
+            // Tab index sequence
+            Assert.True(picker.TabIndex < genBtn.TabIndex);
+            Assert.True(genBtn.TabIndex < prevBtn.TabIndex);
+            Assert.True(prevBtn.TabIndex < printBtn.TabIndex);
+            Assert.True(printBtn.TabIndex < pdfBtn.TabIndex);
+            Assert.True(pdfBtn.TabIndex < excelBtn.TabIndex);
+            Assert.True(excelBtn.TabIndex < summaryBtn.TabIndex);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_CustomersTab_GrossSales_AndMoneyColumns_ConfiguredForTwoDecimals()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var customersGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_customersGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var customersView = (DevExpress.XtraGrid.Views.Grid.GridView)customersGrid.MainView;
+
+            Assert.Contains("GrossSales", EndOfDayReportView.MoneyFieldNames);
+            Assert.Contains("ItemSales", EndOfDayReportView.MoneyFieldNames);
+            Assert.Contains("BillTotal", EndOfDayReportView.MoneyFieldNames);
+
+            // Verify DisplayFormat
+            Assert.Equal(DevExpress.Utils.FormatType.Numeric, customersView.Columns["GrossSales"].DisplayFormat.FormatType);
+            Assert.Equal("n2", customersView.Columns["GrossSales"].DisplayFormat.FormatString);
+            Assert.Equal(DevExpress.Utils.HorzAlignment.Far, customersView.Columns["GrossSales"].AppearanceCell.TextOptions.HAlignment);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_CashSummary_ShiftNumber_HasNoSumSummary_AndInventoryMovementHasNoQuantitySum()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var cashGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_cashSummaryGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var cashView = (DevExpress.XtraGrid.Views.Grid.GridView)cashGrid.MainView;
+
+            Assert.NotEqual(DevExpress.Data.SummaryItemType.Sum, cashView.Columns["ShiftNumber"].SummaryItem.SummaryType);
+            Assert.Equal("Total", cashView.Columns["ShiftNumber"].SummaryItem.DisplayFormat);
+
+            var invGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_inventoryMovementGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var invView = (DevExpress.XtraGrid.Views.Grid.GridView)invGrid.MainView;
+
+            Assert.Equal(DevExpress.Data.SummaryItemType.None, invView.Columns["Quantity"].SummaryItem.SummaryType);
+        }
+    }
 }
+
+
+
+

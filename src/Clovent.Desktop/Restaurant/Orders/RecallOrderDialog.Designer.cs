@@ -879,7 +879,7 @@ partial class RecallOrderDialog
                 }
             }
         };
-        _refreshButton.Click += async (_, _) => await LoadAsync();
+        _refreshButton.Click += RefreshButton_Click;
         _headerCloseButton.Click += (_, _) =>
         {
             if (!string.IsNullOrWhiteSpace(_searchEdit.Text))

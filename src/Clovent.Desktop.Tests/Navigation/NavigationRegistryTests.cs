@@ -77,7 +77,7 @@ public sealed class NavigationRegistryTests
     [Theory]
     [InlineData("dashboard", NavigationPage.Masters, "Workspace")]
     [InlineData("pos", NavigationPage.Pos, "Operations")]
-    [InlineData("customerreceivables", NavigationPage.Reports, "Financial & A/R")]
+    [InlineData("customerreceivables", NavigationPage.ManagerPanel, "Financial / A/R")]
     [InlineData("endofday", NavigationPage.Reports, "Sales")]
     [InlineData("shifts", NavigationPage.Reports, "Operations")]
     [InlineData("orderhistory", NavigationPage.Pos, "Orders")]
@@ -91,6 +91,25 @@ public sealed class NavigationRegistryTests
         Assert.NotNull(item);
         Assert.Equal(expectedPage, item.RibbonPage);
         Assert.Equal(expectedGroup, item.RibbonGroup);
+    }
+
+    [Fact]
+    public void CustomerReceivables_OwnedByManagerPanel_AndNotOnReports()
+    {
+        var receivablesItems = NavigationRegistry.AllItems
+            .Where(x => string.Equals(x.Key, "customerreceivables", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Exactly one canonical registration
+        var canonical = Assert.Single(receivablesItems);
+        Assert.Equal(NavigationPage.ManagerPanel, canonical.RibbonPage);
+        Assert.Equal("Financial / A/R", canonical.RibbonGroup);
+
+        // Must not exist anywhere under Reports
+        var reportsReceivables = NavigationRegistry.AllItems
+            .Where(x => x.RibbonPage == NavigationPage.Reports && string.Equals(x.Key, "customerreceivables", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        Assert.Empty(reportsReceivables);
     }
 
     [Fact]
@@ -127,7 +146,7 @@ public sealed class NavigationRegistryTests
     [InlineData("products", NavigationPage.Masters)]
     [InlineData("warehousestocks", NavigationPage.Inventory)]
     [InlineData("pos", NavigationPage.Pos)]
-    [InlineData("customerreceivables", NavigationPage.Reports)]
+    [InlineData("customerreceivables", NavigationPage.ManagerPanel)]
     [InlineData("quickordertemplates", NavigationPage.ManagerPanel)]
     [InlineData("endofday", NavigationPage.Reports)]
     [InlineData("shifts", NavigationPage.Reports)]

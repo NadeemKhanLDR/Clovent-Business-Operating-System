@@ -86,7 +86,7 @@ public class UpsellPerformanceViewTests
 
         var labels = GetAllControls(headerPanel).OfType<LabelControl>().ToList();
         var titleLabel = labels.FirstOrDefault(l => l.Text == "UPSELL PERFORMANCE");
-        var subLabel = labels.FirstOrDefault(l => l.Text.Contains("Review recommendation offers"));
+        var subLabel = labels.FirstOrDefault(l => l.Text.Contains("Analyze recommendation effectiveness"));
 
         Assert.NotNull(titleLabel);
         Assert.NotNull(subLabel);
@@ -149,5 +149,47 @@ public class UpsellPerformanceViewTests
         periodCombo.SelectedItem = "Yesterday";
         Assert.Equal(DateTime.Today.AddDays(-1), fromEdit.DateTime.Date);
         Assert.Equal(DateTime.Today.AddDays(-1), toEdit.DateTime.Date);
+    }
+
+    [Fact]
+    public void UpsellPerformanceView_Toolbar_IsSingleRowTableLayoutPanel()
+    {
+        using var view = CreateView();
+
+        var toolbarField = typeof(UpsellPerformanceView).GetField("_toolbar", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(toolbarField);
+        var toolbar = Assert.IsType<TableLayoutPanel>(toolbarField.GetValue(view));
+
+        Assert.Equal(1, toolbar.RowCount);
+        Assert.Equal(4, toolbar.ColumnCount);
+        Assert.Equal(DockStyle.Fill, toolbar.Dock);
+    }
+
+    [Fact]
+    public void UpsellPerformanceView_GridColumns_HaveFullCaptions_AndSufficientWidth()
+    {
+        using var view = CreateView();
+
+        var bindMethod = typeof(UpsellPerformanceView).GetMethod("BindGrid", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(bindMethod);
+        bindMethod.Invoke(view, [new List<Clovent.Restaurant.Application.SmartRecommendations.Dtos.UpsellPerformanceDto>()]);
+
+        var gridField = typeof(UpsellPerformanceView).GetField("_gridControl", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(gridField);
+        var grid = (DevExpress.XtraGrid.GridControl)gridField.GetValue(view)!;
+        var gridView = (DevExpress.XtraGrid.Views.Grid.GridView)grid.MainView;
+
+        Assert.Equal("Recommended Item", gridView.Columns["ProductName"].Caption);
+        Assert.Equal("Variant", gridView.Columns["VariantName"].Caption);
+        Assert.Equal("Offers", gridView.Columns["Offers"].Caption);
+        Assert.Equal("Accepted", gridView.Columns["Accepted"].Caption);
+        Assert.Equal("Dismissed", gridView.Columns["Dismissed"].Caption);
+        Assert.Equal("Conversion %", gridView.Columns["ConversionText"].Caption);
+        Assert.Equal("Upsell Revenue", gridView.Columns["UpsellRevenueText"].Caption);
+
+        Assert.True(gridView.Columns["Accepted"].MinWidth >= 70);
+        Assert.True(gridView.Columns["Dismissed"].MinWidth >= 70);
+        Assert.True(gridView.Columns["ConversionText"].MinWidth >= 85);
+        Assert.True(gridView.Columns["UpsellRevenueText"].MinWidth >= 100);
     }
 }

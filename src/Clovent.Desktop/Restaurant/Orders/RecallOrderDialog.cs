@@ -209,6 +209,8 @@ CloseButton Bounds: {_closeButton.Bounds}
         _ = LoadAsync();
     }
 
+    private void RefreshButton_Click(object? sender, EventArgs e) => _ = LoadAsync();
+
     /// <summary>
     /// Loads the current status's orders. Serialized through a gate so rapid
     /// tab clicks or Enter-hammering cannot stack duplicate queries.

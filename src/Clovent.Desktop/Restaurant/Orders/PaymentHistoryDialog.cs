@@ -80,6 +80,9 @@ public sealed partial class PaymentHistoryDialog : XtraForm
         DesktopDialogSizing.Apply(this, 700, 480, 600, 400, null, true);
         await GuardedAction.RunAsync(this, _logger, LoadAsync, "load the payment history");
     }
+    private void VoidButton_Click(object? sender, EventArgs e) => _ = TryRunAsync(VoidPaymentAsync, "void this payment");
+    private void ReceiptButton_Click(object? sender, EventArgs e) => _ = TryRunAsync(ShowReceiptAsync, "show the receipt preview");
+
     private Task TryRunAsync(Func<Task> action, string actionDescription) =>
         GuardedAction.RunAsync(this, _logger, action, actionDescription, LoadAsync);
 

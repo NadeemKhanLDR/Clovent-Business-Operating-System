@@ -28,7 +28,7 @@ partial class RunningOrdersView
         _comboOrderTypeFilter.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _comboOrderTypeFilter.Properties.Appearance.Options.UseFont = true;
         _comboOrderTypeFilter.Size = new Size(150, 26);
-        _comboOrderTypeFilter.SelectedIndexChanged += async (_, _) => await _listView.RefreshAsync();
+        _comboOrderTypeFilter.SelectedIndexChanged += ComboOrderTypeFilter_SelectedIndexChanged;
 
         var topFilterPanel = new FlowLayoutPanel
         {

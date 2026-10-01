@@ -41,7 +41,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     IServiceChargeRepository serviceChargeRepository,
     IShiftRepository shiftRepository,
     ITableRepository tableRepository,
-    IMediator mediator) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
+    IMediator mediator,
+    Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider? businessDateProvider = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
 {
     private const string CashMethodName = "Cash";
     private const string CardFragment = "card";
@@ -52,12 +53,15 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 
+        DateOnly ToBusinessDate(DateTimeOffset utc) =>
+            businessDateProvider != null ? businessDateProvider.GetBusinessDateForUtc(utc) : DateOnly.FromDateTime(utc.LocalDateTime);
+
         bool MatchesRange(Order order)
         {
             if (order.WarehouseId != warehouseId) return false;
             // Check completed/updated or created date against business range
-            var orderDate = DateOnly.FromDateTime(order.UpdatedAtUtc.LocalDateTime);
-            var createdDate = DateOnly.FromDateTime(order.CreatedAtUtc.LocalDateTime);
+            var orderDate = ToBusinessDate(order.UpdatedAtUtc);
+            var createdDate = ToBusinessDate(order.CreatedAtUtc);
             return (orderDate >= request.FromDate && orderDate <= request.ToDate) ||
                    (createdDate >= request.FromDate && createdDate <= request.ToDate);
         }
@@ -361,8 +365,13 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         decimal periodAdvancesReceived = 0m;
         var customerPaymentsByMethod = new Dictionary<string, (int Count, decimal Total)>();
 
-        var fromDateTime = request.FromDate.ToDateTime(TimeOnly.MinValue);
-        var toDateTime = request.ToDate.ToDateTime(TimeOnly.MaxValue);
+        var fromUtc = businessDateProvider != null
+            ? businessDateProvider.GetUtcRangeForBusinessDate(request.FromDate).StartUtc
+            : new DateTimeOffset(request.FromDate.ToDateTime(TimeOnly.MinValue), DateTimeOffset.Now.Offset).ToUniversalTime();
+
+        var toUtc = businessDateProvider != null
+            ? businessDateProvider.GetUtcRangeForBusinessDate(request.ToDate).EndUtc
+            : new DateTimeOffset(request.ToDate.ToDateTime(TimeOnly.MaxValue), DateTimeOffset.Now.Offset).ToUniversalTime();
 
         var receivableRows = new List<ExpandedReceivableActivityRowDto>();
         var customerReportRows = new List<ExpandedCustomerRowDto>();
@@ -372,12 +381,12 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             var customerLedger = await ledgerRepository.GetByCustomerIdAsync(customer.Id, cancellationToken);
             var sortedLedger = customerLedger.OrderBy(e => e.Date).ToList();
 
-            var priorEntries = sortedLedger.Where(e => e.Date.LocalDateTime < fromDateTime).ToList();
-            var periodEntries = sortedLedger.Where(e => e.Date.LocalDateTime >= fromDateTime && e.Date.LocalDateTime <= toDateTime).ToList();
+            var priorEntries = sortedLedger.Where(e => ToBusinessDate(e.Date) < request.FromDate).ToList();
+            var periodEntries = sortedLedger.Where(e => ToBusinessDate(e.Date) >= request.FromDate && ToBusinessDate(e.Date) <= request.ToDate).ToList();
 
             decimal priorNet = priorEntries.Count > 0
                 ? priorEntries.Last().RunningBalance
-                : (customer.CreatedAtUtc.LocalDateTime < fromDateTime ? customer.OpeningBalance : 0m);
+                : (ToBusinessDate(customer.CreatedAtUtc) < request.FromDate ? customer.OpeningBalance : 0m);
 
             decimal openReceivable = Math.Max(0m, priorNet);
             decimal openAdvance = Math.Max(0m, -priorNet);
@@ -492,8 +501,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
         // Shifts summary in range & cash drawer reconciliation
         var shiftsInRange = await shiftRepository.SearchShiftsAsync(
-            fromDateUtc: fromDateTime.ToUniversalTime(),
-            toDateUtc: toDateTime.ToUniversalTime(),
+            fromDateUtc: fromUtc,
+            toDateUtc: toUtc,
             cancellationToken: cancellationToken);
         int shiftCount = shiftsInRange.Count;
         decimal totalShiftVariance = shiftsInRange.Sum(s => s.CashVariance);
@@ -524,8 +533,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 ? s.ExpectedCash
                 : (s.StartingCash + shiftCashIn + shiftCashSales + shiftCashCollections - shiftCashOut);
 
-            decimal shiftCounted = s.Status == ShiftStatus.Closed ? s.CountedCash : 0m;
-            decimal shiftVariance = s.Status == ShiftStatus.Closed ? s.CashVariance : (shiftCounted - shiftExpected);
+            decimal? shiftCounted = s.Status == ShiftStatus.Closed ? s.CountedCash : null;
+            decimal? shiftVariance = s.Status == ShiftStatus.Closed ? s.CashVariance : null;
 
             shiftDrawerRows.Add(new ShiftDrawerCashSummaryDto(
                 s.Id.Value,
@@ -623,6 +632,12 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
             var percentOfTotal = grossSales > 0 ? (agg.GrossSales / grossSales) * 100m : 0m;
 
+            decimal? costPriceDto = costPrice;
+            if (string.Equals(itemType, "Prepared", StringComparison.OrdinalIgnoreCase) && costPrice <= 0)
+            {
+                costPriceDto = null;
+            }
+
             itemRows.Add(new ExpandedItemRowDto(
                 vId,
                 catName,
@@ -630,7 +645,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 itemType,
                 agg.Quantity,
                 Math.Round(unitPrice, 2),
-                Math.Round(costPrice, 2),
+                costPriceDto.HasValue ? Math.Round(costPriceDto.Value, 2) : null,
                 agg.GrossSales,
                 itemCost.HasValue ? Math.Round(itemCost.Value, 2) : null,
                 grossProfit.HasValue ? Math.Round(grossProfit.Value, 2) : null,

@@ -37,7 +37,7 @@ public sealed class UpsellPerformanceView : XtraUserControl
     private readonly ICurrentSession _currentSession;
 
     private PanelControl _headerPanel = null!;
-    private FlowLayoutPanel _toolbar = null!;
+    private TableLayoutPanel _toolbar = null!;
     private ComboBoxEdit _periodCombo = null!;
     private DateEdit _fromEdit = null!;
     private DateEdit _toEdit = null!;
@@ -109,8 +109,10 @@ public sealed class UpsellPerformanceView : XtraUserControl
         _headerPanel = new PanelControl
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder,
-            Padding = new Padding(16, 12, 16, 4),
+            Padding = new Padding(16, 12, 16, 6),
             Margin = new Padding(0)
         };
 
@@ -132,13 +134,13 @@ public sealed class UpsellPerformanceView : XtraUserControl
             Text = "UPSELL PERFORMANCE",
             Font = new Font("Segoe UI", 14F, FontStyle.Bold),
             ForeColor = Color.FromArgb(15, 23, 42),
-            Margin = new Padding(0, 0, 0, 3)
+            Margin = new Padding(0, 0, 0, 2)
         };
 
         var subTitleLabel = new LabelControl
         {
-            Text = "Review recommendation offers, acceptance, conversion and generated revenue.",
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
+            Text = "Analyze recommendation effectiveness and additional revenue.",
+            Font = new Font("Segoe UI", 9.5F, FontStyle.Regular),
             ForeColor = Color.FromArgb(100, 116, 139),
             Margin = new Padding(0)
         };
@@ -148,17 +150,22 @@ public sealed class UpsellPerformanceView : XtraUserControl
         _headerPanel.Controls.Add(titleBox);
 
         // ---- 2. Standard Report Period Toolbar ----
-        _toolbar = new FlowLayoutPanel
+        _toolbar = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            Padding = new Padding(16, 4, 16, 8),
+            ColumnCount = 4,
+            RowCount = 1,
+            Padding = new Padding(16, 2, 16, 8),
             Margin = new Padding(0),
             BackColor = Color.White
         };
+        _toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         var periodLabel = new LabelControl
         {
@@ -166,20 +173,19 @@ public sealed class UpsellPerformanceView : XtraUserControl
             AutoSizeMode = LabelAutoSizeMode.Horizontal,
             Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
             ForeColor = Color.FromArgb(51, 65, 85),
-            Margin = new Padding(0, 6, 8, 4)
+            Margin = new Padding(0, 6, 6, 0)
         };
-        periodLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-        periodLabel.Appearance.Options.UseTextOptions = true;
 
         _periodCombo = new ComboBoxEdit
         {
-            Margin = new Padding(0, 4, 14, 4),
+            Margin = new Padding(0),
             Properties = { TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor }
         };
         _periodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _periodCombo.Properties.Appearance.Options.UseFont = true;
         _periodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _periodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _periodCombo.Size = new Size(130, 30);
         foreach (var (_, name) in ReportPeriodCalculator.GetAllOptions())
         {
             _periodCombo.Properties.Items.Add(name);
@@ -191,16 +197,15 @@ public sealed class UpsellPerformanceView : XtraUserControl
             AutoSizeMode = LabelAutoSizeMode.Horizontal,
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.Gray,
-            Margin = new Padding(0, 6, 6, 4)
+            Margin = new Padding(0, 6, 6, 0)
         };
-        fromLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-        fromLabel.Appearance.Options.UseTextOptions = true;
 
         var dateFormat = BusinessDateTimeService.ExtractDateFormatPattern(DateTimeDisplay.FormatString);
 
         _fromEdit = new DateEdit
         {
-            Margin = new Padding(0, 4, 14, 4),
+            Margin = new Padding(0),
+            Size = new Size(120, 30),
             Properties =
             {
                 EditMask = dateFormat,
@@ -216,14 +221,13 @@ public sealed class UpsellPerformanceView : XtraUserControl
             AutoSizeMode = LabelAutoSizeMode.Horizontal,
             Font = new Font("Segoe UI", 9.5F),
             ForeColor = Color.Gray,
-            Margin = new Padding(0, 6, 6, 4)
+            Margin = new Padding(0, 6, 6, 0)
         };
-        toLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
-        toLabel.Appearance.Options.UseTextOptions = true;
 
         _toEdit = new DateEdit
         {
-            Margin = new Padding(0, 4, 14, 4),
+            Margin = new Padding(0),
+            Size = new Size(120, 30),
             Properties =
             {
                 EditMask = dateFormat,
@@ -246,7 +250,8 @@ public sealed class UpsellPerformanceView : XtraUserControl
         _refreshButton = new SimpleButton
         {
             Text = "Refresh",
-            Margin = new Padding(0, 3, 0, 4),
+            Margin = new Padding(0, 1, 0, 1),
+            MinimumSize = new Size(90, 30),
             Cursor = Cursors.Hand
         };
         _refreshButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
@@ -257,13 +262,46 @@ public sealed class UpsellPerformanceView : XtraUserControl
         _refreshButton.Appearance.Options.UseForeColor = true;
         _refreshButton.Click += RefreshButton_Click;
 
-        _toolbar.Controls.Add(periodLabel);
-        _toolbar.Controls.Add(_periodCombo);
-        _toolbar.Controls.Add(fromLabel);
-        _toolbar.Controls.Add(_fromEdit);
-        _toolbar.Controls.Add(toLabel);
-        _toolbar.Controls.Add(_toEdit);
-        _toolbar.Controls.Add(_refreshButton);
+        var periodPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 0, 10, 0),
+            Padding = new Padding(0)
+        };
+        periodPanel.Controls.Add(periodLabel);
+        periodPanel.Controls.Add(_periodCombo);
+
+        var fromPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 0, 10, 0),
+            Padding = new Padding(0)
+        };
+        fromPanel.Controls.Add(fromLabel);
+        fromPanel.Controls.Add(_fromEdit);
+
+        var toPanel = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 0, 10, 0),
+            Padding = new Padding(0)
+        };
+        toPanel.Controls.Add(toLabel);
+        toPanel.Controls.Add(_toEdit);
+
+        _toolbar.Controls.Add(periodPanel, 0, 0);
+        _toolbar.Controls.Add(fromPanel, 1, 0);
+        _toolbar.Controls.Add(toPanel, 2, 0);
+        _toolbar.Controls.Add(_refreshButton, 3, 0);
 
         // ---- 3. Grid ----
         _gridControl = new GridControl { Dock = DockStyle.Fill, Margin = new Padding(16, 0, 16, 0) };
@@ -371,14 +409,14 @@ public sealed class UpsellPerformanceView : XtraUserControl
     {
         if (DesignModeHelper.IsInDesignMode) return;
 
-        int editorH = DesktopDpi.Scale(32, this);
-        _periodCombo.MinimumSize = new Size(DesktopDpi.Scale(140, this), editorH);
-        _fromEdit.MinimumSize = new Size(DesktopDpi.Scale(130, this), editorH);
-        _toEdit.MinimumSize = new Size(DesktopDpi.Scale(130, this), editorH);
-        _refreshButton.MinimumSize = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(34, this));
+        int editorH = DesktopDpi.Scale(30, this);
+        _periodCombo.MinimumSize = new Size(DesktopDpi.Scale(130, this), editorH);
+        _fromEdit.MinimumSize = new Size(DesktopDpi.Scale(120, this), editorH);
+        _toEdit.MinimumSize = new Size(DesktopDpi.Scale(120, this), editorH);
+        _refreshButton.MinimumSize = new Size(DesktopDpi.Scale(90, this), editorH);
 
-        _gridView.RowHeight = DesktopDpi.Scale(30, this);
-        _gridView.ColumnPanelRowHeight = DesktopDpi.Scale(34, this);
+        _gridView.RowHeight = DesktopDpi.Scale(28, this);
+        _gridView.ColumnPanelRowHeight = DesktopDpi.Scale(36, this);
     }
 
     private async void RefreshButton_Click(object? sender, EventArgs e) =>
@@ -442,11 +480,11 @@ public sealed class UpsellPerformanceView : XtraUserControl
         _gridControl.DataSource = rows.Select(r => new PerformanceGridRow(r)).ToList();
         _gridView.Columns.Clear();
 
-        void AddColumn(string fieldName, string caption, int width, DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near)
+        void AddColumn(string fieldName, string caption, int width, int minWidth, DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near)
         {
             var column = _gridView.Columns.AddVisible(fieldName, caption);
             column.Width = DesktopDpi.Scale(width, this);
-            column.MinWidth = DesktopDpi.Scale(Math.Min(width, 70), this);
+            column.MinWidth = DesktopDpi.Scale(minWidth, this);
             column.OptionsColumn.AllowEdit = false;
             column.AppearanceCell.TextOptions.HAlignment = alignment;
             column.AppearanceCell.Options.UseTextOptions = true;
@@ -454,13 +492,13 @@ public sealed class UpsellPerformanceView : XtraUserControl
             column.AppearanceHeader.Options.UseTextOptions = true;
         }
 
-        AddColumn(nameof(PerformanceGridRow.ProductName), "Recommended Item", 220);
-        AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 140);
-        AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 85, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 85, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 85, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.ConversionText), "Conversion %", 100, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.UpsellRevenueText), "Upsell Revenue", 120, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.ProductName), "Recommended Item", 280, 180);
+        AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 120, 90);
+        AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 65, 55, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 75, 70, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 75, 70, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.ConversionText), "Conversion %", 90, 85, DevExpress.Utils.HorzAlignment.Far);
+        AddColumn(nameof(PerformanceGridRow.UpsellRevenueText), "Upsell Revenue", 110, 100, DevExpress.Utils.HorzAlignment.Far);
     }
 
     private sealed class PerformanceGridRow(UpsellPerformanceDto dto)

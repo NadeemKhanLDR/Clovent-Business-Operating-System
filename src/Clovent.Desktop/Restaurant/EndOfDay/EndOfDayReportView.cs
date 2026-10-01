@@ -277,7 +277,11 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         var grid = GetCurrentTabGrid();
         if (grid == null) return;
         var name = GetCurrentTabExportName();
-        ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{name}.xlsx", (g, path) => g.ExportToXlsx(path));
+        var options = new DevExpress.XtraPrinting.XlsxExportOptionsEx
+        {
+            ExportType = DevExpress.Export.ExportType.WYSIWYG
+        };
+        ExportGrid(grid, "Excel files (*.xlsx)|*.xlsx", $"{name}.xlsx", (g, path) => g.ExportToXlsx(path, options));
     }
 
     private async void EndOfDayReportView_Load(object? sender, EventArgs e)
@@ -451,11 +455,11 @@ public sealed partial class EndOfDayReportView : XtraUserControl
                 "Prepared",
                 i.Quantity,
                 i.Quantity > 0 ? Math.Round(i.Total / i.Quantity, 2) : 0m,
-                0m,
+                null,
                 i.Total,
-                0m,
-                i.Total,
-                100m,
+                null,
+                null,
+                null,
                 report.TotalSales > 0 ? Math.Round(i.Total / report.TotalSales * 100m, 2) : 0m)).ToList();
         }
 
@@ -622,7 +626,9 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             sb.AppendLine("Cash Drawer Reconciliation (by Shift):");
             foreach (var d in expanded.ShiftDrawers)
             {
-                sb.AppendLine($"  Shift #{d.ShiftNumber} ({d.CashierName}): Expected {CurrencyDisplay.Format(d.ExpectedCash)}, Counted {CurrencyDisplay.Format(d.CountedCash)}, Variance {CurrencyDisplay.Format(d.Variance)} [{d.Status}]");
+                var countedStr = d.CountedCash.HasValue ? CurrencyDisplay.Format(d.CountedCash.Value) : "N/A";
+                var varianceStr = d.Variance.HasValue ? CurrencyDisplay.Format(d.Variance.Value) : "N/A";
+                sb.AppendLine($"  Shift #{d.ShiftNumber} ({d.CashierName}): Expected {CurrencyDisplay.Format(d.ExpectedCash)}, Counted {countedStr}, Variance {varianceStr} [{d.Status}]");
             }
         }
         else

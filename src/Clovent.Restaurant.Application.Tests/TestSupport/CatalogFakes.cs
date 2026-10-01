@@ -17,8 +17,8 @@ namespace Clovent.Restaurant.Application.Tests.TestSupport;
 /// </summary>
 internal static class CatalogFakes
 {
-    public static ProductVariantDto Variant(Guid variantId, Guid productId, string name, string status = "Active", string? productStatus = "Active", int sortOrder = 0) =>
-        new(variantId, productId, name, $"SKU-{name}", Guid.NewGuid(), status, sortOrder, DateTimeOffset.UtcNow, null, productStatus);
+    public static ProductVariantDto Variant(Guid variantId, Guid productId, string name, string status = "Active", string? productStatus = "Active", int sortOrder = 0, string itemType = "Prepared") =>
+        new(variantId, productId, name, $"SKU-{name}", Guid.NewGuid(), status, sortOrder, DateTimeOffset.UtcNow, null, productStatus, true, itemType);
 
     public static ProductDto Product(Guid productId, string name, Guid? categoryId = null) =>
         new(productId, name, $"SKU-{name}", categoryId, null, null, Guid.NewGuid(), 0m, true, "Active", DateTimeOffset.UtcNow);
