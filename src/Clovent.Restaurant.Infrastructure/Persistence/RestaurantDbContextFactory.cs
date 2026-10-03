@@ -10,7 +10,9 @@ public sealed class RestaurantDbContextFactory : IDesignTimeDbContextFactory<Res
     public RestaurantDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<RestaurantDbContext>();
-        optionsBuilder.UseSqlServer("Server=.;Database=Clovent_Restaurant_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer(
+            "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;TrustServerCertificate=True;",
+            sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Restaurant"));
 
         return new RestaurantDbContext(optionsBuilder.Options);
     }

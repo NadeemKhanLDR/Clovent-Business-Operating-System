@@ -23,7 +23,7 @@
     <ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GenerateDocumentationFile Condition="'$(Configuration)' == 'Debug'">true</GenerateDocumentationFile>
     <ApplicationIcon>Resources\cbos.ico</ApplicationIcon>
     <!--
       DX1000: this machine's DevExpress license is a trial/evaluation
@@ -35,6 +35,9 @@
       unlicensed build is caught rather than silently allowed.
     -->
     <NoWarn>$(NoWarn);DX1000</NoWarn>
+    <Version>1.0.5</Version>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
+    <FileVersion>1.0.5.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -77,6 +80,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="appsettings.Development.json" Condition="Exists('appsettings.Development.json')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="appsettings.Production.json" Condition="Exists('appsettings.Production.json')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Resources\cbos.ico">

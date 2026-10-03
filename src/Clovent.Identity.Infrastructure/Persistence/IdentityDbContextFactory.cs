@@ -10,7 +10,9 @@ public sealed class IdentityDbContextFactory : IDesignTimeDbContextFactory<Ident
     public IdentityDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<IdentityDbContext>();
-        optionsBuilder.UseSqlServer("Server=.;Database=Clovent_Identity_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer(
+            "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;TrustServerCertificate=True;",
+            sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Identity"));
 
         return new IdentityDbContext(optionsBuilder.Options);
     }

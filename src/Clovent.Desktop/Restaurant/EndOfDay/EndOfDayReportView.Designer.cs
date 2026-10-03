@@ -18,7 +18,7 @@ partial class EndOfDayReportView
 
     private readonly LabelControl _titleLabel = new() { Text = "Sales Summary" };
     private readonly LabelControl _subtitleLabel = new() { Text = "Sales performance and comprehensive transaction overview" };
-    private readonly EntityPicker _warehousePicker = new("Location:", comboWidth: 140);
+    private readonly EntityPicker _warehousePicker = new("Location:", comboWidth: 240, customPadding: Padding.Empty);
     private readonly ComboBoxEdit _periodCombo = new();
     private readonly DateEdit _fromDateEdit = new() { EditValue = DateTime.Today };
     private readonly DateEdit _toDateEdit = new() { EditValue = DateTime.Today };
@@ -96,7 +96,7 @@ partial class EndOfDayReportView
             ("OnAccountAmount", "On Account", 85),
             ("PaymentSummary", "Payment Method", 130),
             ("Status", "Status", 75),
-            ("CreatedAtUtc", "Time", 120)
+            ("CreatedAtUtc", "Time", 150)
         ]);
         BuildDetailGrid(_ordersGrid, _ordersDetailView, "Lines",
         [
@@ -132,18 +132,20 @@ partial class EndOfDayReportView
         // Tab 3: Customers
         BuildGrid(_customersGrid, _customersGridView,
         [
-            ("CustomerCode", "Code", 75),
-            ("CustomerName", "Customer Name", 150),
-            ("MobileNumber", "Mobile", 95),
-            ("OrdersCount", "Orders", 65),
-            ("GrossSales", "Item Sales", 95),
-            ("Fees", "Fees", 75),
-            ("NetSales", "Bill Total", 95),
-            ("TotalPaid", "Paid", 90),
-            ("OnAccountIncurred", "On Account", 90),
-            ("AccountPaymentsCollected", "Payments Recv", 100),
-            ("EndingReceivable", "A/R Balance", 95),
-            ("AdvanceBalance", "Advance", 90)
+            ("CustomerCode", "Code", 65),
+            ("CustomerName", "Customer Name", 140),
+            ("MobileNumber", "Mobile", 90),
+            ("OrdersCount", "Orders", 60),
+            ("GrossSales", "Item Sales", 90),
+            ("Discount", "Discount", 75),
+            ("Fees", "Fees", 65),
+            ("Tax", "Tax", 65),
+            ("NetSales", "Bill Total", 90),
+            ("TotalPaid", "Paid", 85),
+            ("OnAccountIncurred", "On Account", 85),
+            ("AccountPaymentsCollected", "Payments Recv", 95),
+            ("EndingReceivable", "A/R Balance", 90),
+            ("AdvanceBalance", "Advance", 80)
         ]);
 
         // Tab 4: Payments
@@ -288,17 +290,32 @@ partial class EndOfDayReportView
         periodLabel.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
         periodLabel.Appearance.Options.UseFont = true;
         periodLabel.Appearance.Options.UseForeColor = true;
-        periodLabel.Margin = new Padding(0, 5, 4, 0);
+        periodLabel.Anchor = AnchorStyles.Left;
+        periodLabel.Margin = new Padding(0, 0, 4, 0);
+        periodLabel.Padding = Padding.Empty;
 
         var fromLabel = new LabelControl { Text = "From:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         fromLabel.Appearance.ForeColor = Color.Gray;
         fromLabel.Appearance.Options.UseForeColor = true;
-        fromLabel.Margin = new Padding(0, 5, 4, 0);
+        fromLabel.Anchor = AnchorStyles.Left;
+        fromLabel.Margin = new Padding(0, 0, 4, 0);
+        fromLabel.Padding = Padding.Empty;
 
         var toLabel = new LabelControl { Text = "To:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
         toLabel.Appearance.ForeColor = Color.Gray;
         toLabel.Appearance.Options.UseForeColor = true;
-        toLabel.Margin = new Padding(0, 5, 4, 0);
+        toLabel.Anchor = AnchorStyles.Left;
+        toLabel.Margin = new Padding(0, 0, 4, 0);
+        toLabel.Padding = Padding.Empty;
+
+        _warehousePicker.ComboBox.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
+        _warehousePicker.ComboBox.Properties.Appearance.Options.UseFont = true;
+        _warehousePicker.ComboBox.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        _warehousePicker.ComboBox.Properties.AppearanceDropDown.Options.UseFont = true;
+        _warehousePicker.Label.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _warehousePicker.Label.Appearance.Options.UseFont = true;
+        _warehousePicker.Label.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
+        _warehousePicker.Label.Appearance.Options.UseForeColor = true;
 
         _periodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _periodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
@@ -306,7 +323,8 @@ partial class EndOfDayReportView
         _periodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _periodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
         _periodCombo.Size = new Size(110, 30);
-        _periodCombo.Margin = new Padding(0);
+        _periodCombo.Margin = Padding.Empty;
+        _periodCombo.Anchor = AnchorStyles.Left;
 
         _fromDateEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _fromDateEdit.Properties.Appearance.Options.UseFont = true;
@@ -316,7 +334,8 @@ partial class EndOfDayReportView
         _fromDateEdit.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _fromDateEdit.Properties.EditFormat.FormatString = "dd-MMM-yyyy";
         _fromDateEdit.Properties.Mask.EditMask = "dd-MMM-yyyy";
-        _fromDateEdit.Margin = new Padding(0);
+        _fromDateEdit.Margin = Padding.Empty;
+        _fromDateEdit.Anchor = AnchorStyles.Left;
 
         _toDateEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _toDateEdit.Properties.Appearance.Options.UseFont = true;
@@ -326,73 +345,84 @@ partial class EndOfDayReportView
         _toDateEdit.Properties.EditFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _toDateEdit.Properties.EditFormat.FormatString = "dd-MMM-yyyy";
         _toDateEdit.Properties.Mask.EditMask = "dd-MMM-yyyy";
-        _toDateEdit.Margin = new Padding(0);
+        _toDateEdit.Margin = Padding.Empty;
+        _toDateEdit.Anchor = AnchorStyles.Left;
+
+        const int standardButtonWidth = 110;
+        const int standardButtonHeight = 30;
 
         foreach (var button in new[] { _generateButton, _previewButton, _printButton, _exportPdfButton, _exportExcelButton, _printSummaryButton })
         {
             button.AutoSize = true;
-            button.MinimumSize = new Size(0, 30);
+            button.MinimumSize = new Size(standardButtonWidth, standardButtonHeight);
             button.Padding = new Padding(8, 4, 8, 4);
             button.Margin = new Padding(2, 0, 2, 0);
             button.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             button.Appearance.Options.UseFont = true;
             button.Cursor = Cursors.Hand;
+            button.Anchor = AnchorStyles.Left;
         }
 
-        _generateButton.MinimumSize = new Size(80, 30);
         _generateButton.Appearance.BackColor = Color.FromArgb(13, 148, 136); // Teal-600
         _generateButton.Appearance.ForeColor = Color.White;
         _generateButton.Appearance.Options.UseBackColor = true;
         _generateButton.Appearance.Options.UseForeColor = true;
 
-        _previewButton.MinimumSize = new Size(70, 30);
-        _printButton.MinimumSize = new Size(65, 30);
-        _exportPdfButton.MinimumSize = new Size(80, 30);
-        _exportExcelButton.MinimumSize = new Size(85, 30);
-
-        _printSummaryButton.MinimumSize = new Size(95, 30);
         _printSummaryButton.Appearance.BackColor = Color.FromArgb(71, 85, 105);
         _printSummaryButton.Appearance.ForeColor = Color.White;
         _printSummaryButton.Appearance.Options.UseBackColor = true;
         _printSummaryButton.Appearance.Options.UseForeColor = true;
 
-        var periodPanel = new FlowLayoutPanel
+        var periodPanel = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(2, 0, 4, 0),
-            Padding = new Padding(0)
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(4, 0, 4, 0),
+            Padding = Padding.Empty,
+            Anchor = AnchorStyles.Left
         };
-        periodPanel.Controls.Add(periodLabel);
-        periodPanel.Controls.Add(_periodCombo);
+        periodPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        periodPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        periodPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        periodPanel.Controls.Add(periodLabel, 0, 0);
+        periodPanel.Controls.Add(_periodCombo, 1, 0);
 
-        var fromPanel = new FlowLayoutPanel
+        var fromPanel = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(2, 0, 4, 0),
-            Padding = new Padding(0)
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(4, 0, 4, 0),
+            Padding = Padding.Empty,
+            Anchor = AnchorStyles.Left
         };
-        fromPanel.Controls.Add(fromLabel);
-        fromPanel.Controls.Add(_fromDateEdit);
+        fromPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        fromPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        fromPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        fromPanel.Controls.Add(fromLabel, 0, 0);
+        fromPanel.Controls.Add(_fromDateEdit, 1, 0);
 
-        var toPanel = new FlowLayoutPanel
+        var toPanel = new TableLayoutPanel
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(2, 0, 4, 0),
-            Padding = new Padding(0)
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(4, 0, 6, 0),
+            Padding = Padding.Empty,
+            Anchor = AnchorStyles.Left
         };
-        toPanel.Controls.Add(toLabel);
-        toPanel.Controls.Add(_toDateEdit);
+        toPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        toPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        toPanel.Controls.Add(toLabel, 0, 0);
+        toPanel.Controls.Add(_toDateEdit, 1, 0);
 
         _warehousePicker.Margin = new Padding(0, 0, 4, 0);
+        _warehousePicker.Anchor = AnchorStyles.Left;
 
         var filterBar = new TableLayoutPanel
         {
@@ -721,13 +751,13 @@ partial class EndOfDayReportView
                     try
                     {
                         var quantity = Convert.ToDecimal(e.Value);
-                        e.DisplayText = quantity.ToString("0.##");
+                        e.DisplayText = Clovent.Desktop.Forms.Base.QuantityDisplay.Format(quantity);
                     }
                     catch { }
                 }
                 else if (e.Value is DateTimeOffset timestamp)
                 {
-                    e.DisplayText = DateTimeDisplay.Format(timestamp);
+                    e.DisplayText = Clovent.Desktop.Forms.Base.BusinessDateTimeFormatter.Format(timestamp);
                 }
             }
         };
@@ -968,6 +998,11 @@ partial class EndOfDayReportView
         if (DesignModeHelper.IsInDesignMode) return;
 
         int editorH = DesktopDpi.Scale(30, this);
+        int buttonW = DesktopDpi.Scale(110, this);
+
+        _warehousePicker.ComboBox.MinimumSize = new Size(DesktopDpi.Scale(210, this), editorH);
+        _warehousePicker.ComboBox.Size = _warehousePicker.ComboBox.MinimumSize;
+
         _periodCombo.MinimumSize = new Size(DesktopDpi.Scale(110, this), editorH);
         _periodCombo.Size = _periodCombo.MinimumSize;
 
@@ -977,12 +1012,11 @@ partial class EndOfDayReportView
         _toDateEdit.MinimumSize = new Size(DesktopDpi.Scale(115, this), editorH);
         _toDateEdit.Size = _toDateEdit.MinimumSize;
 
-        _generateButton.MinimumSize = new Size(DesktopDpi.Scale(80, this), editorH);
-        _previewButton.MinimumSize = new Size(DesktopDpi.Scale(70, this), editorH);
-        _printButton.MinimumSize = new Size(DesktopDpi.Scale(65, this), editorH);
-        _exportPdfButton.MinimumSize = new Size(DesktopDpi.Scale(80, this), editorH);
-        _exportExcelButton.MinimumSize = new Size(DesktopDpi.Scale(85, this), editorH);
-        _printSummaryButton.MinimumSize = new Size(DesktopDpi.Scale(95, this), editorH);
+        foreach (var button in new[] { _generateButton, _previewButton, _printButton, _exportPdfButton, _exportExcelButton, _printSummaryButton })
+        {
+            button.MinimumSize = new Size(buttonW, editorH);
+            button.Size = button.MinimumSize;
+        }
 
         var allViews = new[]
         {

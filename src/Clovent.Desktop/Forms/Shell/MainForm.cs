@@ -237,6 +237,35 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         form.ShowDialog(this);
     }
 
+    private void DatabaseSettingsButton_ItemClick(object? sender, ItemClickEventArgs e)
+    {
+        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue && !Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivileges())
+        {
+            DevExpress.XtraEditors.XtraMessageBox.Show(
+                this,
+                "Access Denied: Administrative privileges are required to configure database connection settings.",
+                "Access Denied",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        using var dlg = new Clovent.Desktop.Configuration.DatabaseConnectionDialog();
+        dlg.ShowDialog(this);
+    }
+
+    private void LicenseButton_ItemClick(object? sender, ItemClickEventArgs e)
+    {
+        using var dlg = new Clovent.Desktop.Licensing.SoftwareRegistrationForm();
+        dlg.ShowDialog(this);
+    }
+
+    private void DiagnosticsButton_ItemClick(object? sender, ItemClickEventArgs e)
+    {
+        using var dlg = new Clovent.Desktop.Commissioning.UI.SupportDiagnosticsForm();
+        dlg.ShowDialog(this);
+    }
+
     private async void ChangePasswordItem_ItemClick(object? sender, ItemClickEventArgs e) => await ChangePasswordAsync();
 
     private async void SignOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await SignOutAsync();

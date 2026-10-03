@@ -18,6 +18,7 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// the Balance/Remaining/Change summaries use the configured symbol (like the
 /// POS's Balance Due and Change), the individual amount fields stay plain.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class SplitPaymentDialog : XtraForm
 {
     private readonly decimal _balance;

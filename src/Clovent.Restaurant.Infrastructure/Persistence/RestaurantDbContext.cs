@@ -94,6 +94,7 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("Restaurant");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RestaurantDbContext).Assembly);
     }
 }

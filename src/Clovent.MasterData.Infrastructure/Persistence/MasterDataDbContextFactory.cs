@@ -10,7 +10,9 @@ public sealed class MasterDataDbContextFactory : IDesignTimeDbContextFactory<Mas
     public MasterDataDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<MasterDataDbContext>();
-        optionsBuilder.UseSqlServer("Server=.;Database=Clovent_MasterData_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer(
+            "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;TrustServerCertificate=True;",
+            sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "MasterData"));
 
         return new MasterDataDbContext(optionsBuilder.Options);
     }

@@ -760,7 +760,8 @@ public class GetExpandedSalesSummaryQueryHandlerTests
 
         // Assert
         Assert.NotNull(result);
-        var drawer = Assert.Single(result.ShiftDrawers);
+        Assert.NotNull(result.ShiftDrawers);
+        var drawer = Assert.Single(result.ShiftDrawers!);
         Assert.Equal(1009, drawer.ShiftNumber);
         Assert.Equal("Open", drawer.Status);
         Assert.Equal(4000m, drawer.OpeningFloat);

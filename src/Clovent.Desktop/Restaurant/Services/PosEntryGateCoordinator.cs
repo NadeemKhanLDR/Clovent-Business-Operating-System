@@ -129,14 +129,14 @@ public sealed class PosEntryGateCoordinator(
             case PosShiftAccessStatus.TerminalOccupiedByAnotherUser:
                 ShowWarning(
                     owner,
-                    accessRes.Message,
+                    accessRes.Message ?? "This terminal has an active shift opened by another user.",
                     "Terminal Shift Already Open");
                 return false;
 
             case PosShiftAccessStatus.UserHasShiftOnAnotherTerminal:
                 ShowWarning(
                     owner,
-                    accessRes.Message,
+                    accessRes.Message ?? "You already have an active shift open on another terminal.",
                     "Active Shift on Another Terminal");
                 return false;
 

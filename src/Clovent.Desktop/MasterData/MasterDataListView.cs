@@ -201,6 +201,10 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             {
                 e.DisplayText = Clovent.Desktop.Forms.Base.DateTimeDisplay.FormatDate(d);
             }
+            else if (e.Value is decimal dec && IsQuantityColumn(e.Column.FieldName))
+            {
+                e.DisplayText = Clovent.Desktop.Forms.Base.QuantityDisplay.Format(dec);
+            }
         };
 
         _gridView.FocusedRowChanged += (_, _) => UpdateButtonStates();
@@ -686,4 +690,13 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             .FirstOrDefault(p => p.PropertyType == typeof(Guid) && p.Name.EndsWith("Id", StringComparison.OrdinalIgnoreCase));
         return prop?.GetValue(dto) as Guid?;
     }
+
+    private static bool IsQuantityColumn(string fieldName) =>
+        fieldName.Contains("Quantity", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("MinimumStock", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("MaximumStock", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("Variance", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("OnHand", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("Reserved", StringComparison.OrdinalIgnoreCase) ||
+        fieldName.Equals("Available", StringComparison.OrdinalIgnoreCase);
 }

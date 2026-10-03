@@ -37,7 +37,6 @@ namespace Clovent.Desktop.Seed;
 /// 100% idempotent and non-destructive.
 /// </summary>
 public sealed class DevelopmentRestaurantReportingSeedStartupTask(
-    IOrganizationRepository organizationRepository,
     IWarehouseRepository warehouseRepository,
     IDiningAreaRepository diningAreaRepository,
     ITableRepository tableRepository,

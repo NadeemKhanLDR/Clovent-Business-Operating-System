@@ -10,6 +10,7 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// Compact dialog shown during Quick Order Dine-In flow when no active order exists.
 /// Displays available tables using the POS table picker format, protecting occupied tables.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class SelectTableDialog : XtraForm
 {
     private static readonly Color AccentColor = Color.FromArgb(13, 148, 136);

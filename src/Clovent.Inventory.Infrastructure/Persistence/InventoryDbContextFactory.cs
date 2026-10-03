@@ -10,7 +10,9 @@ public sealed class InventoryDbContextFactory : IDesignTimeDbContextFactory<Inve
     public InventoryDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<InventoryDbContext>();
-        optionsBuilder.UseSqlServer("Server=.;Database=Clovent_Inventory_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer(
+            "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;TrustServerCertificate=True;",
+            sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Inventory"));
 
         return new InventoryDbContext(optionsBuilder.Options);
     }

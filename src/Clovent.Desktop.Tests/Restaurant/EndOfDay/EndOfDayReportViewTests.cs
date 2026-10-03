@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Desktop.Forms.Base;
+using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -591,6 +592,65 @@ public class EndOfDayReportViewTests
     }
 
     [Fact]
+    public void EndOfDayReportView_Toolbar_ActionButtonsUseConsistentSizing_AndLabelsVerticallyCentered()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var genBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_generateButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var prevBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_previewButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var printBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var pdfBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_exportPdfButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var excelBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_exportExcelButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var summaryBtn = (SimpleButton)typeof(EndOfDayReportView).GetField("_printSummaryButton", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var picker = (EntityPicker)typeof(EndOfDayReportView).GetField("_warehousePicker", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+
+            SimpleButton[] buttons = [genBtn, prevBtn, printBtn, pdfBtn, excelBtn, summaryBtn];
+
+            // E. Consistent sizing rules: same width (110), same height (30), same font, same padding, same margin, same anchor
+            const int expectedWidth = 110;
+            const int expectedHeight = 30;
+            foreach (var btn in buttons)
+            {
+                Assert.Equal(expectedWidth, btn.MinimumSize.Width);
+                Assert.Equal(expectedHeight, btn.MinimumSize.Height);
+                Assert.Equal("Segoe UI", btn.Appearance.Font.FontFamily.Name);
+                Assert.Equal(9.0f, btn.Appearance.Font.Size);
+                Assert.True(btn.Appearance.Font.Bold);
+                Assert.Equal(new Padding(8, 4, 8, 4), btn.Padding);
+                Assert.Equal(new Padding(2, 0, 2, 0), btn.Margin);
+                Assert.Equal(AnchorStyles.Left, btn.Anchor);
+            }
+
+            // D. Location editor minimum width supports normal business location names without truncation
+            Assert.True(picker.ComboBox.Width >= 210, $"Expected Location combo width >= 210, but got {picker.ComboBox.Width}");
+
+            // C. Labels vertically align with editors using TableLayoutPanel with Anchor.Left
+            var tlp = Assert.IsType<TableLayoutPanel>(genBtn.Parent);
+            var periodPanel = Assert.IsType<TableLayoutPanel>(tlp.GetControlFromPosition(1, 0));
+            var fromPanel = Assert.IsType<TableLayoutPanel>(tlp.GetControlFromPosition(2, 0));
+            var toPanel = Assert.IsType<TableLayoutPanel>(tlp.GetControlFromPosition(3, 0));
+
+            var periodLabel = Assert.IsType<LabelControl>(periodPanel.GetControlFromPosition(0, 0));
+            var fromLabel = Assert.IsType<LabelControl>(fromPanel.GetControlFromPosition(0, 0));
+            var toLabel = Assert.IsType<LabelControl>(toPanel.GetControlFromPosition(0, 0));
+
+            Assert.Equal(AnchorStyles.Left, periodLabel.Anchor);
+            Assert.Equal(AnchorStyles.Left, fromLabel.Anchor);
+            Assert.Equal(AnchorStyles.Left, toLabel.Anchor);
+
+            // B. Toolbar stays on one row and scales consistently at high DPI
+            view.ScaleLayoutAtRuntime();
+            Assert.Equal(1, tlp.RowCount);
+            foreach (var btn in buttons)
+            {
+                Assert.Equal(btn.MinimumSize.Height, btn.Size.Height);
+                Assert.Equal(btn.MinimumSize.Width, btn.Size.Width);
+            }
+        }
+    }
+
+    [Fact]
     public void EndOfDayReportView_CustomersTab_GrossSales_AndMoneyColumns_ConfiguredForTwoDecimals()
     {
         var (view, _) = CreateView();
@@ -629,6 +689,117 @@ public class EndOfDayReportViewTests
             var invView = (DevExpress.XtraGrid.Views.Grid.GridView)invGrid.MainView;
 
             Assert.Equal(DevExpress.Data.SummaryItemType.None, invView.Columns["Quantity"].SummaryItem.SummaryType);
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_CustomersTab_HasDiscountAndTaxColumns_AndConfiguredForTwoDecimals()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var customersGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_customersGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var customersView = (DevExpress.XtraGrid.Views.Grid.GridView)customersGrid.MainView;
+
+            // Verify Discount and Tax columns exist in grid
+            Assert.NotNull(customersView.Columns["Discount"]);
+            Assert.Equal("Discount", customersView.Columns["Discount"].Caption);
+            Assert.NotNull(customersView.Columns["Tax"]);
+            Assert.Equal("Tax", customersView.Columns["Tax"].Caption);
+
+            // E. Customer grid has all required financial columns
+            string[] financialColumns =
+            [
+                "GrossSales", "Discount", "Fees", "Tax", "NetSales",
+                "TotalPaid", "OnAccountIncurred", "AccountPaymentsCollected",
+                "EndingReceivable", "AdvanceBalance"
+            ];
+
+            foreach (var colName in financialColumns)
+            {
+                var col = customersView.Columns[colName];
+                Assert.NotNull(col);
+
+                // F. All financial columns must use 2-decimal formatting (n2) and right alignment
+                Assert.Equal(DevExpress.Utils.FormatType.Numeric, col.DisplayFormat.FormatType);
+                Assert.Equal("n2", col.DisplayFormat.FormatString);
+                Assert.Equal(DevExpress.Utils.HorzAlignment.Far, col.AppearanceCell.TextOptions.HAlignment);
+                Assert.Equal(DevExpress.Data.SummaryItemType.Sum, col.SummaryItem.SummaryType);
+                Assert.Equal("{0:n2}", col.SummaryItem.DisplayFormat);
+            }
+        }
+    }
+
+    [Fact]
+    public void EndOfDayReportView_CustomersTab_ReconcilesCustomerEquations_AndAcceptanceTotals()
+    {
+        var (view, _) = CreateView();
+        using (view)
+        {
+            var customersGrid = (DevExpress.XtraGrid.GridControl)typeof(EndOfDayReportView)
+                .GetField("_customersGrid", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+            var customersView = (DevExpress.XtraGrid.Views.Grid.GridView)customersGrid.MainView;
+
+            // Acceptance dataset:
+            // Walk-in Guest: Item Sales 6,020.00, Discount 50.00, Fees 0.00, Tax 0.00, Bill Total 5,970.00, Paid 5,970.00, On Account 0.00
+            // Corporate Client: Item Sales 4,925.00, Discount 0.00, Fees 150.00, Tax 0.00, Bill Total 5,075.00, Paid 1,100.00, On Account 3,975.00
+            var walkIn = new ExpandedCustomerRowDto(
+                Guid.NewGuid(), "C000", "Walk-in Guest", "03001234567",
+                10, 25m, 6020.00m, 50.00m, 0.00m, 5970.00m, 5970.00m, 0.00m, 0.00m, 0.00m, 0.00m, 0.00m);
+
+            var corporate = new ExpandedCustomerRowDto(
+                Guid.NewGuid(), "C001", "Corporate Client", "03009876543",
+                7, 18m, 4925.00m, 0.00m, 150.00m, 5075.00m, 1100.00m, 3975.00m, 0.00m, 3975.00m, 0.00m, 0.00m);
+
+            var customerList = new List<ExpandedCustomerRowDto> { walkIn, corporate };
+
+            // A & C. Walk-in Guest row reconciliation: Item Sales - Discount + Fees + Tax = Bill Total
+            Assert.Equal(5970.00m, walkIn.ItemSales - walkIn.Discount + walkIn.Fees + walkIn.Tax);
+            Assert.Equal(walkIn.BillTotal, walkIn.ItemSales - walkIn.Discount + walkIn.Fees + walkIn.Tax);
+            Assert.Equal(walkIn.BillTotal, walkIn.TotalPaid + walkIn.OnAccountIncurred);
+
+            // Corporate row reconciliation
+            Assert.Equal(5075.00m, corporate.ItemSales - corporate.Discount + corporate.Fees + corporate.Tax);
+            Assert.Equal(corporate.BillTotal, corporate.ItemSales - corporate.Discount + corporate.Fees + corporate.Tax);
+            Assert.Equal(corporate.BillTotal, corporate.TotalPaid + corporate.OnAccountIncurred);
+
+            // B. Dataset totals:
+            // 10,945 - 50 + 150 + 0 = 11,045
+            decimal totalItemSales = customerList.Sum(c => c.ItemSales);
+            decimal totalDiscount = customerList.Sum(c => c.Discount);
+            decimal totalFees = customerList.Sum(c => c.Fees);
+            decimal totalTax = customerList.Sum(c => c.Tax);
+            decimal totalBillTotal = customerList.Sum(c => c.BillTotal);
+            decimal totalPaid = customerList.Sum(c => c.TotalPaid);
+            decimal totalOnAccount = customerList.Sum(c => c.OnAccountIncurred);
+
+            Assert.Equal(10945.00m, totalItemSales);
+            Assert.Equal(50.00m, totalDiscount);
+            Assert.Equal(150.00m, totalFees);
+            Assert.Equal(0.00m, totalTax);
+            Assert.Equal(11045.00m, totalBillTotal);
+
+            // Reconciliation equations hold
+            Assert.Equal(totalBillTotal, totalItemSales - totalDiscount + totalFees + totalTax);
+
+            // D. Paid + OnAccount = BillTotal (7,070 + 3,975 = 11,045)
+            Assert.Equal(7070.00m, totalPaid);
+            Assert.Equal(3975.00m, totalOnAccount);
+            Assert.Equal(totalBillTotal, totalPaid + totalOnAccount);
+
+            // Verify grid calculation and footer
+            customersGrid.DataSource = customerList;
+            customersGrid.ForceInitialize();
+            customersView.UpdateTotalSummary();
+
+            Assert.Equal(10945.00m, Convert.ToDecimal(customersView.Columns["GrossSales"].SummaryItem.SummaryValue));
+            Assert.Equal(50.00m, Convert.ToDecimal(customersView.Columns["Discount"].SummaryItem.SummaryValue));
+            Assert.Equal(150.00m, Convert.ToDecimal(customersView.Columns["Fees"].SummaryItem.SummaryValue));
+            Assert.Equal(0.00m, Convert.ToDecimal(customersView.Columns["Tax"].SummaryItem.SummaryValue));
+            Assert.Equal(11045.00m, Convert.ToDecimal(customersView.Columns["NetSales"].SummaryItem.SummaryValue));
+            Assert.Equal(7070.00m, Convert.ToDecimal(customersView.Columns["TotalPaid"].SummaryItem.SummaryValue));
+            Assert.Equal(3975.00m, Convert.ToDecimal(customersView.Columns["OnAccountIncurred"].SummaryItem.SummaryValue));
         }
     }
 }

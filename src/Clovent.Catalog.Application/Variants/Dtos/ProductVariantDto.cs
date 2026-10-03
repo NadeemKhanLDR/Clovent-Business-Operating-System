@@ -15,7 +15,8 @@ public sealed record ProductVariantDto(
     Guid? ProductCategoryId = null,
     string? ProductStatus = null,
     bool IsAvailable = true,
-    string ItemType = "Prepared")
+    string ItemType = "Prepared",
+    string? ProductName = null)
 {
     /// <summary>
     /// Projects a domain <see cref="ProductVariant"/> into its DTO.
@@ -29,7 +30,8 @@ public sealed record ProductVariantDto(
         ProductVariant variant,
         Guid? productCategoryId = null,
         string? productStatus = null,
-        string itemType = "Prepared") => new(
+        string itemType = "Prepared",
+        string? productName = null) => new(
         variant.Id.Value,
         variant.ProductId.Value,
         variant.Name.Value,
@@ -41,5 +43,6 @@ public sealed record ProductVariantDto(
         productCategoryId,
         productStatus,
         variant.IsAvailable,
-        itemType);
+        itemType,
+        productName);
 }

@@ -65,12 +65,25 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
 
     private async Task LoadLookupsAsync()
     {
+        await LoadVariantsAsync();
+
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
         _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
         _warehousePicker.LoadItems(_warehouseOptions);
+    }
 
-        var variants = await _mediator.Send(new ListProductVariantsQuery());
-        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
+    private async Task LoadVariantsAsync(CancellationToken cancellationToken = default)
+    {
+        var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
+        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v =>
+        {
+            var displayName = !string.IsNullOrWhiteSpace(v.ProductName)
+                ? (string.Equals(v.Name, v.ProductName, StringComparison.OrdinalIgnoreCase) || string.Equals(v.Name, "Standard", StringComparison.OrdinalIgnoreCase)
+                    ? $"{v.ProductName} - {v.Name}"
+                    : $"{v.ProductName} - {v.Name}")
+                : v.Name;
+            return (v.Sku, displayName);
+        });
     }
 
     private async Task<IReadOnlyList<WarehouseStockRow>> LoadItemsAsync(CancellationToken cancellationToken)
@@ -78,6 +91,11 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
         if (_warehousePicker.SelectedId is not { } warehouseId)
         {
             return [];
+        }
+
+        if (_variantsById.Count == 0)
+        {
+            await LoadVariantsAsync(cancellationToken);
         }
 
         var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), cancellationToken);

@@ -108,7 +108,8 @@ public sealed record ExpandedCustomerRowDto(
     decimal OnAccountIncurred,
     decimal AccountPaymentsCollected,
     decimal EndingReceivable,
-    decimal AdvanceBalance)
+    decimal AdvanceBalance,
+    decimal Tax = 0m)
 {
     /// <summary>Compatibility alias for item sales subtotal.</summary>
     public decimal ItemSales => GrossSales;

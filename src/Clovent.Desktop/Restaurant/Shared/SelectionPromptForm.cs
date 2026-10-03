@@ -12,6 +12,13 @@ public sealed partial class SelectionPromptForm : MasterDataEditFormBase
 {
     private readonly Dictionary<string, Guid?> _itemsByDisplay;
 
+    /// <summary>
+    /// Designer-only constructor - required for the Visual Studio WinForms Designer.
+    /// </summary>
+    public SelectionPromptForm() : this("Select", "Select an option:", Array.Empty<(Guid Id, string Display)>())
+    {
+    }
+
     /// <summary>Builds the dialog.</summary>
     public SelectionPromptForm(string title, string label, IReadOnlyList<(Guid Id, string Display)> options) : base(title)
     {

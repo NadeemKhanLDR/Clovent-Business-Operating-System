@@ -10,6 +10,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// Professional modal dialog for configuring POS Active Orders rail wait-time health thresholds
 /// (Green/Orange, in minutes), persisted locally via <see cref="PosSettingsStore"/>.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class OrderHealthSettingsForm : XtraForm
 {
     private readonly SpinEdit _greenMinutesEdit = new();

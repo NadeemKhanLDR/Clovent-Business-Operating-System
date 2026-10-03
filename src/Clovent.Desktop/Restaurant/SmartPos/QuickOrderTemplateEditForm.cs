@@ -19,6 +19,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// allows authorized price overrides, preserves existing deal prices, displays live totals,
 /// and enforces robust DPI-independent, responsive dialog sizing.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class QuickOrderTemplateEditForm : XtraForm
 {
     private const int TargetWidth = 960;

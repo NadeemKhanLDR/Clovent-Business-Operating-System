@@ -23,7 +23,8 @@ public static class DateTimeDisplayLoader
             var organizations = await mediator.Send(new ListOrganizationsQuery()).ConfigureAwait(false);
             if (organizations.Count == 0)
             {
-                ApplyConfiguration(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm", serviceProvider);
+                var fallbackSettings = CompanyDisplaySettingsStore.Load();
+                ApplyConfiguration(TimeZoneInfo.Utc, fallbackSettings.DateFormat, fallbackSettings.TimeFormat, fallbackSettings.QuantityPrecision, serviceProvider);
                 return;
             }
 
@@ -67,24 +68,27 @@ public static class DateTimeDisplayLoader
             }
 
             timeZoneInfo ??= TimeZoneInfo.Utc;
-            ApplyConfiguration(timeZoneInfo, settings.DateFormat, serviceProvider);
+            var companySettings = CompanyDisplaySettingsStore.Load();
+            ApplyConfiguration(timeZoneInfo, settings.DateFormat, companySettings.TimeFormat, companySettings.QuantityPrecision, serviceProvider);
         }
         catch (Exception)
         {
-            ApplyConfiguration(TimeZoneInfo.Utc, "dd/MM/yyyy HH:mm", serviceProvider);
+            var companySettings = CompanyDisplaySettingsStore.Load();
+            ApplyConfiguration(TimeZoneInfo.Utc, "dd-MMM-yyyy", companySettings.TimeFormat, companySettings.QuantityPrecision, serviceProvider);
         }
     }
 
-    private static void ApplyConfiguration(TimeZoneInfo timeZone, string dateFormat, IServiceProvider? serviceProvider)
+    private static void ApplyConfiguration(TimeZoneInfo timeZone, string dateFormat, string? timeFormat, int quantityPrecision, IServiceProvider? serviceProvider)
     {
-        DateTimeDisplay.Configure(timeZone, dateFormat);
+        QuantityDisplay.Configure(quantityPrecision);
+        DateTimeDisplay.Configure(timeZone, dateFormat, timeFormat);
 
         if (serviceProvider != null)
         {
             try
             {
                 var dtService = serviceProvider.GetService<IBusinessDateTimeService>();
-                dtService?.Configure(timeZone, dateFormat);
+                dtService?.Configure(timeZone, dateFormat, timeFormat);
 
                 var dateProvider = serviceProvider.GetService<IBusinessDateProvider>() as BusinessDateProvider;
                 dateProvider?.SetBusinessTimeZone(timeZone);

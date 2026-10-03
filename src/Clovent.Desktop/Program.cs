@@ -1,5 +1,9 @@
 using Clovent.Authentication.Application.DependencyInjection;
 using Clovent.Authentication.Infrastructure.DependencyInjection;
+using Clovent.Desktop.Commissioning.Database;
+using Clovent.Desktop.Commissioning.Security;
+using Clovent.Desktop.Commissioning.Services;
+using Clovent.Desktop.Commissioning.UI;
 using Clovent.Desktop.Login;
 using Clovent.Desktop.Catalog.Barcodes;
 using Clovent.Desktop.Catalog.Brands;
@@ -64,6 +68,28 @@ internal static class Program
         {
         }
 
+        // Handle CLI diagnostics request:
+        if (args.Any(a => string.Equals(a, "--diagnostics", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-diagnostics", StringComparison.OrdinalIgnoreCase)))
+        {
+            Application.Run(new SupportDiagnosticsForm());
+            return;
+        }
+
+        // Ensure ProgramData directories and ACLs are established
+        ProgramDataAclManager.ConfigureDirectorySecurity();
+
+        // First-Run Commissioning Check (Requirements 1 & 2):
+        // If not yet commissioned on this machine, launch First-Run Wizard
+        if (!CommissioningStateService.MarkerExists())
+        {
+            using var wizard = new FirstRunWizardForm();
+            var wizardResult = wizard.ShowDialog();
+            if (wizardResult != DialogResult.OK)
+            {
+                return; // User cancelled or exited onboarding
+            }
+        }
+
         var splash = new SplashScreenService();
         splash.Show("Clovent Business Operating System", "Starting...");
 
@@ -73,6 +99,58 @@ internal static class Program
                 .Create(basePath: AppContext.BaseDirectory)
                 .WithLogging()
                 .WithPlatform();
+
+            var effectiveConnectionString = Clovent.Desktop.Configuration.DatabaseSecretStore.ResolveConnectionString(bootstrapper.Configuration);
+            bootstrapper.Configuration["ConnectionStrings:Default"] = effectiveConnectionString;
+
+            // Validate schema compatibility safely without destructive auto-migrations (Requirement 8)
+            var schemaValidator = new DatabaseSchemaCompatibilityValidator();
+            var schemaResult = Task.Run(() => schemaValidator.ValidateCompatibilityAsync(effectiveConnectionString)).GetAwaiter().GetResult();
+            if (schemaResult.Status != SchemaCompatibilityStatus.Compatible)
+            {
+                splash.Close();
+                if (schemaResult.Status == SchemaCompatibilityStatus.DatabaseTooOld)
+                {
+                    MessageBox.Show(
+                        $"Database Schema Update Required:\n\n{schemaResult.Message}\n\nPlease run the database upgrade utility or contact your system administrator.",
+                        "Database Update Required",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+                else if (schemaResult.Status == SchemaCompatibilityStatus.DatabaseNewer)
+                {
+                    MessageBox.Show(
+                        $"Database Newer Than Application:\n\n{schemaResult.Message}\n\nPlease update your Clovent Business Operating System installation.",
+                        "Software Update Required",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+                else if (schemaResult.Status == SchemaCompatibilityStatus.ConnectionFailed)
+                {
+                    var choice = MessageBox.Show(
+                        $"Clovent Business Operating System was unable to connect to the database:\n\n{schemaResult.Message}\n\nWould you like to open Database Connection Settings to configure your server or credentials?",
+                        "Database Connection Required",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Error);
+
+                    if (choice == DialogResult.Yes)
+                    {
+                        using var dbDialog = new Clovent.Desktop.Configuration.DatabaseConnectionDialog();
+                        if (dbDialog.ShowDialog() == DialogResult.OK)
+                        {
+                            MessageBox.Show(
+                                "Database settings saved. The application will now restart with the updated configuration.",
+                                "Configuration Saved",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                            Application.Restart();
+                        }
+                    }
+                    return;
+                }
+            }
 
             // Persistent file logging: WithLogging() above applies the
             // standard Logging:LogLevel configuration filters and the console
@@ -150,17 +228,78 @@ internal static class Program
             bootstrapper.Services.LoadModules(bootstrapper.Configuration, DesktopModuleCatalog.ModuleTypes);
 
             splash.SetDescription("Initializing persistence...");
-            var host = Task.Run(async () =>
+            Microsoft.Extensions.Hosting.IHost host;
+            try
             {
-                var h = await bootstrapper.BuildAndInitializeAsync().ConfigureAwait(false);
-                using var initScope = h.Services.CreateScope();
-                var initMediator = initScope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
-                await Clovent.Desktop.Forms.Base.DateTimeDisplayLoader.ConfigureAsync(initMediator, h.Services).ConfigureAwait(false);
-                await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(initMediator).ConfigureAwait(false);
-                return h;
-            }).GetAwaiter().GetResult();
+                host = Task.Run(async () =>
+                {
+                    var h = await bootstrapper.BuildAndInitializeAsync().ConfigureAwait(false);
+                    using var initScope = h.Services.CreateScope();
+                    var initMediator = initScope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
+                    await Clovent.Desktop.Forms.Base.DateTimeDisplayLoader.ConfigureAsync(initMediator, h.Services).ConfigureAwait(false);
+                    await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(initMediator).ConfigureAwait(false);
+                    return h;
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception initEx)
+            {
+                splash.Close();
+                var msg = initEx.InnerException?.Message ?? initEx.Message;
+                var choice = MessageBox.Show(
+                    $"Clovent Business Operating System was unable to connect to the database or complete initialization:\n\n{msg}\n\nWould you like to open Database Connection Settings to configure your server or credentials?",
+                    "Database Connection Required",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Error);
+
+                if (choice == DialogResult.Yes)
+                {
+                    using var dbDialog = new Clovent.Desktop.Configuration.DatabaseConnectionDialog();
+                    if (dbDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        MessageBox.Show(
+                            "Database settings saved. The application will now restart with the updated configuration.",
+                            "Configuration Saved",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                        Application.Restart();
+                    }
+                }
+                return;
+            }
 
             Services = host.Services;
+
+            // Software Licensing and Registration Check (Requirement 2)
+            var licenseResult = Clovent.Desktop.Licensing.LicenseService.ValidateCurrentLicense();
+            if (!licenseResult.IsAuthorized)
+            {
+                splash.Close();
+                var licChoice = MessageBox.Show(
+                    $"Software Registration / Licensing Notice:\n\n{licenseResult.Message}\n\nWould you like to open the Registration window to import a valid license file?",
+                    "License Required",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (licChoice == DialogResult.Yes)
+                {
+                    using var regForm = new Clovent.Desktop.Licensing.SoftwareRegistrationForm();
+                    regForm.ShowDialog();
+                    var recheck = Clovent.Desktop.Licensing.LicenseService.Refresh();
+                    if (!recheck.IsAuthorized)
+                    {
+                        MessageBox.Show(
+                            $"A valid software license was not provided ({recheck.Message}). The application cannot run without a valid license and will now terminate.",
+                            "License Required",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
 
             var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger(nameof(Program));
             var errorDialogService = host.Services.GetRequiredService<IErrorDialogService>();
@@ -172,6 +311,7 @@ internal static class Program
             NavigationRegistry.RegisterAllViews(navigationService, host.Services);
 
             string? selectedModule = null;
+#if DEBUG
             if (args.Any(a => string.Equals(a, "--pos", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-pos", StringComparison.OrdinalIgnoreCase)))
             {
                 var loginService = host.Services.GetRequiredService<ILoginService>();
@@ -190,6 +330,7 @@ internal static class Program
                     selectedModule = "backoffice";
                 }
             }
+#endif
 
             if (selectedModule == null)
             {

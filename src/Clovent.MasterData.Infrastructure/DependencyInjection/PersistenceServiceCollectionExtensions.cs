@@ -37,12 +37,13 @@ public static class PersistenceServiceCollectionExtensions
     /// <exception cref="InvalidOperationException">No <c>ConnectionStrings:MasterData</c> value is configured.</exception>
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString(ConnectionStringName)
+        var connectionString = configuration.GetConnectionString("Default")
+            ?? configuration.GetConnectionString(ConnectionStringName)
             ?? throw new InvalidOperationException(
-                $"Missing required connection string 'ConnectionStrings:{ConnectionStringName}'.");
+                $"Missing required connection string 'ConnectionStrings:Default' or 'ConnectionStrings:{ConnectionStringName}'.");
 
         services.AddDbContext<MasterDataDbContext>(options =>
-            options.UseSqlServer(connectionString)
+            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "MasterData"))
                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<IDepartmentRepository, DepartmentRepository>();

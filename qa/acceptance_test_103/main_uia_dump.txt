@@ -1,0 +1,100 @@
+NAME: '' | ID: '' | TYPE: ControlType.Pane | RECT: 1227,730,1386,820
+NAME: '' | ID: '13566764' | TYPE: ControlType.Pane | RECT: 1239,1222,1362,224
+NAME: 'Dashboard' | ID: '' | TYPE: ControlType.Pane | RECT: 1246,1304,1348,135
+NAME: '' | ID: '8717512' | TYPE: ControlType.Pane | RECT: 1246,1304,1348,135
+NAME: '' | ID: '6819956' | TYPE: ControlType.Pane | RECT: 1246,1304,1348,135
+NAME: '' | ID: 'scrollHost' | TYPE: ControlType.Pane | RECT: 1249,1307,1342,129
+NAME: '' | ID: 'tlpMain' | TYPE: ControlType.Pane | RECT: 1249,1307,1342,700
+NAME: '' | ID: '724552' | TYPE: ControlType.Pane | RECT: 1257,1315,1326,91
+NAME: 'Dashboard' | ID: '19400976' | TYPE: ControlType.Pane | RECT: 1260,1318,333,81
+NAME: '' | ID: 'tlpContext' | TYPE: ControlType.Pane | RECT: 1257,1447,1326,111
+NAME: 'Current Organization' | ID: '17304260' | TYPE: ControlType.Pane | RECT: 1260,1458,259,33
+NAME: 'Current Company' | ID: '659000' | TYPE: ControlType.Pane | RECT: 1525,1458,259,33
+NAME: 'Current Branch' | ID: '724340' | TYPE: ControlType.Pane | RECT: 1790,1458,259,33
+NAME: 'Current Fiscal Year' | ID: '6098622' | TYPE: ControlType.Pane | RECT: 2055,1458,259,33
+NAME: 'Current User' | ID: '12978436' | TYPE: ControlType.Pane | RECT: 2320,1458,260,33
+NAME: 'Clovent Global Enterprises' | ID: '1966962' | TYPE: ControlType.Pane | RECT: 1260,1497,259,50
+NAME: 'Clovent Flagship Dining Ltd' | ID: '8914310' | TYPE: ControlType.Pane | RECT: 1525,1497,259,50
+NAME: 'Metropolitan Branch' | ID: '1311996' | TYPE: ControlType.Pane | RECT: 1790,1497,259,50
+NAME: 'FY2026 (Open)' | ID: '9897292' | TYPE: ControlType.Pane | RECT: 2055,1497,259,50
+NAME: 'Acceptance Admin' | ID: '4394948' | TYPE: ControlType.Pane | RECT: 2320,1497,260,50
+NAME: '' | ID: 'tlpKpi' | TYPE: ControlType.Pane | RECT: 1257,1566,1326,435
+NAME: '' | ID: '7472472' | TYPE: ControlType.Pane | RECT: 1263,1572,208,133
+NAME: '20' | ID: '5244134' | TYPE: ControlType.Pane | RECT: 1266,1608,78,89
+NAME: 'Active Sessions' | ID: '15339738' | TYPE: ControlType.Pane | RECT: 1266,1575,179,33
+NAME: '' | ID: '659002' | TYPE: ControlType.Pane | RECT: 1483,1572,208,133
+NAME: '20' | ID: '790066' | TYPE: ControlType.Pane | RECT: 1486,1608,78,89
+NAME: 'Logins (7 days)' | ID: '724576' | TYPE: ControlType.Pane | RECT: 1486,1575,181,33
+NAME: '' | ID: '659038' | TYPE: ControlType.Pane | RECT: 1703,1572,208,133
+NAME: '0' | ID: '4653538' | TYPE: ControlType.Pane | RECT: 1706,1608,39,89
+NAME: 'Notifications' | ID: '724566' | TYPE: ControlType.Pane | RECT: 1706,1575,146,33
+NAME: '' | ID: '724564' | TYPE: ControlType.Pane | RECT: 1923,1572,208,133
+NAME: '11' | ID: '790086' | TYPE: ControlType.Pane | RECT: 1926,1608,78,89
+NAME: 'Total Products' | ID: '5570636' | TYPE: ControlType.Pane | RECT: 1926,1575,171,33
+NAME: '' | ID: '659006' | TYPE: ControlType.Pane | RECT: 2143,1572,208,133
+NAME: '0' | ID: '1051574' | TYPE: ControlType.Pane | RECT: 2146,1608,39,89
+NAME: 'Low Stock' | ID: '16058614' | TYPE: ControlType.Pane | RECT: 2146,1575,121,33
+NAME: '' | ID: '658998' | TYPE: ControlType.Pane | RECT: 2363,1572,214,133
+NAME: '0' | ID: '724258' | TYPE: ControlType.Pane | RECT: 2366,1608,39,89
+NAME: 'Out of Stock' | ID: '1706978' | TYPE: ControlType.Pane | RECT: 2366,1575,148,33
+NAME: '' | ID: '658986' | TYPE: ControlType.Pane | RECT: 1263,1717,208,133
+NAME: '0.00' | ID: '4854140' | TYPE: ControlType.Pane | RECT: 1266,1753,135,89
+NAME: 'Inventory Value' | ID: '8063622' | TYPE: ControlType.Pane | RECT: 1266,1720,187,33
+NAME: '' | ID: '790104' | TYPE: ControlType.Pane | RECT: 1483,1717,208,133
+NAME: '1,725.00' | ID: '12914478' | TYPE: ControlType.Pane | RECT: 1486,1753,270,89
+NAME: 'Today's Sales' | ID: '986692' | TYPE: ControlType.Pane | RECT: 1486,1720,160,33
+NAME: '' | ID: '13634072' | TYPE: ControlType.Pane | RECT: 1703,1717,208,133
+NAME: '0' | ID: '658876' | TYPE: ControlType.Pane | RECT: 1706,1753,39,89
+NAME: 'Open Tables' | ID: '30084846' | TYPE: ControlType.Pane | RECT: 1706,1720,148,33
+NAME: '' | ID: '9375644' | TYPE: ControlType.Pane | RECT: 1923,1717,208,133
+NAME: '0' | ID: '4851488' | TYPE: ControlType.Pane | RECT: 1926,1753,39,89
+NAME: 'Running Orders' | ID: '13174018' | TYPE: ControlType.Pane | RECT: 1926,1720,186,33
+NAME: '' | ID: '9308952' | TYPE: ControlType.Pane | RECT: 2143,1717,208,133
+NAME: '0' | ID: '11337990' | TYPE: ControlType.Pane | RECT: 2146,1753,39,89
+NAME: 'Kitchen Queue' | ID: '16781576' | TYPE: ControlType.Pane | RECT: 2146,1720,172,33
+NAME: '' | ID: '5902710' | TYPE: ControlType.Pane | RECT: 2363,1717,214,133
+NAME: '0' | ID: '3736866' | TYPE: ControlType.Pane | RECT: 2366,1753,39,89
+NAME: 'Delivery Orders Today' | ID: '658974' | TYPE: ControlType.Pane | RECT: 2366,1720,263,33
+NAME: '' | ID: '6949492' | TYPE: ControlType.Pane | RECT: 1263,1862,208,133
+NAME: '0.00' | ID: '593448' | TYPE: ControlType.Pane | RECT: 1266,1898,121,81
+NAME: 'Total Receivables' | ID: '1576136' | TYPE: ControlType.Pane | RECT: 1266,1865,205,33
+NAME: '' | ID: '658962' | TYPE: ControlType.Pane | RECT: 1483,1862,208,133
+NAME: '0' | ID: '9045344' | TYPE: ControlType.Pane | RECT: 1486,1898,39,89
+NAME: 'Customers With Balance' | ID: '6227760' | TYPE: ControlType.Pane | RECT: 1486,1865,287,33
+NAME: '' | ID: '2821624' | TYPE: ControlType.Pane | RECT: 1703,1862,208,133
+NAME: '0.00' | ID: '658982' | TYPE: ControlType.Pane | RECT: 1706,1898,121,81
+NAME: 'Customer Advances' | ID: '6752374' | TYPE: ControlType.Pane | RECT: 1706,1865,233,33
+NAME: '' | ID: '5769830' | TYPE: ControlType.Pane | RECT: 1923,1862,208,133
+NAME: '0.00' | ID: '4456998' | TYPE: ControlType.Pane | RECT: 1926,1898,121,81
+NAME: 'Today's On Account' | ID: '658878' | TYPE: ControlType.Pane | RECT: 1926,1865,235,33
+NAME: '' | ID: '1114504' | TYPE: ControlType.Pane | RECT: 2143,1862,208,133
+NAME: '0.00' | ID: '5377130' | TYPE: ControlType.Pane | RECT: 2146,1898,121,81
+NAME: 'Today's Collections' | ID: '11273550' | TYPE: ControlType.Pane | RECT: 2146,1865,225,33
+NAME: '' | ID: '17432656' | TYPE: ControlType.Pane | RECT: 2363,1862,214,133
+NAME: '0.00' | ID: '8784528' | TYPE: ControlType.Pane | RECT: 2366,1898,121,81
+NAME: 'Net A/R Balance' | ID: '25627450' | TYPE: ControlType.Pane | RECT: 2366,1865,191,33
+NAME: '' | ID: 'tlpLists' | TYPE: ControlType.Pane | RECT: 1260,2012,1320,1
+NAME: '' | ID: '6619990' | TYPE: ControlType.Pane | RECT: 1266,2018,318,1
+NAME: 'Recent Activity' | ID: '4131812' | TYPE: ControlType.Pane | RECT: 1269,2020,263,50
+NAME: '' | ID: '19400844' | TYPE: ControlType.Pane | RECT: 1596,2018,318,1
+NAME: 'Notifications' | ID: '9308880' | TYPE: ControlType.Pane | RECT: 1599,2020,226,50
+NAME: '' | ID: '9439290' | TYPE: ControlType.Pane | RECT: 1926,2018,318,1
+NAME: 'Stock Movements' | ID: '5835022' | TYPE: ControlType.Pane | RECT: 1929,2020,311,50
+NAME: '' | ID: '1313714' | TYPE: ControlType.Pane | RECT: 2256,2018,318,1
+NAME: 'Top Selling Items' | ID: '8063656' | TYPE: ControlType.Pane | RECT: 2259,2020,303,50
+NAME: '' | ID: 'flowBottom' | TYPE: ControlType.Pane | RECT: 1260,1911,1320,85
+NAME: 'Company:' | ID: '3411142' | TYPE: ControlType.Pane | RECT: 1260,1927,121,33
+NAME: '' | ID: '10815340' | TYPE: ControlType.Pane | RECT: 1385,1923,220,70
+NAME: 'Branch:' | ID: '27002898' | TYPE: ControlType.Pane | RECT: 1613,1927,92,33
+NAME: '' | ID: '24774752' | TYPE: ControlType.Pane | RECT: 1709,1923,220,70
+NAME: 'Refresh' | ID: '5181618' | TYPE: ControlType.Pane | RECT: 1945,1923,112,69
+NAME: 'View All Notifications' | ID: '8524406' | TYPE: ControlType.Pane | RECT: 2065,1923,267,69
+NAME: 'Dashboard' | ID: '' | TYPE: ControlType.Custom | RECT: 1246,1304,1348,135
+NAME: '' | ID: '6883894' | TYPE: ControlType.Pane | RECT: 1239,740,1362,482
+NAME: '' | ID: '16320644' | TYPE: ControlType.Pane | RECT: 1239,1446,1362,92
+NAME: 'Clovent Business Operating System' | ID: '' | TYPE: ControlType.TitleBar | RECT: 1237,740,1366,122
+NAME: 'System' | ID: '' | TYPE: ControlType.MenuBar | RECT: 1237,740,122,122
+NAME: 'Clovent Business Operating System' | ID: '' | TYPE: ControlType.Button | RECT: 2113,742,120,120
+NAME: 'Minimize' | ID: '' | TYPE: ControlType.Button | RECT: 2235,742,120,120
+NAME: 'Maximize' | ID: '' | TYPE: ControlType.Button | RECT: 2357,742,120,120
+NAME: 'Close' | ID: '' | TYPE: ControlType.Button | RECT: 2479,742,120,120

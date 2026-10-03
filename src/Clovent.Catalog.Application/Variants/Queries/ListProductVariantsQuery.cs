@@ -20,6 +20,7 @@ public sealed class ListProductVariantsQueryHandler(IProductVariantRepository re
         var categoryIdsByProductId = products.ToDictionary(p => p.Id, p => p.CategoryId?.Value);
         var productStatusesById = products.ToDictionary(p => p.Id, p => p.Status.ToString());
         var itemTypesById = products.ToDictionary(p => p.Id, p => p.ItemType.ToString());
+        var productNamesById = products.ToDictionary(p => p.Id, p => p.Name.Value);
 
         return
         [
@@ -27,7 +28,8 @@ public sealed class ListProductVariantsQueryHandler(IProductVariantRepository re
                 variant,
                 categoryIdsByProductId.GetValueOrDefault(variant.ProductId),
                 productStatusesById.GetValueOrDefault(variant.ProductId),
-                itemTypesById.GetValueOrDefault(variant.ProductId, "Prepared"))),
+                itemTypesById.GetValueOrDefault(variant.ProductId, "Prepared"),
+                productNamesById.GetValueOrDefault(variant.ProductId))),
         ];
     }
 }

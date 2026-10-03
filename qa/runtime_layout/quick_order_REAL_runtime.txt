@@ -11716,3 +11716,1431 @@
   SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
   CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
 --------------------------------------------------------------------------------
+[2026-10-01 15:56:05.031] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 15:56:05.039] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 15:57:57.297] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 15:57:57.300] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 15:58:01.630] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=104,Y=104,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 15:58:01.632] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:31:04.658] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:31:04.671] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:31:06.635] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=104,Y=104,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:31:06.636] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:32:26.386] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:32:26.392] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:54:50.275] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=130,Y=130,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:54:50.280] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:54:53.829] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=156,Y=156,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:54:53.831] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:55:02.011] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=130,Y=130,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 16:55:02.012] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:49:24.031] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:49:24.034] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:49:59.389] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:49:59.390] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:50:02.119] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=104,Y=104,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 17:50:02.120] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:05.969] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:05.971] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:08.854] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=104,Y=104,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:08.855] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:14.610] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=156,Y=156,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 18:55:14.611] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:28:51.018] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:28:51.021] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:57:37.373] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:57:37.375] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:58:36.502] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:58:36.504] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:58:39.416] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=52,Y=52,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 19:58:39.418] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:02:45.443] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:02:45.447] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:02:46.410] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=156,Y=156,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:02:46.412] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:03:45.936] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:03:45.937] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:38:12.021] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=78,Y=78,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:38:12.023] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:40:09.301] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=26,Y=26,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:40:09.302] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:40:12.064] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=52,Y=52,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-01 21:40:12.065] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:24:50.317] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=104,Y=104,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:24:50.320] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:26:38.064] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=182,Y=182,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:26:38.065] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:26:40.899] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=208,Y=208,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 07:26:40.899] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:16.536] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=130,Y=130,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:16.542] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:18.206] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=208,Y=208,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:18.208] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:25.725] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=52,Y=52,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 11:44:25.729] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:02.213] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=208,Y=208,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:02.216] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=433, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:44.032] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=130,Y=130,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:44.034] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:46.956] EVENT: OnLoad Start
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=156,Y=156,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------
+[2026-10-02 13:34:46.957] EVENT: OnLoad End
+  Form: Type=Clovent.Desktop.Restaurant.SmartPos.QuickOrderTemplateEditForm, Title='Edit Quick Order Template', DeviceDpi=96
+  Form Bounds={X=287,Y=110,Width=962,Height=692}, ClientRect={X=0,Y=0,Width=960,Height=660}, Size={Width=962, Height=692}, ClientSize={Width=960, Height=660}, MinSize={Width=840, Height=540}
+  Font: Segoe UI 9.5pt, AutoScaleMode=None
+  Owner: Type=null, Name='', Bounds=N/A
+  MainTableLayout: Bounds={X=0,Y=0,Width=960,Height=660}, ClientRect={X=0,Y=0,Width=960,Height=660}, Rows=5
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+    Row[3]: SizeType=Percent, Height=100
+    Row[4]: SizeType=AutoSize, Height=0
+  DetailsPanel: Bounds={X=16,Y=12,Width=928,Height=165}, PreferredSize={Width=328, Height=165}
+  ItemEditorPanel: Bounds={X=16,Y=185,Width=928,Height=167}, PreferredSize={Width=750, Height=167}
+  Toolbar: Bounds={X=16,Y=360,Width=928,Height=34}, PreferredSize={Width=263, Height=34}
+    ToolbarChild: Type=SimpleButton, Text='Edit Selected', Bounds={X=0,Y=0,Width=120,Height=34}, Min={Width=120, Height=34}, Font=Tahoma 8.25pt
+    ToolbarChild: Type=SimpleButton, Text='Remove Selected', Bounds={X=128,Y=0,Width=135,Height=34}, Min={Width=135, Height=34}, Font=Tahoma 8.25pt
+  GridPanel: Bounds={X=16,Y=400,Width=928,Height=202}, ClientRect={X=0,Y=0,Width=928,Height=202}
+  FooterPanel: Bounds={X=16,Y=614,Width=928,Height=34}, PreferredSize={Width=446, Height=34}
+  SaveBtn: Bounds={X=793,Y=0,Width=135,Height=34}, PreferredSize={Width=135, Height=34}, Min={Width=135, Height=34}, Text='Save Changes'
+  CancelBtn: Bounds={X=690,Y=0,Width=95,Height=34}, PreferredSize={Width=95, Height=34}, Min={Width=95, Height=34}, Text='Cancel'
+--------------------------------------------------------------------------------

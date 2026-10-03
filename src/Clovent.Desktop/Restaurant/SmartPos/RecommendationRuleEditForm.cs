@@ -11,6 +11,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// activation, an optional daily time window, optional day-of-week limits and
 /// free-text notes.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class RecommendationRuleEditForm : MasterDataEditFormBase
 {
     private readonly LookUpEdit _triggerProductEdit = new();

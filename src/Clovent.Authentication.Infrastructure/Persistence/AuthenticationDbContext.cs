@@ -30,6 +30,7 @@ public sealed class AuthenticationDbContext(DbContextOptions<AuthenticationDbCon
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("Authentication");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AuthenticationDbContext).Assembly);
     }
 }

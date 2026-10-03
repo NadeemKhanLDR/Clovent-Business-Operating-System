@@ -160,24 +160,41 @@ public sealed class ShiftHistoryView : XtraUserControl
             Margin = new Padding(0, 0, 0, 6)
         };
 
-        void AddFilterControl(Control c, int rightMargin = 12)
+        TableLayoutPanel CreateFilterGroup(string labelText, Control editor, int rightMargin = 16)
         {
-            c.Anchor = AnchorStyles.Left;
-            c.Margin = new Padding(0, 4, rightMargin, 4);
-            _filterPanel.Controls.Add(c);
+            var group = new TableLayoutPanel
+            {
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Margin = new Padding(0, 0, rightMargin, 0),
+                Padding = Padding.Empty,
+                Anchor = AnchorStyles.Left
+            };
+            group.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            group.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            group.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            var lbl = new LabelControl
+            {
+                Text = labelText,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(51, 65, 85),
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 4, 0),
+                Padding = Padding.Empty,
+                AutoSizeMode = LabelAutoSizeMode.Horizontal
+            };
+            editor.Anchor = AnchorStyles.Left;
+            editor.Margin = Padding.Empty;
+
+            group.Controls.Add(lbl, 0, 0);
+            group.Controls.Add(editor, 1, 0);
+            return group;
         }
 
-        LabelControl CreateFilterLabel(string text) => new()
-        {
-            Text = text,
-            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-            ForeColor = Color.FromArgb(51, 65, 85),
-            AutoSize = true,
-            Padding = new Padding(0, 6, 4, 0)
-        };
-
         // 1. Period
-        AddFilterControl(CreateFilterLabel("Period:"), 4);
         _cboPeriod = new ComboBoxEdit
         {
             Properties = { TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor },
@@ -188,28 +205,25 @@ public sealed class ShiftHistoryView : XtraUserControl
             _cboPeriod.Properties.Items.Add(name);
         }
         _cboPeriod.SelectedIndexChanged += CboPeriod_SelectedIndexChanged;
-        AddFilterControl(_cboPeriod, 16);
+        _filterPanel.Controls.Add(CreateFilterGroup("Period:", _cboPeriod, 16));
 
         // 2. From
-        AddFilterControl(CreateFilterLabel("From:"), 4);
         _dtFrom = new DateEdit
         {
             Font = new Font("Segoe UI", 9.5F)
         };
         _dtFrom.EditValueChanged += DateEdits_EditValueChanged;
-        AddFilterControl(_dtFrom, 16);
+        _filterPanel.Controls.Add(CreateFilterGroup("From:", _dtFrom, 16));
 
         // 3. To
-        AddFilterControl(CreateFilterLabel("To:"), 4);
         _dtTo = new DateEdit
         {
             Font = new Font("Segoe UI", 9.5F)
         };
         _dtTo.EditValueChanged += DateEdits_EditValueChanged;
-        AddFilterControl(_dtTo, 16);
+        _filterPanel.Controls.Add(CreateFilterGroup("To:", _dtTo, 16));
 
         // 4. Status
-        AddFilterControl(CreateFilterLabel("Status:"), 4);
         _cboStatus = new ComboBoxEdit
         {
             Properties = { TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor },
@@ -217,27 +231,31 @@ public sealed class ShiftHistoryView : XtraUserControl
         };
         _cboStatus.Properties.Items.AddRange(new[] { "All", "Open", "Closed", "Cancelled" });
         _cboStatus.SelectedIndex = 0;
-        AddFilterControl(_cboStatus, 16);
+        _filterPanel.Controls.Add(CreateFilterGroup("Status:", _cboStatus, 16));
 
         // 5. Search
         _btnSearch = new SimpleButton
         {
             Text = "Search",
             Appearance = { Font = new Font("Segoe UI", 9.5F, FontStyle.Bold) },
-            Cursor = Cursors.Hand
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0)
         };
         _btnSearch.Click += BtnSearch_Click;
-        AddFilterControl(_btnSearch, 8);
+        _filterPanel.Controls.Add(_btnSearch);
 
         // 6. Clear Filters
         _btnClear = new SimpleButton
         {
             Text = "Clear Filters",
             Appearance = { Font = new Font("Segoe UI", 9.5F) },
-            Cursor = Cursors.Hand
+            Cursor = Cursors.Hand,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 0, 0)
         };
         _btnClear.Click += BtnClear_Click;
-        AddFilterControl(_btnClear, 0);
+        _filterPanel.Controls.Add(_btnClear);
 
         // Set default period to This Month
         _cboPeriod.SelectedItem = "This Month";

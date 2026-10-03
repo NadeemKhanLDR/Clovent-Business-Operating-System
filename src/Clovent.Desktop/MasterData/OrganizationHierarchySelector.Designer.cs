@@ -10,7 +10,7 @@ partial class OrganizationHierarchySelector
     private readonly ComboBoxEdit _organizationCombo = new();
     private readonly ComboBoxEdit _companyCombo = new();
     private readonly ComboBoxEdit _branchCombo = new();
-    private readonly FlowLayoutPanel _layout = new();
+    private readonly TableLayoutPanel _layout = new();
 
     /// <summary>Clean up any resources being used.</summary>
     protected override void Dispose(bool disposing)
@@ -38,6 +38,7 @@ partial class OrganizationHierarchySelector
         ((System.ComponentModel.ISupportInitialize)_organizationCombo.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_companyCombo.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_branchCombo.Properties).BeginInit();
+        _layout.SuspendLayout();
         SuspendLayout();
         //
         // _organizationCombo
@@ -46,6 +47,8 @@ partial class OrganizationHierarchySelector
         _organizationCombo.Width = 220;
         _organizationCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _organizationCombo.SelectedIndexChanged += OrganizationCombo_SelectedIndexChanged;
+        _organizationCombo.Anchor = AnchorStyles.Left;
+        _organizationCombo.Margin = new Padding(0, 0, 12, 0);
         //
         // _companyCombo
         //
@@ -53,6 +56,8 @@ partial class OrganizationHierarchySelector
         _companyCombo.Width = 220;
         _companyCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _companyCombo.SelectedIndexChanged += CompanyCombo_SelectedIndexChanged;
+        _companyCombo.Anchor = AnchorStyles.Left;
+        _companyCombo.Margin = new Padding(0, 0, 12, 0);
         //
         // _branchCombo
         //
@@ -60,50 +65,77 @@ partial class OrganizationHierarchySelector
         _branchCombo.Width = 220;
         _branchCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _branchCombo.SelectedIndexChanged += BranchCombo_SelectedIndexChanged;
+        _branchCombo.Anchor = AnchorStyles.Left;
+        _branchCombo.Margin = Padding.Empty;
         //
         // _layout
         //
         _layout.Dock = DockStyle.Fill;
-        _layout.FlowDirection = FlowDirection.LeftToRight;
-        _layout.WrapContents = false;
+        _layout.ColumnCount = 6;
+        _layout.RowCount = 1;
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         _layout.AutoSize = true;
         _layout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _layout.Name = "_layout";
         _layout.SizeChanged += Layout_SizeChanged;
 
-        _layout.Controls.Add(new LabelControl { Text = "Organization:", Padding = new Padding(0, 6, 4, 0) });
-        _layout.Controls.Add(_organizationCombo);
+        var lblOrg = new LabelControl
+        {
+            Text = "Organization:",
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 4, 0),
+            AutoSizeMode = LabelAutoSizeMode.Horizontal
+        };
+        _layout.Controls.Add(lblOrg, 0, 0);
+        _layout.Controls.Add(_organizationCombo, 1, 0);
 
         if (_showCompany)
         {
-            _layout.Controls.Add(new LabelControl { Text = "Company:", Padding = new Padding(12, 6, 4, 0) });
-            _layout.Controls.Add(_companyCombo);
+            var lblComp = new LabelControl
+            {
+                Text = "Company:",
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 4, 0),
+                AutoSizeMode = LabelAutoSizeMode.Horizontal
+            };
+            _layout.Controls.Add(lblComp, 2, 0);
+            _layout.Controls.Add(_companyCombo, 3, 0);
         }
 
         if (_showBranch)
         {
-            _layout.Controls.Add(new LabelControl { Text = "Branch:", Padding = new Padding(12, 6, 4, 0) });
-            _layout.Controls.Add(_branchCombo);
+            var lblBranch = new LabelControl
+            {
+                Text = "Branch:",
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 0, 4, 0),
+                AutoSizeMode = LabelAutoSizeMode.Horizontal
+            };
+            _layout.Controls.Add(lblBranch, 4, 0);
+            _layout.Controls.Add(_branchCombo, 5, 0);
         }
 
         //
         // OrganizationHierarchySelector
         //
-        // AutoSize (not a fixed Height) so this control always fits its
-        // combos'/labels' actual rendered height - a fixed Height=32 was,
-        // like EntityPicker's and MasterDataListView's toolbar's own fixed
-        // heights before them, measured too short for a DevExpress
-        // ComboBoxEdit's real height under some DPI/skin combinations,
-        // clipping/overlapping whatever is docked below it.
         Dock = DockStyle.Top;
         AutoSize = true;
         AutoSizeMode = AutoSizeMode.GrowAndShrink;
         Name = "OrganizationHierarchySelector";
         Controls.Add(_layout);
+        _layout.ResumeLayout(false);
+        _layout.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)_organizationCombo.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_companyCombo.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_branchCombo.Properties).EndInit();
         ResumeLayout(false);
+        PerformLayout();
     }
 
     #endregion

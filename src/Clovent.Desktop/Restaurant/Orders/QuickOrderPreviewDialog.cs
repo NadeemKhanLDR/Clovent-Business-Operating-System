@@ -17,6 +17,7 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// straight from the DTO the strip loaded via
 /// <see cref="Clovent.Restaurant.Application.QuickOrderTemplates.Queries.ListActiveQuickOrderTemplatesQuery"/>.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class QuickOrderPreviewDialog : XtraForm
 {
     private static readonly Color AccentColor = Color.FromArgb(13, 148, 136);

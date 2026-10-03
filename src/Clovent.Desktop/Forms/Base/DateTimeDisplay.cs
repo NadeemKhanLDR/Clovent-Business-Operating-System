@@ -16,8 +16,20 @@ public static class DateTimeDisplay
         BusinessDateTimeService.Instance.Configure(timeZone, dateTimeFormat);
     }
 
+    /// <summary>Configures the process-wide timezone, date format, and time format.</summary>
+    public static void Configure(TimeZoneInfo timeZone, string dateFormat, string? timeFormat)
+    {
+        BusinessDateTimeService.Instance.Configure(timeZone, dateFormat, timeFormat);
+    }
+
     /// <summary>Gets the configured business timezone.</summary>
     public static TimeZoneInfo BusinessTimeZone => BusinessDateTimeService.Instance.BusinessTimeZone;
+
+    /// <summary>Gets the configured date pattern (e.g. "dd-MMM-yyyy").</summary>
+    public static string DateFormatPattern => BusinessDateTimeService.Instance.DateFormatPattern;
+
+    /// <summary>Gets the configured time pattern (e.g. "hh:mm tt" or "HH:mm").</summary>
+    public static string TimeFormatPattern => BusinessDateTimeService.Instance.TimeFormatPattern;
 
     /// <summary>Gets the configured date and time format string.</summary>
     public static string FormatString => BusinessDateTimeService.Instance.DateTimeFormat;

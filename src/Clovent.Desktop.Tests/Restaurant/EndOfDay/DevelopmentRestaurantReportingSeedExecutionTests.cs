@@ -219,7 +219,6 @@ public sealed class DevelopmentRestaurantReportingSeedExecutionTests : IDisposab
         });
 
         var seedTask = new DevelopmentRestaurantReportingSeedStartupTask(
-            new FakeOrganizationRepository(),
             new FakeWarehouseRepository(warehouse),
             diningAreaRepo,
             tableRepo,

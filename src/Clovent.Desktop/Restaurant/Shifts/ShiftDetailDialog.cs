@@ -32,7 +32,6 @@ public sealed class ShiftDetailDialog : XtraForm
     private LabelControl _lblCashSalesVal = null!;
     private LabelControl _lblCashCollectionsVal = null!;
     private LabelControl _lblCardSalesVal = null!;
-    private LabelControl _lblOtherSalesVal = null!;
     private LabelControl _lblExpectedVal = null!;
     private LabelControl _lblCountedVal = null!;
     private LabelControl _lblVarianceVal = null!;

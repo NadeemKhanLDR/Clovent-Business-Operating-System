@@ -363,7 +363,6 @@ public sealed partial class LoginForm : XtraForm
         _splashScreenService.Show("Clovent", splashText);
 
         SetLoading(true);
-        bool shouldKeepSplash = false;
         try
         {
             var request = new LoginRequest(
@@ -403,7 +402,6 @@ public sealed partial class LoginForm : XtraForm
             SelectedModuleKey = moduleKey;
             DialogResult = DialogResult.OK;
             _splashScreenService.Close();
-            shouldKeepSplash = false;
             Close();
         }
         finally

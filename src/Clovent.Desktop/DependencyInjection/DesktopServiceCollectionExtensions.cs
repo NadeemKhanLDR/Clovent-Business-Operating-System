@@ -1,5 +1,8 @@
 using Clovent.Authentication.Application;
 using Clovent.Desktop.Authorization;
+using Clovent.Desktop.Commissioning.Database;
+using Clovent.Desktop.Commissioning.Services;
+using Clovent.Desktop.Commissioning.UI;
 using Clovent.Desktop.Catalog.Barcodes;
 using Clovent.Desktop.Catalog.Brands;
 using Clovent.Desktop.Catalog.Categories;
@@ -84,6 +87,21 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<IApplicationModeNavigator, ApplicationModeNavigator>();
         services.TryAddScoped<Restaurant.Services.ITerminalResolutionService, Restaurant.Services.TerminalResolutionService>();
         services.TryAddScoped<Restaurant.Services.IPosEntryGateCoordinator, Restaurant.Services.PosEntryGateCoordinator>();
+
+        services.TryAddSingleton<IDatabaseSchemaCompatibilityValidator, DatabaseSchemaCompatibilityValidator>();
+        services.TryAddSingleton<IDatabaseProvisioningService, DatabaseProvisioningService>();
+        services.TryAddSingleton<IDatabaseBackupService, DatabaseBackupService>();
+        services.TryAddSingleton<IFirstAdminProvisioningService, FirstAdminProvisioningService>();
+        services.TryAddTransient<FirstAdminProvisioningService>();
+        services.TryAddSingleton<IInitialMasterDataProvisioningService, InitialMasterDataProvisioningService>();
+        services.TryAddTransient<InitialMasterDataProvisioningService>();
+        services.TryAddSingleton<ICommissioningStateService, CommissioningStateService>();
+        services.TryAddTransient<CommissioningStateService>();
+        services.TryAddSingleton<ICommissioningBootstrapFactory, CommissioningBootstrapFactory>();
+        services.TryAddTransient<CommissioningBootstrapFactory>();
+        services.TryAddSingleton<ICommissioningProvisioningCoordinator, CommissioningProvisioningCoordinator>();
+        services.TryAddTransient<CommissioningProvisioningCoordinator>();
+        services.TryAddTransient<FirstRunWizardForm>();
 
         services.TryAddTransient<MainForm>();
         services.TryAddSingleton<IWorkspaceHost>(sp =>

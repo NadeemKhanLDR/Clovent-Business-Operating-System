@@ -39,6 +39,7 @@ internal sealed record UniversalSearchItem(
 /// headers, Up/Down navigation and Enter selection. Rendering only - all
 /// actions are delegated through <see cref="ItemInvoked"/>.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 internal sealed class UniversalSearchDropdown : Form
 {
     private const int MaxPerCategory = 4;

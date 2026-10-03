@@ -72,7 +72,7 @@ public class DealPreviewTests
             ],
             _ => throw new NotSupportedException(request.GetType().Name),
         };
-        return Task.FromResult(response!);
+        return Task.FromResult<object?>(response);
     });
 
     private async Task<QuickOrderTemplateDto> CreateFamilyDealAsync(FakeQuickOrderTemplateRepository repository, FakeMediator mediator)

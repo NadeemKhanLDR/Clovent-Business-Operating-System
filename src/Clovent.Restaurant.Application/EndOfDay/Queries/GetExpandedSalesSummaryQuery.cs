@@ -143,7 +143,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
         var variantAggregates = new Dictionary<Guid, (decimal Quantity, decimal GrossSales, decimal Discount, decimal NetSales, decimal Cost)>();
         var paymentMethodTotals = new Dictionary<string, (int Count, decimal Total, string Category)>();
-        var customerSales = new Dictionary<Guid, (int Count, decimal Qty, decimal ItemSales, decimal Disc, decimal Fees, decimal BillTotal, decimal Paid, decimal OnAccount)>();
+        var customerSales = new Dictionary<Guid, (int Count, decimal Qty, decimal ItemSales, decimal Disc, decimal Fees, decimal Tax, decimal BillTotal, decimal Paid, decimal OnAccount)>();
 
         foreach (var order in completedOrders)
         {
@@ -317,13 +317,14 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             if (effectiveCustomerId.HasValue)
             {
                 var cId = effectiveCustomerId.Value;
-                var (cCount, cQty, cItemSales, cDisc, cFees, cBillTotal, cPaid, cOnAccount) = customerSales.GetValueOrDefault(cId);
+                var (cCount, cQty, cItemSales, cDisc, cFees, cTax, cBillTotal, cPaid, cOnAccount) = customerSales.GetValueOrDefault(cId);
                 customerSales[cId] = (
                     cCount + 1,
                     cQty + orderQtyTotal,
                     cItemSales + orderSubtotal,
                     cDisc + orderDiscount,
                     cFees + orderServiceAndDelivery,
+                    cTax + orderExclusiveTax,
                     cBillTotal + orderTotal,
                     cPaid + orderPaid,
                     cOnAccount + orderOnAccount);
@@ -477,7 +478,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     closingAdvance));
             }
 
-            var (ordCount, qtyTotal, cItemSales, cDisc, cFees, cBillTotal, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);
+            var (ordCount, qtyTotal, cItemSales, cDisc, cFees, cTax, cBillTotal, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);
             if (ordCount > 0 || totalCustomerPayments > 0 || closingReceivable > 0 || closingAdvance > 0)
             {
                 customerReportRows.Add(new ExpandedCustomerRowDto(
@@ -495,7 +496,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     cOnAcc,
                     totalCustomerPayments,
                     closingReceivable,
-                    closingAdvance));
+                    closingAdvance,
+                    cTax));
             }
         }
 

@@ -42,12 +42,18 @@ public interface IBusinessDateTimeService
     /// <summary>Formats a DateTime timestamp using the configured business timezone and format pattern.</summary>
     string FormatDateTime(DateTime? utc);
 
+    /// <summary>The organization's configured date pattern (e.g. "dd-MMM-yyyy").</summary>
+    string DateFormatPattern { get; }
+
+    /// <summary>The organization's configured time pattern (e.g. "hh:mm tt" or "HH:mm").</summary>
+    string TimeFormatPattern { get; }
+
     /// <summary>Formats the time portion of a timestamp in the configured business timezone.</summary>
     string FormatTime(DateTimeOffset? utc);
 
     /// <summary>Gets the configured business timezone info.</summary>
     TimeZoneInfo GetBusinessTimeZone();
 
-    /// <summary>Updates the runtime configuration with a new timezone and date/time format.</summary>
-    void Configure(TimeZoneInfo timeZone, string dateTimeFormat);
+    /// <summary>Updates the runtime configuration with a new timezone, date format, and optional time format.</summary>
+    void Configure(TimeZoneInfo timeZone, string dateFormat, string? timeFormat = null);
 }

@@ -70,7 +70,6 @@ namespace Clovent.Desktop.Seed;
 /// Fully idempotent: skips execution once verified clean dataset is in place for today's business date.
 /// </summary>
 public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
-    IOrganizationRepository organizationRepository,
     IWarehouseRepository warehouseRepository,
     IDiningAreaRepository diningAreaRepository,
     ITableRepository tableRepository,

@@ -38,3 +38,27 @@ Thumbs.db
 # Temporary upload and crash-dump files
 .tmp.driveupload/
 *.dmp
+
+# Cryptographic Keys & Certificates
+*.privatekey
+*.pfx
+*.pem
+*vendor_private_key*
+*private_key*
+*.key
+*.cer
+*.crt
+tools/LicenseIssuer/keys/
+
+# Software Licenses
+licenses/
+*.lic
+!licenses/templates/
+
+# Database Backups & General Backups
+DatabaseBackups/
+*.bak
+
+# Artifacts
+artifacts/
+

@@ -23,6 +23,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// Analyzes completed historical sales for frequently bought together variant combinations,
 /// displays explainable KPI metrics, and allows managers to review and convert opportunities into POS Quick Order deals.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class SmartComboBuilderView : XtraUserControl
 {
     public sealed record PeriodOption(string Display, int Days);

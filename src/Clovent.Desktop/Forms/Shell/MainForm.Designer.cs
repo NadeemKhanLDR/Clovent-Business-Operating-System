@@ -233,6 +233,34 @@ public sealed partial class MainForm
         appearanceGroup.ItemLinks.Add(languageEditItem);
 
         _settingsRibbonPage.Groups.Add(appearanceGroup);
+
+        // 5. System & Registration Group on Settings
+        var systemGroup = new RibbonPageGroup("System & Registration");
+        var dbSettingsButton = new BarButtonItem { Caption = "Database Settings" };
+        var dbSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/data/database.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/properties.svg");
+        if (dbSvg != null) dbSettingsButton.ImageOptions.SvgImage = dbSvg;
+        dbSettingsButton.ItemClick += DatabaseSettingsButton_ItemClick;
+
+        var licenseButton = new BarButtonItem { Caption = "Registration & License" };
+        var licSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_security_permission.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/about.svg");
+        if (licSvg != null) licenseButton.ImageOptions.SvgImage = licSvg;
+        licenseButton.ItemClick += LicenseButton_ItemClick;
+
+        var diagnosticsButton = new BarButtonItem { Caption = "System Diagnostics" };
+        var diagSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/support.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/about.svg");
+        if (diagSvg != null) diagnosticsButton.ImageOptions.SvgImage = diagSvg;
+        diagnosticsButton.ItemClick += DiagnosticsButton_ItemClick;
+
+        _ribbon.Items.Add(dbSettingsButton);
+        _ribbon.Items.Add(licenseButton);
+        _ribbon.Items.Add(diagnosticsButton);
+        systemGroup.ItemLinks.Add(dbSettingsButton);
+        systemGroup.ItemLinks.Add(licenseButton);
+        systemGroup.ItemLinks.Add(diagnosticsButton);
+        _settingsRibbonPage.Groups.Add(systemGroup);
     }
 
     private void BuildStatusBar()

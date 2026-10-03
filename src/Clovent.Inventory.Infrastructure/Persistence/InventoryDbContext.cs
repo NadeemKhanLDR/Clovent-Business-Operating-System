@@ -29,6 +29,7 @@ public sealed class InventoryDbContext(DbContextOptions<InventoryDbContext> opti
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("Inventory");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(InventoryDbContext).Assembly);
     }
 }

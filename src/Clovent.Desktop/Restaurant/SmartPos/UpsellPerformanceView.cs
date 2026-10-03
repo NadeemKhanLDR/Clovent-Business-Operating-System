@@ -26,6 +26,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// attributed upsell revenue) over a selectable date range using the standard
 /// Report Period UX. Read-only - configuration lives in <see cref="RecommendationRulesView"/>.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class UpsellPerformanceView : XtraUserControl
 {
     private const string FeatureCode = "upsellperformance";
@@ -477,28 +478,57 @@ public sealed class UpsellPerformanceView : XtraUserControl
 
     private void BindGrid(List<UpsellPerformanceDto> rows)
     {
-        _gridControl.DataSource = rows.Select(r => new PerformanceGridRow(r)).ToList();
-        _gridView.Columns.Clear();
-
-        void AddColumn(string fieldName, string caption, int width, int minWidth, DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near)
+        _gridView.BeginUpdate();
+        try
         {
-            var column = _gridView.Columns.AddVisible(fieldName, caption);
-            column.Width = DesktopDpi.Scale(width, this);
-            column.MinWidth = DesktopDpi.Scale(minWidth, this);
-            column.OptionsColumn.AllowEdit = false;
-            column.AppearanceCell.TextOptions.HAlignment = alignment;
-            column.AppearanceCell.Options.UseTextOptions = true;
-            column.AppearanceHeader.TextOptions.HAlignment = alignment;
-            column.AppearanceHeader.Options.UseTextOptions = true;
-        }
+            _gridControl.DataSource = rows.Select(r => new PerformanceGridRow(r)).ToList();
+            _gridView.Columns.Clear();
+            _gridView.OptionsView.ColumnAutoWidth = true;
+            _gridView.OptionsCustomization.AllowFilter = false;
 
-        AddColumn(nameof(PerformanceGridRow.ProductName), "Recommended Item", 280, 180);
-        AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 120, 90);
-        AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 65, 55, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 75, 70, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 75, 70, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.ConversionText), "Conversion %", 90, 85, DevExpress.Utils.HorzAlignment.Far);
-        AddColumn(nameof(PerformanceGridRow.UpsellRevenueText), "Upsell Revenue", 110, 100, DevExpress.Utils.HorzAlignment.Far);
+            void AddColumn(string fieldName, string caption, int widthWeight, int minWidth, DevExpress.Utils.HorzAlignment alignment = DevExpress.Utils.HorzAlignment.Near)
+            {
+                var column = _gridView.Columns.AddVisible(fieldName, caption);
+                int scaledWidth = DesktopDpi.Scale(widthWeight, this);
+                int scaledMin = DesktopDpi.Scale(minWidth, this);
+
+                var headerFont = _gridView.Appearance.HeaderPanel.Font ?? Font;
+                int textWidth = TextRenderer.MeasureText(caption, headerFont).Width;
+                int glyphPadding = DesktopDpi.Scale(16, this);
+                int safeMin = Math.Max(scaledMin, textWidth + glyphPadding);
+
+                column.Width = Math.Max(scaledWidth, safeMin);
+                column.MinWidth = safeMin;
+                column.OptionsColumn.AllowEdit = false;
+                column.OptionsFilter.AllowFilter = false;
+                column.OptionsFilter.AllowAutoFilter = false;
+                column.AppearanceCell.TextOptions.HAlignment = alignment;
+                column.AppearanceCell.Options.UseTextOptions = true;
+                column.AppearanceHeader.TextOptions.HAlignment = alignment;
+                column.AppearanceHeader.Options.UseTextOptions = true;
+            }
+
+            // Target proportions:
+            // Recommended Item: 40% (target 38-42%)
+            // Variant: 13% (target 12-14%)
+            // Offers: 6.5% (target 6-7%)
+            // Accepted: 8.5% (target 8-9%)
+            // Dismissed: 8.5% (target 8-9%)
+            // Conversion %: 10.5% (target 10-11%)
+            // Upsell Revenue: 13% (target 11-13%)
+            // Total weights sum to 1000
+            AddColumn(nameof(PerformanceGridRow.ProductName), "Recommended Item", 400, 160);
+            AddColumn(nameof(PerformanceGridRow.VariantName), "Variant", 130, 85);
+            AddColumn(nameof(PerformanceGridRow.Offers), "Offers", 65, 55, DevExpress.Utils.HorzAlignment.Far);
+            AddColumn(nameof(PerformanceGridRow.Accepted), "Accepted", 85, 80, DevExpress.Utils.HorzAlignment.Far);
+            AddColumn(nameof(PerformanceGridRow.Dismissed), "Dismissed", 85, 85, DevExpress.Utils.HorzAlignment.Far);
+            AddColumn(nameof(PerformanceGridRow.ConversionText), "Conversion %", 105, 100, DevExpress.Utils.HorzAlignment.Far);
+            AddColumn(nameof(PerformanceGridRow.UpsellRevenueText), "Upsell Revenue", 130, 115, DevExpress.Utils.HorzAlignment.Far);
+        }
+        finally
+        {
+            _gridView.EndUpdate();
+        }
     }
 
     private sealed class PerformanceGridRow(UpsellPerformanceDto dto)

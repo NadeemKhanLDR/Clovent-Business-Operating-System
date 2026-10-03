@@ -626,7 +626,10 @@ public sealed partial class MenuItemsForm : BaseForm
             if (form.PendingImage is not null)
             {
                 MenuItemImageStore.Save(productId, form.PendingImage);
-                _imagesByProductId[productId] = MenuItemImageStore.Load(productId);
+                if (MenuItemImageStore.Load(productId) is { } loadedImg)
+                {
+                    _imagesByProductId[productId] = loadedImg;
+                }
             }
 
             saveAndNew = form.IsSaveAndNew;
@@ -822,7 +825,10 @@ public sealed partial class MenuItemsForm : BaseForm
             {
                 oldImg.Dispose();
             }
-            _imagesByProductId[row.ProductId] = MenuItemImageStore.Load(row.ProductId);
+            if (MenuItemImageStore.Load(row.ProductId) is { } loadedImg)
+            {
+                _imagesByProductId[row.ProductId] = loadedImg;
+            }
         }
     }
 
@@ -883,10 +889,10 @@ public sealed partial class MenuItemsForm : BaseForm
         }
     }
 
-    private async Task SaveMenuItemBarcodesAsync(Guid variantId, string b1, string b2, string b3)
+    private async Task SaveMenuItemBarcodesAsync(Guid variantId, string? b1, string? b2, string? b3)
     {
         var existing = await _mediator.Send(new ListBarcodesByVariantQuery(variantId));
-        var inputs = new[] { b1, b2, b3 }.Where(s => !string.IsNullOrEmpty(s)).ToList();
+        var inputs = new[] { b1, b2, b3 }.Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToList();
 
         // 1. Deactivate any existing barcode of this variant that is NOT in the inputs
         foreach (var bc in existing)

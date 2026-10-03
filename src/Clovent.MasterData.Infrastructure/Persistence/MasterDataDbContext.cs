@@ -45,6 +45,7 @@ public sealed class MasterDataDbContext(DbContextOptions<MasterDataDbContext> op
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasDefaultSchema("MasterData");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(MasterDataDbContext).Assembly);
     }
 }

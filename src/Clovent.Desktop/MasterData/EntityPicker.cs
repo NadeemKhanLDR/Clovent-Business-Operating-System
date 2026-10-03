@@ -45,17 +45,25 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     /// to target this specific label from <c>Forms.Base.Appearance.AppearanceManager</c>'s
     /// Control-scope rules (e.g. "RestaurantPosView.TableLabel").
     /// </param>
-    public EntityPicker(string labelText, int comboWidth = 260, float? fontSizePoints = null, string? labelControlName = null)
+    /// <param name="customPadding">Overrides the default outer padding applied to the inner layout.</param>
+    public EntityPicker(string labelText, int comboWidth = 260, float? fontSizePoints = null, string? labelControlName = null, Padding? customPadding = null)
     {
         InitializeComponent();
 
-        _layout.HandleCreated += (s, e) => {
-            var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-            var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-            var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-            var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
-            _layout.Padding = new Padding(left, top, right, bottom);
-        };
+        if (customPadding is { } cp)
+        {
+            _layout.Padding = cp;
+        }
+        else
+        {
+            _layout.HandleCreated += (s, e) => {
+                var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+                var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+                var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+                var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
+                _layout.Padding = new Padding(left, top, right, bottom);
+            };
+        }
 
         _combo.Width = comboWidth;
         // comboWidth is a 96-DPI logical value and this control may not have a
@@ -139,4 +147,15 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
 
     /// <summary>Exposes the inner <see cref="ComboBoxEdit"/> so callers can configure auto-complete and text-edit style without requiring <c>EntityPicker</c> to duplicate every <see cref="ComboBoxEdit.Properties"/> member.</summary>
     public ComboBoxEdit ComboBox => _combo;
+
+    /// <summary>Exposes the inner <see cref="LabelControl"/> caption.</summary>
+    public LabelControl Label => _label;
+
+    /// <summary>Gets or sets the padding of the inner layout panel.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden), System.ComponentModel.Browsable(false)]
+    public Padding LayoutPadding
+    {
+        get => _layout.Padding;
+        set => _layout.Padding = value;
+    }
 }

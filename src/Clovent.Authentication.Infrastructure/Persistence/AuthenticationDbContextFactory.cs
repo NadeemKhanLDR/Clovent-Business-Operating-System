@@ -19,7 +19,9 @@ public sealed class AuthenticationDbContextFactory : IDesignTimeDbContextFactory
     public AuthenticationDbContext CreateDbContext(string[] args)
     {
         var optionsBuilder = new DbContextOptionsBuilder<AuthenticationDbContext>();
-        optionsBuilder.UseSqlServer("Server=.;Database=Clovent_Authentication_DesignTime;Trusted_Connection=True;TrustServerCertificate=True;");
+        optionsBuilder.UseSqlServer(
+            "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;TrustServerCertificate=True;",
+            sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Authentication"));
 
         return new AuthenticationDbContext(optionsBuilder.Options);
     }

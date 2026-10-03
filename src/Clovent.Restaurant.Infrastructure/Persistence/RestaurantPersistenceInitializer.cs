@@ -272,9 +272,21 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                 END
             END
 
-            -- Ensure "On Account" payment method exists
+            -- Ensure standard payment methods exist (Cash, Card, On Account)
             IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[PaymentMethods]'))
             BEGIN
+                IF NOT EXISTS (SELECT 1 FROM [Restaurant].[PaymentMethods] WHERE [Name] = 'Cash')
+                BEGIN
+                    INSERT INTO [Restaurant].[PaymentMethods] ([Id], [Name], [Status], [CreatedAtUtc])
+                    VALUES (NEWID(), 'Cash', 'Active', SYSUTCDATETIME());
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM [Restaurant].[PaymentMethods] WHERE [Name] = 'Card')
+                BEGIN
+                    INSERT INTO [Restaurant].[PaymentMethods] ([Id], [Name], [Status], [CreatedAtUtc])
+                    VALUES (NEWID(), 'Card', 'Active', SYSUTCDATETIME());
+                END
+
                 IF NOT EXISTS (SELECT 1 FROM [Restaurant].[PaymentMethods] WHERE [Name] = 'On Account')
                 BEGIN
                     INSERT INTO [Restaurant].[PaymentMethods] ([Id], [Name], [Status], [CreatedAtUtc])
@@ -479,21 +491,28 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                 SET QUOTED_IDENTIFIER ON;
                 IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Shifts]'))
                 BEGIN
-                    IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'Clovent_MasterData')
+                    DECLARE @DefaultTerminalId uniqueidentifier = NULL;
+                    IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[MasterData].[Terminals]'))
                     BEGIN
-                        DECLARE @DefaultTerminalId uniqueidentifier = NULL;
+                        SELECT TOP 1 @DefaultTerminalId = [Id] 
+                        FROM [MasterData].[Terminals] 
+                        WHERE [Status] = 'Active' 
+                        ORDER BY [Code];
+                    END
+                    ELSE IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'Clovent_MasterData')
+                    BEGIN
                         SELECT TOP 1 @DefaultTerminalId = [Id] 
                         FROM [Clovent_MasterData].[MasterData].[Terminals] 
                         WHERE [Status] = 'Active' 
                         ORDER BY [Code];
+                    END
 
-                        IF @DefaultTerminalId IS NOT NULL
-                        BEGIN
-                            UPDATE [Restaurant].[Shifts]
-                            SET [TerminalId] = @DefaultTerminalId
-                            WHERE [TerminalId] = '00000000-0000-0000-0000-000000000001'
-                               OR [TerminalId] = '00000000-0000-0000-0000-000000000000';
-                        END
+                    IF @DefaultTerminalId IS NOT NULL
+                    BEGIN
+                        UPDATE [Restaurant].[Shifts]
+                        SET [TerminalId] = @DefaultTerminalId
+                        WHERE [TerminalId] = '00000000-0000-0000-0000-000000000001'
+                           OR [TerminalId] = '00000000-0000-0000-0000-000000000000';
                     END
                 END
                 """;

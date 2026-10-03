@@ -18,6 +18,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// Displays structured items composition in a DevExpress grid, key sales metrics,
 /// interactive deal price &amp; discount settings, cost/margin verification, and dismiss reason.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class SmartComboPreviewDialog : XtraForm
 {
     public sealed record PreviewItemRow(string ProductName, string VariantName, int Quantity, decimal Price, string PriceText);

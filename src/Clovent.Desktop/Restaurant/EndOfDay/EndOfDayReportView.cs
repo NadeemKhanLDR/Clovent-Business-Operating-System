@@ -607,9 +607,21 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         sb.AppendLine(new string('-', 40));
         sb.AppendLine($"Total Bills:         {expanded?.Kpis.TotalOrders ?? report.ReceiptCount}");
         sb.AppendLine($"Item Sales:          {CurrencyDisplay.Format(expanded?.Kpis.ItemSalesValue ?? report.TotalSales)}");
+        if (expanded != null && expanded.Kpis.Discounts > 0)
+        {
+            sb.AppendLine($"Discount:            {CurrencyDisplay.Format(expanded.Kpis.Discounts)}");
+        }
         if (expanded != null && expanded.Kpis.DeliveryFees > 0)
         {
             sb.AppendLine($"Delivery Fees:       {CurrencyDisplay.Format(expanded.Kpis.DeliveryFees)}");
+        }
+        if (expanded != null && expanded.Kpis.ServiceCharges > 0)
+        {
+            sb.AppendLine($"Service Charges:     {CurrencyDisplay.Format(expanded.Kpis.ServiceCharges)}");
+        }
+        if (expanded != null && expanded.Kpis.Tax > 0)
+        {
+            sb.AppendLine($"Tax:                 {CurrencyDisplay.Format(expanded.Kpis.Tax)}");
         }
         sb.AppendLine($"Total Bill Sales:    {CurrencyDisplay.Format(expanded?.Kpis.TotalBillSalesValue ?? report.TotalSales)}");
         sb.AppendLine($"Cash:                {CurrencyDisplay.Format(expanded?.Kpis.CashCollected ?? report.CashCollected)}");

@@ -11,8 +11,7 @@ using Microsoft.Extensions.Options;
 namespace Clovent.Desktop.Seed;
 
 /// <summary>
-/// Development-only convenience: creates one demo user ("admin", password
-/// "Admin123!") if no user with that username exists yet, so
+/// Development-only convenience: creates one demo user ("admin") if no user with that username exists yet, so
 /// <see cref="Forms.Identity.LoginForm"/> is demonstrable end-to-end without a
 /// separate registration flow (out of scope for every milestone in this
 /// solution so far). Gated by <see cref="DesktopOptions.SeedDevelopmentUser"/> -

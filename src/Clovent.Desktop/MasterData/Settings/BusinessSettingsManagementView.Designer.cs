@@ -13,6 +13,8 @@ partial class BusinessSettingsManagementView
     private readonly LookUpEdit _timeZoneCombo = new();
     private readonly ComboBoxEdit _fiscalYearCombo = new();
     private readonly ComboBoxEdit _dateFormatCombo = new();
+    private readonly ComboBoxEdit _timeFormatCombo = new();
+    private readonly ComboBoxEdit _quantityPrecisionCombo = new();
     private readonly LabelControl _exampleLabel = new();
     private readonly SimpleButton _saveButton = new() { Text = "Save" };
     private readonly LabelControl _statusLabel = new();
@@ -45,13 +47,36 @@ partial class BusinessSettingsManagementView
         _dateFormatCombo.Properties.Items.Clear();
         _dateFormatCombo.Properties.Items.AddRange(new[]
         {
-            "dd/MM/yyyy HH:mm",
-            "dd/MM/yyyy hh:mm tt",
-            "MM/dd/yyyy HH:mm",
-            "MM/dd/yyyy hh:mm tt",
-            "yyyy-MM-dd HH:mm"
+            "dd-MMM-yyyy",
+            "dd/MM/yyyy",
+            "MM/dd/yyyy",
+            "yyyy-MM-dd"
         });
+        _dateFormatCombo.SelectedIndexChanged += (s, e) => UpdateExampleLabel();
         _dateFormatCombo.TextChanged += (s, e) => UpdateExampleLabel();
+
+        _timeFormatCombo.Properties.Items.Clear();
+        _timeFormatCombo.Properties.Items.AddRange(new[]
+        {
+            "12 Hour (06:15 PM)",
+            "24 Hour (18:15)"
+        });
+        _timeFormatCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _timeFormatCombo.SelectedIndex = 0;
+        _timeFormatCombo.SelectedIndexChanged += (s, e) => UpdateExampleLabel();
+
+        _quantityPrecisionCombo.Properties.Items.Clear();
+        _quantityPrecisionCombo.Properties.Items.AddRange(new[]
+        {
+            "0 Decimals (145)",
+            "1 Decimal (145.0)",
+            "2 Decimals (145.00)",
+            "3 Decimals (145.000)",
+            "4 Decimals (145.0000)"
+        });
+        _quantityPrecisionCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _quantityPrecisionCombo.SelectedIndex = 2; // Default 2 decimals
+        _quantityPrecisionCombo.SelectedIndexChanged += (s, e) => UpdateExampleLabel();
 
         BuildLayout();
 
@@ -105,8 +130,10 @@ partial class BusinessSettingsManagementView
         AddRow(form, "Default Language:", _languageCombo);
         AddRow(form, "Default Time Zone:", _timeZoneCombo);
         AddRow(form, "Default Fiscal Year:", _fiscalYearCombo);
-        AddRow(form, "Date & Time Format:", _dateFormatCombo);
-        AddRow(form, "Example:", _exampleLabel);
+        AddRow(form, "Date Format:", _dateFormatCombo);
+        AddRow(form, "Time Format:", _timeFormatCombo);
+        AddRow(form, "Quantity Precision:", _quantityPrecisionCombo);
+        AddRow(form, "Example Preview:", _exampleLabel);
 
         mainLayout.Controls.Add(form, 0, 2);
 
@@ -124,7 +151,7 @@ partial class BusinessSettingsManagementView
 
         mainLayout.Controls.Add(buttonRow, 0, 3);
 
-        foreach (var combo in new[] { _currencyCombo, _languageCombo, _fiscalYearCombo })
+        foreach (var combo in new[] { _currencyCombo, _languageCombo, _fiscalYearCombo, _timeFormatCombo, _quantityPrecisionCombo })
         {
             combo.Dock = DockStyle.Left;
             combo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(450, this);
@@ -152,7 +179,17 @@ partial class BusinessSettingsManagementView
         var rowIndex = panel.RowCount;
         panel.RowCount = rowIndex + 1;
         panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        panel.Controls.Add(new LabelControl { Text = label, Padding = new Padding(0, 6, 8, 0) }, 0, rowIndex);
+        var lbl = new LabelControl
+        {
+            Text = label,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0),
+            Padding = Padding.Empty,
+            AutoSizeMode = LabelAutoSizeMode.Horizontal
+        };
+        editor.Anchor = AnchorStyles.Left;
+        editor.Margin = new Padding(0, 4, 0, 4);
+        panel.Controls.Add(lbl, 0, rowIndex);
         panel.Controls.Add(editor, 1, rowIndex);
     }
 

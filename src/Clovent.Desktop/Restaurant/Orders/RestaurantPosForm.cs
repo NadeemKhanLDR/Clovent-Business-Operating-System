@@ -118,7 +118,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private readonly ICurrentSession _currentSession;
     private readonly IMenuItemsChangeNotifier _changeNotifier;
     private readonly IManagerAuthorizationService _managerAuthorization;
-    private readonly ILogger<RestaurantPosForm> _logger;
+    private ILogger<RestaurantPosForm> _logger = Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
     private readonly ISplashScreenService _splashScreenService;
     private IApplicationModeNavigator? _applicationModeNavigator;
     private readonly ContextMenuStrip _operationsMenu = new();
@@ -2589,7 +2589,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         var focusedLineId = _lineGridView.GetFocusedRow() is OrderLineRow r ? r.OrderLineId : Guid.Empty;
 
         var existingRows = _flowOrderedItems.Controls.OfType<TableLayoutPanel>().Where(t => t.Tag is Guid).ToList();
-        var existingIds = existingRows.Select(t => (Guid)t.Tag).ToList();
+        var existingIds = existingRows.Select(t => (Guid)(t.Tag ?? Guid.Empty)).ToList();
         var newIds = lines.Select(l => l.OrderLineId).ToList();
 
         if (existingIds.SequenceEqual(newIds))
@@ -2863,7 +2863,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                 }
 
                 var existingCards = _sidebarOrdersFlow.Controls.OfType<DevExpress.XtraEditors.PanelControl>().Where(c => c.Tag is Guid).ToList();
-                var existingOrderIds = existingCards.Select(c => (Guid)c.Tag).ToList();
+                var existingOrderIds = existingCards.Select(c => (Guid)(c.Tag ?? Guid.Empty)).ToList();
                 var newOrderIds = orders.Select(o => o.OrderId).ToList();
 
                 if (existingOrderIds.SequenceEqual(newOrderIds) && orders.Count > 0)
@@ -5463,9 +5463,11 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        var orderIdToHold = _currentOrder.OrderId;
+
         try
         {
-            var heldOrder = await _mediator.Send(new HoldOrderCommand(_currentOrder.OrderId));
+            var heldOrder = await _mediator.Send(new HoldOrderCommand(orderIdToHold));
             await LogActivityAsync("Hold Order", $"{heldOrder.OrderNumber}");
 
             _currentOrder = null;
@@ -5475,7 +5477,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to hold order {OrderId}", _currentOrder.OrderId);
+            _logger.LogError(ex, "Failed to hold order {OrderId}", orderIdToHold);
             XtraMessageBox.Show(this, $"Failed to hold order: {ex.Message}", "Hold Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             // DO NOT clear cart or change _currentOrder - keep current order intact!
         }
@@ -6689,7 +6691,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                     if (termRes.BranchId.HasValue)
                     {
                         branchId = termRes.BranchId.Value;
-                        branchName = termRes.BranchName;
+                        branchName = termRes.BranchName ?? "Branch";
                     }
                 }
             }

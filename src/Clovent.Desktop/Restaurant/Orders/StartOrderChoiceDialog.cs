@@ -22,6 +22,7 @@ public enum StartOrderChoice
 /// Compact choice dialog shown when a cashier clicks "Add Deal" with no active order.
 /// Prompts the cashier to start a Dine-In or Take Away order, or cancel cleanly.
 /// </summary>
+[System.ComponentModel.DesignerCategory("Code")]
 public sealed class StartOrderChoiceDialog : XtraForm
 {
     private static readonly Color AccentColor = Color.FromArgb(13, 148, 136);

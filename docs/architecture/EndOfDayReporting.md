@@ -140,13 +140,72 @@ A dedicated LIVE-UI polish pass was executed to resolve display and formatting d
    - In mixed inventory movements (Receipts, Issues, Adjustments, Transfers), summing raw positive quantities yields an invalid aggregate.
    - Explicitly cleared `SummaryItem` on `_inventoryMovementGridView.Columns["Quantity"]` to prevent deceptive totals.
 
-5. **Upsell Performance High-DPI Restructuring**:
-   - Fixed header subtitle clipping by setting `_headerPanel.AutoSize = true` with a clean subtitle (`"Analyze recommendation effectiveness and additional revenue."`).
-   - Converted filter area to a single-row 4-column `TableLayoutPanel` (height 30px, AutoSize).
-   - Rebalanced column widths with generous minimum widths preventing header truncation (`Recommended Item` 280/180, `Variant` 120/90, `Offers` 65/55, `Accepted` 75/70, `Dismissed` 75/70, `Conversion %` 90/85, `Upsell Revenue` 110/100).
-   - Header captions (`Accepted`, `Dismissed`, `Conversion %`) never truncate to `Accept...` or `Dismiss...` under 240 DPI.
+5. **Upsell Performance High-DPI Rebalancing & Caption Preservation**:
+   - Reconstructed column proportions to eliminate grid monopolization by `Recommended Item` (previously taking 60–70%):
+     - `Recommended Item`: 40.0% (target 38–42%)
+     - `Variant`: 13.0% (target 12–14%)
+     - `Offers`: 6.5% (target 6–7%)
+     - `Accepted`: 8.5% (target 8–9%)
+     - `Dismissed`: 8.5% (target 8–9%)
+     - `Conversion %`: 10.5% (target 10–11%)
+     - `Upsell Revenue`: 13.0% (target 11–13%)
+   - Wrapped column configuration in `_gridView.BeginUpdate()` / `_gridView.EndUpdate()` to prevent cumulative layout distortion on interactive addition.
+   - Set safe `MinWidth` computed from `TextRenderer.MeasureText(caption, headerFont).Width + glyphPadding` preventing high-DPI caption truncation at 240 DPI (~250% scaling).
+   - Disabled header filter buttons (`OptionsFilter.AllowFilter = false`) to preserve maximum text area.
+   - Full captions (`Accepted`, `Dismissed`, `Conversion %`, `Upsell Revenue`) display without ellipsis.
+   - Text columns left-aligned (`HorzAlignment.Near`), numeric columns right-aligned (`HorzAlignment.Far`).
 
-6. **Shell Ribbon Group Caption Protection**:
+6. **Customer Financial Reconciliation & Export Parity**:
+   - The Customers report tab and printouts visibly explain how `Item Sales` becomes `Bill Total` across every customer row and footer summary:
+     $$\text{Item Sales} - \text{Discount} + \text{Fees} + \text{Tax} = \text{Bill Total}$$
+     $$\text{Paid} + \text{On Account} = \text{Bill Total}$$
+   - Added `Discount` and `Tax` columns to the Customers grid view (`_customersGridView`) and `ExpandedCustomerRowDto`.
+   - Acceptance dataset reconciliation:
+     - Walk-in Guest: $\text{Item Sales } (6,020.00) - \text{Discount } (50.00) + \text{Fees } (0.00) + \text{Tax } (0.00) = \text{Bill Total } (5,970.00)$
+     - Corporate Client: $\text{Item Sales } (4,925.00) - \text{Discount } (0.00) + \text{Fees } (150.00) + \text{Tax } (0.00) = \text{Bill Total } (5,075.00)$
+     - Footer Totals: $\text{Item Sales } (10,945.00) - \text{Discount } (50.00) + \text{Fees } (150.00) + \text{Tax } (0.00) = \text{Bill Total } (11,045.00)$
+     - Settlement Totals: $\text{Paid } (7,070.00) + \text{On Account } (3,975.00) = \text{Bill Total } (11,045.00)$
+   - Full parity across On-Screen Report, Print Preview, Print (`ReceiptPreviewForm` and `GridReportingPrintService`), PDF export, and WYSIWYG Excel export.
+   - All financial columns display formatted to two decimal places (`n2`).
+
+7. **Shell Ribbon Group Caption Protection**:
    - Set `AllowTextClipping = false` on `RibbonPageGroup` within `MainForm.Designer.cs` so groups such as `"Financial / A/R"` are never truncated into `"Financial / A..."`.
+
+8. **Single Consolidated Database Architecture**:
+   - The system operates against a single unified SQL Server database (`Clovent_BusinessOperatingSystem`).
+   - Bounded contexts are cleanly segregated by SQL schemas: `Authentication`, `Identity`, `MasterData`, `Catalog`, `Inventory`, `Restaurant`.
+   - Each module maintains its own isolated migrations history table: `[Schema].[__EFMigrationsHistory]`.
+   - All DbContexts, services, and repositories resolve the canonical connection string `ConnectionStrings:Default`.
+
+### High-DPI (240 DPI / ~250% Scale) Live Quality Pass (Sales Summary & Stock On Hand)
+
+A focused quality pass addressed real-world display truncation and data projection under high DPI (1920×1080 display, ~250% scaling):
+
+1. **Sales Summary Location Editor Truncation**:
+   - Increased logical combo width from 140px to 210px (`_warehousePicker.SetCustomWidth(210, 210)`), with DPI-scaled runtime sizing (`DesktopDpi.Scale(210, this)`).
+   - Removed inner `_layout` padding (`Padding.Empty`) on `EntityPicker` to maximize text display area.
+   - Long warehouse names such as `"Kitchen Backup Warehouse"` render completely without ellipsis (`...`) under 240 DPI while maintaining compact proportions.
+
+2. **Sales Summary Label Vertical Centering**:
+   - Replaced `FlowLayoutPanel` wrappers for `periodPanel`, `fromPanel`, `toPanel`, and the internal layout of `EntityPicker` with structured 1-row, 2-column `TableLayoutPanel` controls.
+   - Set row size to `100%` and `Anchor = AnchorStyles.Left` with zero vertical margin offsets.
+   - All labels (`Location:`, `Period:`, `From:`, `To:`) vertically center precisely relative to their companion editors without arbitrary `Location.Y` pixel patches.
+
+3. **Sales Summary Action Button Uniform Sizing**:
+   - Standardized all 6 action buttons (`Generate`, `Preview`, `Print`, `Export PDF`, `Export Excel`, `Print Summary`) to uniform logical dimensions: `110px` width × `30px` height.
+   - Configured identical font (`Segoe UI 9pt Bold`), uniform padding `(8, 4, 8, 4)`, and uniform margins `(2, 0, 2, 0)`.
+   - Enforced runtime scaling in `ScaleLayoutAtRuntime()`.
+   - The entire toolbar remains strictly on a single row at high DPI in the exact canonical sequence: Location -> Period -> From -> To -> Generate -> Preview -> Print -> Export PDF -> Export Excel -> Print Summary.
+
+4. **Stock On Hand Top Layout & Action Preservation**:
+   - Replaced fragmented multi-row top panels with a clean, single-row `headerPanel` (`TableLayoutPanel`) containing `_warehousePicker` and `_receiveInventoryButton` side-by-side (`Warehouse: [ Kitchen Backup Warehouse ]  [ Receive Inventory ]`).
+   - Resolved clipping of the "Receive Inventory" button (`ceive Invento`) by enabling `AutoSize = true` with `MinimumSize = (130, 28)`, bold font, and comfortable padding.
+   - Retained canonical `Receive Inventory` quick-action on the warehouse stock view while preserving full sidebar navigation parity.
+
+5. **Stock On Hand SKU & Product Identity Resolution**:
+   - *Root Cause*: `LoadLookupsAsync` previously loaded warehouses into `_warehousePicker` before `ListProductVariantsQuery` completed. Selecting the first warehouse triggered an immediate asynchronous `RefreshAsync()`, which mapped rows before `_variantsById` was populated, resulting in permanently blank SKU and Product cells.
+   - *Fix*: `LoadLookupsAsync` now fetches variants and builds `_variantsById` before binding warehouses. A defensive fallback in `LoadItemsAsync` ensures variants are loaded if cache is empty.
+   - *Data Enrichment*: Enriched `ProductVariantDto` and `ListProductVariantsQuery` with the parent `ProductName` from `Catalog.Products`. Rows now display the full identity: `${ProductName} - ${VariantName}` (e.g. `Naan - Standard`) alongside the SKU (`NAAN-STD`).
+
 
 

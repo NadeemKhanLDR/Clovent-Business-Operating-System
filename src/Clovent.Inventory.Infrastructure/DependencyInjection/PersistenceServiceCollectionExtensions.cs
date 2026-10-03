@@ -28,12 +28,13 @@ public static class PersistenceServiceCollectionExtensions
     /// <exception cref="InvalidOperationException">No <c>ConnectionStrings:Inventory</c> value is configured.</exception>
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString(ConnectionStringName)
+        var connectionString = configuration.GetConnectionString("Default")
+            ?? configuration.GetConnectionString(ConnectionStringName)
             ?? throw new InvalidOperationException(
-                $"Missing required connection string 'ConnectionStrings:{ConnectionStringName}'.");
+                $"Missing required connection string 'ConnectionStrings:Default' or 'ConnectionStrings:{ConnectionStringName}'.");
 
         services.AddDbContext<InventoryDbContext>(options =>
-            options.UseSqlServer(connectionString)
+            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Inventory"))
                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<IWarehouseStockRepository, WarehouseStockRepository>();

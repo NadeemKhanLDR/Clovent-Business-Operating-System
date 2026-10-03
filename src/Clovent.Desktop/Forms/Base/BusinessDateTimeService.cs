@@ -11,6 +11,8 @@ namespace Clovent.Desktop.Forms.Base;
 public sealed class BusinessDateTimeService : IBusinessDateTimeService
 {
     private TimeZoneInfo _businessTimeZone = TimeZoneInfo.Utc;
+    private string _dateFormatPattern = "dd/MM/yyyy";
+    private string _timeFormatPattern = "HH:mm";
     private string _dateTimeFormat = "dd/MM/yyyy HH:mm";
 
     /// <summary>Process-wide default instance.</summary>
@@ -21,7 +23,7 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
         _businessTimeZone = timeZone ?? TimeZoneInfo.Utc;
         if (!string.IsNullOrWhiteSpace(dateTimeFormat))
         {
-            _dateTimeFormat = dateTimeFormat.Trim();
+            ApplyFormat(dateTimeFormat.Trim(), null);
         }
     }
 
@@ -38,13 +40,54 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
     public string DateTimeFormat => _dateTimeFormat;
 
     /// <inheritdoc/>
-    public void Configure(TimeZoneInfo timeZone, string dateTimeFormat)
+    public string DateFormatPattern => _dateFormatPattern;
+
+    /// <inheritdoc/>
+    public string TimeFormatPattern => _timeFormatPattern;
+
+    /// <inheritdoc/>
+    public void Configure(TimeZoneInfo timeZone, string dateFormat, string? timeFormat = null)
     {
         _businessTimeZone = timeZone ?? TimeZoneInfo.Utc;
-        if (!string.IsNullOrWhiteSpace(dateTimeFormat))
+        ApplyFormat(dateFormat, timeFormat);
+    }
+
+    private void ApplyFormat(string dateFormat, string? timeFormat)
+    {
+        if (string.IsNullOrWhiteSpace(dateFormat))
         {
-            _dateTimeFormat = dateTimeFormat.Trim();
+            dateFormat = "dd/MM/yyyy";
         }
+
+        var trimmedDate = dateFormat.Trim();
+
+        // Resolve time pattern
+        if (!string.IsNullOrWhiteSpace(timeFormat))
+        {
+            var tf = timeFormat.Trim();
+            if (tf.Equals("24 Hour", StringComparison.OrdinalIgnoreCase) ||
+                tf.Equals("24-Hour", StringComparison.OrdinalIgnoreCase) ||
+                tf.Equals("24Hour", StringComparison.OrdinalIgnoreCase) ||
+                tf.Equals("HH:mm", StringComparison.OrdinalIgnoreCase))
+            {
+                _timeFormatPattern = "HH:mm";
+            }
+            else
+            {
+                _timeFormatPattern = "hh:mm tt";
+            }
+        }
+        else if (trimmedDate.Contains("HH:mm", StringComparison.OrdinalIgnoreCase))
+        {
+            _timeFormatPattern = "HH:mm";
+        }
+        else if (trimmedDate.Contains("hh:mm", StringComparison.OrdinalIgnoreCase) || trimmedDate.Contains("tt", StringComparison.OrdinalIgnoreCase))
+        {
+            _timeFormatPattern = "hh:mm tt";
+        }
+
+        _dateFormatPattern = ExtractDateFormatPattern(trimmedDate);
+        _dateTimeFormat = $"{_dateFormatPattern} {_timeFormatPattern}";
     }
 
     /// <inheritdoc/>
@@ -77,8 +120,15 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
     /// <inheritdoc/>
     public string FormatDate(DateOnly value)
     {
-        var dateFormat = ExtractDateFormatPattern(_dateTimeFormat);
-        return value.ToString(dateFormat, CultureInfo.InvariantCulture);
+        return value.ToString(_dateFormatPattern, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Formats the date portion of a DateTimeOffset in the configured business timezone.</summary>
+    public string FormatDate(DateTimeOffset? utc)
+    {
+        if (utc == null) return "-";
+        var localTime = ConvertUtcToBusinessTime(utc.Value);
+        return localTime.ToString(_dateFormatPattern, CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc/>
@@ -102,7 +152,15 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
     {
         if (utc == null) return "-";
         var localTime = ConvertUtcToBusinessTime(utc.Value);
-        return localTime.ToString("hh:mm tt", CultureInfo.InvariantCulture);
+        return localTime.ToString(_timeFormatPattern, CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>Formats the time portion of a DateTime in the configured business timezone.</summary>
+    public string FormatTime(DateTime? utc)
+    {
+        if (utc == null) return "-";
+        var localTime = ConvertUtcToBusinessTime(utc.Value);
+        return localTime.ToString(_timeFormatPattern, CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc/>

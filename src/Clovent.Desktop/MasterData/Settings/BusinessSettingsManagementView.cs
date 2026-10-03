@@ -170,6 +170,11 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
             {
                 _dateFormatCombo.Text = _existingSettings.DateFormat;
             }
+
+            var companyDisplay = CompanyDisplaySettingsStore.Load();
+            _timeFormatCombo.SelectedIndex = companyDisplay.TimeFormat.Contains("24") ? 1 : 0;
+            _quantityPrecisionCombo.SelectedIndex = Math.Clamp(companyDisplay.QuantityPrecision, 0, 4);
+
             UpdateExampleLabel();
             _statusLabel.Text = "Loaded existing settings.";
         }
@@ -177,6 +182,9 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
         {
             _existingSettings = null;
             _dateFormatCombo.SelectedIndex = 0;
+            var companyDisplay = CompanyDisplaySettingsStore.Load();
+            _timeFormatCombo.SelectedIndex = companyDisplay.TimeFormat.Contains("24") ? 1 : 0;
+            _quantityPrecisionCombo.SelectedIndex = Math.Clamp(companyDisplay.QuantityPrecision, 0, 4);
             UpdateExampleLabel();
             _statusLabel.Text = "No settings yet for this organization - Save to create them.";
         }
@@ -184,17 +192,20 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
 
     private void UpdateExampleLabel()
     {
-        var format = _dateFormatCombo.Text.Trim();
-        if (string.IsNullOrEmpty(format))
-        {
-            _exampleLabel.Text = "-";
-            return;
-        }
+        var dateFormat = _dateFormatCombo.Text.Trim();
+        if (string.IsNullOrEmpty(dateFormat)) dateFormat = "dd-MMM-yyyy";
+
+        var is24Hour = _timeFormatCombo.SelectedIndex == 1;
+        var timePattern = is24Hour ? "HH:mm" : "hh:mm tt";
+        var precision = _quantityPrecisionCombo.SelectedIndex >= 0 ? _quantityPrecisionCombo.SelectedIndex : 2;
 
         try
         {
             var businessNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, DateTimeDisplay.BusinessTimeZone);
-            _exampleLabel.Text = businessNow.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
+            var dateText = businessNow.ToString(dateFormat, System.Globalization.CultureInfo.InvariantCulture);
+            var timeText = businessNow.ToString(timePattern, System.Globalization.CultureInfo.InvariantCulture);
+            var qtyText = 145m.ToString("N" + precision, System.Globalization.CultureInfo.InvariantCulture);
+            _exampleLabel.Text = $"{dateText} {timeText}  |  Sample Quantity: {qtyText}";
         }
         catch
         {
@@ -285,6 +296,16 @@ public sealed partial class BusinessSettingsManagementView : XtraUserControl
 
             XtraMessageBox.Show(this, "Please restart the application to apply the language.", "Language Changed", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
+        var timeFormat = _timeFormatCombo.SelectedIndex == 1 ? "24 Hour" : "12 Hour";
+        var precision = _quantityPrecisionCombo.SelectedIndex >= 0 ? _quantityPrecisionCombo.SelectedIndex : 2;
+        CompanyDisplaySettingsStore.Save(new CompanyDisplaySettings
+        {
+            DateFormat = dateFormat,
+            TimeFormat = timeFormat,
+            QuantityPrecision = precision
+        });
+        QuantityDisplay.Configure(precision);
 
         await DateTimeDisplayLoader.ConfigureAsync(_mediator);
 
