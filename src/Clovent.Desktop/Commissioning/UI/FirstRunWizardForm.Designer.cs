@@ -227,7 +227,7 @@ partial class FirstRunWizardForm
         this.panelSidebar.Location = new System.Drawing.Point(0, 70);
         this.panelSidebar.Name = "panelSidebar";
         this.panelSidebar.Padding = new System.Windows.Forms.Padding(16, 18, 16, 18);
-        this.panelSidebar.Size = new System.Drawing.Size(225, 526);
+        this.panelSidebar.Size = new System.Drawing.Size(240, 526);
         this.panelSidebar.TabIndex = 1;
         // 
         // lblSidebarHeader
@@ -426,6 +426,7 @@ partial class FirstRunWizardForm
         // 
         // panelContainer
         // 
+        this.panelContainer.AutoScroll = true;
         this.panelContainer.Controls.Add(this.panelStep1);
         this.panelContainer.Controls.Add(this.panelStep2);
         this.panelContainer.Controls.Add(this.panelStep3);
@@ -435,7 +436,7 @@ partial class FirstRunWizardForm
         this.panelContainer.Controls.Add(this.panelStep7);
         this.panelContainer.Controls.Add(this.panelStep8);
         this.panelContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-        this.panelContainer.Location = new System.Drawing.Point(225, 70);
+        this.panelContainer.Location = new System.Drawing.Point(240, 70);
         this.panelContainer.Name = "panelContainer";
         this.panelContainer.Padding = new System.Windows.Forms.Padding(24, 18, 24, 18);
         this.panelContainer.Size = new System.Drawing.Size(709, 526);
@@ -443,6 +444,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep1
         // 
+        this.panelStep1.AutoScroll = true;
         this.panelStep1.Controls.Add(this.lblStep1Title);
         this.panelStep1.Controls.Add(this.lblStep1Desc);
         this.panelStep1.Controls.Add(this.grpPrerequisites);
@@ -569,6 +571,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep2
         // 
+        this.panelStep2.AutoScroll = true;
         this.panelStep2.Controls.Add(this.lblStep2Title);
         this.panelStep2.Controls.Add(this.lblStep2Desc);
         this.panelStep2.Controls.Add(this.lblServer);
@@ -737,6 +740,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep3
         // 
+        this.panelStep3.AutoScroll = true;
         this.panelStep3.Controls.Add(this.lblStep3Title);
         this.panelStep3.Controls.Add(this.lblStep3Desc);
         this.panelStep3.Controls.Add(this.chkCreateDbIfMissing);
@@ -840,6 +844,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep4
         // 
+        this.panelStep4.AutoScroll = true;
         this.panelStep4.Controls.Add(this.lblStep4Title);
         this.panelStep4.Controls.Add(this.lblStep4Desc);
         this.panelStep4.Controls.Add(this.lblOrgName);
@@ -954,6 +959,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep5
         // 
+        this.panelStep5.AutoScroll = true;
         this.panelStep5.Controls.Add(this.lblStep5Title);
         this.panelStep5.Controls.Add(this.lblStep5Desc);
         this.panelStep5.Controls.Add(this.lblAdminUsername);
@@ -1119,6 +1125,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep6
         // 
+        this.panelStep6.AutoScroll = true;
         this.panelStep6.Controls.Add(this.lblStep6Title);
         this.panelStep6.Controls.Add(this.lblStep6Desc);
         this.panelStep6.Controls.Add(this.lblTimeZone);
@@ -1288,6 +1295,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep7
         // 
+        this.panelStep7.AutoScroll = true;
         this.panelStep7.Controls.Add(this.lblStep7Title);
         this.panelStep7.Controls.Add(this.lblStep7Desc);
         this.panelStep7.Controls.Add(this.lblHardwareId);
@@ -1400,6 +1408,7 @@ partial class FirstRunWizardForm
         // 
         // panelStep8
         // 
+        this.panelStep8.AutoScroll = true;
         this.panelStep8.Controls.Add(this.lblStep8Title);
         this.panelStep8.Controls.Add(this.lblStep8Desc);
         this.panelStep8.Controls.Add(this.memoSummary);
@@ -1460,16 +1469,15 @@ partial class FirstRunWizardForm
         // 
         // FirstRunWizardForm
         // 
-        this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.ClientSize = new System.Drawing.Size(934, 651);
+        this.ClientSize = new System.Drawing.Size(1020, 720);
         this.Controls.Add(this.panelContainer);
         this.Controls.Add(this.panelSidebar);
         this.Controls.Add(this.panelBottom);
         this.Controls.Add(this.panelHeader);
-        this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimumSize = new System.Drawing.Size(900, 600);
+        this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+        this.MaximizeBox = true;
+        this.MinimizeBox = false;
+        this.MinimumSize = new System.Drawing.Size(960, 640);
         this.Name = "FirstRunWizardForm";
         this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
         this.Text = "Clovent Business Operating System - First-Run Commissioning";

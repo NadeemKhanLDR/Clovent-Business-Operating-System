@@ -1,11 +1,11 @@
 ; ==============================================================================
 ; Clovent Business Operating System (CBOS) - Production Installer Script
-; Release: 1.0.7 (win-x64)
+; Release: 1.0.8 (win-x64)
 ; Technology: Inno Setup 6 (Native 64-bit, elevated, prerequisite-chained)
 ; ==============================================================================
 
 #define MyAppName "Clovent Business Operating System"
-#define MyAppVersion "1.0.7"
+#define MyAppVersion "1.0.8"
 #define MyAppPublisher "Clovent"
 #define MyAppExeName "Clovent.Desktop.exe"
 #define MyAppId "{{C107E47D-CB05-47F1-9BD7-A107CB052026}}"
@@ -20,7 +20,7 @@ DefaultDirName={autopf}\Clovent\Business Operating System
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\artifacts\installer
-OutputBaseFilename=Clovent.BusinessOperatingSystem-1.0.7-Setup
+OutputBaseFilename=Clovent.BusinessOperatingSystem-1.0.8-Setup
 ; SetupIconFile=..\src\Clovent.Desktop\Resources\cbos.ico
 UninstallDisplayIcon={app}\Clovent.Desktop.exe
 Compression=lzma2/max
@@ -44,8 +44,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main application payload (frozen 1.0.7 release binaries)
-Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.0.7-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main application payload (CBOS 1.0.8 release binaries)
+Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.0.8-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Internal silent database provisioner tool (extracted to {tmp} and deleted on setup completion)
 Source: "..\tools\Clovent.Installer.Provisioner\bin\publish\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
@@ -74,7 +74,7 @@ var
 begin
   LogDir := ExpandConstant('{commonappdata}\Clovent\BusinessOperatingSystem\Logs');
   ForceDirectories(LogDir);
-  LogFile := LogDir + '\Setup-1.0.7.log';
+  LogFile := LogDir + '\Setup-1.0.8.log';
   TimeStamp := GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':');
   SaveStringToFile(LogFile, '[' + TimeStamp + '] ' + Msg + #13#10, True);
   Log(Msg);

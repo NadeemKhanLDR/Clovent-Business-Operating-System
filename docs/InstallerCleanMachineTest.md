@@ -1,8 +1,8 @@
 # Clovent Business Operating System - Clean Machine & Windows Sandbox Acceptance Guide
 
-**Release Version:** 1.0.7  
-**Installer Artifact:** `artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe`  
-**Test Objective:** Validate full automated onboarding, SQL Server Express chaining, database provisioning, first-run commissioning, license issuance, POS transactions, restart persistence, and uninstall safety on a completely clean Windows workstation.
+**Release Version:** 1.0.8 (Current) | 1.0.7 (Frozen Baseline Preserved)  
+**Installer Artifact:** `artifacts\installer\Clovent.BusinessOperatingSystem-1.0.8-Setup.exe`  
+**Test Objective:** Validate full automated onboarding, SQL Server Express chaining, database provisioning, responsive High-DPI first-run commissioning, license issuance, POS transactions, restart persistence, and uninstall safety on a completely clean Windows workstation.
 
 ---
 
@@ -21,7 +21,7 @@
 [ Step 1: Launch Sandbox ]
           │
           ▼
-[ Step 2: Copy Setup Executable ]
+[ Step 2: Copy Setup Executable (1.0.8) ]
           │
           ▼
 [ Step 3: Run Setup & Accept UAC ]
@@ -29,13 +29,15 @@
           ▼
 [ Step 4: Automated Setup Execution ]
   - SQL Server detection & install (CLOVENT)
-  - Application binary extraction
+  - Application binary extraction (1.0.8)
   - Database provisioning & schema migrations
   - Payment method seeding (Cash, Card, On Account)
   - Security hardening & DPAPI configuration
           │
           ▼
-[ Step 5: First-Run Commissioning Wizard ]
+[ Step 5: First-Run Commissioning Wizard & High-DPI Check ]
+  - Verify responsive window dimensions (65–80% of screen)
+  - Verify unclipped header, sidebar, and footer
   - Enterprise hierarchy (Org / Company / Branch)
   - First administrator account
   - Regional & terminal settings
@@ -66,14 +68,14 @@
    ```text
    d:\Clovent Business Operating System\artifacts\installer\
    ```
-2. Copy `Clovent.BusinessOperatingSystem-1.0.7-Setup.exe` (Ctrl+C).
+2. Copy `Clovent.BusinessOperatingSystem-1.0.8-Setup.exe` (Ctrl+C).
 3. Switch into the Windows Sandbox desktop and paste it (Ctrl+V).
 4. *(Optional for Offline Testing)*: Also copy `SQLEXPR_x64_ENU.exe` into the same folder.
 
 ---
 
 ### Step 3: Run Setup & Elevation
-1. Double-click `Clovent.BusinessOperatingSystem-1.0.7-Setup.exe`.
+1. Double-click `Clovent.BusinessOperatingSystem-1.0.8-Setup.exe`.
 2. When prompted by Windows User Account Control (UAC), click **Yes** to allow administrative elevation.
 
 ---
@@ -87,7 +89,7 @@
    - Detects that no SQL Server exists.
    - Automatically acquires and installs Microsoft SQL Server 2022 Express under named instance `CLOVENT`.
    - Starts and verifies Windows Service `MSSQL$CLOVENT`.
-   - Deploys the self-contained CBOS 1.0.7 application payload.
+   - Deploys the self-contained CBOS 1.0.8 application payload.
    - Invokes the production database provisioner:
      - Creates database `Clovent_BusinessOperatingSystem`.
      - Applies EF Core migrations across all 6 contexts (`Authentication`, `Identity`, `MasterData`, `Catalog`, `Inventory`, `Restaurant`).
@@ -99,9 +101,19 @@
 
 ---
 
-### Step 5: First-Run Commissioning Wizard
+### Step 5: First-Run Commissioning Wizard & Display Scaling Acceptance
 When `Clovent.Desktop.exe` launches, it detects that the technical database is ready, but business setup is needed. The First-Run Wizard appears:
 
+#### High-DPI & Display Scaling Verification Checklist:
+Before filling fields, verify the visual layout integrity of `FirstRunWizardForm`:
+- [ ] **Window Geometry:** Form opens at a comfortable, large size occupying approximately 65%–80% of the usable screen area (centered). It must **not** open as a tiny, undersized dialog.
+- [ ] **Window Sizability & Maximize:** The window has resizable borders (`Sizable`) and a maximize button (`MaximizeBox = true`). Test maximizing and resizing the window to confirm responsive expansion.
+- [ ] **Header:** Title *"First-Run Setup & Commissioning"* and subtitle are crisp, fully readable, and not clipped vertically or horizontally.
+- [ ] **Sidebar (Left):** All 8 steps (1. Overview, 2. Database, 3. Schemas, 4. Organization, 5. Administrator, 6. Regional, 7. Licensing, 8. Finalize) are fully visible without text clipping or vertical bunching.
+- [ ] **Footer (Bottom):** Navigation buttons (**Cancel**, **Back**, **Next**, **Finish**) are clearly visible and docked to the right. The status indicator label (`lblFooterStatus`) never collides with or overlaps any button.
+- [ ] **Display Scaling Tests:** Test at target display scalings (100%, 125%, 150%, 175%, 200%, 225%, 250%) and resolutions (1366x768, 1600x900, 1920x1080). Auto-scrollbars appear smoothly on content panels if the viewport is constrained.
+
+#### Wizard Step Execution:
 1. **Step 1 (Welcome & Detection):**
    - Verify OS, 64-bit runtime, DPI scaling, and elevation status. Click **Next**.
 2. **Step 2 (Database Connection):**

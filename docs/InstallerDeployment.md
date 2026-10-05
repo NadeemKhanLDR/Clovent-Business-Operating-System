@@ -1,24 +1,26 @@
 # Clovent Business Operating System - Installer & Deployment Architecture
 
-**Version:** 1.0.7  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md) | [database.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/database.md) | [security.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/security.md) | [release.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/release.md)
+**Version:** 1.0.8 (Current) | 1.0.7 (Frozen Baseline Preserved)  
+**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md) | [winforms-ui.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/winforms-ui.md) | [database.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/database.md) | [security.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/security.md) | [release.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/release.md)
 
 ---
 
 ## 1. Overview & Objective
 
-The CBOS 1.0.7 single-file installer provides a frictionless, enterprise-grade deployment experience for retail and hospitality workstations. The end customer receives **one single installer executable**:
+The CBOS 1.0.8 single-file installer provides a frictionless, enterprise-grade deployment experience for retail and hospitality workstations. The end customer receives **one single installer executable**:
 
 ```text
-artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe
+artifacts\installer\Clovent.BusinessOperatingSystem-1.0.8-Setup.exe
 ```
+*(Note: The frozen 1.0.7 release installer `artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe` is permanently preserved).*
 
 The installer orchestrates complete workstation onboarding without requiring manual operator intervention:
-- **No manual .NET installation:** The CBOS 1.0.7 payload is fully self-contained (`win-x64`).
+- **No manual .NET installation:** The CBOS 1.0.8 payload is fully self-contained (`win-x64`).
 - **No manual SQL Server installation:** Local SQL Server instances are detected automatically; if none exist, Microsoft SQL Server 2022 Express is installed silently.
 - **No manual SQL scripts:** Database creation, schema migrations, and payment method seeding are executed via CBOS's production C# provisioning services.
 - **No plaintext configuration editing:** Machine-level database settings and directory ACLs are configured and encrypted via Windows DPAPI.
 - **No default credentials:** Real customers provision their own enterprise hierarchy and first administrator via the First-Run Commissioning Wizard.
+- **Responsive High-DPI First-Run Commissioning Wizard:** Automatically scales across 100%–250% display scaling and 1366x768 to 1920x1080+ resolutions without control clipping, label compression, or dialog under-sizing.
 
 ---
 
@@ -121,6 +123,18 @@ Once the technical installer completes and launches `Clovent.Desktop.exe`:
    - **Step 8:** Review & Finalize (Writes protected `commissioning.json` marker).
 3. The operator is immediately directed to the standard CBOS Sign-In screen.
 
+### High-DPI & Multi-Resolution Sizing Architecture
+To ensure seamless onboarding across varying clean-machine environments (e.g., Windows Sandbox, remote sessions, 4K POS terminals, 100%–250% DPI scaling):
+- **Dynamic Screen-Proportional Geometry:** On load, the wizard computes its initial bounds relative to `Screen.FromControl(this).WorkingArea`. It targets 72% width and 76% height of the usable screen, clamping between a scaled minimum size (`980x660` baseline scaled via `DesktopDpi.Scale`) and a maximum limit of 94% of the working area.
+- **Omission of AutoScaleMode in Designer:** In adherence to AGENTS.md Rule 5 and PerMonitorV2 requirements, `AutoScaleMode.Font` and `AutoScaleDimensions` are omitted in `FirstRunWizardForm.Designer.cs` to prevent Windows Forms coordinate recomputation and double-scaling artifacts.
+- **Sizable Window with Full Maximize Support:** `FormBorderStyle = FormBorderStyle.Sizable` and `MaximizeBox = true` give operators full control over dialog geometry.
+- **AutoScroll Protection:** `panelContainer` and all 8 step content panels have `AutoScroll = true` enabled, preventing control cutoff or hidden buttons even in constrained virtual viewports.
+- **Responsive Layout Engine (`ApplyResponsiveLayout`):**
+  - **Sidebar:** Scaled to 240px logical baseline, dynamically distributing the 8 step indicator labels across available vertical space.
+  - **Header:** Scaled to 78px logical baseline with properly padded, wrapped titles.
+  - **Footer:** Scaled to 60px logical baseline with right-aligned action buttons (`btnCancel`, `btnBack`, `btnNext`, `btnFinish`). The status label `lblFooterStatus` is bounded and auto-ellipsized between the step counter and cancel button, preventing horizontal collisions.
+  - **Step Panels:** Dynamically positions labels, text boxes, and buttons using DPI-scaled control heights and gutters with responsive multiline wrapping.
+
 ---
 
 ## 6. Upgrade, Reinstall & Uninstall Policies
@@ -147,7 +161,7 @@ Once the technical installer completes and launches `Clovent.Desktop.exe`:
 
 ## 7. Logging & Diagnostic Support
 
-- **Installer Engine Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\Setup-1.0.7.log`
+- **Installer Engine Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\Setup-1.0.8.log` (or `Setup-1.0.7.log`)
 - **Database Provisioner Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\installer-provisioning.log`
 - **Application Startup Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\application.log`
 - **Zero Secrets Rule:** All connection strings and passwords are systematically masked (`***`) before being emitted to log files.

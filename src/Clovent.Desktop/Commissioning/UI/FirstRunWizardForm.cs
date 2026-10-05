@@ -6,6 +6,7 @@ using Clovent.Desktop.Commissioning.Database;
 using Clovent.Desktop.Commissioning.Security;
 using Clovent.Desktop.Commissioning.Services;
 using Clovent.Desktop.Configuration;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Licensing;
 using DevExpress.XtraEditors;
 
@@ -48,7 +49,7 @@ public partial class FirstRunWizardForm : XtraForm
 
         InitializeComponent();
 
-        if (DesignMode || System.ComponentModel.LicenseManager.UsageMode == System.ComponentModel.LicenseUsageMode.Designtime)
+        if (DesignMode || System.ComponentModel.LicenseManager.UsageMode == System.ComponentModel.LicenseUsageMode.Designtime || DesignModeHelper.IsInDesignMode)
         {
             return;
         }
@@ -99,11 +100,22 @@ public partial class FirstRunWizardForm : XtraForm
         btnImportLicense.Click += BtnImportLicense_Click;
         chkEvaluationMode.CheckedChanged += ChkEvaluationMode_CheckedChanged;
 
+        Resize += (s, e) => ApplyResponsiveLayout();
         Load += FirstRunWizardForm_Load;
+
+        ApplyResponsiveLayout();
     }
 
     private void FirstRunWizardForm_Load(object? sender, EventArgs e)
     {
+        if (DesignMode || System.ComponentModel.LicenseManager.UsageMode == System.ComponentModel.LicenseUsageMode.Designtime || DesignModeHelper.IsInDesignMode)
+        {
+            return;
+        }
+
+        ApplyScreenBoundsAndSizing();
+        ApplyResponsiveLayout();
+
         PopulateStep1Detection();
         PopulateStep2ConnectionDefaults();
         PopulateStep6RegionalDefaults();
@@ -158,6 +170,7 @@ public partial class FirstRunWizardForm : XtraForm
         }
 
         UpdateNavigationState();
+        ApplyStepContentLayout();
     }
 
     private void UpdateSidebarStyles()
@@ -993,6 +1006,427 @@ public partial class FirstRunWizardForm : XtraForm
             btnBack.Enabled = true;
             btnCancel.Enabled = true;
         }
+    }
+
+    #endregion
+
+    #region Responsive Layout & High-DPI Sizing
+
+    private void ApplyScreenBoundsAndSizing()
+    {
+        var screen = Screen.FromControl(this) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
+        var workArea = screen.WorkingArea;
+
+        // Target 72% width and 76% height of usable screen area on 1920x1080 / high-DPI displays
+        int targetW = (int)(workArea.Width * 0.72);
+        int targetH = (int)(workArea.Height * 0.76);
+
+        // Enforce DPI-scaled minimum bounds (980x660 baseline at 96 DPI)
+        int minW = DesktopDpi.Scale(980, this);
+        int minH = DesktopDpi.Scale(660, this);
+
+        // Upper bounds clamped to 94% of workArea to ensure borders, title bar, and taskbar remain visible
+        int maxW = (int)(workArea.Width * 0.94);
+        int maxH = (int)(workArea.Height * 0.94);
+
+        int finalW = Math.Clamp(Math.Max(targetW, minW), Math.Min(minW, maxW), maxW);
+        int finalH = Math.Clamp(Math.Max(targetH, minH), Math.Min(minH, maxH), maxH);
+
+        MinimumSize = new Size(Math.Min(minW, maxW), Math.Min(minH, maxH));
+        Size = new Size(finalW, finalH);
+
+        // Center dialog within working area
+        int x = workArea.Left + (workArea.Width - finalW) / 2;
+        int y = workArea.Top + (workArea.Height - finalH) / 2;
+        Location = new Point(Math.Max(workArea.Left, x), Math.Max(workArea.Top, y));
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        ApplyResponsiveLayout();
+    }
+
+    private void ApplyResponsiveLayout()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        SuspendLayout();
+        try
+        {
+            ApplyHeaderLayout();
+            ApplySidebarLayout();
+            ApplyFooterLayout();
+            ApplyStepContentLayout();
+        }
+        finally
+        {
+            ResumeLayout(true);
+        }
+    }
+
+    private void ApplyHeaderLayout()
+    {
+        panelHeader.Height = DesktopDpi.Scale(78, this);
+        lblWizardTitle.Location = new Point(DesktopDpi.Scale(24, this), DesktopDpi.Scale(14, this));
+        lblWizardSubtitle.Location = new Point(DesktopDpi.Scale(24, this), DesktopDpi.Scale(42, this));
+    }
+
+    private void ApplySidebarLayout()
+    {
+        panelSidebar.Width = DesktopDpi.Scale(240, this);
+        lblSidebarHeader.Location = new Point(DesktopDpi.Scale(18, this), DesktopDpi.Scale(18, this));
+
+        LabelControl[] steps = [lblStep1, lblStep2, lblStep3, lblStep4, lblStep5, lblStep6, lblStep7, lblStep8];
+        int startY = DesktopDpi.Scale(48, this);
+        int stepGap = DesktopDpi.Scale(36, this);
+
+        for (int i = 0; i < steps.Length; i++)
+        {
+            steps[i].Location = new Point(DesktopDpi.Scale(18, this), startY + (i * stepGap));
+            steps[i].AutoSize = true;
+        }
+    }
+
+    private void ApplyFooterLayout()
+    {
+        panelBottom.Height = DesktopDpi.Scale(60, this);
+
+        int pad = DesktopDpi.Scale(20, this);
+        int btnH = DesktopDpi.Scale(32, this);
+        int btnW = DesktopDpi.Scale(92, this);
+        int finishW = DesktopDpi.Scale(110, this);
+        int gap = DesktopDpi.Scale(8, this);
+        int yPos = (panelBottom.ClientSize.Height - btnH) / 2;
+
+        btnFinish.Size = new Size(finishW, btnH);
+        btnNext.Size = new Size(btnW, btnH);
+        btnBack.Size = new Size(btnW, btnH);
+        btnCancel.Size = new Size(btnW, btnH);
+
+        int rightEdge = panelBottom.ClientSize.Width - pad;
+        btnFinish.Location = new Point(rightEdge - finishW, yPos);
+        btnNext.Location = new Point(rightEdge - btnW, yPos);
+
+        int nextOrFinishLeft = Math.Min(btnFinish.Left, btnNext.Left);
+        btnBack.Location = new Point(nextOrFinishLeft - gap - btnW, yPos);
+        btnCancel.Location = new Point(btnBack.Left - gap - btnW, yPos);
+
+        lblStepIndicator.Location = new Point(pad, (panelBottom.ClientSize.Height - lblStepIndicator.Height) / 2);
+
+        int statusLeft = lblStepIndicator.Right + DesktopDpi.Scale(16, this);
+        int statusMaxRight = btnCancel.Left - DesktopDpi.Scale(16, this);
+        int statusWidth = Math.Max(100, statusMaxRight - statusLeft);
+
+        lblFooterStatus.Location = new Point(statusLeft, (panelBottom.ClientSize.Height - lblFooterStatus.Height) / 2);
+        lblFooterStatus.AutoSizeMode = LabelAutoSizeMode.None;
+        lblFooterStatus.Width = statusWidth;
+        lblFooterStatus.AutoEllipsis = true;
+    }
+
+    private void ApplyStepContentLayout()
+    {
+        switch (_currentStep)
+        {
+            case 1:
+                LayoutStep1();
+                break;
+            case 2:
+                LayoutStep2();
+                break;
+            case 3:
+                LayoutStep3();
+                break;
+            case 4:
+                LayoutStep4();
+                break;
+            case 5:
+                LayoutStep5();
+                break;
+            case 6:
+                LayoutStep6();
+                break;
+            case 7:
+                LayoutStep7();
+                break;
+            case 8:
+                LayoutStep8();
+                break;
+        }
+    }
+
+    private void LayoutStep1()
+    {
+        lblStep1Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep1Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep1.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep1Desc.Width = contentW;
+
+        int grpW = contentW;
+        int grpH = DesktopDpi.Scale(156, this);
+        grpPrerequisites.Location = new Point(0, lblStep1Desc.Bottom + DesktopDpi.Scale(14, this));
+        grpPrerequisites.Size = new Size(grpW, grpH);
+
+        int innerPad = DesktopDpi.Scale(16, this);
+        lblPrereqSql.Location = new Point(innerPad, DesktopDpi.Scale(32, this));
+        lblPrereqRuntime.Location = new Point(innerPad, DesktopDpi.Scale(60, this));
+        lblPrereqDisplay.Location = new Point(innerPad, DesktopDpi.Scale(88, this));
+        lblPrereqAdmin.Location = new Point(innerPad, DesktopDpi.Scale(116, this));
+
+        grpSystemDetection.Location = new Point(0, grpPrerequisites.Bottom + DesktopDpi.Scale(14, this));
+        grpSystemDetection.Size = new Size(grpW, grpH);
+
+        lblDetectedOs.Location = new Point(innerPad, DesktopDpi.Scale(32, this));
+        lblDetectedRuntime.Location = new Point(innerPad, DesktopDpi.Scale(60, this));
+        lblDetectedDpi.Location = new Point(innerPad, DesktopDpi.Scale(88, this));
+        lblDetectedElevation.Location = new Point(innerPad, DesktopDpi.Scale(116, this));
+    }
+
+    private void LayoutStep2()
+    {
+        lblStep2Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep2Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep2.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep2Desc.Width = contentW;
+
+        int edW = Math.Min(DesktopDpi.Scale(500, this), contentW);
+        int edH = DesktopDpi.Scale(26, this);
+        int curY = lblStep2Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        lblServer.Location = new Point(0, curY);
+        txtServer.Location = new Point(0, lblServer.Bottom + DesktopDpi.Scale(4, this));
+        txtServer.Size = new Size(edW, edH);
+        curY = txtServer.Bottom + DesktopDpi.Scale(10, this);
+
+        lblDatabase.Location = new Point(0, curY);
+        txtDatabase.Location = new Point(0, lblDatabase.Bottom + DesktopDpi.Scale(4, this));
+        txtDatabase.Size = new Size(edW, edH);
+        curY = txtDatabase.Bottom + DesktopDpi.Scale(10, this);
+
+        lblAuth.Location = new Point(0, curY);
+        cmbAuth.Location = new Point(0, lblAuth.Bottom + DesktopDpi.Scale(4, this));
+        cmbAuth.Size = new Size(edW, edH);
+        curY = cmbAuth.Bottom + DesktopDpi.Scale(10, this);
+
+        lblUsername.Location = new Point(0, curY);
+        txtUsername.Location = new Point(0, lblUsername.Bottom + DesktopDpi.Scale(4, this));
+        txtUsername.Size = new Size(edW, edH);
+        curY = txtUsername.Bottom + DesktopDpi.Scale(10, this);
+
+        lblPassword.Location = new Point(0, curY);
+        txtPassword.Location = new Point(0, lblPassword.Bottom + DesktopDpi.Scale(4, this));
+        txtPassword.Size = new Size(edW, edH);
+        curY = txtPassword.Bottom + DesktopDpi.Scale(16, this);
+
+        btnTestConnection.Location = new Point(0, curY);
+        btnTestConnection.Size = new Size(DesktopDpi.Scale(140, this), DesktopDpi.Scale(32, this));
+        lblConnectionStatus.Location = new Point(btnTestConnection.Right + DesktopDpi.Scale(14, this), curY + (btnTestConnection.Height - lblConnectionStatus.Height) / 2);
+    }
+
+    private void LayoutStep3()
+    {
+        lblStep3Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep3Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep3.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep3Desc.Width = contentW;
+
+        int curY = lblStep3Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        chkCreateDbIfMissing.Location = new Point(0, curY);
+        chkCreateDbIfMissing.Width = contentW;
+        curY = chkCreateDbIfMissing.Bottom + DesktopDpi.Scale(8, this);
+
+        chkApplyMigrations.Location = new Point(0, curY);
+        chkApplyMigrations.Width = contentW;
+        curY = chkApplyMigrations.Bottom + DesktopDpi.Scale(14, this);
+
+        btnApplyMigrations.Location = new Point(0, curY);
+        btnApplyMigrations.Size = new Size(DesktopDpi.Scale(210, this), DesktopDpi.Scale(34, this));
+        curY = btnApplyMigrations.Bottom + DesktopDpi.Scale(14, this);
+
+        progressMigrations.Location = new Point(0, curY);
+        progressMigrations.Size = new Size(contentW, DesktopDpi.Scale(22, this));
+        curY = progressMigrations.Bottom + DesktopDpi.Scale(8, this);
+
+        lblMigrationStatus.Location = new Point(0, curY);
+        curY = lblMigrationStatus.Bottom + DesktopDpi.Scale(10, this);
+
+        memoMigrationLog.Location = new Point(0, curY);
+        int logH = Math.Max(DesktopDpi.Scale(160, this), panelStep3.ClientSize.Height - curY - DesktopDpi.Scale(16, this));
+        memoMigrationLog.Size = new Size(contentW, logH);
+    }
+
+    private void LayoutStep4()
+    {
+        lblStep4Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep4Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep4.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep4Desc.Width = contentW;
+
+        int edW = Math.Min(DesktopDpi.Scale(500, this), contentW);
+        int edH = DesktopDpi.Scale(26, this);
+        int curY = lblStep4Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        lblOrgName.Location = new Point(0, curY);
+        txtOrgName.Location = new Point(0, lblOrgName.Bottom + DesktopDpi.Scale(4, this));
+        txtOrgName.Size = new Size(edW, edH);
+        curY = txtOrgName.Bottom + DesktopDpi.Scale(10, this);
+
+        lblTaxId.Location = new Point(0, curY);
+        txtTaxId.Location = new Point(0, lblTaxId.Bottom + DesktopDpi.Scale(4, this));
+        txtTaxId.Size = new Size(edW, edH);
+        curY = txtTaxId.Bottom + DesktopDpi.Scale(10, this);
+
+        lblCompanyName.Location = new Point(0, curY);
+        txtCompanyName.Location = new Point(0, lblCompanyName.Bottom + DesktopDpi.Scale(4, this));
+        txtCompanyName.Size = new Size(edW, edH);
+        curY = txtCompanyName.Bottom + DesktopDpi.Scale(10, this);
+
+        lblBranchName.Location = new Point(0, curY);
+        txtBranchName.Location = new Point(0, lblBranchName.Bottom + DesktopDpi.Scale(4, this));
+        txtBranchName.Size = new Size(edW, edH);
+    }
+
+    private void LayoutStep5()
+    {
+        lblStep5Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep5Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep5.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep5Desc.Width = contentW;
+
+        int edW = Math.Min(DesktopDpi.Scale(420, this), contentW);
+        int edH = DesktopDpi.Scale(26, this);
+        int curY = lblStep5Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        lblAdminUsername.Location = new Point(0, curY);
+        txtAdminUsername.Location = new Point(0, lblAdminUsername.Bottom + DesktopDpi.Scale(4, this));
+        txtAdminUsername.Size = new Size(edW, edH);
+        curY = txtAdminUsername.Bottom + DesktopDpi.Scale(10, this);
+
+        lblAdminFullName.Location = new Point(0, curY);
+        txtAdminFullName.Location = new Point(0, lblAdminFullName.Bottom + DesktopDpi.Scale(4, this));
+        txtAdminFullName.Size = new Size(edW, edH);
+        curY = txtAdminFullName.Bottom + DesktopDpi.Scale(10, this);
+
+        lblAdminEmail.Location = new Point(0, curY);
+        txtAdminEmail.Location = new Point(0, lblAdminEmail.Bottom + DesktopDpi.Scale(4, this));
+        txtAdminEmail.Size = new Size(edW, edH);
+        curY = txtAdminEmail.Bottom + DesktopDpi.Scale(10, this);
+
+        lblAdminPassword.Location = new Point(0, curY);
+        txtAdminPassword.Location = new Point(0, lblAdminPassword.Bottom + DesktopDpi.Scale(4, this));
+        txtAdminPassword.Size = new Size(edW, edH);
+        curY = txtAdminPassword.Bottom + DesktopDpi.Scale(10, this);
+
+        lblAdminConfirmPassword.Location = new Point(0, curY);
+        txtAdminConfirmPassword.Location = new Point(0, lblAdminConfirmPassword.Bottom + DesktopDpi.Scale(4, this));
+        txtAdminConfirmPassword.Size = new Size(edW, edH);
+        curY = txtAdminConfirmPassword.Bottom + DesktopDpi.Scale(10, this);
+
+        lblPasswordStrength.Location = new Point(0, curY);
+        curY = lblPasswordStrength.Bottom + DesktopDpi.Scale(4, this);
+
+        progressPasswordStrength.Location = new Point(0, curY);
+        progressPasswordStrength.Size = new Size(edW, DesktopDpi.Scale(12, this));
+        curY = progressPasswordStrength.Bottom + DesktopDpi.Scale(8, this);
+
+        lblPasswordPolicy.Location = new Point(0, curY);
+    }
+
+    private void LayoutStep6()
+    {
+        lblStep6Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep6Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep6.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep6Desc.Width = contentW;
+
+        int edW = Math.Min(DesktopDpi.Scale(500, this), contentW);
+        int edH = DesktopDpi.Scale(26, this);
+        int curY = lblStep6Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        lblTimeZone.Location = new Point(0, curY);
+        cmbTimeZone.Location = new Point(0, lblTimeZone.Bottom + DesktopDpi.Scale(4, this));
+        cmbTimeZone.Size = new Size(edW, edH);
+        curY = cmbTimeZone.Bottom + DesktopDpi.Scale(10, this);
+
+        int halfW = (edW - DesktopDpi.Scale(16, this)) / 2;
+        lblDateFormat.Location = new Point(0, curY);
+        lblTimeFormat.Location = new Point(halfW + DesktopDpi.Scale(16, this), curY);
+        curY = lblDateFormat.Bottom + DesktopDpi.Scale(4, this);
+
+        cmbDateFormat.Location = new Point(0, curY);
+        cmbDateFormat.Size = new Size(halfW, edH);
+        cmbTimeFormat.Location = new Point(halfW + DesktopDpi.Scale(16, this), curY);
+        cmbTimeFormat.Size = new Size(halfW, edH);
+        curY = cmbDateFormat.Bottom + DesktopDpi.Scale(10, this);
+
+        lblCurrency.Location = new Point(0, curY);
+        cmbCurrency.Location = new Point(0, lblCurrency.Bottom + DesktopDpi.Scale(4, this));
+        cmbCurrency.Size = new Size(edW, edH);
+        curY = cmbCurrency.Bottom + DesktopDpi.Scale(10, this);
+
+        lblTerminalName.Location = new Point(0, curY);
+        txtTerminalName.Location = new Point(0, lblTerminalName.Bottom + DesktopDpi.Scale(4, this));
+        txtTerminalName.Size = new Size(edW, edH);
+        curY = txtTerminalName.Bottom + DesktopDpi.Scale(14, this);
+
+        lblSamplePreview.Location = new Point(0, curY);
+    }
+
+    private void LayoutStep7()
+    {
+        lblStep7Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep7Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep7.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep7Desc.Width = contentW;
+
+        int edW = Math.Min(DesktopDpi.Scale(500, this), contentW);
+        int edH = DesktopDpi.Scale(26, this);
+        int curY = lblStep7Desc.Bottom + DesktopDpi.Scale(14, this);
+
+        lblHardwareId.Location = new Point(0, curY);
+        curY = lblHardwareId.Bottom + DesktopDpi.Scale(4, this);
+
+        int copyBtnW = DesktopDpi.Scale(130, this);
+        int hwW = Math.Max(180, edW - copyBtnW - DesktopDpi.Scale(10, this));
+        txtHardwareId.Location = new Point(0, curY);
+        txtHardwareId.Size = new Size(hwW, edH);
+        btnCopyHardwareId.Location = new Point(txtHardwareId.Right + DesktopDpi.Scale(10, this), curY);
+        btnCopyHardwareId.Size = new Size(copyBtnW, edH);
+        curY = txtHardwareId.Bottom + DesktopDpi.Scale(16, this);
+
+        btnImportLicense.Location = new Point(0, curY);
+        btnImportLicense.Size = new Size(DesktopDpi.Scale(180, this), DesktopDpi.Scale(32, this));
+        curY = btnImportLicense.Bottom + DesktopDpi.Scale(14, this);
+
+        lblLicenseStatus.Location = new Point(0, curY);
+        curY = lblLicenseStatus.Bottom + DesktopDpi.Scale(6, this);
+
+        lblLicensedTo.Location = new Point(0, curY);
+        curY = lblLicensedTo.Bottom + DesktopDpi.Scale(14, this);
+
+        chkEvaluationMode.Location = new Point(0, curY);
+        chkEvaluationMode.Width = edW;
+    }
+
+    private void LayoutStep8()
+    {
+        lblStep8Title.Location = new Point(0, DesktopDpi.Scale(4, this));
+        lblStep8Desc.Location = new Point(0, DesktopDpi.Scale(34, this));
+        int contentW = Math.Max(320, panelStep8.ClientSize.Width - DesktopDpi.Scale(16, this));
+        lblStep8Desc.Width = contentW;
+
+        int curY = lblStep8Desc.Bottom + DesktopDpi.Scale(12, this);
+        int memoH = Math.Max(DesktopDpi.Scale(240, this), panelStep8.ClientSize.Height - curY - DesktopDpi.Scale(50, this));
+        memoSummary.Location = new Point(0, curY);
+        memoSummary.Size = new Size(contentW, memoH);
+        curY = memoSummary.Bottom + DesktopDpi.Scale(12, this);
+
+        lblFinishNotice.Location = new Point(0, curY);
+        lblFinishNotice.Width = contentW;
     }
 
     #endregion
