@@ -29,8 +29,8 @@ internal sealed class SuggestionEventConfiguration : IEntityTypeConfiguration<Su
         builder.HasIndex(e => e.Kind);
 
         builder.Property(e => e.OrderLineId);
-        builder.Property(e => e.AcceptedQuantity).IsRequired();
-        builder.Property(e => e.AcceptedUnitAmount).IsRequired();
+        builder.Property(e => e.AcceptedQuantity).HasPrecision(18, 2).IsRequired();
+        builder.Property(e => e.AcceptedUnitAmount).HasPrecision(18, 2).IsRequired();
 
         builder.Property(e => e.OccurredAtUtc).IsRequired();
         builder.HasIndex(e => e.OccurredAtUtc);

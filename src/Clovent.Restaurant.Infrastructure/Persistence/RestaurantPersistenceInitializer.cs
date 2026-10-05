@@ -9,10 +9,12 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
     /// <inheritdoc/>
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
-        await dbContext.Database.MigrateAsync(cancellationToken);
+        if (dbContext.Database.IsSqlServer())
+        {
+            await dbContext.Database.MigrateAsync(cancellationToken);
 
-        // 1. Schema DDL: Ensure tables, columns, and indexes exist before compiling and executing DML
-        const string schemaSql = """
+            // 1. Schema DDL: Ensure tables, columns, and indexes exist before compiling and executing DML
+            const string schemaSql = """
             IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Shifts]'))
             BEGIN
                 CREATE TABLE [Restaurant].[Shifts] (
@@ -485,38 +487,38 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
             """;
         await dbContext.Database.ExecuteSqlRawAsync(dayCloseAndShiftConcurrencySql, cancellationToken);
 
-        if (dbContext.Database.IsSqlServer())
-        {
-            const string terminalSelfHealSql = """
-                SET QUOTED_IDENTIFIER ON;
-                IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Shifts]'))
+        const string terminalSelfHealSql = """
+            SET QUOTED_IDENTIFIER ON;
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Shifts]'))
+            BEGIN
+                DECLARE @DefaultTerminalId uniqueidentifier = NULL;
+                IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[MasterData].[Terminals]'))
                 BEGIN
-                    DECLARE @DefaultTerminalId uniqueidentifier = NULL;
-                    IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[MasterData].[Terminals]'))
-                    BEGIN
-                        SELECT TOP 1 @DefaultTerminalId = [Id] 
-                        FROM [MasterData].[Terminals] 
-                        WHERE [Status] = 'Active' 
-                        ORDER BY [Code];
-                    END
-                    ELSE IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'Clovent_MasterData')
-                    BEGIN
-                        SELECT TOP 1 @DefaultTerminalId = [Id] 
-                        FROM [Clovent_MasterData].[MasterData].[Terminals] 
-                        WHERE [Status] = 'Active' 
-                        ORDER BY [Code];
-                    END
-
-                    IF @DefaultTerminalId IS NOT NULL
-                    BEGIN
-                        UPDATE [Restaurant].[Shifts]
-                        SET [TerminalId] = @DefaultTerminalId
-                        WHERE [TerminalId] = '00000000-0000-0000-0000-000000000001'
-                           OR [TerminalId] = '00000000-0000-0000-0000-000000000000';
-                    END
+                    SELECT TOP 1 @DefaultTerminalId = [Id] 
+                    FROM [MasterData].[Terminals] 
+                    WHERE [Status] = 'Active' 
+                    ORDER BY [Code];
                 END
-                """;
-            await dbContext.Database.ExecuteSqlRawAsync(terminalSelfHealSql, cancellationToken);
-        }
+                ELSE IF EXISTS (SELECT 1 FROM sys.databases WHERE name = 'Clovent_MasterData')
+                BEGIN
+                    SELECT TOP 1 @DefaultTerminalId = [Id] 
+                    FROM [Clovent_MasterData].[MasterData].[Terminals] 
+                    WHERE [Status] = 'Active' 
+                    ORDER BY [Code];
+                END
+
+                IF @DefaultTerminalId IS NOT NULL
+                BEGIN
+                    UPDATE [Restaurant].[Shifts]
+                    SET [TerminalId] = @DefaultTerminalId
+                    WHERE [TerminalId] = '00000000-0000-0000-0000-000000000001'
+                       OR [TerminalId] = '00000000-0000-0000-0000-000000000000';
+                END
+            END
+            """;
+        await dbContext.Database.ExecuteSqlRawAsync(terminalSelfHealSql, cancellationToken);
     }
+
+    await PaymentMethodSeeder.EnsureCorePaymentMethodsAsync(dbContext, cancellationToken).ConfigureAwait(false);
+}
 }

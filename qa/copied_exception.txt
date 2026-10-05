@@ -1,0 +1,9 @@
+﻿System.Runtime.InteropServices.ExternalException (0x80004005): A generic error occurred in GDI+.
+   at DevExpress.Utils.Paint.XPaint.FillRectangle(Graphics g, Brush brush, Rectangle r)
+   at DevExpress.Skins.SkinElementPainter.FillSkinBackground(ObjectInfoArgs e, SkinElement element)
+   at DevExpress.Skins.SkinElementPainter.DrawObject(ObjectInfoArgs e)
+   at DevExpress.Utils.Drawing.ObjectPainter.DrawObject(GraphicsCache cache, ObjectPainter painter, ObjectInfoArgs e)
+   at DevExpress.XtraEditors.FormShowHelperBase.ProcessPaintBackground(Message msg)
+   at DevExpress.XtraEditors.XtraForm.WndProc(Message& msg)
+   at DevExpress.XtraEditors.XtraBaseForm.WndProc(Message& msg)
+   at System.Windows.Forms.NativeWindow.Callback(HWND hWnd, UInt32 msg, WPARAM wparam, LPARAM lparam)

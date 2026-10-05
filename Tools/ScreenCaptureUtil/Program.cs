@@ -29,6 +29,9 @@ internal static class Program
     [DllImport("user32.dll")] private static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, int dwExtraInfo);
     [DllImport("user32.dll")] private static extern IntPtr SendMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
     [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")] private static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+    [DllImport("kernel32.dll")] private static extern uint GetCurrentThreadId();
+    [DllImport("user32.dll")] private static extern IntPtr SetFocus(IntPtr hWnd);
     [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
     [DllImport("user32.dll")] private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
     [DllImport("user32.dll")] private static extern IntPtr WindowFromPoint(POINT Point);
@@ -172,7 +175,7 @@ internal static class Program
         try
         {
             SetCursorPos(screenX, screenY);
-            mouse_event(0x8000 | 0x0001 /* MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE */, (uint)(screenX * 65535 / Screen.PrimaryScreen!.Bounds.Width), (uint)(screenY * 65535 / Screen.PrimaryScreen!.Bounds.Height), 0, 0);
+            Thread.Sleep(50);
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
             Thread.Sleep(50);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
@@ -609,27 +612,150 @@ internal static class Program
                 var win = AutomationElement.FromHandle(h);
                 var el = win.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, args[2]));
                 if (el == null) { Console.Error.WriteLine($"Element with AutomationId '{args[2]}' not found"); return 3; }
-                IntPtr ctrlHwnd = (IntPtr)el.Current.NativeWindowHandle;
+
+                for (int w = 0; w < 10 && !el.Current.IsEnabled; w++)
+                {
+                    Thread.Sleep(500);
+                }
+
+                var r = el.Current.BoundingRectangle;
+                int cx = (int)(r.X + r.Width / 2);
+                int cy = (int)(r.Y + r.Height / 2);
                 SetForegroundWindow(h);
                 Thread.Sleep(100);
-                if (ctrlHwnd != IntPtr.Zero)
+                ClickScreenPoint(cx, cy, h);
+
+                if (el.TryGetCurrentPattern(InvokePattern.Pattern, out object? ipObj) && ipObj is InvokePattern ip)
                 {
-                    ClickControlHwnd(ctrlHwnd);
-                    Console.WriteLine($"CLICKED_ID_HWND: '{args[2]}' HWND={ctrlHwnd}");
+                    try { ip.Invoke(); Console.WriteLine($"INVOKED_ID: '{args[2]}'"); } catch { }
                 }
-                else
+
+                IntPtr btnHwnd = (IntPtr)el.Current.NativeWindowHandle;
+                if (btnHwnd != IntPtr.Zero)
                 {
-                    var r = el.Current.BoundingRectangle;
-                    int cx = (int)(r.X + r.Width / 2);
-                    int cy = (int)(r.Y + r.Height / 2);
-                    SetCursorPos(cx, cy);
-                    Thread.Sleep(50);
-                    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-                    Thread.Sleep(50);
-                    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-                    Console.WriteLine($"CLICKED_ID_MOUSE: '{args[2]}' at ({cx}, {cy})");
+                    ClickControlHwnd(btnHwnd);
                 }
+
+                Console.WriteLine($"CLICKED_ID: '{args[2]}' at ({cx}, {cy})");
                 Thread.Sleep(300);
+                return 0;
+            }
+
+            case "select-pos-payment":
+            {
+                if (args.Length < 3) { Console.Error.WriteLine("Usage: select-pos-payment <windowTitle> <methodName>"); return 1; }
+                IntPtr h = FindWindowByTitle(args[1]);
+                if (h == IntPtr.Zero) { Console.Error.WriteLine($"Window '{args[1]}' not found"); return 2; }
+                var win = AutomationElement.FromHandle(h);
+                var panel = win.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.AutomationIdProperty, "pnlPaymentMethods"));
+                if (panel == null) { Console.Error.WriteLine("pnlPaymentMethods not found"); return 3; }
+                var children = panel.FindAll(TreeScope.Children, Condition.TrueCondition);
+                AutomationElement? lookup = null;
+                foreach (AutomationElement c in children)
+                {
+                    if (c.Current.Name != "PAYMENT METHOD")
+                    {
+                        lookup = c;
+                        break;
+                    }
+                }
+                if (lookup == null && children.Count > 1) lookup = children[1];
+                if (lookup == null) { Console.Error.WriteLine("Payment method lookup not found in panel"); return 4; }
+
+                Console.WriteLine($"LOOKUP_INFO: Name='{lookup.Current.Name}', Type='{lookup.Current.ControlType.ProgrammaticName}', HWND={lookup.Current.NativeWindowHandle}");
+
+                SetForegroundWindow(h);
+                Thread.Sleep(100);
+
+                try
+                {
+                    lookup.SetFocus();
+                    Thread.Sleep(100);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"lookup.SetFocus failed: {ex.Message}");
+                }
+
+                string target = args[2].Trim().ToLowerInvariant();
+
+                // 1. Try ValuePattern
+                bool valueSet = false;
+                if (lookup.TryGetCurrentPattern(ValuePattern.Pattern, out object? vpObj) && vpObj is ValuePattern vp)
+                {
+                    try
+                    {
+                        string valToSet = target == "card" ? "Card" : target == "cash" ? "Cash" : "On Account";
+                        vp.SetValue(valToSet);
+                        Console.WriteLine($"VALUE_PATTERN set to '{valToSet}'");
+                        valueSet = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"ValuePattern.SetValue failed: {ex.Message}");
+                    }
+                }
+
+                // 2. Try ExpandCollapsePattern
+                if (lookup.TryGetCurrentPattern(ExpandCollapsePattern.Pattern, out object? ecpObj) && ecpObj is ExpandCollapsePattern ecp)
+                {
+                    try
+                    {
+                        ecp.Expand();
+                        Thread.Sleep(200);
+                        Console.WriteLine("EXPANDED_DROPDOWN");
+                    }
+                    catch { }
+                }
+
+                // 3. Click and keyboard navigation
+                var r = lookup.Current.BoundingRectangle;
+                int textX = (int)(r.Left + 40);
+                int cy = (int)(r.Top + r.Height / 2);
+                int arrowX = (int)(r.Right - 15);
+
+                ClickScreenPoint(textX, cy, h);
+                Thread.Sleep(100);
+
+                try { lookup.SetFocus(); } catch { }
+                Thread.Sleep(100);
+
+                // Press F4 to toggle dropdown open
+                SendKeySpec("f4");
+                Thread.Sleep(200);
+
+                if (target == "card")
+                {
+                    // Card is the very first row
+                    SendKeySpec("home");
+                    Thread.Sleep(100);
+                    SendKeySpec("enter");
+                    Thread.Sleep(100);
+                    // Also send Up arrow in case dropdown didn't open and Up navigates previous
+                    SendKeySpec("up");
+                    Thread.Sleep(100);
+                    SendKeySpec("enter");
+                }
+                else if (target == "cash")
+                {
+                    SendKeySpec("home");
+                    Thread.Sleep(100);
+                    SendKeySpec("down");
+                    Thread.Sleep(100);
+                    SendKeySpec("enter");
+                }
+                else if (target == "on account" || target == "account")
+                {
+                    SendKeySpec("end");
+                    Thread.Sleep(100);
+                    SendKeySpec("enter");
+                }
+
+                Thread.Sleep(200);
+                // Also click dropdown arrow if popup still open or needs toggle
+                SendKeySpec("enter");
+                Thread.Sleep(200);
+                Console.WriteLine($"SELECTED_POS_PAYMENT: '{args[2]}'");
                 return 0;
             }
 
@@ -644,23 +770,23 @@ internal static class Program
                 var r = el.Current.BoundingRectangle;
                 int cx = (int)(r.X + r.Width / 2);
                 int cy = (int)(r.Y + r.Height / 2);
-                IntPtr ctrlHwnd = (IntPtr)el.Current.NativeWindowHandle;
                 SetForegroundWindow(h);
                 Thread.Sleep(100);
-                if (ctrlHwnd != IntPtr.Zero)
+                ClickScreenPoint(cx, cy, h);
+
+                if (el.TryGetCurrentPattern(InvokePattern.Pattern, out object? ipObj) && ipObj is InvokePattern ip)
                 {
-                    ClickControlHwnd(ctrlHwnd);
-                    Console.WriteLine($"CLICKED_NAME_HWND: '{args[2]}' HWND={ctrlHwnd}");
+                    try { ip.Invoke(); Console.WriteLine($"INVOKED_NAME: '{args[2]}'"); } catch { }
                 }
-                else
+
+                IntPtr elHwnd = (IntPtr)el.Current.NativeWindowHandle;
+                if (elHwnd != IntPtr.Zero)
                 {
-                    SetCursorPos(cx, cy);
-                    Thread.Sleep(50);
-                    mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
-                    Thread.Sleep(50);
-                    mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-                    Console.WriteLine($"CLICKED_NAME_MOUSE: '{args[2]}' at ({cx}, {cy})");
+                    ClickControlHwnd(elHwnd);
+                    Console.WriteLine($"CLICKED_NAME_HWND: '{args[2]}' HWND={elHwnd}");
                 }
+
+                Console.WriteLine($"CLICKED_NAME: '{args[2]}' at ({cx}, {cy})");
                 Thread.Sleep(300);
                 return 0;
             }
@@ -763,6 +889,24 @@ internal static class Program
                     SendKeysDirect(args[1]);
                     Console.WriteLine($"TYPED: '{args[1]}'");
                 }
+                return 0;
+            }
+
+            case "focus-key":
+            {
+                if (args.Length < 3) { Console.Error.WriteLine("Usage: focus-key <windowTitle> <key>"); return 1; }
+                IntPtr h = FindWindowByTitle(args[1]);
+                if (h == IntPtr.Zero) { Console.Error.WriteLine($"Window '{args[1]}' not found"); return 2; }
+                uint targetThread = GetWindowThreadProcessId(h, out _);
+                uint currentThread = GetCurrentThreadId();
+                AttachThreadInput(currentThread, targetThread, true);
+                SetForegroundWindow(h);
+                SetFocus(h);
+                Thread.Sleep(100);
+                SendKeySpec(args[2]);
+                Thread.Sleep(100);
+                AttachThreadInput(currentThread, targetThread, false);
+                Console.WriteLine($"FOCUS_KEY: '{args[2]}' to HWND={h}");
                 return 0;
             }
 

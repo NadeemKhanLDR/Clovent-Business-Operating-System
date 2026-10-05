@@ -48,7 +48,11 @@ internal static class Program
         string outPath = args[1];
 
         // Bootstrap using base path of published client
-        string basePath = @"C:\CloventClient105";
+        string basePath = @"D:\Clovent Business Operating System\artifacts\release\Clovent.BusinessOperatingSystem-1.0.7-win-x64";
+        if (!Directory.Exists(basePath))
+        {
+            basePath = @"C:\CloventClient106";
+        }
         ProgramDataAclManager.ConfigureDirectorySecurity();
 
         var bootstrapper = ApplicationBootstrapper.Create(basePath: basePath).WithLogging().WithPlatform();
@@ -144,6 +148,14 @@ internal static class Program
             {
                 var view = host.Services.GetRequiredService<InventoryTransactionsView>();
                 targetForm = WrapInForm(view, "Inventory Movements & Transactions - Acceptance Test");
+                break;
+            }
+
+            case "pos":
+            {
+                var session = host.Services.GetRequiredService<Clovent.Desktop.Sessions.ICurrentSession>();
+                session.SignIn(Guid.Parse("11111111-1111-1111-1111-111111111111"), Guid.NewGuid(), "admin_acceptance");
+                targetForm = host.Services.GetRequiredService<RestaurantPosForm>();
                 break;
             }
 

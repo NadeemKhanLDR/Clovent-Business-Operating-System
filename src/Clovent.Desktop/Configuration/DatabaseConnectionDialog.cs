@@ -13,7 +13,6 @@ namespace Clovent.Desktop.Configuration;
 public partial class DatabaseConnectionDialog : XtraForm
 {
     private DatabaseConnectionSettings _currentSettings;
-    private SimpleButton? _btnElevate;
 
     public DatabaseConnectionSettings ResultSettings => _currentSettings;
 
@@ -31,6 +30,10 @@ public partial class DatabaseConnectionDialog : XtraForm
         cmbAuth.SelectedIndexChanged += CmbAuth_SelectedIndexChanged;
         btnTest.Click += BtnTest_Click;
         btnSave.Click += BtnSave_Click;
+        btnElevate.Click += (s, e) =>
+        {
+            WindowsCommissioningSecurity.EnsureElevatedForCommissioning("Database Configuration");
+        };
         Load += DatabaseConnectionDialog_Load;
     }
 
@@ -91,23 +94,9 @@ public partial class DatabaseConnectionDialog : XtraForm
 
     private void ShowElevateOption()
     {
-        if (_btnElevate != null) return;
-
-        _btnElevate = new SimpleButton
-        {
-            Text = "Elevate (UAC)...",
-            Size = btnSave.Size,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right
-        };
-        _btnElevate.Click += (s, e) =>
-        {
-            WindowsCommissioningSecurity.EnsureElevatedForCommissioning("Database Configuration");
-        };
-
-        int gap = Forms.Base.DesktopDpi.Scale(8, this);
-        _btnElevate.Location = new Point(btnSave.Left - _btnElevate.Width - gap, btnSave.Top);
-        panelBottom.Controls.Add(_btnElevate);
-        _btnElevate.BringToFront();
+        btnSave.Visible = false;
+        btnElevate.Visible = true;
+        btnElevate.BringToFront();
     }
 
     private void CmbAuth_SelectedIndexChanged(object? sender, EventArgs e)

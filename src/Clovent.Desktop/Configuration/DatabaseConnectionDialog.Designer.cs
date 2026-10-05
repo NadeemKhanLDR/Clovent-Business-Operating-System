@@ -30,6 +30,7 @@ partial class DatabaseConnectionDialog
         this.lblStatus = new DevExpress.XtraEditors.LabelControl();
         this.btnTest = new DevExpress.XtraEditors.SimpleButton();
         this.btnSave = new DevExpress.XtraEditors.SimpleButton();
+        this.btnElevate = new DevExpress.XtraEditors.SimpleButton();
         this.btnCancel = new DevExpress.XtraEditors.SimpleButton();
         this.panelBottom = new System.Windows.Forms.Panel();
         ((System.ComponentModel.ISupportInitialize)(this.txtServer.Properties)).BeginInit();
@@ -168,10 +169,11 @@ partial class DatabaseConnectionDialog
         // 
         this.lblStatus.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.5F);
         this.lblStatus.Appearance.Options.UseFont = true;
+        this.lblStatus.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
         this.lblStatus.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
         this.lblStatus.Location = new System.Drawing.Point(24, 348);
         this.lblStatus.Name = "lblStatus";
-        this.lblStatus.Size = new System.Drawing.Size(490, 28);
+        this.lblStatus.Size = new System.Drawing.Size(490, 36);
         this.lblStatus.TabIndex = 12;
         // 
         // panelBottom
@@ -179,9 +181,10 @@ partial class DatabaseConnectionDialog
         this.panelBottom.BackColor = System.Drawing.Color.Transparent;
         this.panelBottom.Controls.Add(this.btnTest);
         this.panelBottom.Controls.Add(this.btnSave);
+        this.panelBottom.Controls.Add(this.btnElevate);
         this.panelBottom.Controls.Add(this.btnCancel);
         this.panelBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
-        this.panelBottom.Location = new System.Drawing.Point(0, 380);
+        this.panelBottom.Location = new System.Drawing.Point(0, 388);
         this.panelBottom.Name = "panelBottom";
         this.panelBottom.Padding = new System.Windows.Forms.Padding(24, 12, 24, 16);
         this.panelBottom.Size = new System.Drawing.Size(540, 56);
@@ -208,6 +211,18 @@ partial class DatabaseConnectionDialog
         this.btnSave.TabIndex = 1;
         this.btnSave.Text = "Save && Apply";
         // 
+        // btnElevate
+        // 
+        this.btnElevate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+        this.btnElevate.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        this.btnElevate.Appearance.Options.UseFont = true;
+        this.btnElevate.Location = new System.Drawing.Point(296, 12);
+        this.btnElevate.Name = "btnElevate";
+        this.btnElevate.Size = new System.Drawing.Size(110, 28);
+        this.btnElevate.TabIndex = 2;
+        this.btnElevate.Text = "Elevate (UAC)...";
+        this.btnElevate.Visible = false;
+        // 
         // btnCancel
         // 
         this.btnCancel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -226,7 +241,7 @@ partial class DatabaseConnectionDialog
         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.CancelButton = this.btnCancel;
-        this.ClientSize = new System.Drawing.Size(540, 436);
+        this.ClientSize = new System.Drawing.Size(540, 444);
         this.Controls.Add(this.panelBottom);
         this.Controls.Add(this.lblStatus);
         this.Controls.Add(this.txtPassword);
@@ -273,5 +288,6 @@ partial class DatabaseConnectionDialog
     private System.Windows.Forms.Panel panelBottom;
     private DevExpress.XtraEditors.SimpleButton btnTest;
     private DevExpress.XtraEditors.SimpleButton btnSave;
+    private DevExpress.XtraEditors.SimpleButton btnElevate;
     private DevExpress.XtraEditors.SimpleButton btnCancel;
 }

@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Clovent.Installer.Provisioner</RootNamespace>
+    <AssemblyName>Clovent.Installer.Provisioner</AssemblyName>
+    <Version>1.0.7</Version>
+    <FileVersion>1.0.7.0</FileVersion>
+    <AssemblyVersion>1.0.7.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Clovent.Platform\Clovent.Platform.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Authentication.Infrastructure\Clovent.Authentication.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Identity.Infrastructure\Clovent.Identity.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.MasterData.Infrastructure\Clovent.MasterData.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Catalog.Infrastructure\Clovent.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Inventory.Infrastructure\Clovent.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Restaurant.Infrastructure\Clovent.Restaurant.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+  </ItemGroup>
+
+  <!-- Compile shared provisioning and configuration source files directly from src/Clovent.Desktop -->
+  <ItemGroup>
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseProvisioningService.cs" Link="Shared\DatabaseProvisioningService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseProvisioningService.cs" Link="Shared\IDatabaseProvisioningService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseErrorMasker.cs" Link="Shared\DatabaseErrorMasker.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseSchemaCompatibilityValidator.cs" Link="Shared\DatabaseSchemaCompatibilityValidator.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseSchemaCompatibilityValidator.cs" Link="Shared\IDatabaseSchemaCompatibilityValidator.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Security\ProgramDataAclManager.cs" Link="Shared\ProgramDataAclManager.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Configuration\DatabaseSecretStore.cs" Link="Shared\DatabaseSecretStore.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Configuration\DatabaseConnectionSettings.cs" Link="Shared\DatabaseConnectionSettings.cs" />
+  </ItemGroup>
+
+</Project>

@@ -66,9 +66,9 @@ public sealed class RuntimeVerificationTests
         using (var scope = host.Services.CreateScope())
         {
             var identityDb = scope.ServiceProvider.GetRequiredService<IdentityDbContext>();
-            var admin = identityDb.Users.Local.Count != 0
-                ? identityDb.Users.Local.Single()
-                : identityDb.Users.Single(u => u.Id == new Clovent.Identity.Users.UserId(Guid.Parse("BFE39055-F8A8-491A-90F8-676C667BE2EF")));
+            var admin = identityDb.Users.Local.FirstOrDefault()
+                ?? identityDb.Users.FirstOrDefault(u => u.Id == new Clovent.Identity.Users.UserId(Guid.Parse("BFE39055-F8A8-491A-90F8-676C667BE2EF")))
+                ?? identityDb.Users.First();
             session.SignIn(admin.Id.Value, Guid.NewGuid(), admin.UserName.Value);
         }
 

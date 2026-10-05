@@ -1,0 +1,15 @@
+﻿DUMP: An error occurred (Total elements: 13)
+[Pane] Name='' Id='_buttonPanel' HWND=4264182 Class='WindowsForms10.Window.8.app.0.3d893c_r3_ad1' Rect=(1642,1194,556,44)
+[Button] Name='Close' Id='_closeButton' HWND=7606384 Class='WindowsForms10.Window.b.app.0.3d893c_r3_ad1' Rect=(2098,1194,100,44)
+[Button] Name='Copy Details' Id='_copyButton' HWND=20715090 Class='WindowsForms10.Window.b.app.0.3d893c_r3_ad1' Rect=(1762,1194,120,44)
+[Button] Name='Show Details' Id='_detailsToggle' HWND=9898226 Class='WindowsForms10.Window.b.app.0.3d893c_r3_ad1' Rect=(1642,1194,120,44)
+[Text] Name='An unexpected error occurred (UI thread).
+
+A generic error occurred in GDI+.' Id='_messageLabel' HWND=17239116 Class='WindowsForms10.Window.b.app.0.3d893c_r3_ad1' Rect=(1642,1122,556,123)
+[TitleBar] Name='An error occurred' Id='TitleBar' HWND=0 Class='' Rect=(1656,1056,528,56)
+[MenuBar] Name='System Menu Bar' Id='' HWND=0 Class='' Rect=(1656,1056,55,55)
+[MenuItem] Name='System' Id='Item 1' HWND=0 Class='' Rect=(1656,1056,55,55)
+[Button] Name='Close' Id='Close' HWND=0 Class='' Rect=(2128,1055,57,57)
+[TitleBar] Name='An error occurred' Id='' HWND=0 Class='' Rect=(1640,1040,560,82)
+[MenuBar] Name='System' Id='' HWND=0 Class='' Rect=(1640,1040,82,82)
+[Button] Name='Close' Id='' HWND=0 Class='' Rect=(2078,1042,120,80)

@@ -53,13 +53,16 @@ partial class SoftwareRegistrationForm
         // 
         // lblStatus
         // 
-        this.lblStatus.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+        this.lblStatus.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
         this.lblStatus.Appearance.ForeColor = System.Drawing.Color.ForestGreen;
         this.lblStatus.Appearance.Options.UseFont = true;
         this.lblStatus.Appearance.Options.UseForeColor = true;
-        this.lblStatus.Location = new System.Drawing.Point(24, 48);
+        this.lblStatus.Appearance.Options.UseTextOptions = true;
+        this.lblStatus.Appearance.TextOptions.WordWrap = DevExpress.Utils.WordWrap.Wrap;
+        this.lblStatus.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
+        this.lblStatus.Location = new System.Drawing.Point(24, 44);
         this.lblStatus.Name = "lblStatus";
-        this.lblStatus.Size = new System.Drawing.Size(130, 17);
+        this.lblStatus.Size = new System.Drawing.Size(440, 38);
         this.lblStatus.TabIndex = 1;
         this.lblStatus.Text = "Status: License Valid";
         // 
