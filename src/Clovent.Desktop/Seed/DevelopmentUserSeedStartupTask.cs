@@ -49,7 +49,8 @@ public sealed class DevelopmentUserSeedStartupTask(
             return;
         }
 
-        var existing = await userRepository.GetByUserNameAsync(UserName.Create(DemoUserName), cancellationToken);
+        var existing = await userRepository.GetByUserNameAsync(UserName.Create(DemoUserName), cancellationToken)
+            ?? await userRepository.GetByEmailAsync(Email.Create("admin@clovent.local"), cancellationToken);
         if (existing is not null)
         {
             await RepairCredentialsIfMismatchedAsync(existing, cancellationToken);

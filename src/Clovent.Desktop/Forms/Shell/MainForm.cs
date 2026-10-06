@@ -520,6 +520,11 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         await RefreshAttendanceStatusAsync();
         RefreshRecentMenus();
         RefreshNotificationsButton();
+        var lic = Clovent.Desktop.Licensing.LicenseService.CurrentResult;
+        if (lic.IsEvaluation)
+        {
+            Text = $"Clovent Business Operating System [Evaluation Mode - {lic.DaysRemaining} days remaining]";
+        }
         _navigationService.NavigateTo("dashboard", "Dashboard");
         Show();
     }

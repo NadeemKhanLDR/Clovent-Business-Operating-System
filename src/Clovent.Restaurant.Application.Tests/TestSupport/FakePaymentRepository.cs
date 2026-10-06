@@ -21,6 +21,9 @@ internal sealed class FakePaymentRepository : IPaymentRepository
     public Task<IReadOnlyCollection<Payment>> GetAllAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Payment>>([.. _payments.Values]);
 
+    public Task<Payment?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_payments.Values.FirstOrDefault(p => p.IdempotencyKey == idempotencyKey));
+
     public Task AddAsync(Payment payment, CancellationToken cancellationToken = default)
     {
         _payments[payment.Id] = payment;

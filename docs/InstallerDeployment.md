@@ -1,23 +1,23 @@
 # Clovent Business Operating System - Installer & Deployment Architecture
 
-**Version:** 1.0.8 (Current) | 1.0.7 (Frozen Baseline Preserved)  
+**Version:** 1.1.2 (Current) | 1.1.1, 1.1.0, 1.0.8, 1.0.7 (Frozen Baselines Preserved)  
 **Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md) | [winforms-ui.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/winforms-ui.md) | [database.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/database.md) | [security.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/security.md) | [release.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/release.md)
 
 ---
 
 ## 1. Overview & Objective
 
-The CBOS 1.0.8 single-file installer provides a frictionless, enterprise-grade deployment experience for retail and hospitality workstations. The end customer receives **one single installer executable**:
+The CBOS 1.1.2 single-file installer provides a frictionless, enterprise-grade deployment experience for retail and hospitality workstations. The end customer receives **one single installer executable**:
 
 ```text
-artifacts\installer\Clovent.BusinessOperatingSystem-1.0.8-Setup.exe
+artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe
 ```
-*(Note: The frozen 1.0.7 release installer `artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe` is permanently preserved).*
+*(Note: The frozen 1.0.7, 1.0.8, 1.1.0, and 1.1.1 release installers are permanently preserved).*
 
 The installer orchestrates complete workstation onboarding without requiring manual operator intervention:
-- **No manual .NET installation:** The CBOS 1.0.8 payload is fully self-contained (`win-x64`).
+- **No manual .NET installation:** The CBOS 1.1.2 payload is fully self-contained (`win-x64`).
 - **No manual SQL Server installation:** Local SQL Server instances are detected automatically; if none exist, Microsoft SQL Server 2022 Express is installed silently.
-- **No manual SQL scripts:** Database creation, schema migrations, and payment method seeding are executed via CBOS's production C# provisioning services.
+- **No manual SQL scripts:** Database creation, schema migrations, and payment method seeding are executed via CBOS's production C# provisioning services (`Clovent.Installer.Provisioner.exe` compiled as a true self-contained single-file win-x64 executable).
 - **No plaintext configuration editing:** Machine-level database settings and directory ACLs are configured and encrypted via Windows DPAPI.
 - **No default credentials:** Real customers provision their own enterprise hierarchy and first administrator via the First-Run Commissioning Wizard.
 - **Responsive High-DPI First-Run Commissioning Wizard:** Automatically scales across 100%–250% display scaling and 1366x768 to 1920x1080+ resolutions without control clipping, label compression, or dialog under-sizing.
@@ -81,6 +81,12 @@ If no compatible local SQL Server exists on the workstation:
 
 The installer does not maintain fragile, ad-hoc `CREATE TABLE` scripts. Instead, it embeds and invokes a dedicated self-contained tool: `Clovent.Installer.Provisioner.exe`.
 
+### Packaging Architecture (CBOS 1.1.2 Single-File):
+- **Standalone Executable:** Compiled with `<PublishSingleFile>true</PublishSingleFile>`, `<RuntimeIdentifier>win-x64</RuntimeIdentifier>`, `<SelfContained>true</SelfContained>`, `<IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>`, and `<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>`.
+- **Zero External DLL Dependencies:** Bundles .NET 10 BCL, Entity Framework Core 10, Microsoft.Data.SqlClient, and all 6 bounded context assemblies into a single ~44.6 MB executable. Does NOT rely on adjacent `.dll`, `.deps.json`, or `.runtimeconfig.json` files.
+- **Root Cause & Fix for Exit Code `-2147450726` (`0x8000809A`):** In CBOS 1.1.1, the installer packaged only the 162 KB AppHost stub without managed binaries, causing .NET HostFXR to fail immediately before entering `Program.cs`. In CBOS 1.1.2, the true single-file bundle guarantees complete standalone execution from `{tmp}`.
+- **Working Directory Enforcement:** Inno Setup's `Exec()` passes `ExpandConstant('{tmp}')` as the working directory, ensuring predictable host process initialization.
+
 ### Provisioning Sequence:
 1. **Directory Security:**
    Calls `ProgramDataAclManager.ConfigureDirectorySecurity()`, establishing `%ProgramData%\Clovent\BusinessOperatingSystem\` with hardened ACLs.
@@ -96,11 +102,11 @@ The installer does not maintain fragile, ad-hoc `CREATE TABLE` scripts. Instead,
    - `[Catalog].[__EFMigrationsHistory]` & `CatalogPersistenceInitializer`
    - `[Inventory].[__EFMigrationsHistory]` & `InventoryPersistenceInitializer`
    - `[Restaurant].[__EFMigrationsHistory]`, `RestaurantPersistenceInitializer`, and `PaymentMethodSeeder`
-5. **Payment Method Verification:**
-   Verifies that core required payment methods exist and are active:
-   - `Cash` (Active)
-   - `Card` (Active)
-   - `On Account` (Active)
+5. **Payment Method Verification & Deduplication:**
+   Verifies that core required payment methods exist and are active, deduplicating any legacy records:
+   - `Cash` (Active, exactly 1 record)
+   - `Card` (Active, exactly 1 record)
+   - `On Account` (Active, exactly 1 record)
 6. **Encrypted Configuration Persistence:**
    Calls `DatabaseSecretStore.Save(settings, machineLevel: true)`, encrypting connection secrets via Windows DPAPI (`DataProtectionScope.LocalMachine`) in `%ProgramData%\Clovent\BusinessOperatingSystem\Config\database.config.json`.
 7. **Schema Compatibility Gate:**
@@ -161,10 +167,17 @@ To ensure seamless onboarding across varying clean-machine environments (e.g., W
 
 ## 7. Logging & Diagnostic Support
 
-- **Installer Engine Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\Setup-1.0.8.log` (or `Setup-1.0.7.log`)
+- **Installer Engine Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\Setup-1.1.2.log` (Setup logs details including provisioner path, working directory, and exit codes)
 - **Database Provisioner Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\installer-provisioning.log`
 - **Application Startup Log:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\application.log`
 - **Zero Secrets Rule:** All connection strings and passwords are systematically masked (`***`) before being emitted to log files.
+- **Support-Useful Exit Code Classification:**
+  - Exit code `-2147450726` (`0x8000809A`): Missing .NET runtime or application host dependency.
+  - Exit code `1`: SQL Server connection failure.
+  - Exit code `2`: Database creation failure.
+  - Exit code `3`: Migration execution or seed data failure.
+  - Exit code `4`: Post-migration schema compatibility failure.
+  - Exit code `99`: Unhandled exception during provisioning.
 
 ---
 
@@ -173,10 +186,10 @@ To ensure seamless onboarding across varying clean-machine environments (e.g., W
 When commercial EV Code Signing credentials are provided, sign the installer using Windows `signtool.exe`:
 
 ```cmd
-signtool.exe sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a "artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe"
+signtool.exe sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a "artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe"
 ```
 
 To verify the Authenticode signature:
 ```cmd
-signtool.exe verify /pa /v "artifacts\installer\Clovent.BusinessOperatingSystem-1.0.7-Setup.exe"
+signtool.exe verify /pa /v "artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe"
 ```

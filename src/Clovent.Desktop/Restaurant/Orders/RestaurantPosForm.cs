@@ -20,8 +20,11 @@ using Clovent.Desktop.Forms.Base.Localization;
 using Clovent.Desktop.Forms.Restaurant.MenuItems;
 using Clovent.Desktop.Inventory.WarehouseStocks;
 using Clovent.Desktop.Navigation;
+using Clovent.Desktop.Restaurant.Services;
 using Clovent.Desktop.Restaurant.Shared;
 using Clovent.Desktop.Restaurant.SmartPos;
+using Clovent.Restaurant.Continuity;
+using Clovent.Restaurant.Application.Continuity;
 using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Sessions;
 using Clovent.Desktop.Startup;
@@ -132,6 +135,8 @@ public sealed partial class RestaurantPosForm : XtraForm
     private ToolStripMenuItem _backOfficeMenuItem = null!;
     private bool _canAccessBackOffice;
     private bool _canPerformRefund;
+    private IContinuityCoordinator? _continuityCoordinator;
+    private IActiveOrderCheckpointStore? _checkpointStore;
 
     internal enum PosCloseInitiator
     {
@@ -209,6 +214,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private int _pageSize = 50;
 
     private OrderDto? _currentOrder;
+    private OrderTotals? _currentTotals;
     private bool _isRefreshingOrder;
     private Guid? _defaultCustomerId;
     private readonly Dictionary<Guid, ProductVariantDto> _variantsById = [];
@@ -351,6 +357,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             _changeNotifier = changeNotifier;
             _splashScreenService = splashScreenService;
             _applicationModeNavigator = applicationModeNavigator ?? _scope.ServiceProvider.GetService<IApplicationModeNavigator>();
+            _continuityCoordinator = _scope.ServiceProvider.GetService<IContinuityCoordinator>();
+            _checkpointStore = _scope.ServiceProvider.GetService<IActiveOrderCheckpointStore>();
+            if (_continuityCoordinator != null)
+            {
+                _continuityCoordinator.StateChanged += (_, _) =>
+                {
+                    if (IsHandleCreated && !IsDisposed)
+                    {
+                        BeginInvoke(UpdateOrderStatusBadge);
+                    }
+                };
+            }
 
             InitializeComponent();
             AttachPickers();
@@ -467,6 +485,11 @@ public sealed partial class RestaurantPosForm : XtraForm
         AppearanceManager.Changed += AppearanceManager_Changed;
 
         _cashierLabel.Text = _currentSession.DisplayName is { } name ? $"Cashier: {name}" : "Cashier: Not signed in";
+        var posLic = Clovent.Desktop.Licensing.LicenseService.CurrentResult;
+        if (posLic.IsEvaluation)
+        {
+            Text = $"Clovent POS [Evaluation Mode - {posLic.DaysRemaining} days remaining]";
+        }
 
         LocalizationHelper.LocalizeControl(this);
 
@@ -3407,6 +3430,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _initializationTask = LoadAsync();
             await _initializationTask;
+            await CheckAndPromptCrashRecoveryAsync();
         }
         catch (Exception ex)
         {
@@ -5735,7 +5759,16 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        await _mediator.Send(new CompleteOrderCommand(_currentOrder!.OrderId));
+        await PosPerformanceTracker.TrackAsync("OrderComplete", async () =>
+        {
+            await _mediator.Send(new CompleteOrderCommand(_currentOrder!.OrderId));
+            return true;
+        });
+
+        if (_checkpointStore != null)
+        {
+            await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+        }
 
         _currentOrder = null;
         _tablePicker.SelectId(null);
@@ -6076,6 +6109,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
                 if (InvokeRequired) Invoke(ApplyEmptyOrderUi); else ApplyEmptyOrderUi();
                 await RefreshActiveOrdersAsync();
+                await CheckpointActiveCartAsync();
                 return;
             }
 
@@ -6182,6 +6216,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             await ReloadTablesAsync();
             await RefreshActiveOrdersAsync();
+            await CheckpointActiveCartAsync();
         }
         catch (Exception ex)
         {
@@ -6223,6 +6258,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void SetTotals(OrderTotals? totals)
     {
+        _currentTotals = totals;
         _subtotalLabel.Text = $"{PosStrings.Subtotal}: {CurrencyDisplay.FormatPlain(totals?.Subtotal ?? 0m)}";
         _discountLabel.Text = $"{PosStrings.Discount}: -{CurrencyDisplay.FormatPlain(totals?.DiscountTotal ?? 0m)}";
         _taxLabel.Text = $"{PosStrings.Tax}: {CurrencyDisplay.FormatPlain(totals?.TaxTotal ?? 0m)}";
@@ -6256,6 +6292,32 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         var receipt = await ReceiptFormatter.FormatAsync(_mediator, _currentOrder);
+
+        if (QueueRushModeStore.IsEnabled())
+        {
+            // In Rush Mode: fast asynchronous printing dispatch, bypass modal preview to release cashier immediately
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var orderId = _currentOrder.OrderId;
+                    var orderNum = _currentOrder.OrderNumber;
+                    var printService = _scope.ServiceProvider.GetService<Clovent.Restaurant.Application.Printing.IReceiptPrintService>();
+                    if (printService != null)
+                    {
+                        var payload = new Clovent.Restaurant.Application.Outbox.Dtos.ReceiptPrintPayload(orderId, orderNum, receipt, null);
+                        await printService.PrintReceiptAsync(payload);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Background receipt print failed during Rush Mode.");
+                }
+            });
+            await LogActivityAsync("PrintRush", _currentOrder.OrderNumber);
+            return;
+        }
+
         using var preview = new ReceiptPreviewForm(receipt);
         preview.ShowDialog(this);
         await LogActivityAsync("Print", _currentOrder.OrderNumber);
@@ -6278,6 +6340,18 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void UpdateOrderStatusBadge()
     {
+        var isContinuity = _continuityCoordinator?.IsContinuityModeActive ?? false;
+        var isRush = QueueRushModeStore.IsEnabled();
+
+        if (isContinuity)
+        {
+            _orderStatusLabel.Appearance.BackColor = Color.FromArgb(254, 226, 226);
+            _orderStatusLabel.Appearance.ForeColor = Color.FromArgb(220, 38, 38);
+            _orderStatusLabel.Appearance.Options.UseForeColor = true;
+            _orderStatusLabel.Text = isRush ? "CONTINUITY MODE (OFFLINE CASH) [RUSH]" : "CONTINUITY MODE (OFFLINE CASH)";
+            return;
+        }
+
         var (back, fore) = _currentOrder?.Status switch
         {
             "Open" => (Color.FromArgb(223, 240, 216), Color.FromArgb(39, 174, 96)),
@@ -6290,6 +6364,24 @@ public sealed partial class RestaurantPosForm : XtraForm
         _orderStatusLabel.Appearance.BackColor = back;
         _orderStatusLabel.Appearance.ForeColor = fore;
         _orderStatusLabel.Appearance.Options.UseForeColor = true;
+
+        if (isRush && _currentOrder != null)
+        {
+            if (!_orderStatusLabel.Text.EndsWith("[RUSH]"))
+            {
+                _orderStatusLabel.Text += " [RUSH]";
+            }
+        }
+    }
+
+    private void ShowOperationsHealthCenter()
+    {
+        var outboxRepo = _scope.ServiceProvider.GetService<Clovent.Restaurant.Outbox.IOutboxRepository>();
+        var outboxProc = _scope.ServiceProvider.GetService<Clovent.Restaurant.Application.Outbox.IOutboxProcessor>();
+        var circuits = _scope.ServiceProvider.GetService<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry>();
+
+        using var form = new OperationsHealthForm(_continuityCoordinator, outboxRepo, outboxProc, circuits);
+        form.ShowDialog(this);
     }
 
     private string ResolveVariantSku(Guid variantId) => _variantsById.TryGetValue(variantId, out var v) ? v.Sku : "(unknown)";
@@ -6423,12 +6515,31 @@ public sealed partial class RestaurantPosForm : XtraForm
         // Separator
         _operationsMenu.Items.Add(new ToolStripSeparator());
 
-        // 5. Back Office
-        _backOfficeMenuItem = new ToolStripMenuItem("Back Office", null, async (s, e) =>
-        {
-            await RequestNavigateToBackOfficeAsync();
-        });
+        _backOfficeMenuItem = new ToolStripMenuItem("Back Office", null, async (s, e) => await RequestNavigateToBackOfficeAsync());
         _operationsMenu.Items.Add(_backOfficeMenuItem);
+
+        // Separator
+        _operationsMenu.Items.Add(new ToolStripSeparator());
+
+        // 6. Queue Rush Mode
+        var rushModeItem = new ToolStripMenuItem("Queue Rush Mode", null, (s, e) =>
+        {
+            var newState = !QueueRushModeStore.IsEnabled();
+            QueueRushModeStore.SetEnabled(newState);
+            if (s is ToolStripMenuItem mi) mi.Checked = newState;
+            UpdateOrderStatusBadge();
+        })
+        {
+            Checked = QueueRushModeStore.IsEnabled()
+        };
+        _operationsMenu.Items.Add(rushModeItem);
+
+        // 7. Operations Health & Continuity Center
+        var healthItem = new ToolStripMenuItem("Operations Health & Continuity...", null, (s, e) =>
+        {
+            ShowOperationsHealthCenter();
+        });
+        _operationsMenu.Items.Add(healthItem);
 
         UpdateOperationsMenuState();
 
@@ -7693,12 +7804,52 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            await RecordContinuitySaleAsync(methodName, tendered);
+            return;
+        }
+
         if (!await EnsureShiftActiveOrPromptAsync())
         {
             return;
         }
 
-        await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId));
+        _recordButton.Enabled = false;
+        try
+        {
+            var idempotencyKey = $"pay:{orderId}:{paymentMethodId}:{tendered:F2}:{DateTimeOffset.UtcNow.Ticks}";
+            await PosPerformanceTracker.TrackAsync("PaymentCommit", async () =>
+            {
+                await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId, idempotencyKey));
+                return true;
+            });
+        }
+        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
+        {
+            if (_continuityCoordinator != null)
+            {
+                var enterContinuity = XtraMessageBox.Show(
+                    this,
+                    "Primary database connection is unreachable.\n\nWould you like to enter Clovent Continuity Mode to complete this transaction as an offline cash sale?",
+                    "Database Offline - Continuity Mode",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (enterContinuity == DialogResult.Yes)
+                {
+                    _continuityCoordinator.EnterContinuityMode($"Database connectivity interrupted during checkout: {ex.Message}");
+                    await RecordContinuitySaleAsync(methodName, tendered);
+                    return;
+                }
+            }
+            throw;
+        }
+        finally
+        {
+            _recordButton.Enabled = true;
+        }
+
         await RefreshOrderAsync();
         await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
 
@@ -7719,6 +7870,254 @@ public sealed partial class RestaurantPosForm : XtraForm
                 paymentForm.DialogResult = DialogResult.OK;
                 paymentForm.Close();
             }
+        }
+    }
+
+    private async Task RecordContinuitySaleAsync(string methodName, decimal tendered)
+    {
+        if (!ContinuityBusinessRules.CanAcceptTender(methodName, out var rejection))
+        {
+            XtraMessageBox.Show(this, rejection, "Continuity Mode Restriction", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (_currentOrder == null || _currentOrderLines.Count == 0)
+        {
+            XtraMessageBox.Show(this, "No items in cart.", "Empty Cart", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var journalStore = _scope.ServiceProvider.GetRequiredService<IContinuityJournalStore>();
+        var nextSeq = await journalStore.GetNextSequenceNumberAsync();
+        var warehouseId = _warehousePicker.SelectedId ?? Guid.Empty;
+        var selectedTableId = _currentOrder.TableId ?? _tablePicker.SelectedId;
+
+        var snapshotLines = _currentOrderLines.Where(l => !l.IsVoided).Select(l => new EmergencyTransactionLine(
+            l.ProductVariantId,
+            ResolveVariantSku(l.ProductVariantId),
+            ResolveVariantName(l.ProductVariantId),
+            l.Quantity,
+            l.UnitPrice,
+            l.LineTotal,
+            l.Notes)).ToList();
+
+        var subtotal = _currentTotals?.Subtotal ?? snapshotLines.Sum(l => l.LineTotal);
+        var taxTotal = _currentTotals?.TaxTotal ?? 0m;
+        var discountTotal = _currentTotals?.DiscountTotal ?? 0m;
+        var serviceTotal = _currentTotals?.ServiceChargeTotal ?? 0m;
+        var grandTotal = _currentTotals?.GrandTotal ?? (subtotal + taxTotal + serviceTotal - discountTotal);
+
+        var orderSnapshot = new EmergencyOrderSnapshot(
+            _currentOrderType.ToString(),
+            selectedTableId,
+            _tablePicker.Text,
+            snapshotLines,
+            subtotal,
+            taxTotal,
+            discountTotal,
+            serviceTotal,
+            grandTotal,
+            null,
+            null);
+
+        var txId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        var cashierName = _currentSession.DisplayName ?? "Cashier";
+        var terminalId = Environment.MachineName;
+        var branchId = Guid.Empty;
+        var change = Math.Max(0, tendered - grandTotal);
+
+        var lastHash = await journalStore.GetLastTransactionHashAsync().ConfigureAwait(true);
+        var checksum = EmergencyTransaction.ComputeChecksum(
+            txId,
+            nextSeq,
+            now,
+            terminalId,
+            branchId,
+            warehouseId,
+            cashierName,
+            grandTotal,
+            "Cash");
+
+        var hmac = EmergencyTransaction.ComputeHmacSignature(
+            txId,
+            nextSeq,
+            lastHash,
+            now,
+            terminalId,
+            branchId,
+            warehouseId,
+            cashierName,
+            grandTotal,
+            "Cash");
+
+        var emergencyTx = new EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = nextSeq,
+            PreviousTransactionHash = lastHash,
+            TimestampUtc = now,
+            TerminalId = terminalId,
+            BranchId = branchId,
+            WarehouseId = warehouseId,
+            CashierId = _currentSession.UserId ?? Guid.Empty,
+            CashierName = cashierName,
+            OrderSnapshot = orderSnapshot,
+            PaymentType = "Cash",
+            AmountTendered = tendered,
+            ChangeGiven = change,
+            Checksum = checksum,
+            HmacSignature = hmac
+        };
+
+        if (_continuityCoordinator != null)
+        {
+            await _continuityCoordinator.RecordEmergencySaleAsync(emergencyTx);
+        }
+        else
+        {
+            await journalStore.AppendAsync(emergencyTx);
+        }
+
+        if (_checkpointStore != null)
+        {
+            await _checkpointStore.ClearCheckpointAsync(terminalId);
+        }
+
+        _currentOrder = null;
+        _tablePicker.SelectId(null);
+        _addQuantityEdit.Value = 1;
+        _currentOrderType = PosSettingsStore.LoadDefaultOrderType();
+        await RefreshOrderAsync();
+        await RefreshActiveOrdersAsync();
+
+        var paymentForm = _recordButton.FindForm();
+        if (paymentForm != null && paymentForm != this)
+        {
+            paymentForm.DialogResult = DialogResult.OK;
+            paymentForm.Close();
+        }
+
+        XtraMessageBox.Show(
+            this,
+            $"[EMERGENCY CASH SALE RECORDED]\n\n" +
+            $"Offline Sequence: #{nextSeq}\n" +
+            $"Total: {CurrencyDisplay.FormatPlain(grandTotal)}\n" +
+            $"Tendered: {CurrencyDisplay.FormatPlain(tendered)}\n" +
+            $"Change Due: {CurrencyDisplay.FormatPlain(change)}\n\n" +
+            $"This transaction is encrypted in the local journal and will synchronize once database connectivity is restored.\n" +
+            $"The counter is ready for the next customer.",
+            "Continuity Mode Sale Complete",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
+    }
+
+    private static bool IsDatabaseConnectivityException(Exception ex)
+    {
+        var current = ex;
+        while (current != null)
+        {
+            var typeName = current.GetType().FullName ?? string.Empty;
+            if (typeName.Contains("SqlException") ||
+                typeName.Contains("SocketException") ||
+                current is TimeoutException)
+            {
+                return true;
+            }
+
+            var msg = current.Message.ToLowerInvariant();
+            if (msg.Contains("network-related") ||
+                msg.Contains("transport-level") ||
+                msg.Contains("server was not found") ||
+                msg.Contains("timeout expired") ||
+                msg.Contains("connection was broken") ||
+                msg.Contains("underlying provider failed on open"))
+            {
+                return true;
+            }
+
+            current = current.InnerException;
+        }
+        return false;
+    }
+
+    private async Task CheckAndPromptCrashRecoveryAsync()
+    {
+        try
+        {
+            if (_checkpointStore == null) return;
+
+            var checkpoint = await _checkpointStore.LoadCheckpointAsync(Environment.MachineName);
+            if (checkpoint != null && checkpoint.Lines.Count > 0)
+            {
+                var prompt = $"An uncommitted cart with {checkpoint.Lines.Count} item(s) from {checkpoint.SavedAtUtc.ToLocalTime():g} was recovered.\n\n" +
+                             "Would you like to restore this in-progress order?";
+
+                var res = XtraMessageBox.Show(
+                    this,
+                    prompt,
+                    "Crash Recovery - Uncommitted Order Found",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (res == DialogResult.Yes)
+                {
+                    foreach (var line in checkpoint.Lines)
+                    {
+                        await AddProductToCurrentOrder(line.ProductVariantId, line.Quantity, line.UnitPrice);
+                    }
+                }
+                else
+                {
+                    await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to inspect crash recovery checkpoint on load.");
+        }
+    }
+
+    private async Task CheckpointActiveCartAsync()
+    {
+        try
+        {
+            if (_checkpointStore == null) return;
+
+            if (_currentOrder == null || _currentOrderLines.Count == 0)
+            {
+                await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+                return;
+            }
+
+            var lines = _currentOrderLines.Where(l => !l.IsVoided).Select(l => new CartCheckpointLine(
+                l.ProductVariantId,
+                ResolveVariantSku(l.ProductVariantId),
+                ResolveVariantName(l.ProductVariantId),
+                string.Empty,
+                l.Quantity,
+                l.UnitPrice,
+                l.Notes)).ToList();
+
+            var checkpoint = new CartCheckpoint(
+                Guid.NewGuid(),
+                Environment.MachineName,
+                _currentSession.UserId,
+                _currentSession.DisplayName,
+                _currentOrderType.ToString(),
+                _currentOrder.TableId,
+                _tablePicker.Text,
+                DateTimeOffset.UtcNow,
+                lines,
+                null,
+                null);
+
+            await _checkpointStore.SaveCheckpointAsync(checkpoint);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogDebug(ex, "Failed to save cart checkpoint");
         }
     }
 

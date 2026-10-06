@@ -27,6 +27,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddValidatedOptions<PlatformOptions>(configuration, PlatformOptions.SectionName);
         services.AddModuleRegistry();
+        services.AddSingleton<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry, Clovent.Platform.CircuitBreakers.CircuitBreakerRegistry>();
 
         return services;
     }

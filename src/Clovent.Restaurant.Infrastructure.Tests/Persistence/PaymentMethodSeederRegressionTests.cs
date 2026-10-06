@@ -138,6 +138,40 @@ public class PaymentMethodSeederRegressionTests : SqliteTestBase
     }
 
     [Fact]
+    public async Task ExistingDuplicates_AreCleanedUpToSingleActiveRecord()
+    {
+        // 1. Arrange: Pre-populate duplicate Cash and On Account records
+        var cash1 = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var cash2 = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var onAccount1 = PaymentMethod.Create(PaymentMethodName.Create("On Account"));
+        var onAccount2 = PaymentMethod.Create(PaymentMethodName.Create("On Account"));
+        var card = PaymentMethod.Create(PaymentMethodName.Create("Card"));
+
+        await using (var writeContext = CreateContext())
+        {
+            await writeContext.PaymentMethods.AddRangeAsync(cash1, cash2, onAccount1, onAccount2, card);
+            await writeContext.SaveChangesAsync();
+        }
+
+        // 2. Act: Run seeder
+        await using (var upgradeContext = CreateContext())
+        {
+            await PaymentMethodSeeder.EnsureCorePaymentMethodsAsync(upgradeContext);
+        }
+
+        // 3. Assert: Exactly 3 records remain, exactly one of each
+        await using (var readContext = CreateContext())
+        {
+            var all = await readContext.PaymentMethods.ToListAsync();
+            Assert.Equal(3, all.Count);
+
+            Assert.Single(all, m => string.Equals(m.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase));
+            Assert.Single(all, m => string.Equals(m.Name.Value, "Card", StringComparison.OrdinalIgnoreCase));
+            Assert.Single(all, m => string.Equals(m.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
     public async Task FreshInstallation_ReceivesAllRequiredCorePaymentMethods()
     {
         // 1. Arrange: Fresh database with 0 payment methods

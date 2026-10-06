@@ -56,6 +56,23 @@ public static class LicenseService
     /// </summary>
     public static string GetLicenseAppDataPath() => GetProgramDataLicensePath();
 
+    private static string? _customLicenseFilePath;
+    private static bool _customLicensePathSet;
+
+    internal static void SetLicenseFilePathForTesting(string? path)
+    {
+        _customLicensePathSet = true;
+        _customLicenseFilePath = path;
+        _cachedResult = null;
+    }
+
+    internal static void ResetTestingOverrides()
+    {
+        _customLicensePathSet = false;
+        _customLicenseFilePath = null;
+        _cachedResult = null;
+    }
+
     /// <summary>
     /// Locates an active license file across protected storage locations.
     /// Checks %ProgramData% first, then falls back to %LocalAppData%.
@@ -63,6 +80,11 @@ public static class LicenseService
     /// </summary>
     public static string? FindLicenseFilePath()
     {
+        if (_customLicensePathSet)
+        {
+            return _customLicenseFilePath;
+        }
+
         try
         {
             var programDataPath = GetProgramDataLicensePath();
@@ -307,37 +329,128 @@ public static class LicenseService
 
     /// <summary>
     /// Loads and validates the current software license from protected storage locations.
+    /// If no commercial license file is found, evaluates whether workstation is operating
+    /// within an active 30-day evaluation period.
     /// </summary>
     public static LicenseValidationResult ValidateCurrentLicense()
     {
         var filePath = FindLicenseFilePath();
-        if (filePath == null)
+        if (filePath != null)
+        {
+            try
+            {
+                var json = File.ReadAllText(filePath);
+                var license = JsonSerializer.Deserialize<CloventLicense>(json, JsonOptions);
+                var commercialResult = ValidateLicense(license);
+
+                // Commercial license installation permanently supersedes evaluation mode
+                TrialStateManager.RecordCommercialLicenseInstalled();
+                return commercialResult;
+            }
+            catch (Exception ex)
+            {
+                return new LicenseValidationResult
+                {
+                    Status = LicenseStatus.InvalidSignature,
+                    Message = $"Failed to validate license: {ex.Message}",
+                    License = null,
+                    DaysRemaining = 0
+                };
+            }
+        }
+
+        // No clovent.lic file found: check if active 30-day evaluation mode is active
+        var trial = TrialStateManager.EvaluateTrial();
+        if (trial.Status == TrialStateStatus.Active)
+        {
+            var trialLicense = new CloventLicense
+            {
+                KeyId = "evaluation-trial",
+                Product = ExpectedProductName,
+                LicenseId = Guid.Empty,
+                CustomerName = "Evaluation Workstation",
+                CompanyName = "Evaluation Mode",
+                LicenseType = "Trial",
+                IssueDate = trial.StartedAtUtc,
+                ValidFrom = trial.StartedAtUtc,
+                ExpiryDate = trial.ExpiryDate,
+                MaxTerminals = 0, // Unlimited during trial
+                MaxBranches = 1,
+                AllowedModules = ["POS", "BackOffice", "Inventory", "Catalog", "Reporting", "Restaurant"],
+                MachineId = MachineFingerprint.GetCurrentMachineId()
+            };
+
+            return new LicenseValidationResult
+            {
+                Status = LicenseStatus.Valid,
+                IsEvaluation = true,
+                Message = $"Evaluation Mode ({trial.DaysRemaining} day(s) remaining)",
+                License = trialLicense,
+                DaysRemaining = trial.DaysRemaining
+            };
+        }
+
+        if (trial.Status == TrialStateStatus.Expired)
+        {
+            var expiredTrialLicense = new CloventLicense
+            {
+                KeyId = "evaluation-trial",
+                Product = ExpectedProductName,
+                LicenseId = Guid.Empty,
+                CustomerName = "Evaluation Workstation",
+                CompanyName = "Evaluation Mode (Expired)",
+                LicenseType = "Trial",
+                IssueDate = trial.StartedAtUtc,
+                ValidFrom = trial.StartedAtUtc,
+                ExpiryDate = trial.ExpiryDate,
+                MaxTerminals = 0,
+                MaxBranches = 1,
+                AllowedModules = ["POS", "BackOffice", "Inventory", "Catalog", "Reporting", "Restaurant"],
+                MachineId = MachineFingerprint.GetCurrentMachineId()
+            };
+
+            return new LicenseValidationResult
+            {
+                Status = LicenseStatus.Expired,
+                IsEvaluation = true,
+                Message = $"30-day evaluation period expired on {trial.ExpiryDate:yyyy-MM-dd}. Please import a valid software license.",
+                License = expiredTrialLicense,
+                DaysRemaining = 0
+            };
+        }
+
+        if (trial.Status == TrialStateStatus.ClockRollback)
         {
             return new LicenseValidationResult
             {
-                Status = LicenseStatus.Unlicensed,
-                Message = "No software license file (clovent.lic) was found. Please register or import a valid license.",
+                Status = LicenseStatus.ClockTampered,
+                IsEvaluation = true,
+                Message = "System clock rollback detected during evaluation period.",
                 License = null,
                 DaysRemaining = 0
             };
         }
 
-        try
-        {
-            var json = File.ReadAllText(filePath);
-            var license = JsonSerializer.Deserialize<CloventLicense>(json, JsonOptions);
-            return ValidateLicense(license);
-        }
-        catch (Exception ex)
+        if (trial.Status == TrialStateStatus.CommercialSuperseded)
         {
             return new LicenseValidationResult
             {
-                Status = LicenseStatus.InvalidSignature,
-                Message = $"Failed to validate license: {ex.Message}",
+                Status = LicenseStatus.Unlicensed,
+                IsEvaluation = false,
+                Message = "Commercial license was previously active on this workstation. Please import a renewed software license.",
                 License = null,
                 DaysRemaining = 0
             };
         }
+
+        return new LicenseValidationResult
+        {
+            Status = LicenseStatus.Unlicensed,
+            IsEvaluation = false,
+            Message = "No software license file (clovent.lic) was found. Please register or import a valid license.",
+            License = null,
+            DaysRemaining = 0
+        };
     }
 
     /// <summary>

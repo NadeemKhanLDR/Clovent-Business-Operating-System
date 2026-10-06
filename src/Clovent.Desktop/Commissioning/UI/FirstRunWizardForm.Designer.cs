@@ -467,14 +467,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep1Desc
         // 
-        this.lblStep1Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep1Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep1Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep1Desc.Appearance.Options.UseFont = true;
         this.lblStep1Desc.Appearance.Options.UseForeColor = true;
         this.lblStep1Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep1Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep1Desc.Name = "lblStep1Desc";
-        this.lblStep1Desc.Size = new System.Drawing.Size(560, 30);
+        this.lblStep1Desc.Size = new System.Drawing.Size(560, 36);
         this.lblStep1Desc.TabIndex = 1;
         this.lblStep1Desc.Text = "This wizard prepares your workstation for production deployment. It configures database connectivity, applies schema migrations, defines your enterprise hierarchy, and provisions the initial administrator account.";
         this.lblStep1Desc.UseMnemonic = false;
@@ -487,41 +487,49 @@ partial class FirstRunWizardForm
         this.grpPrerequisites.Controls.Add(this.lblPrereqAdmin);
         this.grpPrerequisites.Location = new System.Drawing.Point(0, 80);
         this.grpPrerequisites.Name = "grpPrerequisites";
-        this.grpPrerequisites.Size = new System.Drawing.Size(640, 140);
+        this.grpPrerequisites.Size = new System.Drawing.Size(640, 164);
         this.grpPrerequisites.TabIndex = 2;
         this.grpPrerequisites.Text = "System Prerequisites Checklist";
         // 
         // lblPrereqSql
         // 
-        this.lblPrereqSql.Location = new System.Drawing.Point(16, 32);
+        this.lblPrereqSql.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblPrereqSql.Appearance.Options.UseFont = true;
+        this.lblPrereqSql.Location = new System.Drawing.Point(18, 34);
         this.lblPrereqSql.Name = "lblPrereqSql";
-        this.lblPrereqSql.Size = new System.Drawing.Size(425, 15);
+        this.lblPrereqSql.Size = new System.Drawing.Size(525, 17);
         this.lblPrereqSql.TabIndex = 0;
         this.lblPrereqSql.Text = "• Microsoft SQL Server 2019/2022 instance reachable (Local or Centralized Network" +
     ")";
         // 
         // lblPrereqRuntime
         // 
-        this.lblPrereqRuntime.Location = new System.Drawing.Point(16, 56);
+        this.lblPrereqRuntime.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblPrereqRuntime.Appearance.Options.UseFont = true;
+        this.lblPrereqRuntime.Location = new System.Drawing.Point(18, 64);
         this.lblPrereqRuntime.Name = "lblPrereqRuntime";
-        this.lblPrereqRuntime.Size = new System.Drawing.Size(395, 15);
+        this.lblPrereqRuntime.Size = new System.Drawing.Size(467, 17);
         this.lblPrereqRuntime.TabIndex = 1;
         this.lblPrereqRuntime.Text = "• .NET 10 Windows Desktop Runtime (x64) and DevExpress 26.1 WinForms";
         // 
         // lblPrereqDisplay
         // 
-        this.lblPrereqDisplay.Location = new System.Drawing.Point(16, 80);
+        this.lblPrereqDisplay.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblPrereqDisplay.Appearance.Options.UseFont = true;
+        this.lblPrereqDisplay.Location = new System.Drawing.Point(18, 94);
         this.lblPrereqDisplay.Name = "lblPrereqDisplay";
-        this.lblPrereqDisplay.Size = new System.Drawing.Size(460, 15);
+        this.lblPrereqDisplay.Size = new System.Drawing.Size(529, 17);
         this.lblPrereqDisplay.TabIndex = 2;
         this.lblPrereqDisplay.Text = "• Display resolution 1366×768 or higher (High-DPI PerMonitorV2 scaling supported)" +
     "";
         // 
         // lblPrereqAdmin
         // 
-        this.lblPrereqAdmin.Location = new System.Drawing.Point(16, 104);
+        this.lblPrereqAdmin.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblPrereqAdmin.Appearance.Options.UseFont = true;
+        this.lblPrereqAdmin.Location = new System.Drawing.Point(18, 124);
         this.lblPrereqAdmin.Name = "lblPrereqAdmin";
-        this.lblPrereqAdmin.Size = new System.Drawing.Size(450, 15);
+        this.lblPrereqAdmin.Size = new System.Drawing.Size(511, 17);
         this.lblPrereqAdmin.TabIndex = 3;
         this.lblPrereqAdmin.Text = "• Windows Administrator elevation (for ProgramData machine-wide configuration)";
         // 
@@ -531,41 +539,50 @@ partial class FirstRunWizardForm
         this.grpSystemDetection.Controls.Add(this.lblDetectedRuntime);
         this.grpSystemDetection.Controls.Add(this.lblDetectedDpi);
         this.grpSystemDetection.Controls.Add(this.lblDetectedElevation);
-        this.grpSystemDetection.Location = new System.Drawing.Point(0, 235);
+        this.grpSystemDetection.Location = new System.Drawing.Point(0, 256);
         this.grpSystemDetection.Name = "grpSystemDetection";
-        this.grpSystemDetection.Size = new System.Drawing.Size(640, 140);
+        this.grpSystemDetection.Size = new System.Drawing.Size(640, 164);
         this.grpSystemDetection.TabIndex = 3;
         this.grpSystemDetection.Text = "Detected Workstation Environment";
         // 
         // lblDetectedOs
         // 
-        this.lblDetectedOs.Location = new System.Drawing.Point(16, 32);
+        this.lblDetectedOs.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblDetectedOs.Appearance.Options.UseFont = true;
+        this.lblDetectedOs.Location = new System.Drawing.Point(18, 34);
         this.lblDetectedOs.Name = "lblDetectedOs";
-        this.lblDetectedOs.Size = new System.Drawing.Size(120, 15);
+        this.lblDetectedOs.Size = new System.Drawing.Size(400, 17);
         this.lblDetectedOs.TabIndex = 0;
         this.lblDetectedOs.Text = "Operating System: ...";
         // 
         // lblDetectedRuntime
         // 
-        this.lblDetectedRuntime.Location = new System.Drawing.Point(16, 56);
+        this.lblDetectedRuntime.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblDetectedRuntime.Appearance.Options.UseFont = true;
+        this.lblDetectedRuntime.Location = new System.Drawing.Point(18, 64);
         this.lblDetectedRuntime.Name = "lblDetectedRuntime";
-        this.lblDetectedRuntime.Size = new System.Drawing.Size(100, 15);
+        this.lblDetectedRuntime.Size = new System.Drawing.Size(262, 17);
         this.lblDetectedRuntime.TabIndex = 1;
         this.lblDetectedRuntime.Text = ".NET Runtime: ...";
         // 
         // lblDetectedDpi
         // 
-        this.lblDetectedDpi.Location = new System.Drawing.Point(16, 80);
+        this.lblDetectedDpi.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblDetectedDpi.Appearance.Options.UseFont = true;
+        this.lblDetectedDpi.Location = new System.Drawing.Point(18, 94);
         this.lblDetectedDpi.Name = "lblDetectedDpi";
-        this.lblDetectedDpi.Size = new System.Drawing.Size(115, 15);
+        this.lblDetectedDpi.Size = new System.Drawing.Size(356, 17);
         this.lblDetectedDpi.TabIndex = 2;
         this.lblDetectedDpi.Text = "Display DPI Scaling: ...";
         // 
         // lblDetectedElevation
         // 
-        this.lblDetectedElevation.Location = new System.Drawing.Point(16, 104);
+        this.lblDetectedElevation.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
+        this.lblDetectedElevation.Appearance.Options.UseFont = true;
+        this.lblDetectedElevation.Appearance.Options.UseForeColor = true;
+        this.lblDetectedElevation.Location = new System.Drawing.Point(18, 124);
         this.lblDetectedElevation.Name = "lblDetectedElevation";
-        this.lblDetectedElevation.Size = new System.Drawing.Size(130, 15);
+        this.lblDetectedElevation.Size = new System.Drawing.Size(260, 17);
         this.lblDetectedElevation.TabIndex = 3;
         this.lblDetectedElevation.Text = "Elevation Status: ...";
         // 
@@ -605,14 +622,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep2Desc
         // 
-        this.lblStep2Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep2Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep2Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep2Desc.Appearance.Options.UseFont = true;
         this.lblStep2Desc.Appearance.Options.UseForeColor = true;
         this.lblStep2Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep2Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep2Desc.Name = "lblStep2Desc";
-        this.lblStep2Desc.Size = new System.Drawing.Size(640, 32);
+        this.lblStep2Desc.Size = new System.Drawing.Size(640, 36);
         this.lblStep2Desc.TabIndex = 1;
         this.lblStep2Desc.Text = "Specify the SQL Server instance and database name. You must test the connection successfully before proceeding.";
         this.lblStep2Desc.UseMnemonic = false;
@@ -768,13 +785,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep3Desc
         // 
-        this.lblStep3Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep3Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep3Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep3Desc.Appearance.Options.UseFont = true;
         this.lblStep3Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep3Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep3Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep3Desc.Name = "lblStep3Desc";
-        this.lblStep3Desc.Size = new System.Drawing.Size(575, 15);
+        this.lblStep3Desc.Size = new System.Drawing.Size(575, 36);
         this.lblStep3Desc.TabIndex = 1;
         this.lblStep3Desc.Text = "Initialize the physical database and apply EF Core migrations sequentially across" +
     " all 6 bounded contexts.";
@@ -874,13 +892,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep4Desc
         // 
-        this.lblStep4Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep4Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep4Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep4Desc.Appearance.Options.UseFont = true;
         this.lblStep4Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep4Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep4Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep4Desc.Name = "lblStep4Desc";
-        this.lblStep4Desc.Size = new System.Drawing.Size(534, 15);
+        this.lblStep4Desc.Size = new System.Drawing.Size(534, 36);
         this.lblStep4Desc.TabIndex = 1;
         this.lblStep4Desc.Text = "Define your parent organization, primary operating company, and initial branch or" +
     " store location.";
@@ -994,13 +1013,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep5Desc
         // 
-        this.lblStep5Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep5Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep5Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep5Desc.Appearance.Options.UseFont = true;
         this.lblStep5Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep5Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep5Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep5Desc.Name = "lblStep5Desc";
-        this.lblStep5Desc.Size = new System.Drawing.Size(564, 15);
+        this.lblStep5Desc.Size = new System.Drawing.Size(564, 36);
         this.lblStep5Desc.TabIndex = 1;
         this.lblStep5Desc.Text = "Provision the initial system administrator. This account receives full security a" +
     "nd configuration permissions.";
@@ -1112,13 +1132,13 @@ partial class FirstRunWizardForm
         // 
         // lblPasswordPolicy
         // 
-        this.lblPasswordPolicy.Appearance.Font = new System.Drawing.Font("Segoe UI", 8F);
+        this.lblPasswordPolicy.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         this.lblPasswordPolicy.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(100)))), ((int)(((byte)(116)))), ((int)(((byte)(139)))));
         this.lblPasswordPolicy.Appearance.Options.UseFont = true;
         this.lblPasswordPolicy.Appearance.Options.UseForeColor = true;
         this.lblPasswordPolicy.Location = new System.Drawing.Point(0, 350);
         this.lblPasswordPolicy.Name = "lblPasswordPolicy";
-        this.lblPasswordPolicy.Size = new System.Drawing.Size(434, 13);
+        this.lblPasswordPolicy.Size = new System.Drawing.Size(434, 15);
         this.lblPasswordPolicy.TabIndex = 14;
         this.lblPasswordPolicy.Text = "Policy: Minimum 8 characters. Must contain letters and digits. Default passwords" +
     " prohibited.";
@@ -1158,13 +1178,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep6Desc
         // 
-        this.lblStep6Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep6Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep6Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep6Desc.Appearance.Options.UseFont = true;
         this.lblStep6Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep6Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep6Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep6Desc.Name = "lblStep6Desc";
-        this.lblStep6Desc.Size = new System.Drawing.Size(465, 15);
+        this.lblStep6Desc.Size = new System.Drawing.Size(465, 36);
         this.lblStep6Desc.TabIndex = 1;
         this.lblStep6Desc.Text = "Configure operating time zone, formatting patterns, base currency, and workstation name.";
         // 
@@ -1324,13 +1345,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep7Desc
         // 
-        this.lblStep7Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep7Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep7Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep7Desc.Appearance.Options.UseFont = true;
         this.lblStep7Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep7Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep7Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep7Desc.Name = "lblStep7Desc";
-        this.lblStep7Desc.Size = new System.Drawing.Size(567, 15);
+        this.lblStep7Desc.Size = new System.Drawing.Size(567, 36);
         this.lblStep7Desc.TabIndex = 1;
         this.lblStep7Desc.Text = "Import a cryptographically signed license file (*.lic), or continue in the 30-day" +
     " Evaluation / Trial mode.";
@@ -1432,13 +1454,14 @@ partial class FirstRunWizardForm
         // 
         // lblStep8Desc
         // 
-        this.lblStep8Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblStep8Desc.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F);
         this.lblStep8Desc.Appearance.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(71)))), ((int)(((byte)(85)))), ((int)(((byte)(105)))));
         this.lblStep8Desc.Appearance.Options.UseFont = true;
         this.lblStep8Desc.Appearance.Options.UseForeColor = true;
+        this.lblStep8Desc.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Vertical;
         this.lblStep8Desc.Location = new System.Drawing.Point(0, 32);
         this.lblStep8Desc.Name = "lblStep8Desc";
-        this.lblStep8Desc.Size = new System.Drawing.Size(564, 15);
+        this.lblStep8Desc.Size = new System.Drawing.Size(564, 36);
         this.lblStep8Desc.TabIndex = 1;
         this.lblStep8Desc.Text = "Review your configuration parameters below. Click \'Finish Setup\' to complete comm" +
     "issioning and sign in.";
@@ -1456,13 +1479,13 @@ partial class FirstRunWizardForm
         // 
         // lblFinishNotice
         // 
-        this.lblFinishNotice.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        this.lblFinishNotice.Appearance.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
         this.lblFinishNotice.Appearance.ForeColor = System.Drawing.Color.ForestGreen;
         this.lblFinishNotice.Appearance.Options.UseFont = true;
         this.lblFinishNotice.Appearance.Options.UseForeColor = true;
         this.lblFinishNotice.Location = new System.Drawing.Point(0, 395);
         this.lblFinishNotice.Name = "lblFinishNotice";
-        this.lblFinishNotice.Size = new System.Drawing.Size(527, 15);
+        this.lblFinishNotice.Size = new System.Drawing.Size(527, 17);
         this.lblFinishNotice.TabIndex = 3;
         this.lblFinishNotice.Text = "All setup parameters are validated. Click \'Finish Setup\' to finalize and launch t" +
     "he Sign-In screen.";

@@ -17,7 +17,8 @@ public static class Program
             return 0;
         }
 
-        var command = args[0].ToLowerInvariant();
+        var rawCommand = args[0];
+        var command = rawCommand.TrimStart('-').ToLowerInvariant();
         var options = ParseOptions(args);
 
         try
@@ -27,7 +28,7 @@ public static class Program
                 "generate-keys" or "generate-key" => HandleGenerateKeys(options),
                 "issue" or "issue-license" => HandleIssue(options),
                 "verify" or "verify-license" => HandleVerify(options),
-                _ => PrintUnknownCommand(command)
+                _ => PrintUnknownCommand(rawCommand)
             };
         }
         catch (Exception ex)
@@ -381,20 +382,15 @@ EXAMPLES:
     #region License Issuance
     private static int HandleIssue(Dictionary<string, string> options)
     {
+        var missingRequired = new List<string>();
         if (!options.TryGetValue("customer", out var customer) || string.IsNullOrWhiteSpace(customer))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine("Error: Missing required option '--customer <name>'.");
-            Console.ResetColor();
-            return 1;
+            missingRequired.Add("--customer <name>");
         }
 
         if (!options.TryGetValue("company", out var company) || string.IsNullOrWhiteSpace(company))
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine("Error: Missing required option '--company <name>'.");
-            Console.ResetColor();
-            return 1;
+            missingRequired.Add("--company <name>");
         }
 
         if (!options.TryGetValue("type", out var licenseType) || string.IsNullOrWhiteSpace(licenseType))
@@ -403,6 +399,44 @@ EXAMPLES:
         }
 
         var isPerpetual = string.Equals(licenseType, "Perpetual", StringComparison.OrdinalIgnoreCase);
+
+        if (!options.ContainsKey("days") && !isPerpetual)
+        {
+            missingRequired.Add("--days <n>");
+        }
+
+        if (!options.ContainsKey("terminals"))
+        {
+            missingRequired.Add("--terminals <n>");
+        }
+
+        if (!options.ContainsKey("branches"))
+        {
+            missingRequired.Add("--branches <n>");
+        }
+
+        if (missingRequired.Count > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine("Error: Missing required option(s):");
+            foreach (var opt in missingRequired)
+            {
+                Console.Error.WriteLine($"  {opt}");
+            }
+            Console.ResetColor();
+            Console.WriteLine("\nAuthoritative usage example:");
+            Console.WriteLine("  dotnet run --project tools\\LicenseIssuer -- issue `");
+            Console.WriteLine("    --customer \"CBOS Sandbox Test\" `");
+            Console.WriteLine("    --company \"CBOS Sandbox Test\" `");
+            Console.WriteLine("    --type Trial `");
+            Console.WriteLine("    --days 35 `");
+            Console.WriteLine("    --modules POS,BackOffice,Inventory,Catalog,Reporting,Restaurant `");
+            Console.WriteLine("    --terminals 5 `");
+            Console.WriteLine("    --branches 1 `");
+            Console.WriteLine("    --machine-id \"<SANDBOX-HARDWARE-ID>\" `");
+            Console.WriteLine("    --out \"D:\\clovent-sandbox.lic\"");
+            return 1;
+        }
 
         int days = 0;
         if (options.TryGetValue("days", out var daysStr))
@@ -418,13 +452,6 @@ EXAMPLES:
         else if (isPerpetual)
         {
             days = 36500; // 100 years
-        }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine("Error: Missing required option '--days <n>'.");
-            Console.ResetColor();
-            return 1;
         }
 
         if (isPerpetual && days == 0)
@@ -511,8 +538,8 @@ EXAMPLES:
             KeyId = KeyId,
             Product = "Clovent Business Operating System",
             LicenseId = Guid.NewGuid(),
-            CustomerName = customer.Trim(),
-            CompanyName = company.Trim(),
+            CustomerName = customer!.Trim(),
+            CompanyName = company!.Trim(),
             LicenseType = normalizedType,
             IssueDate = issueDate,
             ValidFrom = validFrom,

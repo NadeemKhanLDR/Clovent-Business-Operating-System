@@ -87,5 +87,7 @@ public sealed class LicenseValidationResult
 
     public int DaysRemaining { get; init; }
 
+    public bool IsEvaluation { get; init; }
+
     public bool IsAuthorized => Status is LicenseStatus.Valid or LicenseStatus.GracePeriod;
 }

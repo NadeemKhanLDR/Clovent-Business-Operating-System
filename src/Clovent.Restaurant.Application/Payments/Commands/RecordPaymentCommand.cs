@@ -22,7 +22,7 @@ namespace Clovent.Restaurant.Application.Payments.Commands;
 /// doc comment - so this one command covers all three, not a special
 /// "split bill" command.
 /// </summary>
-public sealed record RecordPaymentCommand(Guid OrderId, Guid PaymentMethodId, decimal Amount, bool ExceedCreditLimitApproved = false, Guid? ShiftId = null) : IRequest<PaymentDto>;
+public sealed record RecordPaymentCommand(Guid OrderId, Guid PaymentMethodId, decimal Amount, bool ExceedCreditLimitApproved = false, Guid? ShiftId = null, string? IdempotencyKey = null) : IRequest<PaymentDto>;
 
 /// <summary>Handles <see cref="RecordPaymentCommand"/>.</summary>
 public sealed class RecordPaymentCommandHandler(
@@ -47,6 +47,21 @@ public sealed class RecordPaymentCommandHandler(
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
+        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
+        {
+            var existingPayment = await paymentRepository.GetByIdempotencyKeyAsync(request.IdempotencyKey, cancellationToken);
+            if (existingPayment is not null)
+            {
+                if (existingPayment.OrderId.Value != request.OrderId || Math.Abs(existingPayment.Amount - request.Amount) > BalanceEpsilon)
+                {
+                    throw new InvalidOperationException(
+                        $"Idempotency key '{request.IdempotencyKey}' was already used for a different payment (Order: {existingPayment.OrderId.Value}, Amount: {existingPayment.Amount:N2}). Reusing idempotency keys with differing payloads is prohibited.");
+                }
+
+                return PaymentDto.FromDomain(existingPayment);
+            }
+        }
+
         var orderId = new OrderId(request.OrderId);
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
@@ -106,7 +121,7 @@ public sealed class RecordPaymentCommandHandler(
                 await allocationRepository.AddAsync(alloc, cancellationToken);
             }
 
-            var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, null);
+            var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, null, request.IdempotencyKey);
             order.RecordPayment(advPayment.Id);
             await paymentRepository.AddAsync(advPayment, cancellationToken);
 
@@ -193,7 +208,7 @@ public sealed class RecordPaymentCommandHandler(
         }
 
         ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
-        var payment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId);
+        var payment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId, request.IdempotencyKey);
         order.RecordPayment(payment.Id);
 
         await paymentRepository.AddAsync(payment, cancellationToken);

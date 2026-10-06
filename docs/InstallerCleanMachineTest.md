@@ -1,8 +1,8 @@
 # Clovent Business Operating System - Clean Machine & Windows Sandbox Acceptance Guide
 
-**Release Version:** 1.0.8 (Current) | 1.0.7 (Frozen Baseline Preserved)  
-**Installer Artifact:** `artifacts\installer\Clovent.BusinessOperatingSystem-1.0.8-Setup.exe`  
-**Test Objective:** Validate full automated onboarding, SQL Server Express chaining, database provisioning, responsive High-DPI first-run commissioning, license issuance, POS transactions, restart persistence, and uninstall safety on a completely clean Windows workstation.
+**Release Version:** 1.1.2 (Current) | 1.1.1, 1.1.0, 1.0.8, 1.0.7 (Frozen Baselines Preserved)  
+**Installer Artifact:** `artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe`  
+**Test Objective:** Validate full automated onboarding, SQL Server Express chaining, database provisioning, responsive High-DPI first-run commissioning, 30-day evaluation mode or commercial license issuance, POS transactions, restart persistence, and uninstall safety on a completely clean Windows workstation.
 
 ---
 
@@ -21,7 +21,7 @@
 [ Step 1: Launch Sandbox ]
           │
           ▼
-[ Step 2: Copy Setup Executable (1.0.8) ]
+[ Step 2: Copy Setup Executable (1.1.2) ]
           │
           ▼
 [ Step 3: Run Setup & Accept UAC ]
@@ -29,8 +29,8 @@
           ▼
 [ Step 4: Automated Setup Execution ]
   - SQL Server detection & install (CLOVENT)
-  - Application binary extraction (1.0.8)
-  - Database provisioning & schema migrations
+  - Application binary extraction (1.1.2)
+  - Database provisioning & schema migrations (Single-File Provisioner)
   - Payment method seeding (Cash, Card, On Account)
   - Security hardening & DPAPI configuration
           │
@@ -41,7 +41,7 @@
   - Enterprise hierarchy (Org / Company / Branch)
   - First administrator account
   - Regional & terminal settings
-  - Dynamic sandbox license issuance & import
+  - Evaluation Mode OR Commercial License activation
           │
           ▼
 [ Step 6: Sign-In & POS Acceptance ]
@@ -50,6 +50,9 @@
           │
           ▼
 [ Step 7: Restart & Persistence Validation ]
+  - First-Run Wizard bypassed
+  - Trial days remaining or commercial license intact
+  - Orders persisted
           │
           ▼
 [ Step 8: Safe Uninstallation Verification ]
@@ -68,14 +71,14 @@
    ```text
    d:\Clovent Business Operating System\artifacts\installer\
    ```
-2. Copy `Clovent.BusinessOperatingSystem-1.0.8-Setup.exe` (Ctrl+C).
+2. Copy `Clovent.BusinessOperatingSystem-1.1.2-Setup.exe` (Ctrl+C).
 3. Switch into the Windows Sandbox desktop and paste it (Ctrl+V).
 4. *(Optional for Offline Testing)*: Also copy `SQLEXPR_x64_ENU.exe` into the same folder.
 
 ---
 
 ### Step 3: Run Setup & Elevation
-1. Double-click `Clovent.BusinessOperatingSystem-1.0.8-Setup.exe`.
+1. Double-click `Clovent.BusinessOperatingSystem-1.1.2-Setup.exe`.
 2. When prompted by Windows User Account Control (UAC), click **Yes** to allow administrative elevation.
 
 ---
@@ -89,11 +92,11 @@
    - Detects that no SQL Server exists.
    - Automatically acquires and installs Microsoft SQL Server 2022 Express under named instance `CLOVENT`.
    - Starts and verifies Windows Service `MSSQL$CLOVENT`.
-   - Deploys the self-contained CBOS 1.0.8 application payload.
-   - Invokes the production database provisioner:
+   - Deploys the self-contained CBOS 1.1.2 application payload.
+   - Invokes the standalone single-file production database provisioner:
      - Creates database `Clovent_BusinessOperatingSystem`.
      - Applies EF Core migrations across all 6 contexts (`Authentication`, `Identity`, `MasterData`, `Catalog`, `Inventory`, `Restaurant`).
-     - Idempotently seeds active core payment methods: `Cash`, `Card`, `On Account`.
+     - Idempotently seeds active core payment methods: `Cash`, `Card`, `On Account` (deduplicating any legacy records).
      - Enforces `%ProgramData%\Clovent\BusinessOperatingSystem\` directory ACLs.
      - Encrypts and writes machine database configuration via DPAPI.
      - Validates final schema compatibility.
@@ -138,24 +141,32 @@ Before filling fields, verify the visual layout integrity of `FirstRunWizardForm
    - Select Timezone, Date Format (`dd-MMM-yyyy`), Time Format (`12-hour`), and Currency (`Rs.` or `USD`).
    - Enter **Terminal Name:** `POS-FRONT-01`.
    - Click **Next**.
-7. **Step 7 (Software Licensing):**
-   - The wizard displays the workstation's unique **Hardware ID** (e.g. `F4A8-11BC-99E2-7D01`).
-   - Click **Copy Hardware ID**.
-   - **Issuing the License on the Host Workstation:**
-     Open PowerShell on the host repository workstation and execute:
-     ```powershell
-     cd "d:\Clovent Business Operating System"
-     dotnet run --project tools\LicenseIssuer -- --issue `
-         --customer "Grandview Dining LLC" `
-         --machine-id "<PASTED-HARDWARE-ID>" `
-         --days 30 `
-         --terminals 5 `
-         --out "d:\clovent.lic"
-     ```
-   - Copy `d:\clovent.lic` from the host and paste it into Windows Sandbox (e.g. on Desktop).
-   - In the Sandbox Commissioning Wizard, click **Import License File**, browse to `clovent.lic`, and click Open.
-   - Verify status displays: *"License Valid: Grandview Dining LLC (30 days remaining)"*.
-   - Click **Next**.
+7. **Step 7 (Software Licensing & 30-Day Evaluation Option):**
+   - **Path A: 30-Day Evaluation / Trial Mode (Recommended for Sandbox):**
+     - Select **"Continue in Evaluation / Trial Mode (30-day evaluation period)"**.
+     - No `.lic` file is required. The system automatically initializes a durable, DPAPI-protected trial state.
+     - Click **Next**.
+   - **Path B: Commercial / Paid License Import:**
+     - The wizard displays the workstation's unique **Hardware ID** (e.g. `F4A8-11BC-99E2-7D01`).
+     - Click **Copy Hardware ID**.
+     - Open PowerShell on the host repository workstation and execute the authoritative command:
+       ```powershell
+       cd "d:\Clovent Business Operating System"
+       dotnet run --project tools\LicenseIssuer -- issue `
+           --customer "CBOS Sandbox Test" `
+           --company "Grandview Dining LLC" `
+           --type Trial `
+           --days 35 `
+           --modules POS,BackOffice,Inventory,Catalog,Reporting,Restaurant `
+           --terminals 5 `
+           --branches 1 `
+           --machine-id "<SANDBOX-HARDWARE-ID>" `
+           --out "D:\clovent-sandbox.lic"
+       ```
+     - Copy `D:\clovent-sandbox.lic` from the host and paste it into Windows Sandbox (e.g. on Desktop).
+     - In the Sandbox Commissioning Wizard, click **Import License File**, browse to `clovent-sandbox.lic`, and click Open.
+     - Verify status displays: *"License Valid: CBOS Sandbox Test (35 days remaining)"*.
+     - Click **Next**.
 8. **Step 8 (Review & Finish):**
    - Review summary of configured enterprise settings. Click **Finish**.
 

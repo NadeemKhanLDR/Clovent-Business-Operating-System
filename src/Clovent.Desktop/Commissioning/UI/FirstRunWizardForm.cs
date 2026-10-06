@@ -103,6 +103,7 @@ public partial class FirstRunWizardForm : XtraForm
         Resize += (s, e) => ApplyResponsiveLayout();
         Load += FirstRunWizardForm_Load;
 
+        ApplyWizardTypography();
         ApplyResponsiveLayout();
     }
 
@@ -351,6 +352,55 @@ public partial class FirstRunWizardForm : XtraForm
 
     #region Step 1: Welcome & Prerequisites
 
+    private void ApplyWizardTypography()
+    {
+        // Step 1: Body checklist and workstation environment labels
+        lblStep1Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep1Desc.Appearance.Options.UseFont = true;
+
+        lblPrereqSql.Appearance.Font = DesktopStyle.BodyFont;
+        lblPrereqSql.Appearance.Options.UseFont = true;
+        lblPrereqRuntime.Appearance.Font = DesktopStyle.BodyFont;
+        lblPrereqRuntime.Appearance.Options.UseFont = true;
+        lblPrereqDisplay.Appearance.Font = DesktopStyle.BodyFont;
+        lblPrereqDisplay.Appearance.Options.UseFont = true;
+        lblPrereqAdmin.Appearance.Font = DesktopStyle.BodyFont;
+        lblPrereqAdmin.Appearance.Options.UseFont = true;
+
+        lblDetectedOs.Appearance.Font = DesktopStyle.BodyFont;
+        lblDetectedOs.Appearance.Options.UseFont = true;
+        lblDetectedRuntime.Appearance.Font = DesktopStyle.BodyFont;
+        lblDetectedRuntime.Appearance.Options.UseFont = true;
+        lblDetectedDpi.Appearance.Font = DesktopStyle.BodyFont;
+        lblDetectedDpi.Appearance.Options.UseFont = true;
+        lblDetectedElevation.Appearance.Font = DesktopStyle.BodyFont;
+        lblDetectedElevation.Appearance.Options.UseFont = true;
+        lblDetectedElevation.Appearance.Options.UseForeColor = true;
+
+        // Steps 2-8: Informational descriptions and policy notices
+        lblStep2Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep2Desc.Appearance.Options.UseFont = true;
+        lblStep3Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep3Desc.Appearance.Options.UseFont = true;
+        lblStep4Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep4Desc.Appearance.Options.UseFont = true;
+        lblStep5Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep5Desc.Appearance.Options.UseFont = true;
+        lblStep6Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep6Desc.Appearance.Options.UseFont = true;
+        lblStep7Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep7Desc.Appearance.Options.UseFont = true;
+        lblStep8Desc.Appearance.Font = DesktopStyle.BodyFont;
+        lblStep8Desc.Appearance.Options.UseFont = true;
+
+        lblPasswordPolicy.Appearance.Font = DesktopStyle.CaptionFont;
+        lblPasswordPolicy.Appearance.Options.UseFont = true;
+
+        lblFinishNotice.Appearance.Font = DesktopStyle.BodyFontBold;
+        lblFinishNotice.Appearance.Options.UseFont = true;
+        lblFinishNotice.Appearance.Options.UseForeColor = true;
+    }
+
     private void PopulateStep1Detection()
     {
         lblDetectedOs.Text = $"Operating System: {Environment.OSVersion.VersionString} ({(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")})";
@@ -362,6 +412,7 @@ public partial class FirstRunWizardForm : XtraForm
         bool isAdmin = WindowsCommissioningSecurity.IsRunningAsAdministrator();
         lblDetectedElevation.Text = $"Elevation Status: {(isAdmin ? "Elevated (Administrator)" : "Standard User")}";
         lblDetectedElevation.Appearance.ForeColor = isAdmin ? Color.ForestGreen : Color.FromArgb(100, 116, 139);
+        lblDetectedElevation.Appearance.Options.UseForeColor = true;
     }
 
     #endregion
@@ -953,7 +1004,7 @@ public partial class FirstRunWizardForm : XtraForm
             var marker = new CommissioningMarker
             {
                 CommissionedAtUtc = DateTimeOffset.UtcNow,
-                ProductVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "1.0.2",
+                ProductVersion = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "1.1.2",
                 MachineId = txtHardwareId.Text.Trim(),
                 DatabaseServer = _connectionSettings.Server,
                 DatabaseName = _connectionSettings.Database,
@@ -1166,23 +1217,23 @@ public partial class FirstRunWizardForm : XtraForm
         lblStep1Desc.Width = contentW;
 
         int grpW = contentW;
-        int grpH = DesktopDpi.Scale(156, this);
-        grpPrerequisites.Location = new Point(0, lblStep1Desc.Bottom + DesktopDpi.Scale(14, this));
+        int grpH = DesktopDpi.Scale(164, this);
+        grpPrerequisites.Location = new Point(0, lblStep1Desc.Bottom + DesktopDpi.Scale(12, this));
         grpPrerequisites.Size = new Size(grpW, grpH);
 
-        int innerPad = DesktopDpi.Scale(16, this);
-        lblPrereqSql.Location = new Point(innerPad, DesktopDpi.Scale(32, this));
-        lblPrereqRuntime.Location = new Point(innerPad, DesktopDpi.Scale(60, this));
-        lblPrereqDisplay.Location = new Point(innerPad, DesktopDpi.Scale(88, this));
-        lblPrereqAdmin.Location = new Point(innerPad, DesktopDpi.Scale(116, this));
+        int innerPad = DesktopDpi.Scale(18, this);
+        lblPrereqSql.Location = new Point(innerPad, DesktopDpi.Scale(34, this));
+        lblPrereqRuntime.Location = new Point(innerPad, DesktopDpi.Scale(64, this));
+        lblPrereqDisplay.Location = new Point(innerPad, DesktopDpi.Scale(94, this));
+        lblPrereqAdmin.Location = new Point(innerPad, DesktopDpi.Scale(124, this));
 
-        grpSystemDetection.Location = new Point(0, grpPrerequisites.Bottom + DesktopDpi.Scale(14, this));
+        grpSystemDetection.Location = new Point(0, grpPrerequisites.Bottom + DesktopDpi.Scale(12, this));
         grpSystemDetection.Size = new Size(grpW, grpH);
 
-        lblDetectedOs.Location = new Point(innerPad, DesktopDpi.Scale(32, this));
-        lblDetectedRuntime.Location = new Point(innerPad, DesktopDpi.Scale(60, this));
-        lblDetectedDpi.Location = new Point(innerPad, DesktopDpi.Scale(88, this));
-        lblDetectedElevation.Location = new Point(innerPad, DesktopDpi.Scale(116, this));
+        lblDetectedOs.Location = new Point(innerPad, DesktopDpi.Scale(34, this));
+        lblDetectedRuntime.Location = new Point(innerPad, DesktopDpi.Scale(64, this));
+        lblDetectedDpi.Location = new Point(innerPad, DesktopDpi.Scale(94, this));
+        lblDetectedElevation.Location = new Point(innerPad, DesktopDpi.Scale(124, this));
     }
 
     private void LayoutStep2()

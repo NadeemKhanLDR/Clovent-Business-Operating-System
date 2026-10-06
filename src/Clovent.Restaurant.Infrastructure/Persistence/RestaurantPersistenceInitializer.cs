@@ -294,6 +294,29 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                     INSERT INTO [Restaurant].[PaymentMethods] ([Id], [Name], [Status], [CreatedAtUtc])
                     VALUES (NEWID(), 'On Account', 'Active', SYSUTCDATETIME());
                 END
+
+                -- Deduplicate standard payment methods if duplicates exist from earlier scripts
+                ;WITH RankedMethods AS (
+                    SELECT [Id], [Name],
+                           FIRST_VALUE([Id]) OVER(PARTITION BY [Name] ORDER BY [CreatedAtUtc] ASC) as PrimaryId,
+                           ROW_NUMBER() OVER(PARTITION BY [Name] ORDER BY [CreatedAtUtc] ASC) as rn
+                    FROM [Restaurant].[PaymentMethods]
+                    WHERE [Name] IN ('Cash', 'Card', 'On Account')
+                )
+                UPDATE p
+                SET p.[PaymentMethodId] = rm.PrimaryId
+                FROM [Restaurant].[Payments] p
+                JOIN RankedMethods rm ON p.[PaymentMethodId] = rm.[Id]
+                WHERE rm.rn > 1;
+
+                ;WITH DupCTE AS (
+                    SELECT [Id],
+                           ROW_NUMBER() OVER(PARTITION BY [Name] ORDER BY [CreatedAtUtc] ASC) as rn
+                    FROM [Restaurant].[PaymentMethods]
+                    WHERE [Name] IN ('Cash', 'Card', 'On Account')
+                )
+                DELETE FROM [Restaurant].[PaymentMethods]
+                WHERE [Id] IN (SELECT [Id] FROM DupCTE WHERE rn > 1);
             END
 
             -- Idempotently seed real Pakistani restaurant recommendation rules

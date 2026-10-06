@@ -1,14 +1,17 @@
 using Clovent.Platform.Bootstrap;
 using Clovent.Restaurant.ActivityLogs;
 using Clovent.Restaurant.Application;
+using Clovent.Restaurant.Continuity;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DiningAreas;
 using Clovent.Restaurant.Discounts;
+using Clovent.Restaurant.Infrastructure.Continuity;
 using Clovent.Restaurant.Infrastructure.Persistence;
 using Clovent.Restaurant.Infrastructure.Repositories;
 using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Outbox;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.QuickOrderTemplates;
@@ -69,6 +72,8 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<ISuggestionEventRepository, SuggestionEventRepository>();
         services.TryAddScoped<IQuickOrderTemplateRepository, QuickOrderTemplateRepository>();
         services.TryAddScoped<Clovent.Restaurant.DayClose.IBusinessDayCloseRepository, BusinessDayCloseRepository>();
+        services.TryAddScoped<IOutboxRepository, OutboxRepository>();
+        services.TryAddSingleton<IContinuityJournalStore, ProtectedContinuityJournalStore>();
 
         services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboStore, SmartComboStore>();
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();

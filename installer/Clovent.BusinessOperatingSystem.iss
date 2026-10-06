@@ -1,11 +1,11 @@
 ; ==============================================================================
 ; Clovent Business Operating System (CBOS) - Production Installer Script
-; Release: 1.0.8 (win-x64)
+; Release: 1.1.2 (win-x64)
 ; Technology: Inno Setup 6 (Native 64-bit, elevated, prerequisite-chained)
 ; ==============================================================================
 
 #define MyAppName "Clovent Business Operating System"
-#define MyAppVersion "1.0.8"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "Clovent"
 #define MyAppExeName "Clovent.Desktop.exe"
 #define MyAppId "{{C107E47D-CB05-47F1-9BD7-A107CB052026}}"
@@ -20,7 +20,7 @@ DefaultDirName={autopf}\Clovent\Business Operating System
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\artifacts\installer
-OutputBaseFilename=Clovent.BusinessOperatingSystem-1.0.8-Setup
+OutputBaseFilename=Clovent.BusinessOperatingSystem-1.1.2-Setup
 ; SetupIconFile=..\src\Clovent.Desktop\Resources\cbos.ico
 UninstallDisplayIcon={app}\Clovent.Desktop.exe
 Compression=lzma2/max
@@ -44,12 +44,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main application payload (CBOS 1.0.8 release binaries)
-Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.0.8-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main application payload (CBOS 1.1.2 release binaries)
+Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.1.2-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; Internal silent database provisioner tool (extracted to {tmp} and deleted on setup completion)
+; Internal silent database provisioner tool (true standalone single-file win-x64 executable extracted to {tmp} and deleted on setup completion)
 Source: "..\tools\Clovent.Installer.Provisioner\bin\publish\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
-Source: "..\tools\Clovent.Installer.Provisioner\bin\publish\Microsoft.Data.SqlClient.SNI.dll"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Resources\cbos.ico"
@@ -74,7 +73,7 @@ var
 begin
   LogDir := ExpandConstant('{commonappdata}\Clovent\BusinessOperatingSystem\Logs');
   ForceDirectories(LogDir);
-  LogFile := LogDir + '\Setup-1.0.8.log';
+  LogFile := LogDir + '\Setup-{#MyAppVersion}.log';
   TimeStamp := GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':');
   SaveStringToFile(LogFile, '[' + TimeStamp + '] ' + Msg + #13#10, True);
   Log(Msg);
@@ -336,18 +335,27 @@ end;
 // Provision database using Clovent.Installer.Provisioner.exe
 function ProvisionDatabase(): Boolean;
 var
-  ProvExe, ProvParams, ProvLog: String;
+  ProvDir, ProvExe, ProvParams, ProvLog, FailureReason: String;
   ResultCode: Integer;
 begin
   WizardForm.StatusLabel.Caption := 'Provisioning database schemas and applying migrations...';
   LogInstallerMessage('Executing production database provisioning service...');
 
-  ProvExe := ExpandConstant('{tmp}\Clovent.Installer.Provisioner.exe');
+  ProvDir := ExpandConstant('{tmp}');
+  ProvExe := ProvDir + '\Clovent.Installer.Provisioner.exe';
   ProvLog := ExpandConstant('{commonappdata}\Clovent\BusinessOperatingSystem\Logs\installer-provisioning.log');
+
+  LogInstallerMessage('Provisioner executable: ' + ProvExe);
+  LogInstallerMessage('Provisioner working directory: ' + ProvDir);
+  LogInstallerMessage('Provisioner target server: ' + DetectedSqlServer);
+  LogInstallerMessage('Provisioner target log file: ' + ProvLog);
 
   if not FileExists(ProvExe) then
   begin
-    LogInstallerMessage('ERROR: Database provisioner executable not found at: ' + ProvExe);
+    FailureReason := 'Database provisioner executable was not found at: ' + ProvExe;
+    LogInstallerMessage('ERROR: ' + FailureReason);
+    MsgBox('CBOS database provisioning component could not start.' + #13#10 +
+           FailureReason, mbError, MB_OK);
     Result := False;
     Exit;
   end;
@@ -356,19 +364,53 @@ begin
 
   LogInstallerMessage('Running: ' + ProvExe + ' ' + ProvParams);
   ResultCode := -1;
-  if not Exec(ProvExe, ProvParams, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  if not Exec(ProvExe, ProvParams, ProvDir, SW_HIDE, ewWaitUntilTerminated, ResultCode) then
   begin
-    LogInstallerMessage('ERROR: Failed to launch database provisioner executable.');
+    FailureReason := 'Failed to launch database provisioner executable. System error: ' + SysErrorMessage(ResultCode);
+    LogInstallerMessage('ERROR: ' + FailureReason);
+    MsgBox('CBOS database provisioning component could not start.' + #13#10 +
+           'Executable: ' + ProvExe + #13#10 +
+           FailureReason, mbError, MB_OK);
     Result := False;
     Exit;
   end;
 
-  LogInstallerMessage('Database provisioner completed with exit code: ' + IntToStr(ResultCode));
+  LogInstallerMessage('Database provisioner process completed with exit code: ' + IntToStr(ResultCode));
+
   if ResultCode <> 0 then
   begin
-    LogInstallerMessage('ERROR: Database provisioning failed with exit code: ' + IntToStr(ResultCode));
-    MsgBox('Database provisioning failed (Exit code: ' + IntToStr(ResultCode) + ').' + #13#10 +
-           'Details have been logged to: ' + ProvLog, mbError, MB_OK);
+    case ResultCode of
+      -2147450726, -2147450750:
+        FailureReason := 'CBOS database provisioning component could not start due to a missing .NET host or runtime dependency (Exit code: ' + IntToStr(ResultCode) + ').';
+      1:
+        FailureReason := 'Could not establish connection to SQL Server instance ''' + DetectedSqlServer + ''' (Exit code: 1).';
+      2:
+        FailureReason := 'Database creation failed for ''Clovent_BusinessOperatingSystem'' (Exit code: 2).';
+      3:
+        FailureReason := 'Database schema migrations or payment method seeding failed (Exit code: 3).';
+      4:
+        FailureReason := 'Database schema compatibility validation failed (Exit code: 4).';
+      99:
+        FailureReason := 'Fatal unhandled exception occurred during database provisioning (Exit code: 99).';
+    else
+      FailureReason := 'Database provisioning failed (Exit code: ' + IntToStr(ResultCode) + ').';
+    end;
+
+    LogInstallerMessage('ERROR: ' + FailureReason);
+
+    if FileExists(ProvLog) then
+    begin
+      MsgBox(FailureReason + #13#10 +
+             'Details have been logged to:' + #13#10 +
+             ProvLog, mbError, MB_OK);
+    end
+    else
+    begin
+      MsgBox(FailureReason + #13#10 +
+             'The provisioning component terminated before creating the log file at:' + #13#10 +
+             ProvLog, mbError, MB_OK);
+    end;
+
     Result := False;
     Exit;
   end;

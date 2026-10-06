@@ -276,7 +276,7 @@ internal static class Program
                 splash.Close();
                 var licChoice = MessageBox.Show(
                     $"Software Registration / Licensing Notice:\n\n{licenseResult.Message}\n\nWould you like to open the Registration window to import a valid license file?",
-                    "License Required",
+                    "License Notice",
                     MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
 
@@ -284,20 +284,29 @@ internal static class Program
                 {
                     using var regForm = new Clovent.Desktop.Licensing.SoftwareRegistrationForm();
                     regForm.ShowDialog();
-                    var recheck = Clovent.Desktop.Licensing.LicenseService.Refresh();
-                    if (!recheck.IsAuthorized)
+                    licenseResult = Clovent.Desktop.Licensing.LicenseService.Refresh();
+                }
+
+                if (!licenseResult.IsAuthorized)
+                {
+                    if (licenseResult.Status == Clovent.Desktop.Licensing.LicenseStatus.Expired)
+                    {
+                        // Non-destructive licensing policy: expired licenses allow read-only data access
+                        MessageBox.Show(
+                            $"The software evaluation/license has expired ({licenseResult.Message}).\n\nOperating in Read-Only Mode. You can view historical reports and back-office data, but creating new operational transactions is disabled until a valid license is activated.",
+                            "Read-Only Mode Active",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                    else
                     {
                         MessageBox.Show(
-                            $"A valid software license was not provided ({recheck.Message}). The application cannot run without a valid license and will now terminate.",
+                            $"A valid software license was not provided ({licenseResult.Message}). The application cannot run and will now terminate.",
                             "License Required",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error);
                         return;
                     }
-                }
-                else
-                {
-                    return;
                 }
             }
 

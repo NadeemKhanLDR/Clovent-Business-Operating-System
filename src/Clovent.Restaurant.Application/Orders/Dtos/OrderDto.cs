@@ -28,7 +28,8 @@ public sealed record OrderDto(
     string? DeliveryNotes = null,
     decimal DeliveryFee = 0m,
     string? RiderName = null,
-    string? RiderPhone = null)
+    string? RiderPhone = null,
+    string? ReceiptSnapshotJson = null)
 {
     /// <summary>Projects a domain <see cref="Order"/> into its DTO.</summary>
     public static OrderDto FromDomain(Order order) => new(
@@ -56,5 +57,6 @@ public sealed record OrderDto(
         order.DeliveryNotes,
         order.DeliveryFee,
         order.RiderName,
-        order.RiderPhone);
+        order.RiderPhone,
+        order.ReceiptSnapshotJson);
 }

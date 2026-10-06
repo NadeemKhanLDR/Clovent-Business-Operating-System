@@ -25,6 +25,10 @@ public sealed class PaymentRepository(RestaurantDbContext dbContext) : IPaymentR
         await dbContext.Payments.ToListAsync(cancellationToken);
 
     /// <inheritdoc/>
+    public Task<Payment?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+        dbContext.Payments.FirstOrDefaultAsync(p => p.IdempotencyKey == idempotencyKey, cancellationToken);
+
+    /// <inheritdoc/>
     public async Task AddAsync(Payment payment, CancellationToken cancellationToken = default) =>
         await dbContext.Payments.AddAsync(payment, cancellationToken);
 }

@@ -18,6 +18,9 @@ public interface IPaymentRepository
     /// <summary>Retrieves every payment recorded across all orders.</summary>
     Task<IReadOnlyCollection<Payment>> GetAllAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Retrieves a payment by its idempotency key, or <see langword="null"/> if none exists.</summary>
+    Task<Payment?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
+
     /// <summary>Adds a newly-recorded payment.</summary>
     Task AddAsync(Payment payment, CancellationToken cancellationToken = default);
 }

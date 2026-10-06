@@ -33,11 +33,14 @@ public sealed class Payment : AggregateRoot<PaymentId>
     /// <summary>The shift session this payment was recorded in, if associated with an active shift.</summary>
     public ShiftId? ShiftId { get; private set; }
 
+    /// <summary>Unique client/transaction idempotency key preventing duplicate payment processing.</summary>
+    public string? IdempotencyKey { get; private set; }
+
     /// <summary>UTC instant this payment was recorded.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private Payment(PaymentId id, OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, bool isVoided, DateTimeOffset createdAtUtc, ShiftId? shiftId = null)
+    private Payment(PaymentId id, OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, bool isVoided, DateTimeOffset createdAtUtc, ShiftId? shiftId = null, string? idempotencyKey = null)
     {
         Id = id;
         OrderId = orderId;
@@ -46,17 +49,18 @@ public sealed class Payment : AggregateRoot<PaymentId>
         IsVoided = isVoided;
         CreatedAtUtc = createdAtUtc;
         ShiftId = shiftId;
+        IdempotencyKey = idempotencyKey;
     }
 
     /// <summary>Records a new payment against the given order.</summary>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="amount"/> is not positive.</exception>
-    public static Payment Create(OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, ShiftId? shiftId = null)
+    public static Payment Create(OrderId orderId, PaymentMethodId paymentMethodId, decimal amount, ShiftId? shiftId = null, string? idempotencyKey = null)
     {
         if (amount <= 0)
             throw new ArgumentOutOfRangeException(nameof(amount), amount, "Payment amount must be positive.");
 
         var now = DateTimeOffset.UtcNow;
-        var payment = new Payment(PaymentId.New(), orderId, paymentMethodId, amount, false, now, shiftId);
+        var payment = new Payment(PaymentId.New(), orderId, paymentMethodId, amount, false, now, shiftId, idempotencyKey);
         payment.AddDomainEvent(new PaymentCreated(payment.Id, payment.OrderId, payment.PaymentMethodId, payment.Amount, now));
         return payment;
     }

@@ -59,31 +59,44 @@ When rotating to a new vendor signing key (e.g. `clovent-2027-v1`):
 
 To issue a license file for a customer:
 
+### Authoritative Windows Sandbox Acceptance Command:
+```powershell
+dotnet run --project tools\LicenseIssuer -- issue `
+    --customer "CBOS Sandbox Test" `
+    --company "CBOS Sandbox Test" `
+    --type Trial `
+    --days 35 `
+    --modules POS,BackOffice,Inventory,Catalog,Reporting,Restaurant `
+    --terminals 5 `
+    --branches 1 `
+    --machine-id "<SANDBOX-HARDWARE-ID>" `
+    --out "D:\clovent-sandbox.lic"
+```
+
 ### Terminal-Locked Commercial Subscription:
 ```powershell
-dotnet run --project Tools\LicenseIssuer -- issue `
-    --keyid "clovent-2026-v2" `
-    --keypath "C:\SecureVault\Keys\clovent_vendor_private_key.pem" `
+dotnet run --project tools\LicenseIssuer -- issue `
     --customer "Grandview Hospitality LLC" `
     --company "Grandview Flagship" `
-    --type "Subscription" `
+    --type Subscription `
     --days 365 `
     --terminals 5 `
-    --machineid "D7E2-90FA-B841-33C0" `
-    --modules "POS,Catalog,Inventory,Restaurant,Reporting,BackOffice" `
+    --branches 1 `
+    --machine-id "D7E2-90FA-B841-33C0" `
+    --modules POS,Catalog,Inventory,Restaurant,Reporting,BackOffice `
     --out "C:\Licenses\Grandview_clovent.lic"
 ```
 
-### Floating Enterprise License:
+### Floating Enterprise Perpetual License:
 ```powershell
-dotnet run --project Tools\LicenseIssuer -- issue `
-    --keyid "clovent-2026-v2" `
-    --keypath "C:\SecureVault\Keys\clovent_vendor_private_key.pem" `
+dotnet run --project tools\LicenseIssuer -- issue `
     --customer "Acme Enterprises" `
     --company "Acme Dining" `
-    --type "Perpetual" `
+    --type Perpetual `
+    --days 36500 `
     --terminals 20 `
-    --modules "All" `
+    --branches 5 `
+    --modules POS,BackOffice,Inventory,Catalog,Reporting,Restaurant `
     --out "C:\Licenses\Acme_clovent.lic"
 ```
-*(Omitting `--machineid` creates a floating site license valid across terminals).*
+*(Omitting `--machine-id` creates a floating site license valid across terminals).*

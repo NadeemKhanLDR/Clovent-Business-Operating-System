@@ -98,6 +98,9 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>The service charges currently applied to this order.</summary>
     public IReadOnlyCollection<ServiceChargeId> ServiceChargeIds => _serviceChargeIds;
 
+    /// <summary>Immutable serialized JSON receipt snapshot captured upon order completion.</summary>
+    public string? ReceiptSnapshotJson { get; private set; }
+
     /// <summary>The payments recorded against this order.</summary>
     public IReadOnlyCollection<PaymentId> PaymentIds => _paymentIds;
 
@@ -133,7 +136,8 @@ public sealed class Order : AggregateRoot<OrderId>
         string? deliveryNotes = null,
         decimal deliveryFee = 0m,
         string? riderName = null,
-        string? riderPhone = null)
+        string? riderPhone = null,
+        string? receiptSnapshotJson = null)
     {
         Id = id;
         OrderNumber = orderNumber;
@@ -160,6 +164,14 @@ public sealed class Order : AggregateRoot<OrderId>
         DeliveryFee = deliveryFee;
         RiderName = riderName;
         RiderPhone = riderPhone;
+        ReceiptSnapshotJson = receiptSnapshotJson;
+    }
+
+    /// <summary>Stores the frozen receipt snapshot when the order completes.</summary>
+    public void SetReceiptSnapshot(string snapshotJson)
+    {
+        ReceiptSnapshotJson = snapshotJson;
+        Touch();
     }
 
     /// <summary>Creates a new, open order, with a timestamp-derived <see cref="Orders.ValueObjects.OrderNumber"/> - see <see cref="Create(OrderType, WarehouseId, TableId?, OrderNumber, OrderSource)"/> for the Application-layer entry point that instead assigns a restaurant owner's configured sequential number.</summary>

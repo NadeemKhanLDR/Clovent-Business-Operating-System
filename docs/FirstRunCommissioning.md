@@ -56,6 +56,10 @@ If **ALL 5 signals** are satisfied, the system is deemed **Commissioned** and la
 ### Step 1: Welcome & Prerequisites
 - Displays CBOS product overview, architecture notes, and deployment checklist.
 - Confirms local operating system prerequisites (.NET 10 Desktop Runtime, minimum display resolution 1024x768).
+- High-DPI Readability Standard:
+  - Prerequisite checklist and detected environment items use `DesktopStyle.BodyFont` (`Segoe UI 10pt`) with `Appearance.Options.UseFont = true`.
+  - Group card height scaled to 164 logical px (`DesktopDpi.Scale(164, this)`), row spacing scaled at 30 logical px intervals (`Scale(34, 64, 94, 124)`), eliminating text clipping, truncation, and overlap from 100% (96 DPI) up to 250% scaling (240 DPI).
+  - Elevation status text uses explicit `Appearance.Options.UseForeColor = true` to preserve green status readability across all DevExpress skins.
 
 ### Step 2: Database Server Connection
 - Server / Instance name (default: `.` or `localhost`).
@@ -97,9 +101,14 @@ If **ALL 5 signals** are satisfied, the system is deemed **Commissioned** and la
 ### Step 7: Software Registration & Licensing
 - Displays current workstation `Hardware ID` (SHA-256 machine fingerprint).
 - Offers **Copy Hardware ID** button.
-- Allows importing a vendor-signed `.lic` file.
-- Validates license signature, date, and hardware binding in-memory before copying to `%ProgramData%\Clovent\BusinessOperatingSystem\License\clovent.lic`.
-- Allows proceeding in Evaluation / Trial mode if permitted.
+- **Path A: 30-Day Evaluation / Trial Mode:**
+  - Selecting *"Continue in Evaluation / Trial Mode (30-day evaluation period)"* enables full evaluation functionality without requiring a `.lic` file.
+  - Automatically initializes cryptographically protected, DPAPI-secured trial state (`trial.state`) bound to the workstation.
+  - Trial start timestamp is anchored to the cryptographic commissioning marker, preventing trial resets upon reinstall or restart.
+- **Path B: Commercial / Paid License Import:**
+  - Allows importing a vendor-signed `.lic` file generated via `tools\LicenseIssuer`.
+  - Validates license signature, date, and hardware binding in-memory before copying to `%ProgramData%\Clovent\BusinessOperatingSystem\License\clovent.lic`.
+  - Commercial license installation permanently supersedes evaluation mode.
 
 ### Step 8: Review & Finish
 - Displays a complete summary of configured parameters (Server, DB, Organization, Branch, Admin username, Terminal, License).

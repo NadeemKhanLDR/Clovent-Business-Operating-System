@@ -32,6 +32,11 @@ internal sealed class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.Amount).HasPrecision(18, 2).IsRequired();
         builder.Property(p => p.IsVoided).IsRequired();
 
+        builder.Property(p => p.IdempotencyKey).HasMaxLength(200);
+        builder.HasIndex(p => p.IdempotencyKey)
+            .IsUnique()
+            .HasFilter("[IdempotencyKey] IS NOT NULL");
+
         builder.Property(p => p.CreatedAtUtc).IsRequired();
 
         builder.Ignore(p => p.DomainEvents);

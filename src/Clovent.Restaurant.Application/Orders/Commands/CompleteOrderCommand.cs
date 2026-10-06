@@ -14,18 +14,19 @@ using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
+using System.Text.Json;
+using Clovent.Restaurant.Application.Outbox;
+using Clovent.Restaurant.Application.Outbox.Dtos;
+using Clovent.Restaurant.Outbox;
 using MediatR;
 
 namespace Clovent.Restaurant.Application.Orders.Commands;
 
 /// <summary>
-/// Completes an order: verifies its balance is zero (the domain's own
-/// <see cref="Order.Complete"/> deliberately does not - see its doc
-/// comment), reduces warehouse stock for every active line by consuming
-/// <c>Clovent.Inventory.Application</c>'s existing
-/// <see cref="IssueStockCommand"/> rather than duplicating its
-/// receive/issue/ledger logic, then closes the order and (for a seated
-/// dine-in order) vacates its table.
+/// Completes an order: verifies its balance is zero, closes the order and vacates its table,
+/// records an immutable receipt snapshot, and dispatches secondary work (inventory posting,
+/// accounting, QuickBooks, receipts, analytics, recommendations, cloud sync) asynchronously
+/// through the transactional outbox without stalling the cashier.
 /// </summary>
 public sealed record CompleteOrderCommand(Guid OrderId) : IRequest<OrderDto>;
 
@@ -38,7 +39,9 @@ public sealed class CompleteOrderCommandHandler(
     IPaymentRepository paymentRepository,
     ITableRepository tableRepository,
     IDailySalesSequenceRepository dailySalesSequenceRepository,
-    IMediator mediator) : IRequestHandler<CompleteOrderCommand, OrderDto>
+    IMediator mediator,
+    IOutboxRepository? outboxRepository = null,
+    IOutboxProcessor? outboxProcessor = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken)
@@ -46,6 +49,12 @@ public sealed class CompleteOrderCommandHandler(
         var orderId = new OrderId(request.OrderId);
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
+
+        // Idempotency: if already completed, return existing completed order safely
+        if (order.Status == OrderStatus.Completed)
+        {
+            return OrderDto.FromDomain(order);
+        }
 
         var lines = await orderLineRepository.GetByOrderIdAsync(orderId, cancellationToken);
         var discounts = await discountRepository.GetByOrderIdAsync(orderId, cancellationToken);
@@ -59,30 +68,159 @@ public sealed class CompleteOrderCommandHandler(
             serviceCharges.Select(ServiceChargeDto.FromDomain).ToList(),
             payments.Select(PaymentDto.FromDomain).ToList());
 
-        // Completion means the bill balances - in both directions. The
-        // over-payment arm (M-4) used to be missing, so `Balance > 0.005m`
-        // alone waved a negative balance straight through: order ORD-35 took
-        // 660.00 against a 280.00 bill and still closed silently, with nothing
-        // downstream ever flagging it. RecordPaymentCommandHandler's own
-        // ceiling should now make a negative balance unreachable for new
-        // orders, which makes this the backstop that catches any regression in
-        // that ceiling, plus the historical orders that are already over-paid.
         if (totals.Balance > 0.005m)
             throw RestaurantDomainException.OrderNotFullyPaid(orderId, totals.Balance);
 
         if (totals.Balance < -0.005m)
             throw RestaurantDomainException.OrderOverPaid(orderId, -totals.Balance);
 
-        await IssueStockForOrderAsync(order, lineDtos, cancellationToken);
-
-        var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
-        var sequence = await dailySalesSequenceRepository.GetByWarehouseAndDateAsync(order.WarehouseId, today, cancellationToken);
-        if (sequence is null)
+        if (!order.DailySalesNumber.HasValue)
         {
-            sequence = DailySalesSequence.Create(order.WarehouseId, today);
-            await dailySalesSequenceRepository.AddAsync(sequence, cancellationToken);
+            var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
+            var sequence = await dailySalesSequenceRepository.GetByWarehouseAndDateAsync(order.WarehouseId, today, cancellationToken);
+            if (sequence is null)
+            {
+                sequence = DailySalesSequence.Create(order.WarehouseId, today);
+                await dailySalesSequenceRepository.AddAsync(sequence, cancellationToken);
+            }
+            var nextDailyNumber = sequence.Next();
+            order.AssignDailySalesNumber(nextDailyNumber);
         }
-        order.AssignDailySalesNumber(sequence.Next());
+
+        // Freeze receipt snapshot immutably on the order
+        var snapshotItems = lineDtos.Where(l => !l.IsVoided).Select(l => new ReceiptSnapshotItem(
+            l.ProductVariantId,
+            "",
+            "",
+            l.Quantity,
+            l.UnitPrice,
+            l.LineTotal,
+            l.Notes)).ToList();
+
+        var snapshotPayments = payments.Where(p => !p.IsVoided).Select(p => new ReceiptSnapshotPayment(
+            p.Amount,
+            "Payment")).ToList();
+
+        var snapshot = new ReceiptSnapshot(
+            order.Id.Value,
+            order.OrderNumber.Value,
+            order.DailySalesNumber,
+            order.OrderType.ToString(),
+            DateTimeOffset.UtcNow,
+            snapshotItems,
+            totals.Subtotal,
+            totals.TaxTotal,
+            totals.DiscountTotal,
+            totals.ServiceChargeTotal,
+            totals.GrandTotal,
+            totals.Balance,
+            snapshotPayments,
+            null,
+            Environment.MachineName,
+            order.CustomerNotes);
+
+        order.SetReceiptSnapshot(JsonSerializer.Serialize(snapshot));
+
+        if (outboxRepository is not null)
+        {
+            // Transactional Outbox: decouple secondary work into atomic outbox messages
+            var activeItems = lineDtos.Where(l => !l.IsVoided)
+                .Select(l => new InventoryPostingLineItem(l.ProductVariantId, "", "", l.Quantity))
+                .ToList();
+
+            var invPayload = new InventoryPostingPayload(
+                order.Id.Value,
+                order.OrderNumber.Value,
+                order.WarehouseId.Value,
+                activeItems);
+
+            var invMessage = OutboxMessage.Create(
+                OutboxMessageType.InventoryPosting,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(invPayload),
+                $"inv-{order.Id.Value}");
+
+            var qbPayload = new QuickBooksSyncPayload(
+                order.Id.Value,
+                order.OrderNumber.Value,
+                totals.GrandTotal,
+                payments.FirstOrDefault(p => !p.IsVoided)?.PaymentMethodId.ToString() ?? "Cash",
+                null,
+                DateTimeOffset.UtcNow);
+
+            var qbMessage = OutboxMessage.Create(
+                OutboxMessageType.QuickBooksSync,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(qbPayload),
+                $"qb-{order.Id.Value}");
+
+            var printPayload = new ReceiptPrintPayload(
+                order.Id.Value,
+                order.OrderNumber.Value,
+                $"Receipt for Order {order.OrderNumber.Value} - Total {totals.GrandTotal:N2}");
+
+            var printMessage = OutboxMessage.Create(
+                OutboxMessageType.ReceiptPrint,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(printPayload),
+                $"print-{order.Id.Value}");
+
+            var analyticsPayload = new AnalyticsEventPayload(
+                "OrderCompleted",
+                order.Id.Value.ToString(),
+                $"Order {order.OrderNumber.Value} completed with total {totals.GrandTotal:N2}",
+                DateTimeOffset.UtcNow);
+
+            var analyticsMessage = OutboxMessage.Create(
+                OutboxMessageType.AnalyticsEvent,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(analyticsPayload),
+                $"analytics-{order.Id.Value}");
+
+            var cloudPayload = new CloudSyncPayload(
+                order.Id.Value,
+                order.OrderNumber.Value,
+                totals.GrandTotal,
+                Guid.Empty,
+                Guid.Empty,
+                DateTimeOffset.UtcNow);
+
+            var cloudMessage = OutboxMessage.Create(
+                OutboxMessageType.CloudSync,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(cloudPayload),
+                $"cloud-{order.Id.Value}");
+
+            var recPayload = new RecommendationLearningPayload(
+                order.Id.Value,
+                lineDtos.Where(l => !l.IsVoided).Select(l => l.ProductVariantId).ToList(),
+                DateTimeOffset.UtcNow);
+
+            var recMessage = OutboxMessage.Create(
+                OutboxMessageType.RecommendationLearning,
+                "Order",
+                order.Id.Value.ToString(),
+                order.Id.Value.ToString(),
+                JsonSerializer.Serialize(recPayload),
+                $"rec-{order.Id.Value}");
+
+            await outboxRepository.AddRangeAsync([invMessage, qbMessage, printMessage, analyticsMessage, cloudMessage, recMessage], cancellationToken);
+        }
+        else
+        {
+            // Fallback for minimal test environments without outbox repository
+            await IssueStockForOrderAsync(order, lineDtos, cancellationToken);
+        }
 
         order.Complete();
 
@@ -95,6 +233,8 @@ public sealed class CompleteOrderCommandHandler(
                 table?.Vacate();
             }
         }
+
+        outboxProcessor?.TriggerImmediate();
 
         return OrderDto.FromDomain(order);
     }

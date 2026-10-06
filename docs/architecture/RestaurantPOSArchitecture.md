@@ -1317,3 +1317,73 @@ During real user manual testing on a 1920×1080 display at 250% scaling (`Device
 - `Clovent.Desktop.Tests`: **615 passed, 0 failed, 7 skipped**.
 - `Clovent.Restaurant.Application.Tests`: **325 passed, 0 failed**.
 - Full Solution Build: **0 Errors**.
+
+---
+
+## 37. Always-On POS & Clovent Continuity Mode Architecture (v1.1.0)
+
+### 37.1 Core Architectural Principle
+The POS counter must remain operational and responsive during peak queue volumes even when non-critical dependencies fail, stall, or experience network timeouts:
+$$\text{CASHIER} \longrightarrow \text{Validate Locally} \longrightarrow \text{Durable Financial Commit} \longrightarrow \text{Immediate UI Release (<150ms)}$$
+Secondary, analytical, and external integration work is detached from the checkout path and executed asynchronously via a transactional outbox:
+$$\text{OUTBOX} \longrightarrow \begin{cases} \text{Inventory Posting} \\ \text{Accounting / QuickBooks Sync} \\ \text{Receipt Print & SMS/Email Dispatch} \\ \text{Cloud Sync} \\ \text{Recommendation Analytics} \end{cases}$$
+
+### 37.2 Transactional Outbox Engine (`Clovent.Restaurant/Outbox/`)
+- **Outbox Message Aggregate (`OutboxMessage`):**
+  - Schema: `[Restaurant].[OutboxMessages]` in `Clovent_BusinessOperatingSystem`.
+  - Properties: `Id`, `MessageType`, `AggregateType`, `AggregateId`, `CorrelationId`, `IdempotencyKey`, `Payload`, `Status`, `AttemptCount`, `CreatedAtUtc`, `AvailableAtUtc`, `ProcessingStartedAtUtc`, `CompletedAtUtc`, `LastAttemptAtUtc`, `LastError`, `NextRetryAtUtc`, `Priority`, `Version`.
+  - Lifecycle: `Pending` $\to$ `Processing` $\to$ `Completed` | `RetryScheduled` $\to$ `DeadLetter` / `Failed`.
+- **Resilient Processor (`OutboxProcessor`):**
+  - Thread-safe background worker running on `IHostedService` / startup scope.
+  - Bounded concurrency using `SemaphoreSlim(4)`.
+  - Atomic claiming via optimistic concurrency (`Version` token).
+  - Exponential backoff with jitter: $2^{\min(\text{attempt}-1, 6)} \times 2\text{s} \pm 500\text{ms}$.
+  - Stale processing recovery for crash/abrupt shutdown resilience.
+
+### 37.3 Dependency Circuit Breakers (`Clovent.Platform/CircuitBreakers/`)
+- Generic fault isolation state machine (`ICircuitBreaker`, `CircuitBreakerRegistry`):
+  - `Closed`: Normal operation, tracking consecutive failures.
+  - `Open`: Fast-fails non-critical calls immediately (`CircuitBreakerOpenException`), returning remaining cooldown.
+  - `HalfOpen`: Trial execution allows recovery or immediately re-trips.
+- Default protection enabled for:
+  - `QuickBooks`: Accounting synchronization.
+  - `ReceiptPrinter`: Hardware peripheral failure isolation.
+  - `CloudSync`: Remote cloud aggregation.
+
+### 37.4 Clovent Continuity Mode & Emergency Journal
+- **Offline Durability & Cryptographic Boundary (`ProtectedContinuityJournalStore`):**
+  - Location: `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`.
+  - Deterministic DPAPI Scope Policy: Enforces `DataProtectionScope.LocalMachine` by default across machine accounts without silent fallback to `CurrentUser`. If machine protection fails, initialization safely aborts throwing `ContinuitySecurityException`. `CurrentUser` is supported solely via explicit deployment configuration.
+  - Cryptographic Tamper & Replay Protection: Keyed HMAC-SHA256 machine signature (`HmacSignature`) combined with cryptographic hash-chaining (`PreviousTransactionHash`), genesis link (`GenesisHash`), and strictly monotonic sequence numbers (`SequenceNumber`).
+  - Chain Validation: `EmergencyTransaction.ValidateChain(...)` verifies sequential continuity, payload checksum, HMAC authenticity, and detects any reordered, duplicate, or truncated transactions, throwing `ContinuityTamperException`.
+- **Business Safeguards (`ContinuityBusinessRules`):**
+  - **Permitted:** Cash tender only (exact cash and change calculation).
+  - **Strictly Prohibited:** Credit cards (unauthorized card numbers), On-Account / Customer Credit (risk of exceeding balance limits), Refunds and Voids (risk of double payouts), Master data/price adjustments.
+- **Idempotent Replayer (`EmergencyJournalReplayer`):**
+  - Replays offline journal transactions to the primary database when connectivity returns.
+  - Deduplication via `Payments.IdempotencyKey = "emergency:{TransactionId}"`.
+  - Reconstructed orders atomically enqueue outbox messages for inventory and accounting catch-up.
+- **Structural Migration:** Formally managed via per-schema EF Core migration `20261005135025_AddAlwaysOnOutboxAndIdempotency` with per-schema migration table `[Restaurant].[__EFMigrationsHistory]`. `RestaurantPersistenceInitializer` remains strictly for idempotent seed/repair.
+
+### 37.5 Active Cart Recovery & Queue Rush Mode
+- **Cart Checkpointing (`ActiveOrderCheckpointStore`):**
+  - Active draft lines serialized to `%ProgramData%\Clovent\BusinessOperatingSystem\CartCheckpoints\terminal_{id}.json`.
+  - Automatically recovered on startup or crash recovery prompt.
+- **Queue Rush Mode (`QueueRushModeStore`):**
+  - Toggled from POS Operations Menu.
+  - Dispatches receipt printing to background spooler without waiting for printer status handshake, resetting the counter in $<100\text{ms}$ for maximum queue velocity.
+
+### 37.6 Operations Health & Continuity Center (`OperationsHealthForm`)
+- Accessible from POS Operations dropdown (`Operations Health & Continuity...`).
+- Real-time diagnostic monitors:
+  - Database connectivity and latency.
+  - Continuity Mode status (Active / Offline Sales count).
+  - Outbox message queue breakdown (Pending, Processing, Completed, Retry, Dead-Letter).
+  - Circuit Breaker states and cooldown counters.
+  - POS performance telemetry (Operation budgets vs P95/P99 latency).
+- Administrative actions:
+  - Test Database Connection.
+  - Replay Pending Emergency Transactions.
+  - Process Outbox Batch Immediately.
+  - Toggle Continuity Mode manually.
+  - Export Full Diagnostic Report.

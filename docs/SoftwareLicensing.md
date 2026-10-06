@@ -84,6 +84,24 @@ CBOS enforces strict data-safety rules:
     - **Read-Only Access Allowed:** Reports, customer receivables, order history, inventory lookup, data export, backups, and software registration.
     - **Transaction Gate:** Creation of new sales orders, payments, or stock adjustments is blocked until a valid license is imported (`LicenseService.CanCreateTransactions()` returns `false`).
 
+### 5.1 30-Day Evaluation / Trial Mode Lifecycle
+When a customer chooses **"Continue in Evaluation / Trial Mode (30-day evaluation period)"** during First-Run Commissioning (Step 7):
+1. **Zero License File Requirement:** No physical `clovent.lic` file is required during the active 30-day period.
+2. **Persistent Anti-Tamper State:**
+   - Trial state is persisted in `%ProgramData%\Clovent\BusinessOperatingSystem\License\trial.state` with fallback to `%LocalAppData%`.
+   - The file is encrypted using Windows DPAPI (`DataProtectionScope.LocalMachine`) and protected by an HMAC-SHA256 signature binding the machine ID and commissioning start date.
+   - Secondary recovery anchor: if `trial.state` is deleted, `TrialStateManager` automatically reconstructs the state using the immutable, signed `commissioning.json` marker.
+3. **Immutability & Monotonicity:**
+   - Reinstalling, repairing, or restarting CBOS preserves the original trial start date.
+   - Monotonic time tracking detects system clock rollbacks (`TrialStateStatus.ClockRollback`).
+4. **Commercial License Superseding:**
+   - When a valid commercial license is imported, `HasCommercialLicenseEverBeenInstalled` is permanently recorded.
+   - An expired commercial license cannot revert the machine back to evaluation mode.
+5. **Non-Destructive Post-Expiry:**
+   - After Day 30, CBOS notifies the operator with an expired evaluation message.
+   - Historical sales, customer records, accounting data, inventory reports, and database backups remain 100% accessible.
+   - Only new operational transactions are paused until a valid software license is registered.
+
 ---
 
 ## 6. Vendor License Issuance Tool (`tools/LicenseIssuer/`)
@@ -92,6 +110,20 @@ The vendor license issuer is a standalone CLI tool located in `tools\LicenseIssu
 ### Generating a New Production Key Pair:
 ```powershell
 dotnet run --project tools\LicenseIssuer -- generate-keys --out "$env:USERPROFILE\.clovent\keys"
+```
+
+### Authoritative Windows Sandbox License Command:
+```powershell
+dotnet run --project tools\LicenseIssuer -- issue `
+    --customer "CBOS Sandbox Test" `
+    --company "CBOS Sandbox Test" `
+    --type Trial `
+    --days 35 `
+    --modules POS,BackOffice,Inventory,Catalog,Reporting,Restaurant `
+    --terminals 5 `
+    --branches 1 `
+    --machine-id "<SANDBOX-HARDWARE-ID>" `
+    --out "D:\clovent-sandbox.lic"
 ```
 
 ### Issuing a Customer-Specific License:

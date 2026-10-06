@@ -50,6 +50,12 @@ public static class DesktopStyle
     /// <summary>KPI card value font (the big number).</summary>
     public static Font CardValueFont { get; } = new("Segoe UI", 20F, FontStyle.Bold);
 
+    /// <summary>Standard readable body font for informational panels, cards, checklists, and instructions.</summary>
+    public static Font BodyFont { get; } = new("Segoe UI", 10F);
+
+    /// <summary>Bold variant of standard readable body font for emphasized items and summary lines.</summary>
+    public static Font BodyFontBold { get; } = new("Segoe UI", 10F, FontStyle.Bold);
+
     /// <summary>Caption/label font for field captions and card titles.</summary>
     public static Font CaptionFont { get; } = new("Segoe UI", 9F);
 

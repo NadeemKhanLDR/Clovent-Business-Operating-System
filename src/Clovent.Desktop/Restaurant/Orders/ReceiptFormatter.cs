@@ -27,6 +27,22 @@ public static class ReceiptFormatter
     /// <summary>Formats <paramref name="order"/> into a plain-text receipt.</summary>
     public static async Task<string> FormatAsync(IMediator mediator, OrderDto order)
     {
+        if (!string.IsNullOrWhiteSpace(order.ReceiptSnapshotJson))
+        {
+            try
+            {
+                var snapshot = System.Text.Json.JsonSerializer.Deserialize<Clovent.Restaurant.Orders.ReceiptSnapshot>(order.ReceiptSnapshotJson);
+                if (snapshot != null)
+                {
+                    return FormatFromSnapshot(snapshot);
+                }
+            }
+            catch
+            {
+                // Fallback to dynamic query if snapshot parsing fails
+            }
+        }
+
         var lines = await mediator.Send(new ListOrderLinesByOrderQuery(order.OrderId));
         var discounts = await mediator.Send(new ListDiscountsByOrderQuery(order.OrderId));
         var serviceCharges = await mediator.Send(new ListServiceChargesByOrderQuery(order.OrderId));
@@ -91,5 +107,60 @@ public static class ReceiptFormatter
     {
         var variant = await mediator.Send(new GetProductVariantByIdQuery(productVariantId));
         return variant.Name;
+    }
+
+    /// <summary>Formats a plain-text receipt directly from a durable snapshot.</summary>
+    public static string FormatFromSnapshot(Clovent.Restaurant.Orders.ReceiptSnapshot snapshot)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("Clovent Business Operating System");
+        sb.AppendLine($"Order: {snapshot.OrderNumber}");
+        if (snapshot.DailySalesNumber is { } dailySalesNumber)
+        {
+            sb.AppendLine($"Sale #: {dailySalesNumber}");
+        }
+        sb.AppendLine($"Type: {snapshot.OrderType}");
+        if (!string.IsNullOrWhiteSpace(snapshot.TerminalName))
+        {
+            sb.AppendLine($"Terminal: {snapshot.TerminalName}");
+        }
+        if (!string.IsNullOrWhiteSpace(snapshot.CashierName))
+        {
+            sb.AppendLine($"Cashier: {snapshot.CashierName}");
+        }
+        sb.AppendLine(new string('-', 40));
+
+        foreach (var item in snapshot.Items)
+        {
+            var name = !string.IsNullOrWhiteSpace(item.Name) ? item.Name : (!string.IsNullOrWhiteSpace(item.Sku) ? item.Sku : "Item");
+            sb.AppendLine($"{name} x{item.Quantity:N2} @ {CurrencyDisplay.Format(item.UnitPrice)} = {CurrencyDisplay.Format(item.LineTotal)}");
+            if (!string.IsNullOrWhiteSpace(item.Notes))
+            {
+                sb.AppendLine($"  Note: {item.Notes}");
+            }
+        }
+
+        sb.AppendLine(new string('-', 40));
+        sb.AppendLine($"Subtotal: {CurrencyDisplay.Format(snapshot.Subtotal)}");
+        sb.AppendLine($"Tax: {CurrencyDisplay.Format(snapshot.TaxTotal)}");
+        AppendIfNonZero(sb, "Discount", -snapshot.DiscountTotal);
+        AppendIfNonZero(sb, "Service Charge", snapshot.ServiceChargeTotal);
+        sb.AppendLine($"Grand Total: {CurrencyDisplay.Format(snapshot.GrandTotal)}");
+        sb.AppendLine(new string('-', 40));
+
+        foreach (var payment in snapshot.Payments)
+        {
+            sb.AppendLine($"Payment ({payment.PaymentMethodName}): {CurrencyDisplay.Format(payment.Amount)}");
+        }
+
+        sb.AppendLine($"Balance: {CurrencyDisplay.Format(snapshot.Balance)}");
+
+        if (!string.IsNullOrWhiteSpace(snapshot.CustomerNotes))
+        {
+            sb.AppendLine(new string('-', 40));
+            sb.AppendLine($"Notes: {snapshot.CustomerNotes}");
+        }
+
+        return sb.ToString();
     }
 }

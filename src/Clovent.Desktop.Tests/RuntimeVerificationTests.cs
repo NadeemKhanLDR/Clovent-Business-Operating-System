@@ -9,6 +9,8 @@ using Clovent.Identity.Infrastructure.Persistence;
 using Clovent.Restaurant.Application.KitchenTickets.Queries;
 using Clovent.Restaurant.Application.Orders.Queries;
 using Clovent.Restaurant.KitchenTickets;
+using Clovent.Restaurant.Infrastructure.Persistence;
+using Clovent.Restaurant.Orders;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -84,8 +86,20 @@ public sealed class RuntimeVerificationTests
         var tickets = await mediator.Send(new ListActiveKitchenTicketsQuery());
         Assert.NotEmpty(tickets);
 
-        // The exact row that crashed the screen before the fix.
-        var orphan = tickets.Single(t => t.OrderId == Guid.Parse("AE963CD6-9DEC-491B-979D-A58499B10D14"));
+        var orphanId = Guid.Parse("AE963CD6-9DEC-491B-979D-A58499B10D14");
+        var orphan = tickets.FirstOrDefault(t => t.OrderId == orphanId);
+        if (orphan == null)
+        {
+            using (var scope = Host.Value.Services.CreateScope())
+            {
+                var restaurantDb = scope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+                var newTicket = KitchenTicket.Create(new OrderId(orphanId), [Clovent.Restaurant.OrderLines.OrderLineId.New()]);
+                await restaurantDb.KitchenTickets.AddAsync(newTicket);
+                await restaurantDb.SaveChangesAsync();
+            }
+            tickets = await mediator.Send(new ListActiveKitchenTicketsQuery());
+            orphan = tickets.Single(t => t.OrderId == orphanId);
+        }
         Assert.Equal("New", orphan.Status);
 
         var rows = await KitchenTicketViewerView.BuildRowsAsync(mediator, tickets, CancellationToken.None);

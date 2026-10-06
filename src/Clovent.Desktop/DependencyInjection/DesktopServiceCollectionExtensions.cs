@@ -87,6 +87,9 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<IApplicationModeNavigator, ApplicationModeNavigator>();
         services.TryAddScoped<Restaurant.Services.ITerminalResolutionService, Restaurant.Services.TerminalResolutionService>();
         services.TryAddScoped<Restaurant.Services.IPosEntryGateCoordinator, Restaurant.Services.PosEntryGateCoordinator>();
+        services.TryAddSingleton<Restaurant.Services.IActiveOrderCheckpointStore, Restaurant.Services.ActiveOrderCheckpointStore>();
+        services.TryAddSingleton<Restaurant.Services.IContinuityCoordinator, Restaurant.Services.ContinuityCoordinator>();
+        services.TryAddTransient<Restaurant.OperationsHealthForm>();
 
         services.TryAddSingleton<IDatabaseSchemaCompatibilityValidator, DatabaseSchemaCompatibilityValidator>();
         services.TryAddSingleton<IDatabaseProvisioningService, DatabaseProvisioningService>();

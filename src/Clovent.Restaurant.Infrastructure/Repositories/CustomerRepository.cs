@@ -67,6 +67,13 @@ public sealed class CustomerRepository(RestaurantDbContext dbContext) : ICustome
     /// </remarks>
     public Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default)
     {
+        var existingEntry = dbContext.ChangeTracker.Entries<Customer>()
+            .FirstOrDefault(e => e.Entity.Id == customer.Id);
+        if (existingEntry != null && existingEntry.Entity != customer)
+        {
+            existingEntry.State = EntityState.Detached;
+        }
+
         if (dbContext.Entry(customer).State == EntityState.Detached)
         {
             dbContext.Customers.Attach(customer).State = EntityState.Modified;

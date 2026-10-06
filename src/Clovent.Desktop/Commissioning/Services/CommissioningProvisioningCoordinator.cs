@@ -76,6 +76,13 @@ public sealed class CommissioningProvisioningCoordinator(
             // 5. Save Commissioning Marker
             CommissioningStateService.SaveMarker(request.Marker);
 
+            // 6. If evaluation mode was selected, start and persist the 30-day evaluation state
+            if (request.Marker.IsEvaluation)
+            {
+                Licensing.TrialStateManager.StartTrial(request.Marker.MachineId, request.Marker.CommissionedAtUtc);
+                logger?.LogInformation("30-day evaluation mode initialized for Machine {MachineId}.", request.Marker.MachineId);
+            }
+
             logger?.LogInformation("Commissioning finalized successfully for Organization: {Org}, Company: {Company}, Admin: {Admin}",
                 request.Marker.OrganizationName, request.Marker.CompanyName, request.Marker.AdminUserName);
 

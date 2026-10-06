@@ -69,6 +69,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.Notes).HasMaxLength(1000);
         builder.Property(o => o.CustomerNotes).HasMaxLength(1000);
+        builder.Property(o => o.ReceiptSnapshotJson);
 
         builder.Property(o => o.OrderLineIds)
             .HasConversion(ValueConverters.OrderLineIdsConverter, ValueConverters.OrderLineIdsComparer)

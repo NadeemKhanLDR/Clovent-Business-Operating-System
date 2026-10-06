@@ -15,6 +15,7 @@ public static class InfrastructureServiceCollectionExtensions
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
+        services.AddSingleton<Clovent.Restaurant.Application.Outbox.IOutboxProcessor, Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor>();
 
         return services;
     }

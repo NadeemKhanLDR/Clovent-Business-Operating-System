@@ -12,6 +12,7 @@ using Clovent.Restaurant.SmartRecommendations;
 using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Shifts;
+using Clovent.Restaurant.Outbox;
 using Clovent.Restaurant.Tables;
 using Microsoft.EntityFrameworkCore;
 
@@ -90,6 +91,9 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
 
     /// <summary>EmployeeAttendanceSession aggregates.</summary>
     public DbSet<Clovent.Restaurant.Attendance.EmployeeAttendanceSession> AttendanceSessions => Set<Clovent.Restaurant.Attendance.EmployeeAttendanceSession>();
+
+    /// <summary>Transactional OutboxMessage entities.</summary>
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

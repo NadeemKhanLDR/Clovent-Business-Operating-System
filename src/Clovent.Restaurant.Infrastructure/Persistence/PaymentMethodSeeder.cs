@@ -17,7 +17,8 @@ public static class PaymentMethodSeeder
 
     /// <summary>
     /// Checks the database and idempotently inserts any missing core payment methods.
-    /// Existing records and custom payment methods are strictly preserved and never overwritten or duplicated.
+    /// Deduplicates duplicate core methods if present from legacy or multiple imports.
+    /// Existing records and custom payment methods are strictly preserved and never overwritten.
     /// </summary>
     /// <param name="dbContext">The target restaurant database context.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -32,7 +33,22 @@ public static class PaymentMethodSeeder
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        // Deduplicate any duplicate payment method names if present
+        var duplicates = existing
+            .GroupBy(m => m.Name.Value, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() > 1)
+            .SelectMany(g => g.OrderBy(m => m.CreatedAtUtc).Skip(1))
+            .ToList();
+
+        var duplicatesRemoved = 0;
+        if (duplicates.Count > 0)
+        {
+            dbContext.PaymentMethods.RemoveRange(duplicates);
+            duplicatesRemoved = duplicates.Count;
+        }
+
         var existingNames = existing
+            .Except(duplicates)
             .Select(m => m.Name.Value)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -48,7 +64,7 @@ public static class PaymentMethodSeeder
             }
         }
 
-        if (insertedCount > 0)
+        if (insertedCount > 0 || duplicatesRemoved > 0)
         {
             await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
