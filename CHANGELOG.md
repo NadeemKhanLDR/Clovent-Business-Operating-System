@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Automated Tests:** **1,824 passed**, 0 failed, 7 skipped
 - **Build Quality:** Debug clean (0 warnings / 0 errors), Release clean (0 warnings / 0 errors)
 
+### Added
+- **Comprehensive Enterprise Documentation Suite:** Complete documentation overhaul in `docs/` covering System Architecture, Bounded Contexts, Database Architecture & EF Core Migrations, POS & Payment Workflows, Continuity Mode & Operational Cache, Security & Licensing, Deployment & Installation, Operations & Health, Testing & Sandbox Acceptance, Release Engineering & ReleaseGuard, and Support Incident Runbooks.
+
 ### Fixed
 - **Automated Test Filesystem Isolation:** Fully eliminated workstation state leakage during automated test execution. Monitored 37 workstation configuration paths across `%LOCALAPPDATA%\Clovent` and `%ProgramData%\Clovent` with 100% pre/post hash parity (0 created, 0 deleted, 0 modified).
 - **POS Settings Store Isolation:** Refactored `PosSettingsStore` with thread-safe testing directory overrides (`SetTestingOverrides` and `ResetTestingOverrides`). Updated `RestaurantSetupViewTests` and `PosSettingsStoreTests` to execute in disposable temporary directories with deterministic cleanup.
