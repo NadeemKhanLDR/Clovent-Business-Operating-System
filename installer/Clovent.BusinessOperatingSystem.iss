@@ -1,11 +1,11 @@
 ; ==============================================================================
 ; Clovent Business Operating System (CBOS) - Production Installer Script
-; Release: 1.1.2 (win-x64)
+; Release: 1.2.2 (win-x64)
 ; Technology: Inno Setup 6 (Native 64-bit, elevated, prerequisite-chained)
 ; ==============================================================================
 
 #define MyAppName "Clovent Business Operating System"
-#define MyAppVersion "1.1.2"
+#define MyAppVersion "1.2.2"
 #define MyAppPublisher "Clovent"
 #define MyAppExeName "Clovent.Desktop.exe"
 #define MyAppId "{{C107E47D-CB05-47F1-9BD7-A107CB052026}}"
@@ -20,7 +20,7 @@ DefaultDirName={autopf}\Clovent\Business Operating System
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\artifacts\installer
-OutputBaseFilename=Clovent.BusinessOperatingSystem-1.1.2-Setup
+OutputBaseFilename=Clovent.BusinessOperatingSystem-1.2.2-Setup
 ; SetupIconFile=..\src\Clovent.Desktop\Resources\cbos.ico
 UninstallDisplayIcon={app}\Clovent.Desktop.exe
 Compression=lzma2/max
@@ -44,8 +44,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Main application payload (CBOS 1.1.2 release binaries)
-Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.1.2-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Main application payload (CBOS 1.2.2 release binaries)
+Source: "..\artifacts\release\Clovent.BusinessOperatingSystem-1.2.2-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Internal silent database provisioner tool (true standalone single-file win-x64 executable extracted to {tmp} and deleted on setup completion)
 Source: "..\tools\Clovent.Installer.Provisioner\bin\publish\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion

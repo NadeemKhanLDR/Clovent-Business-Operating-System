@@ -33,6 +33,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.NotificationOutboxHandler>();
 
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IEmergencyJournalReplayer, Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>();
+        services.AddScoped<Clovent.Restaurant.Application.Continuity.IOperationalCacheSynchronizer, Clovent.Restaurant.Application.Continuity.OperationalCacheSynchronizer>();
 
         return services;
     }

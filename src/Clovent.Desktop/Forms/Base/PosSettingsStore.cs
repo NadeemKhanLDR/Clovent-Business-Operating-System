@@ -15,6 +15,29 @@ public static class PosSettingsStore
 
     private static readonly object _lock = new();
     private static PosSettingsData? _cachedData;
+    private static string? _testingFilePath;
+
+    /// <summary>Sets testing overrides for filesystem path.</summary>
+    public static void SetTestingOverrides(string? customFilePath = null)
+    {
+        lock (_lock)
+        {
+            _testingFilePath = customFilePath;
+            _cachedData = null;
+        }
+    }
+
+    /// <summary>Resets testing overrides.</summary>
+    public static void ResetTestingOverrides()
+    {
+        lock (_lock)
+        {
+            _testingFilePath = null;
+            _cachedData = null;
+        }
+    }
+
+    private static string EffectiveFilePath => _testingFilePath ?? FilePath;
 
     internal static void ResetCacheForTesting()
     {
@@ -49,9 +72,9 @@ public static class PosSettingsStore
 
             try
             {
-                if (File.Exists(FilePath))
+                if (File.Exists(EffectiveFilePath))
                 {
-                    var json = File.ReadAllText(FilePath);
+                    var json = File.ReadAllText(EffectiveFilePath);
                     _cachedData = JsonSerializer.Deserialize<PosSettingsData>(json) ?? new PosSettingsData();
                     return _cachedData;
                 }
@@ -73,10 +96,10 @@ public static class PosSettingsStore
             _cachedData = data;
             try
             {
-                var directory = Path.GetDirectoryName(FilePath)!;
+                var directory = Path.GetDirectoryName(EffectiveFilePath)!;
                 Directory.CreateDirectory(directory);
                 var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(FilePath, json);
+                File.WriteAllText(EffectiveFilePath, json);
             }
             catch
             {

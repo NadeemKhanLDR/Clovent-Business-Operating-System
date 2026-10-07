@@ -17,9 +17,22 @@ public sealed class InitialMasterDataProvisioningServiceTests : IDisposable
     private readonly IdentityDbContext _identityDbContext;
     private readonly MasterDataDbContext _masterDataDbContext;
     private readonly InitialMasterDataProvisioningService _sut;
+    private readonly string _testDir;
 
     public InitialMasterDataProvisioningServiceTests()
     {
+        _testDir = Path.Combine(Path.GetTempPath(), "cbos_prov_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+
+        var testMachineTerminal = Path.Combine(_testDir, "machine_terminal.json");
+        var testUserTerminal = Path.Combine(_testDir, "user_terminal.json");
+        var testDisplaySettings = Path.Combine(_testDir, "company_display_settings.json");
+        var testPosSettings = Path.Combine(_testDir, "pos_settings.json");
+
+        InitialMasterDataProvisioningService.SetTestingOverrides(testMachineTerminal, testUserTerminal);
+        CompanyDisplaySettingsStore.SetTestingOverrides(testDisplaySettings);
+        PosSettingsStore.SetTestingOverrides(testPosSettings);
+
         _identityConn = new SqliteConnection("DataSource=:memory:");
         _identityConn.Open();
         _masterDataConn = new SqliteConnection("DataSource=:memory:");
@@ -45,13 +58,19 @@ public sealed class InitialMasterDataProvisioningServiceTests : IDisposable
 
         _serviceProvider = services.BuildServiceProvider();
         _sut = new InitialMasterDataProvisioningService();
-
-        CompanyDisplaySettingsStore.ResetCacheForTesting();
-        PosSettingsStore.ResetCacheForTesting();
     }
 
     public void Dispose()
     {
+        InitialMasterDataProvisioningService.ResetTestingOverrides();
+        CompanyDisplaySettingsStore.ResetTestingOverrides();
+        PosSettingsStore.ResetTestingOverrides();
+
+        if (Directory.Exists(_testDir))
+        {
+            try { Directory.Delete(_testDir, true); } catch { }
+        }
+
         _identityDbContext.Dispose();
         _masterDataDbContext.Dispose();
         _identityConn.Dispose();

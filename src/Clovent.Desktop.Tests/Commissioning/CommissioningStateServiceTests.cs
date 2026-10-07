@@ -5,9 +5,36 @@ using Xunit;
 
 namespace Clovent.Desktop.Tests.Commissioning;
 
-public sealed class CommissioningStateServiceTests
+public sealed class CommissioningStateServiceTests : IDisposable
 {
+    private readonly string _testDir;
     private readonly CommissioningStateService _sut = new();
+
+    public CommissioningStateServiceTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), $"cbos_comm_state_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_testDir);
+
+        var machineMarker = Path.Combine(_testDir, "machine_commissioning.json");
+        var userMarker = Path.Combine(_testDir, "user_commissioning.json");
+        CommissioningStateService.SetTestingOverrides(machineMarker, userMarker);
+    }
+
+    public void Dispose()
+    {
+        CommissioningStateService.ResetTestingOverrides();
+
+        try
+        {
+            if (Directory.Exists(_testDir))
+            {
+                Directory.Delete(_testDir, recursive: true);
+            }
+        }
+        catch
+        {
+        }
+    }
 
     [Fact]
     public void CommissioningStatusResult_IsCommissioned_RequiresAllFiveSignals()

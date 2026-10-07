@@ -47,6 +47,9 @@ public sealed class OperationsHealthForm : XtraForm
     private readonly LabelControl _dbStatusLabel = new();
     private readonly LabelControl _modeStatusLabel = new();
     private readonly LabelControl _journalStatusLabel = new();
+    private readonly LabelControl _cacheStatusLabel = new();
+    private readonly LabelControl _cacheDetailsLabel = new();
+    private readonly LabelControl _cacheMetaLabel = new();
     private readonly LabelControl _outboxStatusLabel = new();
     private readonly LabelControl _circuitsStatusLabel = new();
     private readonly LabelControl _telemetryStatusLabel = new();
@@ -56,6 +59,8 @@ public sealed class OperationsHealthForm : XtraForm
     private readonly List<OutboxMessageDisplayItem> _gridData = new();
 
     private readonly SimpleButton _refreshButton = new();
+    private readonly SimpleButton _syncCacheButton = new();
+    private readonly SimpleButton _validateCacheButton = new();
     private readonly SimpleButton _retrySelectedButton = new();
     private readonly SimpleButton _retryAllButton = new();
     private readonly SimpleButton _detailsButton = new();
@@ -134,23 +139,26 @@ public sealed class OperationsHealthForm : XtraForm
         header.Controls.Add(title);
         header.Controls.Add(sub);
 
-        // 2. Status Cards Panel (2x2)
+        // 2. Status Cards Panel (3x2)
         var cardsPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
+            ColumnCount = 3,
             RowCount = 2,
             Margin = new Padding(0)
         };
-        cardsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
-        cardsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
+        cardsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        cardsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        cardsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
         cardsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
         cardsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
 
         cardsPanel.Controls.Add(CreateCard("Database & Continuity Mode", _dbStatusLabel, _modeStatusLabel), 0, 0);
         cardsPanel.Controls.Add(CreateCard("Emergency Offline Journal", _journalStatusLabel), 1, 0);
+        cardsPanel.Controls.Add(CreateCard("Local Operational Cache", _cacheStatusLabel, _cacheDetailsLabel), 2, 0);
         cardsPanel.Controls.Add(CreateCard("Transactional Outbox Queues", _outboxStatusLabel), 0, 1);
         cardsPanel.Controls.Add(CreateCard("Dependency Circuit Breakers", _circuitsStatusLabel), 1, 1);
+        cardsPanel.Controls.Add(CreateCard("Cache Provenance & Policy", _cacheMetaLabel), 2, 1);
 
         // 3. Grid Panel
         var gridPanel = new PanelControl
@@ -173,12 +181,14 @@ public sealed class OperationsHealthForm : XtraForm
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
+            WrapContents = true,
             AutoSize = true,
             Margin = new Padding(0)
         };
 
         ConfigureButton(_refreshButton, "Refresh", (_, _) => LoadHealthMetrics());
+        ConfigureButton(_syncCacheButton, "Sync Cache", async (_, _) => await RunSyncCacheAsync());
+        ConfigureButton(_validateCacheButton, "Validate Cache", async (_, _) => await RunValidateCacheAsync());
         ConfigureButton(_retrySelectedButton, "Retry Selected", async (_, _) => await RetrySelectedAsync());
         ConfigureButton(_retryAllButton, "Retry All", async (_, _) => await RetryAllFailedAsync());
         ConfigureButton(_detailsButton, "Details...", (_, _) => ShowSelectedDetails());
@@ -190,6 +200,8 @@ public sealed class OperationsHealthForm : XtraForm
         ConfigureButton(_closeButton, "Close", (_, _) => Close());
 
         actionBar.Controls.Add(_refreshButton);
+        actionBar.Controls.Add(_syncCacheButton);
+        actionBar.Controls.Add(_validateCacheButton);
         actionBar.Controls.Add(_retrySelectedButton);
         actionBar.Controls.Add(_retryAllButton);
         actionBar.Controls.Add(_detailsButton);
@@ -302,11 +314,40 @@ public sealed class OperationsHealthForm : XtraForm
             // 2. Offline Journal Stats
             var journalStats = await _continuityCoordinator.GetJournalStatisticsAsync();
             _journalStatusLabel.Text = $"Total Logged: {journalStats.TotalRecorded}  |  Pending Replay: {journalStats.PendingReplayCount}\nReplayed: {journalStats.ReplayedCount}  |  Conflicts/Failed: {journalStats.FailedOrConflictCount}";
+
+            // 3. Operational Cache Stats
+            var cache = _continuityCoordinator.ActiveCache;
+            var cacheStatus = _continuityCoordinator.CacheStatus;
+            var cacheMsg = _continuityCoordinator.CacheStatusMessage ?? "Cache ready";
+            var lastSync = _continuityCoordinator.LastCacheSyncUtc;
+
+            _cacheStatusLabel.Text = $"Status: {cacheStatus.ToString().ToUpperInvariant()}";
+            _cacheStatusLabel.ForeColor = cacheStatus switch
+            {
+                CacheValidationStatus.Valid => Color.FromArgb(22, 163, 74),
+                CacheValidationStatus.StaleWithinPolicy => Color.FromArgb(202, 138, 4),
+                _ => Color.FromArgb(220, 38, 38)
+            };
+
+            if (cache != null)
+            {
+                _cacheDetailsLabel.Text = $"Categories: {cache.Payload.Categories.Count} | Products: {cache.Payload.Products.Count}\nVariants: {cache.Payload.Variants.Count} | Tables: {cache.Payload.Tables.Count}";
+                var syncTimeStr = lastSync.HasValue ? BusinessDateTimeFormatter.Format(lastSync.Value) : "Never";
+                _cacheMetaLabel.Text = $"Version: {cache.Metadata.CacheVersion} (Schema v{cache.Metadata.SchemaVersion})\nLast Sync: {syncTimeStr}\nBranch: {cache.Metadata.BranchName} | Terminal: {cache.Metadata.TerminalCode}";
+            }
+            else
+            {
+                _cacheDetailsLabel.Text = cacheMsg;
+                _cacheMetaLabel.Text = "No in-memory snapshot loaded.\nClick 'Sync Cache' or 'Validate Cache' to inspect.";
+            }
         }
         else
         {
             _dbStatusLabel.Text = "Database: N/A";
             _journalStatusLabel.Text = "Offline Journal: Standby";
+            _cacheStatusLabel.Text = "Cache: Standby";
+            _cacheDetailsLabel.Text = "No continuity coordinator attached.";
+            _cacheMetaLabel.Text = "N/A";
         }
 
         // 3. Outbox Stats & Grid
@@ -519,6 +560,36 @@ public sealed class OperationsHealthForm : XtraForm
         LoadHealthMetrics();
     }
 
+    private async Task RunSyncCacheAsync()
+    {
+        if (_continuityCoordinator == null)
+        {
+            XtraMessageBox.Show(this, "Continuity coordinator is not available.", "Notice", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var success = await _continuityCoordinator.RefreshCacheAsync();
+        if (success)
+        {
+            XtraMessageBox.Show(this, "Local operational cache synchronized successfully from primary database.", "Cache Synchronization", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        else
+        {
+            XtraMessageBox.Show(this, $"Failed to synchronize operational cache: {_continuityCoordinator.CacheStatusMessage}", "Cache Synchronization", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        LoadHealthMetrics();
+    }
+
+    private async Task RunValidateCacheAsync()
+    {
+        if (_continuityCoordinator == null) return;
+
+        var (status, msg) = await _continuityCoordinator.ValidateCacheAsync();
+        var icon = status == CacheValidationStatus.Valid ? MessageBoxIcon.Information : MessageBoxIcon.Warning;
+        XtraMessageBox.Show(this, $"Validation Status: {status}\n\nDetails:\n{msg}", "Cache Validation", MessageBoxButtons.OK, icon);
+        LoadHealthMetrics();
+    }
+
     private void ExportDiagnostics()
     {
         var sb = new StringBuilder();
@@ -528,6 +599,9 @@ public sealed class OperationsHealthForm : XtraForm
         sb.AppendLine($"Continuity Reason: {_continuityCoordinator?.ContinuityReason}");
         sb.AppendLine($"DB Status: {_dbStatusLabel.Text}");
         sb.AppendLine($"Journal: {_journalStatusLabel.Text}");
+        sb.AppendLine($"Cache Status: {_cacheStatusLabel.Text}");
+        sb.AppendLine($"Cache Details: {_cacheDetailsLabel.Text}");
+        sb.AppendLine($"Cache Metadata: {_cacheMetaLabel.Text}");
         sb.AppendLine($"Outbox: {_outboxStatusLabel.Text}");
         sb.AppendLine($"Circuits: {_circuitsStatusLabel.Text}");
         sb.AppendLine("--- Telemetry ---");

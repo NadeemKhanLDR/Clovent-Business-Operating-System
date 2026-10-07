@@ -74,6 +74,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<Clovent.Restaurant.DayClose.IBusinessDayCloseRepository, BusinessDayCloseRepository>();
         services.TryAddScoped<IOutboxRepository, OutboxRepository>();
         services.TryAddSingleton<IContinuityJournalStore, ProtectedContinuityJournalStore>();
+        services.TryAddSingleton<IOperationalCacheStore, ProtectedOperationalCacheStore>();
 
         services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboStore, SmartComboStore>();
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();

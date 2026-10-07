@@ -22,8 +22,27 @@ using Xunit;
 
 namespace Clovent.Desktop.Tests.Forms.Restaurant;
 
-public class RestaurantSetupViewTests
+public class RestaurantSetupViewTests : IDisposable
 {
+    private readonly string _testDir;
+
+    public RestaurantSetupViewTests()
+    {
+        _testDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cbos_setup_test_" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(_testDir);
+        var testPosSettings = System.IO.Path.Combine(_testDir, "pos_settings.json");
+        PosSettingsStore.SetTestingOverrides(testPosSettings);
+    }
+
+    public void Dispose()
+    {
+        PosSettingsStore.ResetTestingOverrides();
+        if (System.IO.Directory.Exists(_testDir))
+        {
+            try { System.IO.Directory.Delete(_testDir, true); } catch { }
+        }
+    }
+
     private sealed class FakeCurrentSession : ICurrentSession
     {
         public Guid? UserId { get; private set; }
@@ -248,11 +267,6 @@ public class RestaurantSetupViewTests
             Assert.Equal(6, PosSettingsStore.LoadItemsPerRow());
             Assert.True(PosSettingsStore.LoadActiveOrdersCollapsed());
             Assert.Equal("Credit Card", PosSettingsStore.LoadDefaultPaymentMethod());
-
-            // Restore POS settings
-            PosSettingsStore.SaveItemsPerRow(4);
-            PosSettingsStore.SaveActiveOrdersCollapsed(false);
-            PosSettingsStore.SaveDefaultPaymentMethod("Cash");
         }
     }
 

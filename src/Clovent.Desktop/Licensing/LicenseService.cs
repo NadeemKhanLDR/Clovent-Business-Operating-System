@@ -30,9 +30,15 @@ public static class LicenseService
     {
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "License");
-        if (!Directory.Exists(dir))
+        try
         {
-            Directory.CreateDirectory(dir);
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException || ex is System.Security.SecurityException)
+        {
         }
         return Path.Combine(dir, "clovent.lic");
     }

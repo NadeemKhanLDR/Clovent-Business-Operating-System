@@ -524,6 +524,7 @@ partial class EndOfDayReportView
         view.OptionsView.EnableAppearanceEvenRow = true;
         view.OptionsView.ColumnAutoWidth = true;
         view.OptionsView.ShowFooter = true;
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGridTypography(view);
         view.RowHeight = 26;
 
         decimal costSum = 0m;
@@ -857,9 +858,9 @@ partial class EndOfDayReportView
     {
         var page = new XtraTabPage { Text = "Summary", Padding = new Padding(12), AutoScroll = false };
 
-        var captionFont = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        var captionFont = new Font("Segoe UI", 9F, FontStyle.Bold);
         var valueFont = new Font("Segoe UI", 18F, FontStyle.Bold);
-        var subFont = new Font("Segoe UI", 8.25F);
+        var subFont = new Font("Segoe UI", 9F);
         var captionHeight = TextRenderer.MeasureText("Ag", captionFont).Height + 2;
         var valueHeight = TextRenderer.MeasureText("Ag", valueFont).Height + 8;
         var subHeight = TextRenderer.MeasureText("Ag", subFont).Height + 2;

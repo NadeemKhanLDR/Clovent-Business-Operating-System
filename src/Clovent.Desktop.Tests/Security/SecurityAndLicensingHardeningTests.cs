@@ -14,8 +14,27 @@ namespace Clovent.Desktop.Tests.Security;
 /// Comprehensive verification suite for Production Security, Licensing,
 /// and Release Hardening per Requirements 21 (Tests A through N).
 /// </summary>
-public sealed class SecurityAndLicensingHardeningTests
+public sealed class SecurityAndLicensingHardeningTests : IDisposable
 {
+    private readonly string _testDir;
+
+    public SecurityAndLicensingHardeningTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), "cbos_sec_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+        var guardFile = Path.Combine(_testDir, "license_guard.dat");
+        LicenseTamperGuard.SetTestingOverrides(guardFile);
+    }
+
+    public void Dispose()
+    {
+        LicenseTamperGuard.ResetTestingOverrides();
+        if (Directory.Exists(_testDir))
+        {
+            try { Directory.Delete(_testDir, true); } catch { }
+        }
+    }
+
     private static string? GetV2PrivateKeyXml()
     {
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".clovent", "keys", "clovent_vendor_private_key.xml");

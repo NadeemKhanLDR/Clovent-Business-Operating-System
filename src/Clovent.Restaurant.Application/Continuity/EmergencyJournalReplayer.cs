@@ -122,9 +122,15 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     tableId,
                     OrderNumber.Generate(tx.TimestampUtc));
 
-                if (!string.IsNullOrWhiteSpace(tx.OrderSnapshot.Notes))
+                var effectiveNotes = string.IsNullOrWhiteSpace(tx.LocalReceiptNumber)
+                    ? tx.OrderSnapshot.Notes
+                    : (string.IsNullOrWhiteSpace(tx.OrderSnapshot.Notes)
+                        ? $"[Continuity Receipt: {tx.LocalReceiptNumber}]"
+                        : $"[Continuity Receipt: {tx.LocalReceiptNumber}] {tx.OrderSnapshot.Notes}");
+
+                if (!string.IsNullOrWhiteSpace(effectiveNotes))
                 {
-                    order.SetNotes(tx.OrderSnapshot.Notes);
+                    order.SetNotes(effectiveNotes);
                 }
                 if (!string.IsNullOrWhiteSpace(tx.OrderSnapshot.CustomerNotes))
                 {
@@ -138,8 +144,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                         new ProductVariantId(lineSnapshot.ProductVariantId),
                         lineSnapshot.Quantity,
                         lineSnapshot.UnitPrice,
-                        0m,
-                        false,
+                        lineSnapshot.TaxRatePercentage,
+                        lineSnapshot.TaxIsInclusive,
                         lineSnapshot.Notes);
 
                     await _orderLineRepository.AddAsync(orderLine, cancellationToken).ConfigureAwait(false);
@@ -180,7 +186,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     tx.OrderSnapshot.DiscountTotal,
                     tx.OrderSnapshot.ServiceChargeTotal,
                     tx.OrderSnapshot.GrandTotal,
-                    0m,
+                    tx.OrderSnapshot.RoundingAmount,
                     snapshotPayments,
                     tx.CashierName,
                     tx.TerminalId,
@@ -259,7 +265,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
 
                 // Step 8: Update local journal record
                 tx.ReconciliationStatus = ReconciliationStatus.Replayed;
-                tx.ReconciliationDetails = $"Replayed successfully as Order {order.OrderNumber.Value} ({order.Id.Value})";
+                tx.ReconciliationDetails = $"Replayed successfully as Order {order.OrderNumber.Value} ({order.Id.Value})" +
+                    (string.IsNullOrWhiteSpace(tx.LocalReceiptNumber) ? string.Empty : $" [Local: {tx.LocalReceiptNumber}]");
                 tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
                 await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
 

@@ -326,6 +326,7 @@ partial class CustomerReceivablesReportView
         _gridView.OptionsView.EnableAppearanceEvenRow = true;
         _gridView.OptionsView.ColumnAutoWidth = true;
         _gridView.OptionsView.ShowFooter = true;
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGridTypography(_gridView);
         _gridView.RowHeight = 28;
 
         AddGridColumn("CustomerCode", "Code", 75, false);

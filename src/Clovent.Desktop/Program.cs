@@ -59,6 +59,7 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGlobalTypography();
 
         try
         {

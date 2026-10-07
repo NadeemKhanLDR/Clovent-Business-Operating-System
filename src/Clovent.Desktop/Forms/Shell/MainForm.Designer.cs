@@ -64,6 +64,8 @@ public sealed partial class MainForm
         Ribbon = _ribbon;
         StatusBar = new RibbonStatusBar(_ribbon);
 
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyRibbonTypography(_ribbon, StatusBar);
+
         _ribbon.ShowApplicationButton = DevExpress.Utils.DefaultBoolean.False;
         _ribbon.ApplicationButtonText = string.Empty;
 

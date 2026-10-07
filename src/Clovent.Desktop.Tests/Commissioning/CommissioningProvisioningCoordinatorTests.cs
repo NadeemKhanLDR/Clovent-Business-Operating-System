@@ -6,8 +6,42 @@ using Xunit;
 
 namespace Clovent.Desktop.Tests.Commissioning;
 
-public sealed class CommissioningProvisioningCoordinatorTests
+public sealed class CommissioningProvisioningCoordinatorTests : IDisposable
 {
+    private readonly string _testDir;
+
+    public CommissioningProvisioningCoordinatorTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), $"cbos_comm_coord_test_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(_testDir);
+
+        var userDb = Path.Combine(_testDir, "user_database.config.json");
+        var machineDb = Path.Combine(_testDir, "machine_database.config.json");
+        var machineMarker = Path.Combine(_testDir, "machine_commissioning.json");
+        var userMarker = Path.Combine(_testDir, "user_commissioning.json");
+
+        DatabaseSecretStore.SetTestingOverrides(userDb, machineDb);
+        CommissioningStateService.SetTestingOverrides(machineMarker, userMarker);
+        Clovent.Desktop.Licensing.TrialStateManager.SetTestingOverrides(_testDir);
+    }
+
+    public void Dispose()
+    {
+        DatabaseSecretStore.ResetTestingOverrides();
+        CommissioningStateService.ResetTestingOverrides();
+        Clovent.Desktop.Licensing.TrialStateManager.ResetTestingOverrides();
+
+        try
+        {
+            if (Directory.Exists(_testDir))
+            {
+                Directory.Delete(_testDir, recursive: true);
+            }
+        }
+        catch
+        {
+        }
+    }
     private sealed class FakeBootstrapFactory : ICommissioningBootstrapFactory
     {
         public bool CreatedCalled { get; private set; }

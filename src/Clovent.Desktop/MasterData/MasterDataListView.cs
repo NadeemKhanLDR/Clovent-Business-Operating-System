@@ -172,6 +172,7 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         _gridView.OptionsSelection.MultiSelect = true;
         _gridView.OptionsView.ShowGroupPanel = false;
         _gridView.OptionsView.ColumnAutoWidth = true;
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGridTypography(_gridView);
 
         foreach (var column in columns)
         {

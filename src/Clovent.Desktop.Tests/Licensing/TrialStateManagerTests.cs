@@ -22,12 +22,14 @@ public sealed class TrialStateManagerTests : IDisposable
         _testDir = Path.Combine(Path.GetTempPath(), $"cbos_trial_test_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_testDir);
         TrialStateManager.SetTestingOverrides(_testDir, () => _baseTime, _testMachineId);
+        LicenseTamperGuard.SetTestingOverrides(Path.Combine(_testDir, "license_guard.dat"));
         LicenseService.ResetTestingOverrides();
     }
 
     public void Dispose()
     {
         TrialStateManager.ResetTestingOverrides();
+        LicenseTamperGuard.ResetTestingOverrides();
         LicenseService.ResetTestingOverrides();
         try
         {

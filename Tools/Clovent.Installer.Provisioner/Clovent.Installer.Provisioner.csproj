@@ -12,9 +12,9 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Clovent.Installer.Provisioner</RootNamespace>
     <AssemblyName>Clovent.Installer.Provisioner</AssemblyName>
-    <Version>1.1.2</Version>
-    <FileVersion>1.1.2.0</FileVersion>
-    <AssemblyVersion>1.1.2.0</AssemblyVersion>
+    <Version>1.2.2</Version>
+    <FileVersion>1.2.2.0</FileVersion>
+    <AssemblyVersion>1.2.2.0</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>

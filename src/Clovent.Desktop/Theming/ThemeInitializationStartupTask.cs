@@ -19,6 +19,7 @@ public sealed class ThemeInitializationStartupTask(IThemeService themeService, I
         SkinManager.EnableMdiFormSkins();
 
         themeService.ApplySkin(options.Value.DefaultSkin);
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyRibbonControllerTypography(DevExpress.XtraBars.BarAndDockingController.Default);
 
         return Task.CompletedTask;
     }

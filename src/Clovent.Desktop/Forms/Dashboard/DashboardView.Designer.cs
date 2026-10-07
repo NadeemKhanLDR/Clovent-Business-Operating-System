@@ -314,7 +314,9 @@ partial class DashboardView
         // 
         // lblOrganizationCaption
         // 
+        lblOrganizationCaption.Appearance.Font = DesktopStyle.CaptionFont;
         lblOrganizationCaption.Appearance.ForeColor = Color.Gray;
+        lblOrganizationCaption.Appearance.Options.UseFont = true;
         lblOrganizationCaption.Appearance.Options.UseForeColor = true;
         lblOrganizationCaption.Dock = DockStyle.Fill;
         lblOrganizationCaption.Location = new Point(3, 11);
@@ -325,7 +327,9 @@ partial class DashboardView
         // 
         // lblCompanyCaption
         // 
+        lblCompanyCaption.Appearance.Font = DesktopStyle.CaptionFont;
         lblCompanyCaption.Appearance.ForeColor = Color.Gray;
+        lblCompanyCaption.Appearance.Options.UseFont = true;
         lblCompanyCaption.Appearance.Options.UseForeColor = true;
         lblCompanyCaption.Dock = DockStyle.Fill;
         lblCompanyCaption.Location = new Point(409, 11);
@@ -336,7 +340,9 @@ partial class DashboardView
         // 
         // lblBranchCaption
         // 
+        lblBranchCaption.Appearance.Font = DesktopStyle.CaptionFont;
         lblBranchCaption.Appearance.ForeColor = Color.Gray;
+        lblBranchCaption.Appearance.Options.UseFont = true;
         lblBranchCaption.Appearance.Options.UseForeColor = true;
         lblBranchCaption.Dock = DockStyle.Fill;
         lblBranchCaption.Location = new Point(815, 11);
@@ -347,7 +353,9 @@ partial class DashboardView
         // 
         // lblFiscalYearCaption
         // 
+        lblFiscalYearCaption.Appearance.Font = DesktopStyle.CaptionFont;
         lblFiscalYearCaption.Appearance.ForeColor = Color.Gray;
+        lblFiscalYearCaption.Appearance.Options.UseFont = true;
         lblFiscalYearCaption.Appearance.Options.UseForeColor = true;
         lblFiscalYearCaption.Dock = DockStyle.Fill;
         lblFiscalYearCaption.Location = new Point(1221, 11);
@@ -358,7 +366,9 @@ partial class DashboardView
         // 
         // lblCurrentUserCaption
         // 
+        lblCurrentUserCaption.Appearance.Font = DesktopStyle.CaptionFont;
         lblCurrentUserCaption.Appearance.ForeColor = Color.Gray;
+        lblCurrentUserCaption.Appearance.Options.UseFont = true;
         lblCurrentUserCaption.Appearance.Options.UseForeColor = true;
         lblCurrentUserCaption.Dock = DockStyle.Fill;
         lblCurrentUserCaption.Location = new Point(1627, 11);
@@ -487,6 +497,8 @@ partial class DashboardView
         // 
         // lblActiveSessionsCaption
         // 
+        lblActiveSessionsCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblActiveSessionsCaption.Appearance.Options.UseFont = true;
         lblActiveSessionsCaption.Appearance.Options.UseTextOptions = true;
         lblActiveSessionsCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblActiveSessionsCaption.Dock = DockStyle.Top;
@@ -523,6 +535,8 @@ partial class DashboardView
         // 
         // lblRecentLoginsCaption
         // 
+        lblRecentLoginsCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblRecentLoginsCaption.Appearance.Options.UseFont = true;
         lblRecentLoginsCaption.Appearance.Options.UseTextOptions = true;
         lblRecentLoginsCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblRecentLoginsCaption.Dock = DockStyle.Top;
@@ -559,6 +573,8 @@ partial class DashboardView
         // 
         // lblNotificationsCountCaption
         // 
+        lblNotificationsCountCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblNotificationsCountCaption.Appearance.Options.UseFont = true;
         lblNotificationsCountCaption.Appearance.Options.UseTextOptions = true;
         lblNotificationsCountCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblNotificationsCountCaption.Dock = DockStyle.Top;
@@ -595,6 +611,8 @@ partial class DashboardView
         // 
         // lblTotalProductsCaption
         // 
+        lblTotalProductsCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblTotalProductsCaption.Appearance.Options.UseFont = true;
         lblTotalProductsCaption.Appearance.Options.UseTextOptions = true;
         lblTotalProductsCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblTotalProductsCaption.Dock = DockStyle.Top;
@@ -631,6 +649,8 @@ partial class DashboardView
         // 
         // lblLowStockCaption
         // 
+        lblLowStockCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblLowStockCaption.Appearance.Options.UseFont = true;
         lblLowStockCaption.Appearance.Options.UseTextOptions = true;
         lblLowStockCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblLowStockCaption.Dock = DockStyle.Top;
@@ -667,6 +687,8 @@ partial class DashboardView
         // 
         // lblOutOfStockCaption
         // 
+        lblOutOfStockCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblOutOfStockCaption.Appearance.Options.UseFont = true;
         lblOutOfStockCaption.Appearance.Options.UseTextOptions = true;
         lblOutOfStockCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblOutOfStockCaption.Dock = DockStyle.Top;
@@ -703,6 +725,8 @@ partial class DashboardView
         // 
         // lblInventoryValueCaption
         // 
+        lblInventoryValueCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblInventoryValueCaption.Appearance.Options.UseFont = true;
         lblInventoryValueCaption.Appearance.Options.UseTextOptions = true;
         lblInventoryValueCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblInventoryValueCaption.Dock = DockStyle.Top;
@@ -739,6 +763,8 @@ partial class DashboardView
         // 
         // lblTodaysSalesCaption
         // 
+        lblTodaysSalesCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblTodaysSalesCaption.Appearance.Options.UseFont = true;
         lblTodaysSalesCaption.Appearance.Options.UseTextOptions = true;
         lblTodaysSalesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblTodaysSalesCaption.Dock = DockStyle.Top;
@@ -775,6 +801,8 @@ partial class DashboardView
         // 
         // lblOpenTablesCaption
         // 
+        lblOpenTablesCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblOpenTablesCaption.Appearance.Options.UseFont = true;
         lblOpenTablesCaption.Appearance.Options.UseTextOptions = true;
         lblOpenTablesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblOpenTablesCaption.Dock = DockStyle.Top;
@@ -811,6 +839,8 @@ partial class DashboardView
         // 
         // lblRunningOrdersCaption
         // 
+        lblRunningOrdersCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblRunningOrdersCaption.Appearance.Options.UseFont = true;
         lblRunningOrdersCaption.Appearance.Options.UseTextOptions = true;
         lblRunningOrdersCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblRunningOrdersCaption.Dock = DockStyle.Top;
@@ -847,6 +877,8 @@ partial class DashboardView
         // 
         // lblKitchenQueueCaption
         // 
+        lblKitchenQueueCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblKitchenQueueCaption.Appearance.Options.UseFont = true;
         lblKitchenQueueCaption.Appearance.Options.UseTextOptions = true;
         lblKitchenQueueCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblKitchenQueueCaption.Dock = DockStyle.Top;
@@ -883,6 +915,8 @@ partial class DashboardView
         // 
         // lblDeliveryOrdersCaption
         // 
+        lblDeliveryOrdersCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblDeliveryOrdersCaption.Appearance.Options.UseFont = true;
         lblDeliveryOrdersCaption.Appearance.Options.UseTextOptions = true;
         lblDeliveryOrdersCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblDeliveryOrdersCaption.Dock = DockStyle.Top;
@@ -919,6 +953,8 @@ partial class DashboardView
         // 
         // lblTotalReceivablesCaption
         // 
+        lblTotalReceivablesCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblTotalReceivablesCaption.Appearance.Options.UseFont = true;
         lblTotalReceivablesCaption.Appearance.Options.UseTextOptions = true;
         lblTotalReceivablesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblTotalReceivablesCaption.Dock = DockStyle.Top;
@@ -955,6 +991,8 @@ partial class DashboardView
         // 
         // lblCustomersWithBalanceCaption
         // 
+        lblCustomersWithBalanceCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblCustomersWithBalanceCaption.Appearance.Options.UseFont = true;
         lblCustomersWithBalanceCaption.Appearance.Options.UseTextOptions = true;
         lblCustomersWithBalanceCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblCustomersWithBalanceCaption.Dock = DockStyle.Top;
@@ -991,6 +1029,8 @@ partial class DashboardView
         // 
         // lblCustomerAdvancesCaption
         // 
+        lblCustomerAdvancesCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblCustomerAdvancesCaption.Appearance.Options.UseFont = true;
         lblCustomerAdvancesCaption.Appearance.Options.UseTextOptions = true;
         lblCustomerAdvancesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblCustomerAdvancesCaption.Dock = DockStyle.Top;
@@ -1027,6 +1067,8 @@ partial class DashboardView
         // 
         // lblTodaysOnAccountCaption
         // 
+        lblTodaysOnAccountCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblTodaysOnAccountCaption.Appearance.Options.UseFont = true;
         lblTodaysOnAccountCaption.Appearance.Options.UseTextOptions = true;
         lblTodaysOnAccountCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblTodaysOnAccountCaption.Dock = DockStyle.Top;
@@ -1063,6 +1105,8 @@ partial class DashboardView
         // 
         // lblTodaysCollectionsCaption
         // 
+        lblTodaysCollectionsCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblTodaysCollectionsCaption.Appearance.Options.UseFont = true;
         lblTodaysCollectionsCaption.Appearance.Options.UseTextOptions = true;
         lblTodaysCollectionsCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblTodaysCollectionsCaption.Dock = DockStyle.Top;
@@ -1099,6 +1143,8 @@ partial class DashboardView
         // 
         // lblNetReceivablesCaption
         // 
+        lblNetReceivablesCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblNetReceivablesCaption.Appearance.Options.UseFont = true;
         lblNetReceivablesCaption.Appearance.Options.UseTextOptions = true;
         lblNetReceivablesCaption.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
         lblNetReceivablesCaption.Dock = DockStyle.Top;
@@ -1140,6 +1186,8 @@ partial class DashboardView
         // 
         // lstRecentActivity
         // 
+        lstRecentActivity.Appearance.Font = DesktopStyle.BodyFont;
+        lstRecentActivity.Appearance.Options.UseFont = true;
         lstRecentActivity.Dock = DockStyle.Fill;
         lstRecentActivity.Location = new Point(3, 53);
         lstRecentActivity.Name = "lstRecentActivity";
@@ -1178,6 +1226,8 @@ partial class DashboardView
         // 
         // lstNotifications
         // 
+        lstNotifications.Appearance.Font = DesktopStyle.BodyFont;
+        lstNotifications.Appearance.Options.UseFont = true;
         lstNotifications.Dock = DockStyle.Fill;
         lstNotifications.Location = new Point(3, 53);
         lstNotifications.Name = "lstNotifications";
@@ -1212,6 +1262,8 @@ partial class DashboardView
         // 
         // lstStockMovements
         // 
+        lstStockMovements.Appearance.Font = DesktopStyle.BodyFont;
+        lstStockMovements.Appearance.Options.UseFont = true;
         lstStockMovements.Dock = DockStyle.Fill;
         lstStockMovements.Location = new Point(3, 53);
         lstStockMovements.Name = "lstStockMovements";
@@ -1247,6 +1299,8 @@ partial class DashboardView
         // 
         // lstTopSellingItems
         // 
+        lstTopSellingItems.Appearance.Font = DesktopStyle.BodyFont;
+        lstTopSellingItems.Appearance.Options.UseFont = true;
         lstTopSellingItems.Dock = DockStyle.Fill;
         lstTopSellingItems.Location = new Point(3, 53);
         lstTopSellingItems.Name = "lstTopSellingItems";
@@ -1288,6 +1342,8 @@ partial class DashboardView
         // 
         // lblCompanySelectorCaption
         // 
+        lblCompanySelectorCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblCompanySelectorCaption.Appearance.Options.UseFont = true;
         lblCompanySelectorCaption.Location = new Point(0, 16);
         lblCompanySelectorCaption.Margin = new Padding(0, 8, 4, 0);
         lblCompanySelectorCaption.Name = "lblCompanySelectorCaption";
@@ -1297,6 +1353,7 @@ partial class DashboardView
         // 
         // cmbCompany
         // 
+        cmbCompany.Font = DesktopStyle.BodyFont;
         cmbCompany.Location = new Point(125, 12);
         cmbCompany.Margin = new Padding(0, 4, 8, 4);
         cmbCompany.Name = "cmbCompany";
@@ -1306,6 +1363,8 @@ partial class DashboardView
         // 
         // lblBranchSelectorCaption
         // 
+        lblBranchSelectorCaption.Appearance.Font = DesktopStyle.CaptionFont;
+        lblBranchSelectorCaption.Appearance.Options.UseFont = true;
         lblBranchSelectorCaption.Location = new Point(353, 16);
         lblBranchSelectorCaption.Margin = new Padding(0, 8, 4, 0);
         lblBranchSelectorCaption.Name = "lblBranchSelectorCaption";
@@ -1315,6 +1374,7 @@ partial class DashboardView
         // 
         // cmbBranch
         // 
+        cmbBranch.Font = DesktopStyle.BodyFont;
         cmbBranch.Location = new Point(449, 12);
         cmbBranch.Margin = new Padding(0, 4, 8, 4);
         cmbBranch.Name = "cmbBranch";
@@ -1324,6 +1384,8 @@ partial class DashboardView
         // 
         // btnRefresh
         // 
+        btnRefresh.Appearance.Font = DesktopStyle.ButtonFont;
+        btnRefresh.Appearance.Options.UseFont = true;
         btnRefresh.AutoSize = true;
         btnRefresh.Location = new Point(685, 12);
         btnRefresh.Margin = new Padding(8, 4, 4, 4);
@@ -1336,6 +1398,8 @@ partial class DashboardView
         // 
         // btnViewNotifications
         // 
+        btnViewNotifications.Appearance.Font = DesktopStyle.ButtonFont;
+        btnViewNotifications.Appearance.Options.UseFont = true;
         btnViewNotifications.AutoSize = true;
         btnViewNotifications.Location = new Point(799, 12);
         btnViewNotifications.Margin = new Padding(4);

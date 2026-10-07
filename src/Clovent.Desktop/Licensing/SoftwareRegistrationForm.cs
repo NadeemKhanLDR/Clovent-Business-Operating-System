@@ -76,7 +76,7 @@ public partial class SoftwareRegistrationForm : XtraForm
             Width = DesktopDpi.Scale(130, this),
             Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
-        _btnElevate.Appearance.Font = new Font("Segoe UI", 9F);
+        _btnElevate.Appearance.Font = DesktopStyle.ButtonFont;
         _btnElevate.Click += (s, e) =>
         {
             WindowsCommissioningSecurity.EnsureElevatedForCommissioning("Software License Activation");

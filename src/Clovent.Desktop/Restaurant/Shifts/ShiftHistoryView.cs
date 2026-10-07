@@ -327,6 +327,7 @@ public sealed class ShiftHistoryView : XtraUserControl
             RowHeight = 30,
             ColumnPanelRowHeight = 32
         };
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGridTypography(_gridView);
         _gridControl.MainView = _gridView;
         _gridView.DoubleClick += GridView_DoubleClick;
         _gridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;

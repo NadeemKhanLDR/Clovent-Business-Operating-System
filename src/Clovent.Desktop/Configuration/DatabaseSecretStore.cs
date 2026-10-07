@@ -16,11 +16,46 @@ public static class DatabaseSecretStore
     private static readonly byte[] Entropy = "Clovent-BOS-DbEntropy-v1"u8.ToArray();
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
+    private static readonly object SyncLock = new();
+    private static string? _customUserConfigPath;
+    private static string? _customMachineConfigPath;
+
+    public static void SetTestingOverrides(string? customUserConfigPath = null, string? customMachineConfigPath = null)
+    {
+        lock (SyncLock)
+        {
+            _customUserConfigPath = customUserConfigPath;
+            _customMachineConfigPath = customMachineConfigPath;
+        }
+    }
+
+    public static void ResetTestingOverrides()
+    {
+        lock (SyncLock)
+        {
+            _customUserConfigPath = null;
+            _customMachineConfigPath = null;
+        }
+    }
+
     /// <summary>
     /// Gets the path to the machine-level database configuration file in %ProgramData%.
     /// </summary>
     public static string GetMachineConfigFilePath()
     {
+        lock (SyncLock)
+        {
+            if (!string.IsNullOrEmpty(_customMachineConfigPath))
+            {
+                var customDir = Path.GetDirectoryName(_customMachineConfigPath);
+                if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
+                {
+                    Directory.CreateDirectory(customDir);
+                }
+                return _customMachineConfigPath;
+            }
+        }
+
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem");
         if (!Directory.Exists(dir))
@@ -35,6 +70,19 @@ public static class DatabaseSecretStore
     /// </summary>
     public static string GetUserConfigFilePath()
     {
+        lock (SyncLock)
+        {
+            if (!string.IsNullOrEmpty(_customUserConfigPath))
+            {
+                var customDir = Path.GetDirectoryName(_customUserConfigPath);
+                if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
+                {
+                    Directory.CreateDirectory(customDir);
+                }
+                return _customUserConfigPath;
+            }
+        }
+
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var dir = Path.Combine(localAppData, "Clovent", "Clovent.BusinessOperatingSystem");
         if (!Directory.Exists(dir))

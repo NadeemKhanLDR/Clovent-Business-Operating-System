@@ -62,3 +62,16 @@ DatabaseBackups/
 # Artifacts
 artifacts/
 
+# Scratch and Temporary Test Files
+scratch/
+!scratch/debug_screenshots/
+!scratch/debug_screenshots/*.png
+*.tmp
+
+# Local Database Files
+*.mdf
+*.ldf
+*.ndf
+*.sqlite
+*.sqlite3
+*.db

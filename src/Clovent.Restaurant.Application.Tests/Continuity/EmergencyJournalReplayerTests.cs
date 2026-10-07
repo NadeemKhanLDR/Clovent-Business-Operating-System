@@ -244,4 +244,63 @@ public sealed class EmergencyJournalReplayerTests
         Assert.Equal(ReconciliationStatus.Conflict, updatedTx.ReconciliationStatus);
         Assert.Contains("Tamper check failed", updatedTx.ReconciliationDetails);
     }
+
+    [Fact]
+    public async Task ReplayPendingAsync_WithLocalReceiptNumber_PreservesIdentifierAndDetails()
+    {
+        await SeedCashPaymentMethodAsync();
+
+        var txId = Guid.NewGuid();
+        var seq = 5L;
+        var now = DateTimeOffset.UtcNow;
+        var terminalId = "POS-01";
+        var branchId = Guid.NewGuid();
+        var warehouseId = Guid.NewGuid();
+        var cashierName = "Cashier Bob";
+        var grandTotal = 300m;
+        var paymentType = "Cash";
+
+        var checksum = EmergencyTransaction.ComputeChecksum(
+            txId, seq, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
+
+        var snapshot = new EmergencyOrderSnapshot(
+            "TakeAway", null, null,
+            [new EmergencyTransactionLine(Guid.NewGuid(), "SKU-BURGER", "Beef Burger", 1, 300m, 300m, null, 16.0m, 48m, false, 0m, "Prepared")],
+            300m, 48m, 0m, 0m, grandTotal, "Fast service", null);
+
+        var tx = new EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = seq,
+            TimestampUtc = now,
+            TerminalId = terminalId,
+            BranchId = branchId,
+            WarehouseId = warehouseId,
+            CashierId = Guid.NewGuid(),
+            CashierName = cashierName,
+            OrderSnapshot = snapshot,
+            PaymentType = paymentType,
+            AmountTendered = 500m,
+            ChangeGiven = 200m,
+            Checksum = checksum,
+            LocalReceiptNumber = "CONT-POS01-00005",
+            CacheVersion = "1.2.0",
+            ReconciliationStatus = ReconciliationStatus.PendingReplay
+        };
+        await _journalStore.AppendAsync(tx);
+
+        var replayer = CreateReplayer();
+        var result = await replayer.ReplayPendingAsync();
+
+        Assert.Equal(1, result.TotalProcessed);
+        Assert.Equal(1, result.SuccessCount);
+
+        var updatedTx = (await _journalStore.GetAllAsync()).First();
+        Assert.Equal(ReconciliationStatus.Replayed, updatedTx.ReconciliationStatus);
+        Assert.Contains("CONT-POS01-00005", updatedTx.ReconciliationDetails);
+
+        var orders = await _orderRepo.GetAllAsync();
+        var order = orders.First();
+        Assert.Contains("CONT-POS01-00005", order.Notes);
+    }
 }

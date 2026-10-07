@@ -171,20 +171,57 @@ public sealed class CommissioningStateService(
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private static readonly byte[] HmacKey = "Clovent-Commissioning-Marker-Secret-v1"u8.ToArray();
+    private static readonly object SyncLock = new();
+    private static string? _customMarkerFilePath;
+    private static string? _customFallbackMarkerFilePath;
+
+    public static void SetTestingOverrides(string? markerFilePath = null, string? fallbackMarkerFilePath = null)
+    {
+        lock (SyncLock)
+        {
+            _customMarkerFilePath = markerFilePath;
+            _customFallbackMarkerFilePath = fallbackMarkerFilePath;
+        }
+    }
+
+    public static void ResetTestingOverrides()
+    {
+        lock (SyncLock)
+        {
+            _customMarkerFilePath = null;
+            _customFallbackMarkerFilePath = null;
+        }
+    }
 
     /// <summary>
     /// Gets the primary path to commissioning.json in %ProgramData%.
     /// </summary>
-    public static string MarkerFilePath =>
-        Path.Combine(ProgramDataAclManager.ConfigDirectory, "commissioning.json");
+    public static string MarkerFilePath
+    {
+        get
+        {
+            lock (SyncLock)
+            {
+                return _customMarkerFilePath ?? Path.Combine(ProgramDataAclManager.ConfigDirectory, "commissioning.json");
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the fallback path to commissioning.json in %LocalAppData%.
     /// </summary>
-    public static string FallbackMarkerFilePath =>
-        Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Clovent", "Clovent.BusinessOperatingSystem", "commissioning.json");
+    public static string FallbackMarkerFilePath
+    {
+        get
+        {
+            lock (SyncLock)
+            {
+                return _customFallbackMarkerFilePath ?? Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Clovent", "Clovent.BusinessOperatingSystem", "commissioning.json");
+            }
+        }
+    }
 
     /// <summary>
     /// Checks whether the local commissioning marker file exists in machine or user directory.

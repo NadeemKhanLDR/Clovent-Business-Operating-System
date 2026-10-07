@@ -224,6 +224,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private Dictionary<string, bool> _permissions = [];
     private List<ProductVariantDto> _activeVariants = [];
     private IReadOnlyCollection<OrderLineDto> _currentOrderLines = [];
+    private readonly List<OrderLineDto> _offlineOrderLines = [];
     private readonly SemaphoreSlim _orderMutationLock = new(1, 1);
     private Guid? _selectedCategoryId;
     private IReadOnlyList<ProductCategoryDto> _loadedCategories = [];
@@ -365,7 +366,20 @@ public sealed partial class RestaurantPosForm : XtraForm
                 {
                     if (IsHandleCreated && !IsDisposed)
                     {
-                        BeginInvoke(UpdateOrderStatusBadge);
+                        BeginInvoke(async () =>
+                        {
+                            UpdateOrderStatusBadge();
+                            if (!_continuityCoordinator.IsContinuityModeActive)
+                            {
+                                XtraMessageBox.Show(
+                                    this,
+                                    "AUTHORITATIVE DATABASE RESTORED\n\nPrimary database connectivity has been verified. All emergency continuity transactions have been synchronized, and the counter has returned to Normal Mode.",
+                                    "Connectivity Restored - Normal Mode",
+                                    MessageBoxButtons.OK,
+                                    MessageBoxIcon.Information);
+                                try { await ReloadMenuItemsAsync(); } catch { }
+                            }
+                        });
                     }
                 };
             }
@@ -3881,52 +3895,61 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_currentOrder is null)
         {
-            if (_activeOrdersFilter == "TakeAway")
+            if (_continuityCoordinator?.IsContinuityModeActive == true)
             {
-                XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                var whId = _warehousePicker.SelectedId ?? Guid.Empty;
+                var tblId = _tablePicker.SelectedId;
+                InitializeOfflineOrder(_currentOrderType, whId, tblId);
             }
-
-            var tables = await _mediator.Send(new ListAllTablesQuery());
-            var availableTable = TableSelectionDineInPolicy.FindFirstAvailableTable(tables, t => t.Status, t => t.OccupancyStatus);
-
-            if (availableTable is null)
+            else
             {
-                XtraMessageBox.Show(this,
-                    "All tables are currently occupied. Please complete or clear an existing table order before starting a new Dine-In order.",
-                    "No Table Available",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                return;
-            }
-
-            if (_warehousePicker.SelectedId is not { } warehouseId)
-            {
-                XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
-
-            // Select table in picker and create Dine-In order
-            _tablePicker.SelectId(availableTable.TableId);
-
-            try
-            {
-                _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, availableTable.TableId));
-                if (_defaultCustomerId is { } defaultCustId)
+                if (_activeOrdersFilter == "TakeAway")
                 {
-                    _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
+                    XtraMessageBox.Show(this, "Start a New Dine-In or New Take Away order first.", "No Order Started", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
                 }
-                _hasUnsavedEdits = true;
-                await RefreshOrderAsync();
-                await RefreshActiveOrdersAsync();
-                await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Dine-In)");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to auto-start Dine-In order for table {TableCode}", availableTable.Code);
-                XtraMessageBox.Show(this, $"Failed to start Dine-In order: {ex.Message}", "Order Start Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                await ReloadTablesAsync();
-                return;
+
+                var tables = await _mediator.Send(new ListAllTablesQuery());
+                var availableTable = TableSelectionDineInPolicy.FindFirstAvailableTable(tables, t => t.Status, t => t.OccupancyStatus);
+
+                if (availableTable is null)
+                {
+                    XtraMessageBox.Show(this,
+                        "All tables are currently occupied. Please complete or clear an existing table order before starting a new Dine-In order.",
+                        "No Table Available",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                    return;
+                }
+
+                if (_warehousePicker.SelectedId is not { } warehouseId)
+                {
+                    XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Select table in picker and create Dine-In order
+                _tablePicker.SelectId(availableTable.TableId);
+
+                try
+                {
+                    _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, availableTable.TableId));
+                    if (_defaultCustomerId is { } defaultCustId)
+                    {
+                        _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
+                    }
+                    _hasUnsavedEdits = true;
+                    await RefreshOrderAsync();
+                    await RefreshActiveOrdersAsync();
+                    await LogActivityAsync("New Order", $"{_currentOrder.OrderNumber} (Dine-In)");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to auto-start Dine-In order for table {TableCode}", availableTable.Code);
+                    XtraMessageBox.Show(this, $"Failed to start Dine-In order: {ex.Message}", "Order Start Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    await ReloadTablesAsync();
+                    return;
+                }
             }
         }
 
@@ -3950,30 +3973,88 @@ public sealed partial class RestaurantPosForm : XtraForm
     // Shared mutation for menu taps and suggestion batches. Caller owns the order lock.
     private async Task<OrderLineDto> AddProductToCurrentOrderCoreAsync(Guid variantId, decimal quantity, decimal? expectedUnitPrice = null)
     {
-            await EnsureOrderResumedIfHeldAsync();
-            _hasUnsavedEdits = true;
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            if (_currentOrder == null)
+            {
+                var whId = _warehousePicker.SelectedId ?? Guid.Empty;
+                var tblId = _tablePicker.SelectedId;
+                InitializeOfflineOrder(_currentOrderType, whId, tblId);
+            }
 
-            var existingLine = _currentOrderLines.FirstOrDefault(l =>
+            _hasUnsavedEdits = true;
+            var existingLine = _offlineOrderLines.FirstOrDefault(l =>
                 !l.IsVoided &&
                 l.ProductVariantId == variantId &&
                 string.IsNullOrEmpty(l.Notes));
 
+            var cachedVariant = _continuityCoordinator.ActiveCache?.GetVariant(variantId);
+            var unitPrice = expectedUnitPrice
+                ?? _sellingPricesByVariantId.GetValueOrDefault(variantId, cachedVariant?.SellingPrice ?? 0m);
+            var taxRate = cachedVariant?.TaxRatePercentage ?? 0m;
+            var taxIsInc = cachedVariant?.TaxIsInclusive ?? true;
+
             OrderLineDto lineDto;
             if (existingLine is not null)
             {
-                lineDto = await _mediator.Send(new SetOrderLineQuantityCommand(existingLine.OrderLineId, existingLine.Quantity + quantity));
+                var newQty = existingLine.Quantity + quantity;
+                lineDto = existingLine with
+                {
+                    Quantity = newQty,
+                    LineTotal = Math.Round(newQty * unitPrice, 2)
+                };
+                var idx = _offlineOrderLines.IndexOf(existingLine);
+                _offlineOrderLines[idx] = lineDto;
             }
             else
             {
-                lineDto = await _mediator.Send(new AddOrderLineCommand(_currentOrder!.OrderId, variantId, quantity));
-            }
-
-            if (expectedUnitPrice.HasValue && lineDto.UnitPrice != expectedUnitPrice.Value)
-            {
-                lineDto = await _mediator.Send(new OverrideOrderLinePriceCommand(lineDto.OrderLineId, expectedUnitPrice.Value, "Quick Order Template Price", _currentSession.DisplayName ?? "System"));
+                lineDto = new OrderLineDto(
+                    Guid.NewGuid(),
+                    _currentOrder!.OrderId,
+                    variantId,
+                    quantity,
+                    unitPrice,
+                    unitPrice,
+                    expectedUnitPrice.HasValue,
+                    expectedUnitPrice.HasValue ? "Quick Order Template Price" : null,
+                    null,
+                    null,
+                    taxRate,
+                    taxIsInc,
+                    null,
+                    false,
+                    Math.Round(quantity * unitPrice, 2),
+                    DateTimeOffset.UtcNow);
+                _offlineOrderLines.Add(lineDto);
             }
 
             return lineDto;
+        }
+
+        await EnsureOrderResumedIfHeldAsync();
+        _hasUnsavedEdits = true;
+
+        var existingLineDb = _currentOrderLines.FirstOrDefault(l =>
+            !l.IsVoided &&
+            l.ProductVariantId == variantId &&
+            string.IsNullOrEmpty(l.Notes));
+
+        OrderLineDto lineDtoDb;
+        if (existingLineDb is not null)
+        {
+            lineDtoDb = await _mediator.Send(new SetOrderLineQuantityCommand(existingLineDb.OrderLineId, existingLineDb.Quantity + quantity));
+        }
+        else
+        {
+            lineDtoDb = await _mediator.Send(new AddOrderLineCommand(_currentOrder!.OrderId, variantId, quantity));
+        }
+
+        if (expectedUnitPrice.HasValue && lineDtoDb.UnitPrice != expectedUnitPrice.Value)
+        {
+            lineDtoDb = await _mediator.Send(new OverrideOrderLinePriceCommand(lineDtoDb.OrderLineId, expectedUnitPrice.Value, "Quick Order Template Price", _currentSession.DisplayName ?? "System"));
+        }
+
+        return lineDtoDb;
     }
 
     private async void DecreaseQuantityButton_Click(object? sender, EventArgs e) => await TryRunAsync(() => BumpQuantityAsync(-1), "update the quantity");
@@ -4227,50 +4308,148 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task ReloadMenuItemsAsync()
     {
-        var variants = await _mediator.Send(new ListProductVariantsQuery());
-        _variantsById.Clear();
-        foreach (var variant in variants)
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
         {
-            _variantsById[variant.ProductVariantId] = variant;
-        }
-        _activeVariants = [.. variants.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active")).OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
-
-        var products = await _mediator.Send(new ListProductsQuery());
-        _productNamesById.Clear();
-        foreach (var product in products)
-        {
-            _productNamesById[product.ProductId] = product.Name;
+            LoadMenuFromOperationalCache();
+            return;
         }
 
-        _sellingPricesByVariantId.Clear();
-        foreach (var image in _tileImagesByProductId.Values)
+        try
         {
-            image.Dispose();
-        }
-        _tileImagesByProductId.Clear();
-
-        var sellingPrices = await _mediator.Send(new ListActiveProductPricesByTypeQuery(PriceType.Selling));
-        var newestSellingPriceByVariantId = sellingPrices
-            .GroupBy(p => p.ProductVariantId)
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.EffectiveFromUtc).First().Amount);
-
-        foreach (var variant in _activeVariants)
-        {
-            _sellingPricesByVariantId[variant.ProductVariantId] = newestSellingPriceByVariantId.GetValueOrDefault(variant.ProductVariantId, 0m);
-
-            // Rush mode skips tile image loading entirely (presentation only).
-            if (RushMode.AllowTileImages
-                && !_tileImagesByProductId.ContainsKey(variant.ProductId)
-                && MenuItemImageStore.Load(variant.ProductId) is { } image)
+            var variants = await _mediator.Send(new ListProductVariantsQuery());
+            _variantsById.Clear();
+            foreach (var variant in variants)
             {
-                _tileImagesByProductId[variant.ProductId] = image;
+                _variantsById[variant.ProductVariantId] = variant;
+            }
+            _activeVariants = [.. variants.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active")).OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
+
+            var products = await _mediator.Send(new ListProductsQuery());
+            _productNamesById.Clear();
+            foreach (var product in products)
+            {
+                _productNamesById[product.ProductId] = product.Name;
+            }
+
+            _sellingPricesByVariantId.Clear();
+            foreach (var image in _tileImagesByProductId.Values)
+            {
+                image.Dispose();
+            }
+            _tileImagesByProductId.Clear();
+
+            var sellingPrices = await _mediator.Send(new ListActiveProductPricesByTypeQuery(PriceType.Selling));
+            var newestSellingPriceByVariantId = sellingPrices
+                .GroupBy(p => p.ProductVariantId)
+                .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.EffectiveFromUtc).First().Amount);
+
+            foreach (var variant in _activeVariants)
+            {
+                _sellingPricesByVariantId[variant.ProductVariantId] = newestSellingPriceByVariantId.GetValueOrDefault(variant.ProductVariantId, 0m);
+
+                // Rush mode skips tile image loading entirely (presentation only).
+                if (RushMode.AllowTileImages
+                    && !_tileImagesByProductId.ContainsKey(variant.ProductId)
+                    && MenuItemImageStore.Load(variant.ProductId) is { } image)
+                {
+                    _tileImagesByProductId[variant.ProductId] = image;
+                }
+            }
+
+            var categories = await _mediator.Send(new ListProductCategoriesQuery());
+            _loadedCategories = [.. categories.Where(c => c.Status == "Active")];
+            BuildCategoryButtons();
+            ApplyProductFilter();
+
+            // Background operational cache refresh while online
+            if (_continuityCoordinator != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _continuityCoordinator.RefreshCacheAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger?.LogWarning(ex, "Background operational cache refresh failed.");
+                    }
+                });
             }
         }
+        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
+        {
+            _logger?.LogWarning(ex, "Database unreachable during menu load. Attempting failover to Operational Cache.");
+            if (_continuityCoordinator != null)
+            {
+                await _continuityCoordinator.EnsureCacheLoadedAsync();
+                if (_continuityCoordinator.ActiveCache != null)
+                {
+                    _continuityCoordinator.EnterContinuityMode($"Database unreachable during menu loading: {ex.Message}");
+                    LoadMenuFromOperationalCache();
+                    return;
+                }
+            }
+            throw;
+        }
+    }
 
-        var categories = await _mediator.Send(new ListProductCategoriesQuery());
-        _loadedCategories = [.. categories.Where(c => c.Status == "Active")];
+    private void LoadMenuFromOperationalCache()
+    {
+        var cache = _continuityCoordinator?.ActiveCache;
+        if (cache == null)
+        {
+            XtraMessageBox.Show(this, "Operational Cache is not available. Please restore database connectivity to initialize cache.", "Cache Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        _variantsById.Clear();
+        _activeVariants.Clear();
+        _sellingPricesByVariantId.Clear();
+        _productNamesById.Clear();
+
+        foreach (var p in cache.Payload.Products)
+        {
+            _productNamesById[p.ProductId] = p.Name;
+        }
+
+        var activeVariantsList = new List<ProductVariantDto>();
+        foreach (var v in cache.Payload.Variants.Where(x => x.Status == "Active"))
+        {
+            var dto = new ProductVariantDto(
+                v.ProductVariantId,
+                v.ProductId,
+                v.Name,
+                v.Sku,
+                v.UnitOfMeasureId,
+                v.Status,
+                v.SortOrder,
+                DateTimeOffset.UtcNow,
+                v.ProductCategoryId,
+                "Active",
+                v.IsAvailable,
+                v.ItemType,
+                v.ProductName);
+
+            _variantsById[v.ProductVariantId] = dto;
+            _sellingPricesByVariantId[v.ProductVariantId] = v.SellingPrice;
+            activeVariantsList.Add(dto);
+        }
+
+        _activeVariants = [.. activeVariantsList.OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
+
+        _loadedCategories = [.. cache.Payload.Categories.Select(c => new ProductCategoryDto(
+            c.ProductCategoryId,
+            c.Name,
+            c.ParentCategoryId,
+            c.Status,
+            c.ColorHex,
+            c.SortOrder,
+            DateTimeOffset.UtcNow))];
+
         BuildCategoryButtons();
         ApplyProductFilter();
+        UpdateOrderStatusBadge();
     }
 
     private sealed record CategoryTag(Guid? CategoryId);
@@ -5244,17 +5423,53 @@ public sealed partial class RestaurantPosForm : XtraForm
     private async Task ReloadTablesAsync()
     {
         var selectedTableId = _currentOrder?.TableId ?? _tablePicker.SelectedId;
-        var tables = await _mediator.Send(new ListAllTablesQuery());
-        _tablePicker.LoadItems([.. tables.Select(t => (t.TableId, $"{t.Code} ({t.OccupancyStatus})"))]);
-        if (_currentOrder != null && _currentOrder.OrderType == "TakeAway")
+
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
         {
-            _tablePicker.SelectId(null);
-            _tablePicker.Enabled = false;
+            var cachedTables = _continuityCoordinator.ActiveCache?.Payload.Tables ?? [];
+            _tablePicker.LoadItems([.. cachedTables.Select(t => (t.TableId, $"{t.Code} ({t.EffectiveOccupancyStatus})"))]);
+            if (_currentOrder != null && _currentOrder.OrderType == "TakeAway")
+            {
+                _tablePicker.SelectId(null);
+                _tablePicker.Enabled = false;
+            }
+            else
+            {
+                _tablePicker.Enabled = _currentOrder == null || _currentOrder.Status is "Open" or "Held";
+                _tablePicker.SelectId(selectedTableId);
+            }
+            return;
         }
-        else
+
+        try
         {
-            _tablePicker.Enabled = _currentOrder == null || _currentOrder.Status is "Open" or "Held";
-            _tablePicker.SelectId(selectedTableId);
+            var tables = await _mediator.Send(new ListAllTablesQuery());
+            _tablePicker.LoadItems([.. tables.Select(t => (t.TableId, $"{t.Code} ({t.OccupancyStatus})"))]);
+            if (_currentOrder != null && _currentOrder.OrderType == "TakeAway")
+            {
+                _tablePicker.SelectId(null);
+                _tablePicker.Enabled = false;
+            }
+            else
+            {
+                _tablePicker.Enabled = _currentOrder == null || _currentOrder.Status is "Open" or "Held";
+                _tablePicker.SelectId(selectedTableId);
+            }
+        }
+        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
+        {
+            var cachedTables = _continuityCoordinator?.ActiveCache?.Payload.Tables ?? [];
+            _tablePicker.LoadItems([.. cachedTables.Select(t => (t.TableId, $"{t.Code} ({t.EffectiveOccupancyStatus})"))]);
+            if (_currentOrder != null && _currentOrder.OrderType == "TakeAway")
+            {
+                _tablePicker.SelectId(null);
+                _tablePicker.Enabled = false;
+            }
+            else
+            {
+                _tablePicker.Enabled = _currentOrder == null || _currentOrder.Status is "Open" or "Held";
+                _tablePicker.SelectId(selectedTableId);
+            }
         }
     }
 
@@ -5373,6 +5588,34 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    private void InitializeOfflineOrder(OrderType orderType, Guid warehouseId, Guid? tableId)
+    {
+        _offlineOrderLines.Clear();
+        var tempOrderId = Guid.NewGuid();
+        var localSeq = _continuityCoordinator?.GetNextLocalReceiptNumber() ?? $"CONT-{DateTime.UtcNow:HHmmss}";
+        _currentOrder = new OrderDto(
+            tempOrderId,
+            localSeq,
+            null,
+            orderType.ToString(),
+            "Open",
+            tableId,
+            warehouseId,
+            null,
+            null,
+            [],
+            [],
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            _defaultCustomerId);
+
+        _currentOrderType = orderType;
+        _hasUnsavedEdits = true;
+        RefreshOfflineOrder(null);
+    }
+
     private async Task NewDineInAsync()
     {
         if (_warehousePicker.SelectedId is not { } warehouseId)
@@ -5384,6 +5627,12 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (_tablePicker.SelectedId is not { } tableId)
         {
             _tablePicker.ShowPopup();
+            return;
+        }
+
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            InitializeOfflineOrder(OrderType.DineIn, warehouseId, tableId);
             return;
         }
 
@@ -5406,6 +5655,12 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            InitializeOfflineOrder(OrderType.TakeAway, warehouseId, null);
+            return;
+        }
+
         _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId));
         if (_defaultCustomerId is { } defaultCustId)
         {
@@ -5419,6 +5674,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task NewDeliveryAsync()
     {
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            XtraMessageBox.Show(this, "Delivery orders requiring customer lookups are restricted during offline Continuity Mode. Please use Dine-In or Take-Away with Cash tender.", "Continuity Mode Restriction", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         if (_warehousePicker.SelectedId is not { } warehouseId)
         {
             XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -5986,6 +6247,19 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            _hasUnsavedEdits = true;
+            var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+            if (line != null)
+            {
+                var idx = _offlineOrderLines.IndexOf(line);
+                _offlineOrderLines[idx] = line with { Quantity = newQuantity, LineTotal = Math.Round(newQuantity * line.UnitPrice, 2) };
+            }
+            await RefreshOrderAsync();
+            return;
+        }
+
         await EnsureOrderResumedIfHeldAsync();
         _hasUnsavedEdits = true;
         await _mediator.Send(new SetOrderLineQuantityCommand(row.OrderLineId, newQuantity));
@@ -6002,6 +6276,19 @@ public sealed partial class RestaurantPosForm : XtraForm
         using var form = new QuantityPromptForm("Edit Quantity", "Quantity:");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
+            if (_continuityCoordinator?.IsContinuityModeActive == true)
+            {
+                _hasUnsavedEdits = true;
+                var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+                if (line != null)
+                {
+                    var idx = _offlineOrderLines.IndexOf(line);
+                    _offlineOrderLines[idx] = line with { Quantity = form.Quantity, LineTotal = Math.Round(form.Quantity * line.UnitPrice, 2) };
+                }
+                await RefreshOrderAsync();
+                return;
+            }
+
             await EnsureOrderResumedIfHeldAsync();
             _hasUnsavedEdits = true;
             await _mediator.Send(new SetOrderLineQuantityCommand(row.OrderLineId, form.Quantity));
@@ -6019,6 +6306,19 @@ public sealed partial class RestaurantPosForm : XtraForm
         using var form = new TextPromptForm("Item Notes", "Notes:", row.Notes);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
+            if (_continuityCoordinator?.IsContinuityModeActive == true)
+            {
+                _hasUnsavedEdits = true;
+                var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+                if (line != null)
+                {
+                    var idx = _offlineOrderLines.IndexOf(line);
+                    _offlineOrderLines[idx] = line with { Notes = form.Value };
+                }
+                await RefreshOrderAsync();
+                return;
+            }
+
             await EnsureOrderResumedIfHeldAsync();
             _hasUnsavedEdits = true;
             await _mediator.Send(new SetOrderLineNotesCommand(row.OrderLineId, form.Value));
@@ -6036,6 +6336,34 @@ public sealed partial class RestaurantPosForm : XtraForm
         using var form = new PriceOverrideDialog(row.Name, row.UnitPrice);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
+            if (_continuityCoordinator?.IsContinuityModeActive == true)
+            {
+                var isManager = Permit("priceoverride") || Permit("manager") || Permit("admin");
+                if (!ContinuityBusinessRules.CanOverridePrice(isManager, out var rejection))
+                {
+                    XtraMessageBox.Show(this, rejection, "Continuity Mode Restriction", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _hasUnsavedEdits = true;
+                var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+                if (line != null)
+                {
+                    var idx = _offlineOrderLines.IndexOf(line);
+                    _offlineOrderLines[idx] = line with
+                    {
+                        UnitPrice = form.NewPrice,
+                        LineTotal = Math.Round(line.Quantity * form.NewPrice, 2),
+                        IsPriceOverridden = true,
+                        PriceOverrideReason = form.Reason,
+                        PriceOverriddenBy = _currentSession.DisplayName ?? "Manager",
+                        PriceOverriddenAtUtc = DateTimeOffset.UtcNow
+                    };
+                }
+                await RefreshOrderAsync();
+                return;
+            }
+
             await EnsureOrderResumedIfHeldAsync();
             _hasUnsavedEdits = true;
             var performedBy = _currentSession.DisplayName ?? "Unknown";
@@ -6052,6 +6380,19 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            _hasUnsavedEdits = true;
+            var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+            if (line != null)
+            {
+                var idx = _offlineOrderLines.IndexOf(line);
+                _offlineOrderLines[idx] = line with { IsVoided = true };
+            }
+            await RefreshOrderAsync();
+            return;
+        }
+
         await EnsureOrderResumedIfHeldAsync();
         _hasUnsavedEdits = true;
         await _mediator.Send(new VoidOrderLineCommand(row.OrderLineId));
@@ -6065,11 +6406,124 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            _hasUnsavedEdits = true;
+            var line = _offlineOrderLines.FirstOrDefault(l => l.OrderLineId == row.OrderLineId);
+            if (line != null)
+            {
+                _offlineOrderLines.Remove(line);
+            }
+            await RefreshOrderAsync();
+            return;
+        }
+
         await EnsureOrderResumedIfHeldAsync();
         _hasUnsavedEdits = true;
         await _mediator.Send(new RemoveOrderLineCommand(_currentOrder!.OrderId, row.OrderLineId));
         await RefreshOrderAsync();
         await LogActivityAsync("Remove Line", $"{_currentOrder.OrderNumber}: {row.Name}");
+    }
+
+    private void RefreshOfflineOrder(Guid? focusedLineId)
+    {
+        void ApplyOfflineOrderUi()
+        {
+            if (_currentOrder is null)
+            {
+                _currentOrderLines = [];
+                _lineGrid.DataSource = null;
+                RenderOrderedItemsList([]);
+                if (_lblCartTableNo is not null) _lblCartTableNo.Text = "No Table selected";
+                _tablePicker.SelectId(null);
+                _tablePicker.Enabled = true;
+                if (_lblCartOrderNo is not null) _lblCartOrderNo.Text = "No active order";
+                UpdateBillEmptyState(isEmpty: true);
+                SetTotals(null);
+                _orderStatusLabel.Text = PosStrings.NoOrderSelected;
+                UpdateOrderStatusBadge();
+                UpdateButtonStates();
+
+                SetSelectedCustomerId(Guid.Empty);
+                _customerPicker.Enabled = false;
+                _newCustomerButton.Enabled = false;
+                _customerDetailsLabel.Text = string.Empty;
+                return;
+            }
+
+            var lines = _offlineOrderLines.Where(l => !l.IsVoided).ToList();
+            _currentOrderLines = lines;
+
+            var rows = lines.Select(l => new OrderLineRow(
+                l.OrderLineId,
+                ResolveVariantSku(l.ProductVariantId),
+                ResolveVariantName(l.ProductVariantId),
+                l.Quantity,
+                l.UnitPrice,
+                l.LineTotal,
+                l.Notes ?? string.Empty,
+                l.IsVoided,
+                l.IsPriceOverridden)).ToList();
+
+            decimal subtotal = lines.Sum(l => l.LineTotal);
+            decimal taxTotal = 0m;
+            decimal exclusiveTax = 0m;
+            foreach (var l in lines)
+            {
+                if (l.TaxRatePercentage > 0)
+                {
+                    if (l.TaxIsInclusive)
+                    {
+                        var preTax = l.LineTotal / (1m + (l.TaxRatePercentage / 100m));
+                        taxTotal += (l.LineTotal - preTax);
+                    }
+                    else
+                    {
+                        var ext = l.LineTotal * (l.TaxRatePercentage / 100m);
+                        taxTotal += ext;
+                        exclusiveTax += ext;
+                    }
+                }
+            }
+            decimal grandTotal = Math.Round(subtotal + exclusiveTax, 2);
+            var totals = new OrderTotals(subtotal, Math.Round(taxTotal, 2), 0m, 0m, grandTotal, 0m, grandTotal);
+            _currentTotals = totals;
+            _balance = grandTotal;
+
+            _lineGrid.DataSource = rows;
+            RestoreFocusedLine(focusedLineId, rows);
+            RenderOrderedItemsList(lines);
+
+            if (_lblCartTableNo is not null)
+            {
+                _lblCartTableNo.Text = _currentOrder.OrderType == "TakeAway"
+                    ? "Take Away"
+                    : _tablePicker.Text;
+            }
+
+            if (_lblCartOrderNo is not null)
+            {
+                _lblCartOrderNo.Text = $"Order #{_currentOrder.OrderNumber}";
+            }
+
+            UpdateBillEmptyState(isEmpty: lines.Count == 0);
+            SetTotals(totals);
+
+            _orderStatusLabel.Text = $"{_currentOrder.OrderNumber}  •  {_currentOrder.OrderType}  •  {_currentOrder.Status}";
+            UpdateOrderStatusBadge();
+            UpdateButtonStates();
+
+            if (_paymentBalanceLabel != null)
+            {
+                _paymentBalanceLabel.Text = CurrencyDisplay.FormatPlain(_balance);
+            }
+            if (_amountEdit != null && _amountEntryIsPreset)
+            {
+                _amountEdit.Text = FormatPlain(_balance);
+            }
+        }
+
+        if (InvokeRequired) Invoke(ApplyOfflineOrderUi); else ApplyOfflineOrderUi();
     }
 
     private async Task RefreshOrderAsync()
@@ -6079,6 +6533,12 @@ public sealed partial class RestaurantPosForm : XtraForm
         _isRefreshingOrder = true;
         try
         {
+            if (_continuityCoordinator?.IsContinuityModeActive == true)
+            {
+                RefreshOfflineOrder(focusedLineId);
+                return;
+            }
+
             await BindOrderPaymentAsync(_currentOrder?.OrderId, _currentSession.DisplayName ?? "Unknown");
 
             if (_currentOrder is null)
@@ -6348,7 +6808,11 @@ public sealed partial class RestaurantPosForm : XtraForm
             _orderStatusLabel.Appearance.BackColor = Color.FromArgb(254, 226, 226);
             _orderStatusLabel.Appearance.ForeColor = Color.FromArgb(220, 38, 38);
             _orderStatusLabel.Appearance.Options.UseForeColor = true;
-            _orderStatusLabel.Text = isRush ? "CONTINUITY MODE (OFFLINE CASH) [RUSH]" : "CONTINUITY MODE (OFFLINE CASH)";
+            var lastSync = _continuityCoordinator?.LastCacheSyncUtc;
+            var syncText = lastSync.HasValue ? $" | Last Sync: {BusinessTimeFormatter.Format(lastSync.Value)}" : string.Empty;
+            _orderStatusLabel.Text = isRush 
+                ? $"● CONTINUITY MODE | Cash Only{syncText} [RUSH]" 
+                : $"● CONTINUITY MODE | Cash Only{syncText}";
             return;
         }
 
@@ -7182,30 +7646,87 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// </summary>
     private async Task ReloadCustomersAsync(Guid? selectCustomerId = null)
     {
-        var customers = await _mediator.Send(new ListCustomersQuery());
-        var activeCustomers = customers.Where(c => c.IsActive).ToList();
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            var cachedCustomers = _continuityCoordinator.ActiveCache?.Payload.Customers ?? [];
+            var activeCached = cachedCustomers.Where(c => c.IsActive).ToList();
+            var defaultCached = activeCached.FirstOrDefault(c => c.IsDefault) ?? activeCached.FirstOrDefault();
+            _defaultCustomerId = defaultCached?.CustomerId;
 
-        var defaultCustomer = activeCustomers.FirstOrDefault(c => c.IsDefault) ?? activeCustomers.FirstOrDefault();
-        _defaultCustomerId = defaultCustomer?.CustomerId;
+            var sortedCached = activeCached
+                .OrderByDescending(c => c.IsDefault)
+                .ThenBy(c => c.Name)
+                .ToList();
 
-        // Order with default customer first, then alphabetically by name
-        var sortedCustomers = activeCustomers
-            .OrderByDescending(c => c.IsDefault)
-            .ThenBy(c => c.Name)
-            .ToList();
+            List<CustomerPickerRow> pickerCachedItems = sortedCached
+                .Select(c => new CustomerPickerRow(
+                    c.CustomerId,
+                    string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
+                    c.Name,
+                    c.MobileNumber ?? string.Empty,
+                    c.IsCreditAllowed ? "Yes" : "No",
+                    CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
+                .ToList();
 
-        List<CustomerPickerRow> pickerItems = sortedCustomers
-            .Select(c => new CustomerPickerRow(
-                c.CustomerId,
-                string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
-                c.Name,
-                c.MobileNumber ?? string.Empty,
-                c.IsCreditAllowed ? "Yes" : "No",
-                CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
-            .ToList();
+            _customerPicker.Properties.DataSource = pickerCachedItems;
+            _newCustomerButton.Enabled = false;
+            SetSelectedCustomerId(selectCustomerId ?? _currentOrder?.CustomerId ?? _defaultCustomerId ?? Guid.Empty);
+            return;
+        }
 
-        _customerPicker.Properties.DataSource = pickerItems;
-        SetSelectedCustomerId(selectCustomerId ?? _currentOrder?.CustomerId ?? _defaultCustomerId ?? Guid.Empty);
+        try
+        {
+            var customers = await _mediator.Send(new ListCustomersQuery());
+            var activeCustomers = customers.Where(c => c.IsActive).ToList();
+
+            var defaultCustomer = activeCustomers.FirstOrDefault(c => c.IsDefault) ?? activeCustomers.FirstOrDefault();
+            _defaultCustomerId = defaultCustomer?.CustomerId;
+
+            // Order with default customer first, then alphabetically by name
+            var sortedCustomers = activeCustomers
+                .OrderByDescending(c => c.IsDefault)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            List<CustomerPickerRow> pickerItems = sortedCustomers
+                .Select(c => new CustomerPickerRow(
+                    c.CustomerId,
+                    string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
+                    c.Name,
+                    c.MobileNumber ?? string.Empty,
+                    c.IsCreditAllowed ? "Yes" : "No",
+                    CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
+                .ToList();
+
+            _customerPicker.Properties.DataSource = pickerItems;
+            SetSelectedCustomerId(selectCustomerId ?? _currentOrder?.CustomerId ?? _defaultCustomerId ?? Guid.Empty);
+        }
+        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
+        {
+            var cachedCustomers = _continuityCoordinator?.ActiveCache?.Payload.Customers ?? [];
+            var activeCached = cachedCustomers.Where(c => c.IsActive).ToList();
+            var defaultCached = activeCached.FirstOrDefault(c => c.IsDefault) ?? activeCached.FirstOrDefault();
+            _defaultCustomerId = defaultCached?.CustomerId;
+
+            var sortedCached = activeCached
+                .OrderByDescending(c => c.IsDefault)
+                .ThenBy(c => c.Name)
+                .ToList();
+
+            List<CustomerPickerRow> pickerCachedItems = sortedCached
+                .Select(c => new CustomerPickerRow(
+                    c.CustomerId,
+                    string.IsNullOrWhiteSpace(c.Code) ? "-" : c.Code,
+                    c.Name,
+                    c.MobileNumber ?? string.Empty,
+                    c.IsCreditAllowed ? "Yes" : "No",
+                    CurrencyDisplay.FormatPlain(c.OutstandingBalance)))
+                .ToList();
+
+            _customerPicker.Properties.DataSource = pickerCachedItems;
+            _newCustomerButton.Enabled = false;
+            SetSelectedCustomerId(selectCustomerId ?? _currentOrder?.CustomerId ?? _defaultCustomerId ?? Guid.Empty);
+        }
     }
 
     private void SetSelectedCustomerId(Guid customerId)
@@ -7239,6 +7760,15 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async void NewCustomerButton_Click(object? sender, EventArgs e)
     {
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            if (!ContinuityBusinessRules.CanCreateCustomer(out var rejection))
+            {
+                XtraMessageBox.Show(this, rejection, "Continuity Mode Restriction", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
         using var form = new CustomerEditForm("New Customer");
         if (form.ShowDialog(this) == DialogResult.OK)
         {
@@ -7892,20 +8422,44 @@ public sealed partial class RestaurantPosForm : XtraForm
         var warehouseId = _warehousePicker.SelectedId ?? Guid.Empty;
         var selectedTableId = _currentOrder.TableId ?? _tablePicker.SelectedId;
 
-        var snapshotLines = _currentOrderLines.Where(l => !l.IsVoided).Select(l => new EmergencyTransactionLine(
-            l.ProductVariantId,
-            ResolveVariantSku(l.ProductVariantId),
-            ResolveVariantName(l.ProductVariantId),
-            l.Quantity,
-            l.UnitPrice,
-            l.LineTotal,
-            l.Notes)).ToList();
+        var snapshotLines = _currentOrderLines.Where(l => !l.IsVoided).Select(l =>
+        {
+            var itemType = _continuityCoordinator?.ActiveCache?.GetVariant(l.ProductVariantId)?.ItemType
+                ?? _variantsById.GetValueOrDefault(l.ProductVariantId)?.ItemType
+                ?? "Prepared";
+            var taxRate = l.TaxRatePercentage;
+            var taxIsInc = l.TaxIsInclusive;
+            var lineTot = l.LineTotal;
+            var taxAmt = 0m;
+            if (taxRate > 0)
+            {
+                taxAmt = taxIsInc 
+                    ? lineTot - (lineTot / (1m + (taxRate / 100m))) 
+                    : lineTot * (taxRate / 100m);
+            }
+            return new EmergencyTransactionLine(
+                l.ProductVariantId,
+                ResolveVariantSku(l.ProductVariantId),
+                ResolveVariantName(l.ProductVariantId),
+                l.Quantity,
+                l.UnitPrice,
+                lineTot,
+                l.Notes,
+                taxRate,
+                Math.Round(taxAmt, 2),
+                taxIsInc,
+                0m,
+                itemType);
+        }).ToList();
 
         var subtotal = _currentTotals?.Subtotal ?? snapshotLines.Sum(l => l.LineTotal);
         var taxTotal = _currentTotals?.TaxTotal ?? 0m;
         var discountTotal = _currentTotals?.DiscountTotal ?? 0m;
         var serviceTotal = _currentTotals?.ServiceChargeTotal ?? 0m;
         var grandTotal = _currentTotals?.GrandTotal ?? (subtotal + taxTotal + serviceTotal - discountTotal);
+
+        var cacheVersion = _continuityCoordinator?.ActiveCache?.Metadata.CacheVersion.ToString() ?? "1";
+        var localReceiptNo = _continuityCoordinator?.GetNextLocalReceiptNumber() ?? LocalReceiptNumber.Generate("T01", nextSeq);
 
         var orderSnapshot = new EmergencyOrderSnapshot(
             _currentOrderType.ToString(),
@@ -7918,7 +8472,10 @@ public sealed partial class RestaurantPosForm : XtraForm
             serviceTotal,
             grandTotal,
             null,
-            null);
+            null,
+            0m,
+            "PKR",
+            cacheVersion);
 
         var txId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
@@ -7955,6 +8512,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             TransactionId = txId,
             SequenceNumber = nextSeq,
+            LocalReceiptNumber = localReceiptNo,
+            CacheVersion = cacheVersion,
             PreviousTransactionHash = lastHash,
             TimestampUtc = now,
             TerminalId = terminalId,
@@ -7984,6 +8543,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             await _checkpointStore.ClearCheckpointAsync(terminalId);
         }
 
+        _offlineOrderLines.Clear();
         _currentOrder = null;
         _tablePicker.SelectId(null);
         _addQuantityEdit.Value = 1;
@@ -8001,6 +8561,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         XtraMessageBox.Show(
             this,
             $"[EMERGENCY CASH SALE RECORDED]\n\n" +
+            $"Receipt: {localReceiptNo}\n" +
             $"Offline Sequence: #{nextSeq}\n" +
             $"Total: {CurrencyDisplay.FormatPlain(grandTotal)}\n" +
             $"Tendered: {CurrencyDisplay.FormatPlain(tendered)}\n" +
@@ -9043,9 +9604,38 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            var cachedTemplates = _continuityCoordinator.ActiveCache?.Payload.QuickOrderTemplates ?? [];
+            _quickOrderTemplates = [.. cachedTemplates.Select(t => new QuickOrderTemplateDto(
+                t.TemplateId,
+                t.Name,
+                t.Description,
+                true,
+                0,
+                t.Items.Select(i => new QuickOrderTemplateItemDto(i.ProductVariantId, i.ProductName, i.ProductName, i.Quantity, i.UnitPrice, i.UnitPrice)).ToList(),
+                t.TotalPrice,
+                t.WarehouseId))];
+            RebuildQuickOrderButtons();
+            return;
+        }
+
         try
         {
             _quickOrderTemplates = [.. await _mediator.Send(new ListActiveQuickOrderTemplatesQuery(_currentOrder?.WarehouseId ?? _warehousePicker.SelectedId))];
+        }
+        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
+        {
+            var cachedTemplates = _continuityCoordinator?.ActiveCache?.Payload.QuickOrderTemplates ?? [];
+            _quickOrderTemplates = [.. cachedTemplates.Select(t => new QuickOrderTemplateDto(
+                t.TemplateId,
+                t.Name,
+                t.Description,
+                true,
+                0,
+                t.Items.Select(i => new QuickOrderTemplateItemDto(i.ProductVariantId, i.ProductName, i.ProductName, i.Quantity, i.UnitPrice, i.UnitPrice)).ToList(),
+                t.TotalPrice,
+                t.WarehouseId))];
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

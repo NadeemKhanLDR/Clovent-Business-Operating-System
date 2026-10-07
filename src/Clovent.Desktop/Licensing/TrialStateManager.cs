@@ -108,9 +108,15 @@ public static class TrialStateManager
         }
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "License");
-        if (!Directory.Exists(dir))
+        try
         {
-            Directory.CreateDirectory(dir);
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException || ex is System.Security.SecurityException)
+        {
         }
         return Path.Combine(dir, "trial.state");
     }
@@ -299,7 +305,13 @@ public static class TrialStateManager
     {
         lock (SyncLock)
         {
-            var state = LoadTrialState() ?? new TrialState
+            var state = LoadTrialState();
+            if (state != null && state.HasCommercialLicenseEverBeenInstalled)
+            {
+                return;
+            }
+
+            state ??= new TrialState
             {
                 MachineId = CurrentMachineId,
                 TrialStartedUtc = UtcNow,
@@ -364,11 +376,21 @@ public static class TrialStateManager
         try
         {
             var path = GetPrimaryTrialStatePath();
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
             File.WriteAllBytes(path, protectedBytes);
         }
         catch
         {
             var fallbackPath = GetFallbackTrialStatePath();
+            var fallbackDir = Path.GetDirectoryName(fallbackPath);
+            if (!string.IsNullOrEmpty(fallbackDir) && !Directory.Exists(fallbackDir))
+            {
+                Directory.CreateDirectory(fallbackDir);
+            }
             File.WriteAllBytes(fallbackPath, protectedBytes);
         }
     }

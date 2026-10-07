@@ -7,38 +7,27 @@ namespace Clovent.Desktop.Tests.Restaurant.Orders;
 
 public class PosSettingsStoreTests : IDisposable
 {
+    private readonly string _testDir;
     private readonly string _testSettingsPath;
 
     public PosSettingsStoreTests()
     {
-        _testSettingsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "pos_settings.json");
+        _testDir = Path.Combine(Path.GetTempPath(), "cbos_pos_settings_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+        _testSettingsPath = Path.Combine(_testDir, "pos_settings.json");
 
-        PosSettingsStore.ResetCacheForTesting();
-
-        // Clear any existing test settings
-        if (File.Exists(_testSettingsPath))
-        {
-            try
-            {
-                File.Delete(_testSettingsPath);
-            }
-            catch
-            {
-                // Ignore
-            }
-        }
+        PosSettingsStore.SetTestingOverrides(_testSettingsPath);
     }
 
     public void Dispose()
     {
-        PosSettingsStore.ResetCacheForTesting();
+        PosSettingsStore.ResetTestingOverrides();
 
-        if (File.Exists(_testSettingsPath))
+        if (Directory.Exists(_testDir))
         {
             try
             {
-                File.Delete(_testSettingsPath);
+                Directory.Delete(_testDir, true);
             }
             catch
             {

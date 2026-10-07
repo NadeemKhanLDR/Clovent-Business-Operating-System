@@ -253,7 +253,7 @@ partial class SoftwareRegistrationForm
         // 
         // btnCopyMachineId
         // 
-        this.btnCopyMachineId.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.btnCopyMachineId.Appearance.Font = Clovent.Desktop.Forms.Base.DesktopStyle.ButtonFont;
         this.btnCopyMachineId.Appearance.Options.UseFont = true;
         this.btnCopyMachineId.Location = new System.Drawing.Point(520, 324);
         this.btnCopyMachineId.Name = "btnCopyMachineId";
@@ -275,7 +275,7 @@ partial class SoftwareRegistrationForm
         // 
         // btnImport
         // 
-        this.btnImport.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.btnImport.Appearance.Font = Clovent.Desktop.Forms.Base.DesktopStyle.ButtonFont;
         this.btnImport.Appearance.Options.UseFont = true;
         this.btnImport.Location = new System.Drawing.Point(24, 12);
         this.btnImport.Name = "btnImport";
@@ -286,7 +286,7 @@ partial class SoftwareRegistrationForm
         // btnClose
         // 
         this.btnClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-        this.btnClose.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.btnClose.Appearance.Font = Clovent.Desktop.Forms.Base.DesktopStyle.ButtonFont;
         this.btnClose.Appearance.Options.UseFont = true;
         this.btnClose.DialogResult = System.Windows.Forms.DialogResult.OK;
         this.btnClose.Location = new System.Drawing.Point(544, 12);

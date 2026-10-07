@@ -29,6 +29,29 @@ public static class CompanyDisplaySettingsStore
 
     private static readonly object _lock = new();
     private static CompanyDisplaySettings? _cached;
+    private static string? _testingFilePath;
+
+    /// <summary>Sets testing overrides for filesystem path.</summary>
+    public static void SetTestingOverrides(string? customFilePath = null)
+    {
+        lock (_lock)
+        {
+            _testingFilePath = customFilePath;
+            _cached = null;
+        }
+    }
+
+    /// <summary>Resets testing overrides.</summary>
+    public static void ResetTestingOverrides()
+    {
+        lock (_lock)
+        {
+            _testingFilePath = null;
+            _cached = null;
+        }
+    }
+
+    private static string EffectiveFilePath => _testingFilePath ?? SettingsFilePath;
 
     /// <summary>Resets the in-memory cache for unit testing.</summary>
     internal static void ResetCacheForTesting()
@@ -48,9 +71,9 @@ public static class CompanyDisplaySettingsStore
 
             try
             {
-                if (File.Exists(SettingsFilePath))
+                if (File.Exists(EffectiveFilePath))
                 {
-                    var json = File.ReadAllText(SettingsFilePath);
+                    var json = File.ReadAllText(EffectiveFilePath);
                     _cached = JsonSerializer.Deserialize<CompanyDisplaySettings>(json);
                     if (_cached != null) return _cached;
                 }
@@ -73,10 +96,10 @@ public static class CompanyDisplaySettingsStore
             _cached = settings;
             try
             {
-                var dir = Path.GetDirectoryName(SettingsFilePath)!;
+                var dir = Path.GetDirectoryName(EffectiveFilePath)!;
                 Directory.CreateDirectory(dir);
                 var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(SettingsFilePath, json);
+                File.WriteAllText(EffectiveFilePath, json);
             }
             catch
             {

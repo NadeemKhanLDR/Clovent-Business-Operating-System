@@ -35,9 +35,15 @@ public class TerminalResolutionServiceTests : IDisposable
     private readonly FakeCompanyRepository _companyRepo = new();
     private readonly FakeOrganizationRepository _orgRepo = new();
     private readonly FakeCurrentSession _currentSession = new();
+    private readonly string _testDir;
 
     public TerminalResolutionServiceTests()
     {
+        _testDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "cbos_termres_test_" + Guid.NewGuid().ToString("N"));
+        System.IO.Directory.CreateDirectory(_testDir);
+        var testPosSettings = System.IO.Path.Combine(_testDir, "pos_settings.json");
+        PosSettingsStore.SetTestingOverrides(testPosSettings);
+
         Environment.SetEnvironmentVariable("CBOS_TERMINAL_ID", null);
         PosSettingsStore.SaveTerminalId(null);
         PosSettingsStore.SaveBranchId(null);
@@ -53,8 +59,19 @@ public class TerminalResolutionServiceTests : IDisposable
     public void Dispose()
     {
         Environment.SetEnvironmentVariable("CBOS_TERMINAL_ID", null);
-        PosSettingsStore.SaveTerminalId(null);
-        PosSettingsStore.SaveBranchId(null);
+        PosSettingsStore.ResetTestingOverrides();
+
+        if (System.IO.Directory.Exists(_testDir))
+        {
+            try
+            {
+                System.IO.Directory.Delete(_testDir, true);
+            }
+            catch
+            {
+                // Ignore
+            }
+        }
     }
 
     private TerminalResolutionService CreateService()

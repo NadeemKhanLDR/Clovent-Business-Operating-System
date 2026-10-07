@@ -5,8 +5,27 @@ using Xunit;
 
 namespace Clovent.Desktop.Tests.Licensing;
 
-public sealed class LicenseServiceTests
+public sealed class LicenseServiceTests : IDisposable
 {
+    private readonly string _testDir;
+
+    public LicenseServiceTests()
+    {
+        _testDir = Path.Combine(Path.GetTempPath(), "cbos_lic_svc_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_testDir);
+        var guardFile = Path.Combine(_testDir, "license_guard.dat");
+        LicenseTamperGuard.SetTestingOverrides(guardFile);
+    }
+
+    public void Dispose()
+    {
+        LicenseTamperGuard.ResetTestingOverrides();
+        if (Directory.Exists(_testDir))
+        {
+            try { Directory.Delete(_testDir, true); } catch { }
+        }
+    }
+
     private static string? GetV2PrivateKeyXml()
     {
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".clovent", "keys", "clovent_vendor_private_key.xml");

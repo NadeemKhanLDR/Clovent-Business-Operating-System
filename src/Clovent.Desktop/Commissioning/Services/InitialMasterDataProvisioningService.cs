@@ -470,6 +470,23 @@ public sealed class InitialMasterDataProvisioningService(ILogger<InitialMasterDa
         }
     }
 
+    private static string? _testingMachineTerminalPath;
+    private static string? _testingUserTerminalPath;
+
+    /// <summary>Sets testing overrides for terminal hardware association paths.</summary>
+    public static void SetTestingOverrides(string? machineTerminalPath = null, string? userTerminalPath = null)
+    {
+        _testingMachineTerminalPath = machineTerminalPath;
+        _testingUserTerminalPath = userTerminalPath;
+    }
+
+    /// <summary>Resets testing overrides.</summary>
+    public static void ResetTestingOverrides()
+    {
+        _testingMachineTerminalPath = null;
+        _testingUserTerminalPath = null;
+    }
+
     private static async Task SaveTerminalHardwareAssociationAsync(
         Guid terminalId,
         string terminalName,
@@ -493,8 +510,9 @@ public sealed class InitialMasterDataProvisioningService(ILogger<InitialMasterDa
         // 1. Try writing to machine config
         try
         {
-            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            var machinePath = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
+            var machinePath = _testingMachineTerminalPath ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
             var dir = Path.GetDirectoryName(machinePath)!;
             Directory.CreateDirectory(dir);
             await File.WriteAllTextAsync(machinePath, json, ct).ConfigureAwait(false);
@@ -507,8 +525,9 @@ public sealed class InitialMasterDataProvisioningService(ILogger<InitialMasterDa
         // 2. Also write to user config for local access
         try
         {
-            var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            var userPath = Path.Combine(localAppData, "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
+            var userPath = _testingUserTerminalPath ?? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
             var userDir = Path.GetDirectoryName(userPath)!;
             Directory.CreateDirectory(userDir);
             await File.WriteAllTextAsync(userPath, json, ct).ConfigureAwait(false);
