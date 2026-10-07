@@ -5,7 +5,7 @@
 | **Area** | Financial Settlement & Tender Processing |
 | **Audience** | POS Developers, Payment Engineers, Compliance Auditors, Support |
 | **Last Reviewed Version** | CBOS 1.2.2 |
-| **Status** | **IMPLEMENTED** |
+| **Status** | **FACTUAL BASELINE** |
 | **Classification** | **PUBLIC-SAFE** |
 
 ---
@@ -18,14 +18,14 @@ The payment subsystem in CBOS processes monetary tenders tendered against an act
 flowchart TD
     subgraph TenderOptions["Supported Tender Methods"]
         Cash["Cash (Immediate Drawer Float Addition)"]
-        Card["Card (Debit / Credit External Terminal Reference)"]
+        Card["Card (Manual External Terminal Tender Classification)"]
         Account["On Account (Customer Credit Ledger / Advance Credit)"]
-        Other["Custom Payment Method (Mobile Wallet / Gift Voucher)"]
+        Other["Custom Payment Method (Mobile Wallet / Voucher Classification)"]
     end
 
     subgraph Validation["Settlement Engine (PosPaymentRules.cs)"]
         CheckBalance["Evaluate Remaining Balance = Total - Sum(Active Payments)"]
-        Idempotency["Cryptographic Idempotency Key Validation"]
+        Idempotency["Client-Side Idempotency Key Validation"]
         ShiftLink["Active Shift Association (ShiftId)"]
     end
 
@@ -51,10 +51,12 @@ flowchart TD
 - **Drawer Linkage:** Tendered cash is automatically linked to the active `ShiftId`.
 - **Change Calculation:** If tendered cash exceeds the bill total, change is calculated and displayed on screen; the payment record is saved for the exact bill total (or the overage is recorded as customer advance if account-linked).
 
-### 2.2 Card (Debit / Credit)
-- **External Payment Boundary:** CBOS does **not** directly integrate with card merchant acquirers or bank payment SDKs.
-- **Workflow:** The cashier charges the card on a standalone, external bank payment terminal (EFTPOS/dial-up/cellular terminal). Upon receiving a successful printed authorization slip, the cashier selects `Card` in CBOS and optionally records the card brand and external terminal approval code.
-- **Compliance Note:** CBOS is **not** PCI-DSS certified and does **not** collect, process, or store cardholder Primary Account Numbers (PAN), magnetic stripes, or CVVs.
+### 2.2 Card (Debit / Credit) — Manual Tender Classification Only
+> [!IMPORTANT]
+> **NO DIRECT CARD PROCESSOR INTEGRATION:**
+> - CBOS does **not** directly integrate with bank card acquirers, payment processors, or EMV card readers.
+> - **Workflow:** The cashier charges the card on a standalone, external merchant payment terminal (EFTPOS/cellular card reader). Upon receiving a successful printed authorization slip, the cashier selects `Card` in CBOS and optionally records the card brand and external terminal approval code.
+> - **Compliance Note:** CBOS is **not** PCI-DSS certified and does **not** collect, process, or store cardholder Primary Account Numbers (PAN), CVVs, or track data.
 
 ### 2.3 On Account (Customer Credit Sales)
 - **Workflow:** Allows trusted corporate or repeat customers to purchase on credit.
@@ -71,9 +73,9 @@ Split billing in CBOS is an inherent property of the relational data model. An `
 
 To prevent duplicate charges caused by double-clicking payment buttons or network retransmissions during high cashier velocity:
 1. Every payment submission generates a client-side idempotency key (`IdempotencyKey`).
-2. The database configuration enforces a unique constraint on active payments by idempotency key.
+2. Handlers and database configurations enforce unique constraints on active payments by idempotency key.
 3. If an identical command is retried, the existing payment record is returned without creating duplicate financial debits.
-4. Payments are **immutable**: a payment recorded in error is voided via `Payment.Void()`, setting `IsVoided = true`. Historical records are never deleted.
+4. Payments are **immutable**: historical records are never deleted. Adjustments occur exclusively via compensating entries.
 
 ---
 
@@ -90,5 +92,6 @@ To prevent duplicate charges caused by double-clicking payment buttons or networ
 ## 5. Cross References
 - [Order Lifecycle Documentation](order-lifecycle.md)
 - [Shifts & Cash Management](shifts-and-cash-management.md)
-- [ADR-002: Integrated Payment Tender Strip](../architecture/adr/ADR-002-Payment-Tender-Strip.md)
-- [ADR-005: Customer Credit Workflow](../architecture/adr/ADR-005-Customer-Credit-Workflow.md)
+- [Financial Integrity Rules](../../.agents/rules/financial-integrity.md)
+- [PDR-0003: Completed Financial Immutability](../product/pdr/PDR-0003-completed-financial-transaction-immutability.md)
+- [PDR-0004: Transactional Currency Precision](../product/pdr/PDR-0004-transactional-currency-precision.md)

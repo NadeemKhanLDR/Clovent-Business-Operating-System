@@ -99,8 +99,7 @@ public sealed record QuickBooksSyncPayload(
 ## 5. Key Classes & Source Traceability
 
 - **Outbox Handler:** `src/Clovent.Restaurant.Application/Outbox/Handlers/QuickBooksSyncOutboxHandler.cs`
-- **Gateway Interface:** `src/Clovent.Restaurant.Application/QuickBooks/IQuickBooksGateway.cs`
-- **Default Gateway Implementation:** `src/Clovent.Restaurant.Application/QuickBooks/DefaultQuickBooksGateway.cs`
+- **Gateway Interface & Simulation Implementation:** `src/Clovent.Restaurant.Application/QuickBooks/IQuickBooksGateway.cs` (contains `IQuickBooksGateway` and `DefaultQuickBooksGateway`)
 - **Payload DTO:** `src/Clovent.Restaurant.Application/Outbox/Dtos/OutboxPayloads.cs`
 
 ---

@@ -14,14 +14,22 @@
 
 > [!IMPORTANT]
 > **SEPARATION OF CURRENT VS. PLANNED CAPABILITIES:**
-> - **CURRENT CAPABILITY (CBOS 1.2.2):** CBOS relies on standard Microsoft SQL Server administrative backups (`BACKUP DATABASE`) executed via PowerShell, Command Line (`sqlcmd`), or SQL Server Management Studio (SSMS).
-> - **PLANNED FOR FUTURE RELEASE:** An integrated, one-click graphical backup and restore tool within the CBOS Back Office UI that automates archive compression, DPAPI encryption, and secondary USB copy dispatch.
+> - **CURRENT CAPABILITY (CBOS 1.2.2):**
+>   1. **Pre-Upgrade On-Demand Backup:** CBOS Desktop includes `DatabaseBackupService` (`src/Clovent.Desktop/Commissioning/Database/DatabaseBackupService.cs`), which executes an on-demand full database backup (`BACKUP DATABASE ... WITH COPY_ONLY, FORMAT, INIT`) prior to commissioning and schema upgrades.
+>   2. **Manual & Scripted Backups:** Routine operational backups rely on external PowerShell scripts, `sqlcmd`, or SQL Server Management Studio (SSMS).
+> - **KNOWN LIMITATION (CBOS 1.2.2):**
+>   - `CloventMaintenanceService` is **NOT** implemented in the codebase.
+>   - Automatic background scheduled backups do **NOT** exist in the product.
+>   - Automatic restore workflows and automated restore drills do **NOT** exist in the product.
+>   - Cloud backup replication does **NOT** exist.
+> - **PLANNED ARCHITECTURE (CBOS 1.3.1+):**
+>   - An automated background maintenance service providing scheduled verified backups, retention policy purging, automated restore verification drills, and optional encrypted offsite archival.
 
 ---
 
 ## 2. Technical Constraints for SQL Server Express Backups
 
-When deploying on Microsoft SQL Server Express (the standard standalone store configuration), administrators must account for three native platform constraints:
+When deploying on Microsoft SQL Server Express (the standard standalone single-store configuration), administrators must account for three native platform constraints:
 1. **NO SQL SERVER AGENT:** SQL Server Express does **not** include the SQL Server Agent service. Scheduled automated backups **cannot** be scheduled via SQL Agent jobs. **They must be scheduled via Windows Task Scheduler using PowerShell or batch scripts.**
 2. **NO NATIVE BACKUP COMPRESSION:** The `WITH COMPRESSION` option is disabled by Microsoft in SQL Server Express. Backups produced by `BACKUP DATABASE` are uncompressed. Administrators should compress `.bak` files using external compression tools (e.g., PowerShell `Compress-Archive` or 7-Zip).
 3. **NO NATIVE BACKUP ENCRYPTION:** Transparent backup encryption (`ENCRYPTION = ...`) is unavailable in Express. Backups should reside on BitLocker-encrypted drives or DPAPI-encrypted storage.

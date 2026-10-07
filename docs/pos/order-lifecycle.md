@@ -5,7 +5,7 @@
 | **Area** | Restaurant Operations & Sales Workflow |
 | **Audience** | Backend Engineers, QA Engineers, Support Technicians |
 | **Last Reviewed Version** | CBOS 1.2.2 |
-| **Status** | **SOURCE-VERIFIED** |
+| **Status** | **FACTUAL BASELINE** |
 | **Classification** | **PUBLIC-SAFE** |
 
 ---
@@ -35,7 +35,12 @@ stateDiagram-v2
     
     Open --> Completed: All payments settled (Balance <= 0.005m)
     
-    Completed --> Voided: Managerial Override Void (Requires Supervisor Auth)
+    note right of Completed
+        Completed is an immutable financial state.
+        Voiding or refunding completed orders
+        is PROHIBITED in the 1.2.3 pilot.
+        Formal Refund aggregate scheduled for 1.3.0.
+    end note
     
     Completed --> [*]
     Voided --> [*]
@@ -69,11 +74,12 @@ stateDiagram-v2
 ### 2.3 `Completed`
 - **Definition:** Fully paid and finalized check.
 - **Completion Trigger:** Automatically achieved when `PaidAmount + OnAccountAmount >= TotalAmount` within a half-cent tolerance (`BalanceEpsilon = 0.005m`).
-- **Post-Completion Invariants:** No new order lines or payment adjustments can be added.
+- **Post-Completion Invariants:** Strictly immutable. No new order lines or payment adjustments can be added.
 - **Outbox Side Effects:** Triggers generation of `QuickBooksSync`, `ReceiptPrint`, and `InventoryPosting` messages in the Transactional Outbox.
 
 ### 2.4 `Voided`
-- **Definition:** Invalidated order. Can occur from `Open`, `Held`, or as an exceptional managerial override on an already `Completed` order.
+- **Definition:** Invalidated order before completion. Can occur from `Open` or `Held`.
+- **Pilot Governance Rule (1.2.3):** Voiding already `Completed` orders is strictly prohibited during the attended single-terminal pilot to protect ledger and reporting integrity.
 - **Audit Rules:** Requires mandatory manager authorization and free-text justification reason. Historical records remain in the database for financial audit inspection; rows are never physically deleted.
 
 ### 2.5 `Cancelled`
@@ -87,10 +93,10 @@ stateDiagram-v2
 > [!WARNING]
 > **REFUND DOMAIN NOT YET IMPLEMENTED**
 >
-> In CBOS 1.2.2, a dedicated **Refund / Return Aggregate** is **NOT** implemented in the domain layer.
-> - While open orders can be cancelled and completed checks can be voided via managerial authorization, customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not currently modeled in the codebase.
-> - **Operational Workaround:** Cashiers void the errant order under managerial elevation or post manual inventory adjustments.
-> - **Roadmap Status:** A formal Refund & Return domain aggregate is planned for a future milestone. Do not present refund features as available in current production deployments.
+> In CBOS 1.2.2 / 1.2.3, a dedicated **Refund / Return Aggregate** is **NOT** implemented in the domain layer.
+> - Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not currently modeled in the codebase.
+> - **Pilot Rule (CBOS 1.2.3):** Voiding or pseudo-refunding completed orders is prohibited during the attended single-terminal pilot to prevent corrupting completed financial ledgers and day-close figures.
+> - **Roadmap Status:** A formal compensating Refund & Return domain aggregate (with inventory restock credit, credit vouchers, and reversing ledger entries) is scheduled for **CBOS 1.3.0**. Do not present refund features as available in current production deployments.
 
 ---
 
@@ -119,3 +125,5 @@ When an order in the `Open` state has new prepared items added, the cashier exec
 - [Payments & Settlement Architecture](payments.md)
 - [Shifts & Cash Management](shifts-and-cash-management.md)
 - [Transactional Outbox Architecture](../architecture/transactional-outbox.md)
+- [Known Limitations](../known-limitations.md)
+- [PDR-0003: Completed Financial Immutability](../product/pdr/PDR-0003-completed-financial-transaction-immutability.md)

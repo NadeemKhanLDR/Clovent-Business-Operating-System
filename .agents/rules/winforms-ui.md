@@ -1,7 +1,7 @@
 # WinForms & DevExpress Engineering Standards
 
 **Scope:** `src/Clovent.Desktop/**`  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md)
+**Authoritative Reference:** [AGENTS.md](../../AGENTS.md)
 
 ---
 

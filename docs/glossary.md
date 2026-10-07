@@ -95,7 +95,7 @@ An enterprise architectural pattern where secondary events (QuickBooks sync, rec
 ---
 
 ## 2. Cross References
-- [System Architecture](../architecture/system-architecture.md)
-- [Bounded Contexts](../architecture/bounded-contexts.md)
+- [System Architecture](architecture/system-architecture.md)
+- [Bounded Contexts](architecture/bounded-contexts.md)
 - [Known Limitations](known-limitations.md)
 - [Documentation Coverage](documentation-coverage.md)

@@ -1,7 +1,7 @@
 # Database & Persistence Architecture Rules
 
 **Scope:** `src/**/Infrastructure/**`, `src/Clovent.Desktop/Commissioning/Database/**`, persistence, EF Core migrations  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md)
+**Authoritative Reference:** [AGENTS.md](../../AGENTS.md)
 
 ---
 
@@ -52,7 +52,34 @@ options.UseSqlServer(connectionString, sql =>
 
 ---
 
-## 3. Database Security & Least Privilege
+## 3. Migration Data Safety & Destructive Change Review
+
+1. **Destructive Migration Review:** Any EF Core migration or script that drops a table, drops a column, renames a column without data migration, or alters column precision downward requires explicit review and approval.
+2. **Zero Unintentional Data Loss:** Schema migrations must preserve existing data on upgrade. Breaking schema changes require expand-and-contract migration patterns.
+3. **No Speculative Migrations:** Migrations must correspond to active domain aggregates and verified features. Never commit speculative migrations for unapproved backlog concepts.
+4. **Real SQL Server Validation Triggers:**
+   - Any modification to EF Core entity configurations (`IEntityTypeConfiguration<T>`).
+   - Any new or modified migration (`Add-Migration` / `Up` / `Down` scripts).
+   - Any raw SQL command, index change, or schema-scoped table change.
+   - Any concurrency token (`RowVersion`) or precision modification.
+   *These changes must be validated against real SQL Server before release acceptance.*
+
+---
+
+## 4. Persisted Contract Compatibility
+
+1. **Schema & Contract Evolution:** Changes to persisted entity schemas, Outbox payloads, Operational Cache tables, and local journal structures must maintain backward compatibility with existing databases and serialized payloads.
+2. **Explicit Decimal Precision:** Every monetary and fractional column must declare explicit SQL Server precision and scale in EF Core configurations:
+   ```csharp
+   builder.Property(e => e.Amount).HasPrecision(18, 2);
+   builder.Property(e => e.Quantity).HasPrecision(18, 4);
+   ```
+   Never rely on database provider default precisions.
+3. **Optimistic Concurrency:** Aggregate roots subject to concurrent modifications (e.g., `Order`, `Table`, `Shift`, `WarehouseStock`) must declare concurrency tokens (`RowVersion` / `IsRowVersion()`) to prevent lost updates.
+
+---
+
+## 5. Database Security & Least Privilege
 
 CBOS enforces strict separation between application runtime identities and migration/admin credentials:
 

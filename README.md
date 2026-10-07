@@ -1,8 +1,8 @@
 # Clovent Business Operating System (CBOS)
 
-[![Build & Verification Status](https://img.shields.io/badge/Verification-1%2C824%20Passed%20%7C%200%20Failed-success)](#verification-evidence)
-[![Release Version](https://img.shields.io/badge/Version-1.2.2-blue)](#current-release-status)
-[![Engineering Status](https://img.shields.io/badge/Status-Ready%20for%20Sandbox%20Retest-orange)](#current-release-status)
+[![Build & Verification Status](https://img.shields.io/badge/Verification-1%2C824%20Passed%20%7C%200%20Failed-success)](#6-current-release-status--verification)
+[![Release Version](https://img.shields.io/badge/Version-1.2.2-blue)](#6-current-release-status--verification)
+[![Engineering Status](https://img.shields.io/badge/Status-Frozen%20Internal%20Baseline-orange)](#6-current-release-status--verification)
 
 **Clovent Business Operating System (CBOS)** is an enterprise Point-of-Sale (POS) and retail/hospitality operating platform engineered for high-reliability workstation deployments. CBOS combines high-speed POS register workflows, back-office administration, inventory management, dynamic catalog and price tier engines, shift cash drawer controls, financial reporting, and offline resilience via Continuity Mode and protected local operational caching.
 
@@ -10,7 +10,7 @@
 
 ## 1. Core Capabilities
 
-- **High-Velocity Restaurant POS:** 3-column unified layout supporting Dine-In (dining areas, table splits/merges), Take Away, and Delivery workflows with touch-optimized numpad and tender strip.
+- **High-Velocity Restaurant POS:** 3-column unified layout supporting Dine-In (dining areas, table operations), Take Away, and Delivery workflows with touch-optimized numpad and tender strip.
 - **Tender & Payment Processing:** Cash settlement, external credit/debit card recording with reconciliation fields, split tender across multiple methods, and Customer On-Account credit sales.
 - **Quick Orders & Smart Combos:** Fast-service meal templates, dynamic combo builder with rule validation, and recommendation engines.
 - **Inventory & Stock Management:** Warehouse-scoped inventory transactions across receipt, issue, transfer, adjustment, reserve, and release workflows with separate database vs display precision.
@@ -27,12 +27,12 @@
 - **Target Runtime & Frameworks:**
   - `net10.0-windows` for Desktop shell and Desktop UI tests (`src/Clovent.Desktop`, `src/Clovent.Desktop.Tests`)
   - `net10.0` for Domain, Application, Infrastructure, Platform, and CLI Provisioner
-- **Desktop UI Framework:** Windows Forms with **DevExpress 26.1.4-pre-26179** (`DevExpress.Win`, `DevExpress.Reporting.Core`, `DevExpress.Images`)
+- **Desktop UI Framework:** Windows Forms with **DevExpress 26.1** (`DevExpress.Win`, `DevExpress.Reporting.Core`, `DevExpress.Images`)
 - **Database Engine:** Microsoft SQL Server (2019 / 2022 / Express / LocalDB)
-- **Object-Relational Mapping (ORM):** Entity Framework Core **10.0.10** (`Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design`)
-- **Mediator & CQRS:** MediatR **12.4.1**
-- **Hosting & Dependency Injection:** `Microsoft.Extensions.Hosting` 10.0.10 and `Microsoft.Extensions.DependencyInjection`
-- **Testing Stack:** xUnit **2.9.3**, `Microsoft.NET.Test.Sdk` 17.14.1, `coverlet.collector` 6.0.4, SQLite in-memory (`Microsoft.EntityFrameworkCore.Sqlite` 10.0.10) for isolated unit/integration tests
+- **Object-Relational Mapping (ORM):** Entity Framework Core (`Microsoft.EntityFrameworkCore.SqlServer`, `Microsoft.EntityFrameworkCore.Design`)
+- **Mediator & CQRS:** MediatR
+- **Hosting & Dependency Injection:** `Microsoft.Extensions.Hosting` and `Microsoft.Extensions.DependencyInjection`
+- **Testing Stack:** xUnit, `Microsoft.NET.Test.Sdk`, `coverlet.collector`, SQLite in-memory (`Microsoft.EntityFrameworkCore.Sqlite`) for isolated unit/integration tests
 
 ---
 
@@ -99,7 +99,7 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 
 - **Zero Shipped Credentials:** Production releases exclude default credentials, development configurations (`appsettings.Development.json`), debug symbols (`*.pdb`), and active license files.
 - **DPAPI Credential Protection:** Runtime database credentials and local terminal configurations are encrypted using Windows Data Protection API (DPAPI).
-- **Asymmetric RSA-2048 Licensing:** Cryptographic license validation (`clovent-2026-v2`) with SHA-256 signatures, hardware fingerprint binding, seat enforcement, and non-destructive read-only access upon expiration.
+- **Asymmetric RSA-2048 Licensing:** Cryptographic license validation with SHA-256 signatures, hardware fingerprint binding, seat enforcement, and non-destructive read-only access upon expiration.
 - **Single-Use Administrator Setup:** First-run provisioning provides a single-use setup endpoint that permanently disables itself once the initial administrator account is established.
 - **Role-Based Access Control (RBAC):** Granular authorization backed by 214 explicit permissions and manager override escalation.
 
@@ -107,27 +107,36 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 
 ## 6. Current Release Status & Verification
 
-- **Current Version:** `1.2.2`
-- **Release State:** Feature-frozen engineering release candidate undergoing clean-machine Windows Sandbox acceptance testing.
+> [!IMPORTANT]
+> **AUTHORITATIVE RELEASE MATURITY STATUS:**
+> - **CBOS 1.2.2** is a **FROZEN INTERNAL ACCEPTANCE BASELINE ONLY**.
+> - It is **NOT** paid-pilot ready, **NOT** commercial GA, and **NOT** production-certified.
+> - Customer pilots and commercial rollouts require the hardening deliverables planned for **CBOS 1.2.3** and **CBOS 1.3.0**. Consult the [Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md) and [Product Readiness Levels](docs/development/readiness-levels.md).
+
+- **Current Baseline:** `1.2.2` (Internal Acceptance Baseline)
+- **Next Target:** `1.2.3` (Controlled Single-Terminal Pilot Hardening)
 - **Automated Verification:**
-  - **1,824 automated tests passed** (0 failed, 7 skipped).
-  - Debug and Release compilation clean (0 errors, 0 warnings).
+  - 1,824 automated unit/integration tests passing cleanly.
+  - Debug and Release compilation clean (0 errors).
   - ReleaseGuard automated security scan: Clean (0 violations).
-  - Workstation test isolation verified (0 stray files created/modified in test runs).
+  - Workstation test isolation verified (100% in-memory / zero host pollution).
 
 ---
 
-## 7. Developer & Contribution Guidance
+## 7. Developer & Engineering Governance
 
 All developers and automated agents contributing to CBOS must adhere to authoritative guidelines:
-1. **Clean Architecture Code Placement:**
-   - Commands, Queries, DTOs: `src/Clovent.<Context>.Application/<Feature>/`
-   - Entities, Value Objects, Domain Events: `src/Clovent.<Context>/<Feature>/`
-   - EF Configurations, Repositories: `src/Clovent.<Context>.Infrastructure/`
-   - WinForms Forms, Controls: `src/Clovent.Desktop/<Context>/<Feature>/`
-2. **WinForms Designer Safety:** Parameterless constructors required for designer instantiation; zero DI, async, or database calls inside `InitializeComponent()`; runtime logic guarded by `DesignModeHelper.IsInDesignMode`.
-3. **High-DPI PerMonitorV2 Standards:** Author controls at 96 DPI baseline; use `DesktopStyle` constants and `DesktopDpi.Scale(...)` for sizing; avoid manual coordinate pixel offsets.
-4. **Factual Verification Claims:** Always claim `LIVE UI NOT EXECUTED` and `VISUAL STUDIO DESIGNER UI NOT EXECUTED` unless interactively exercised on physical/virtual displays.
+1. **Authoritative Agent Instructions:** Review [AGENTS.md](AGENTS.md) and [GEMINI.md](GEMINI.md).
+2. **Permanent Domain Rules:**
+   - [Financial Integrity & Accounting Rules](.agents/rules/financial-integrity.md)
+   - [WinForms & High-DPI UI Rules](.agents/rules/winforms-ui.md)
+   - [Database & Persistence Rules](.agents/rules/database.md)
+   - [Security & Licensing Rules](.agents/rules/security.md)
+   - [Testing & Quality Rules](.agents/rules/testing.md)
+   - [Packaging & Release Rules](.agents/rules/release.md)
+3. **Definition of Done:** Comply with [Definition of Done](docs/development/definition-of-done.md).
+4. **Product Decision Records:** Respect durable business policies in [PDR Registry](docs/product/pdr/README.md).
+5. **Truthful Evidence Claims:** State `LIVE UI NOT EXECUTED` unless interactively operated on a physical display surface.
 
 ---
 
@@ -136,6 +145,8 @@ All developers and automated agents contributing to CBOS must adhere to authorit
 Consult the comprehensive documentation suite located in [`docs/`](docs/):
 
 - **[Master Documentation Index](docs/README.md)** — Central documentation portal linking all architectural, operational, and support guides.
+- **[Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md)** — Multi-milestone roadmap from 1.2.2 to 1.4.0+.
+- **[Known Limitations](docs/known-limitations.md)** — Factual operational boundaries (Refunds, manual card recording, etc.).
 - **[System Architecture](docs/architecture/system-architecture.md)** — Clean Architecture, DDD bounded contexts, CQRS, and outbox patterns.
 - **[Database Architecture](docs/database/database-architecture.md)** — Schema isolation, connection models, and EF Core migrations.
 - **[POS Architecture](docs/pos/pos-architecture.md)** — Register layout, order lifecycle, payment tenders, and cash drawer management.
@@ -144,7 +155,6 @@ Consult the comprehensive documentation suite located in [`docs/`](docs/):
 - **[Deployment & Commissioning](docs/deployment/installation.md)** — Topology options, SQL Server setup, and onboarding wizard.
 - **[Operations & Troubleshooting](docs/support/troubleshooting.md)** — Diagnostic dashboards, backup/restore runbooks, and incident procedures.
 - **[Release Engineering](docs/release/release-process.md)** — Versioning policy, ReleaseGuard scanner, and release checklist.
-- **[Known Limitations](docs/known-limitations.md)** — Verified functional boundaries and unimplemented features (Refunds, etc.).
 
 ---
 

@@ -37,7 +37,7 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 To scan an arbitrary target folder or custom staging directory:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.ps1 -ReleaseDir "D:\staging\cbos-win-x64"
+powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.ps1 -ReleaseDir "artifacts\release\Clovent.BusinessOperatingSystem-win-x64"
 ```
 
 ### 2.3 Exit Code Semantics

@@ -1,7 +1,7 @@
 # Clovent Business Operating System - Installer & Deployment Architecture
 
 **Version:** 1.1.2 (Current) | 1.1.1, 1.1.0, 1.0.8, 1.0.7 (Frozen Baselines Preserved)  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md) | [winforms-ui.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/winforms-ui.md) | [database.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/database.md) | [security.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/security.md) | [release.md](file:///d:/Clovent%20Business%20Operating%20System/.agents/rules/release.md)
+**Authoritative Reference:** [AGENTS.md](../AGENTS.md) | [winforms-ui.md](../.agents/rules/winforms-ui.md) | [database.md](../.agents/rules/database.md) | [security.md](../.agents/rules/security.md) | [release.md](../.agents/rules/release.md)
 
 ---
 

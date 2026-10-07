@@ -67,7 +67,7 @@ Flow: resolve user (tries `UserName.Create` then `Email.Create` - a submitted id
 
 ## 7. Development-only seed data
 
-No milestone across 7-12 includes a user-registration flow, so nothing can create the *first* user to log in as. `Clovent.Desktop.Seed.DevelopmentUserSeedStartupTask` (an `IStartupTask`, runs after migrations per the existing Platform Foundation pipeline) creates one demo user (`admin` / `Admin123!`) only if none exists, gated by an explicit, required `Desktop:SeedDevelopmentUser` configuration boolean - not an implicit "Development environment" check, so a production `appsettings.Production.json` must deliberately opt in rather than silently inherit a development default. Not a substitute for real user provisioning.
+No milestone across 7-12 includes a user-registration flow, so nothing can create the *first* user to log in as. `Clovent.Desktop.Seed.DevelopmentUserSeedStartupTask` (an `IStartupTask`, runs after migrations per the existing Platform Foundation pipeline) creates one demo user (`admin` / `Admin123!` [KNOWN INSECURE DEVELOPMENT VALUE — MUST NOT BE USED IN PRODUCTION]) only if none exists, gated by an explicit, required `Desktop:SeedDevelopmentUser` configuration boolean - not an implicit "Development environment" check, so a production `appsettings.Production.json` must deliberately opt in rather than silently inherit a development default. Not a substitute for real user provisioning.
 
 ---
 

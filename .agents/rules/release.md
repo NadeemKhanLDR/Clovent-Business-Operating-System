@@ -1,7 +1,7 @@
 # Packaging & Release Rules
 
 **Scope:** `artifacts/**`, `tools/ReleaseGuard/**`, publishing, deployment  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md)
+**Authoritative Reference:** [AGENTS.md](../../AGENTS.md)
 
 ---
 
@@ -18,9 +18,32 @@
 
 ---
 
-## 2. Production Build & Publish Pipeline
+## 2. Source Freeze & Exact Accepted Artifact Rule
 
-Certified production releases must be built and published using the following standard commands:
+1. **Source Freeze:** Prior to release qualification, the release branch enters a strict source freeze. No new features, speculative refactors, or unapproved commits are accepted.
+2. **Exact Accepted Artifact Rule:** The exact binary bits tested and accepted during Windows Sandbox qualification **ARE** the final released bits. Rebuilding, repacking, or altering binaries after acceptance testing invalidates certification and requires full re-testing.
+3. **No Artifact Replacement:** Once an artifact is certified and accepted, it must never be silently replaced or overwritten. Any subsequent change requires a new version identifier.
+4. **Tagging Policy:** Git release tags (e.g., `v1.2.3`) must be applied **only** after exact final artifact acceptance and sign-off. Never tag speculative or unverified commits.
+
+---
+
+## 3. Cryptographic Signing & Integrity Verification
+
+1. **Authenticode Signing Pipeline Order:**
+   - Compile binaries in Release mode.
+   - Sign client executables and assemblies (`Clovent.Desktop.exe`, `Clovent.*.dll`) using Authenticode with RFC 3161 timestamping.
+   - Verify digital signatures on compiled binaries.
+   - Package the installer/distribution payload.
+   - Sign the final installer executable (`Setup-Clovent.BusinessOperatingSystem-<version>.exe`) with RFC 3161 timestamping.
+   - Execute clean-machine acceptance testing (Windows Sandbox) on the signed installer.
+2. **External Signing Material:** Signing private keys and hardware tokens remain strictly outside the repository in protected enterprise key storage.
+3. **SHA-256 Integrity Manifest:** Every release package must produce an accompanying SHA-256 manifest (`SHA256SUMS.txt`) documenting cryptographic hashes of all distributable files.
+
+---
+
+## 4. Production Build & Publish Pipeline
+
+Certified production releases must be built and published using the standard commands:
 
 ```powershell
 # 1. Build Release configuration across all projects
@@ -44,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File "tools\ReleaseGuard\ScanReleasePackage.
 
 ---
 
-## 3. Automated ReleaseGuard Validation
+## 5. Automated ReleaseGuard Validation
 
 The automated scanner (`tools\ReleaseGuard\ScanReleasePackage.ps1`) verifies package hygiene and fails the pipeline if forbidden files or patterns are detected.
 
@@ -53,18 +76,20 @@ The automated scanner (`tools\ReleaseGuard\ScanReleasePackage.ps1`) verifies pac
 2. **Debug Symbols:** `*.pdb`.
 3. **Development Configurations:** `appsettings.Development.json` or any file matching `*Development*.json`.
 4. **Development & Test Licenses:** `*development*.lic`, `*test*.lic`.
-5. **Universal / Customer Licenses:** Generic client distributions ship **without** `clovent.lic`. Licenses are issued separately per client via `tools\LicenseIssuer\`.
+5. **Universal / Customer Licenses:** Generic client distributions ship **without** `clovent.lic`. Licenses are issued separately per client via licensing tooling.
 6. **Private Cryptographic Keys:** `*.pem`, `*.key`, `*.pfx`, `*.cer`, `*.crt`, or RSA private key markers (`<D>`, `BEGIN PRIVATE KEY`).
 7. **Database Backups:** `*.bak`, `*.mdf`, `*.ldf`.
 8. **Sensitive Plaintext Strings:** `Admin123!`, plaintext SQL connection passwords.
 
 ---
 
-## 4. Release Verification Checklist
+## 6. Release Verification Checklist
 
 Before certifying any build for client deployment:
 - [ ] `Clovent.Desktop.exe` is present in the release folder.
 - [ ] No `clovent.lic` exists in the generic distribution.
 - [ ] Zero private keys or developer signing material present.
 - [ ] Zero source code files or development JSON files present.
-- [ ] Automated scan exits with return code 0 (`PASS`).
+- [ ] Automated ReleaseGuard scan exits with return code 0 (`PASS`).
+- [ ] SHA-256 checksum manifest is generated.
+- [ ] Clean Windows Sandbox install test completed successfully on final signed package.

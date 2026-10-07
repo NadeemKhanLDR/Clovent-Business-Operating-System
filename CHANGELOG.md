@@ -10,13 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.2.2] - 2026-10-07
 
 ### Status
-- **Engineering Status:** `READY FOR WINDOWS SANDBOX RETEST`
+- **Engineering Status:** `FROZEN INTERNAL ACCEPTANCE BASELINE ONLY` (Not certified for customer pilot or commercial GA)
 - **Release Guard:** `PASS` (0 violations)
 - **Automated Tests:** **1,824 passed**, 0 failed, 7 skipped
 - **Build Quality:** Debug clean (0 warnings / 0 errors), Release clean (0 warnings / 0 errors)
 
-### Added
-- **Comprehensive Enterprise Documentation Suite:** Complete documentation overhaul in `docs/` covering System Architecture, Bounded Contexts, Database Architecture & EF Core Migrations, POS & Payment Workflows, Continuity Mode & Operational Cache, Security & Licensing, Deployment & Installation, Operations & Health, Testing & Sandbox Acceptance, Release Engineering & ReleaseGuard, and Support Incident Runbooks.
+### Documentation & Governance
+- **Canonical Engineering Roadmap Synchronization:** Synchronized `docs/roadmap/engineering-roadmap.md` with the authoritative roadmap across CBOS 1.2.2 (frozen internal baseline), 1.2.3 (pilot hardening), 1.3.0 (commercial GA foundation), 1.3.1+ (resilience expansion), and 1.4.0+ (multi-terminal failover / multi-branch GA).
+- **Permanent Engineering Rules:** Established operational domain rules in `.agents/rules/` including `financial-integrity.md` (decimal math, immutable completed transactions, centralized rounding policy, currency precision), `database.md` (migration safety, real SQL Server validation triggers), `security.md` (fail-closed authorization, brute-force defense), `testing.md` (workstation test isolation, truthful runtime evidence vocabulary), and `release.md` (source freeze, exact accepted artifact rule).
+- **Definition of Done & Readiness Levels:** Formally documented `docs/development/definition-of-done.md` and `docs/development/readiness-levels.md` establishing strict evidence standards for software progression.
+- **Product Decision Records (PDRs):** Established `docs/product/pdr/` with foundational product policies: PDR-0001 (Cash-Only Continuity Mode), PDR-0002 (Customer Data Ownership & Non-Destructive Licensing), PDR-0003 (Completed Financial Immutability), and PDR-0004 (2-Decimal Currency Scope).
+- **Maturity Claim Reconciliation:** Corrected and factualized operational claims across refunds (marked explicitly as NOT YET IMPLEMENTED), QuickBooks (marked as ARCHITECTURE IMPLEMENTED / SIMULATED GATEWAY), card payments (manual tender classification only), database backup (pre-upgrade manual backup only, no automated maintenance service), observability (plain-text logger, lost stack traces documented), and authentication/authorization (PIN brute-force gap and admin username bypass recorded as 1.2.3 hardening items).
+- **Production Code Isolation:** Confirmed zero production application code, migrations, or project files modified during documentation and governance integration.
 
 ### Fixed
 - **Automated Test Filesystem Isolation:** Fully eliminated workstation state leakage during automated test execution. Monitored 37 workstation configuration paths across `%LOCALAPPDATA%\Clovent` and `%ProgramData%\Clovent` with 100% pre/post hash parity (0 created, 0 deleted, 0 modified).

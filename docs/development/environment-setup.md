@@ -40,8 +40,8 @@ To develop, compile, debug, and test Clovent Business Operating System (CBOS), e
 
 ### Step 1: Clone Repository
 ```powershell
-git clone <RepositoryUrl> "D:\Clovent Business Operating System"
-cd "D:\Clovent Business Operating System"
+git clone <RepositoryUrl> "Clovent-Business-Operating-System"
+cd "Clovent-Business-Operating-System"
 ```
 
 ### Step 2: Configure NuGet Package Sources

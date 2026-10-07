@@ -1,7 +1,7 @@
 # Testing & Quality Verification Rules
 
 **Scope:** `src/**/*.Tests/**`, QA, test execution, verification reporting  
-**Authoritative Reference:** [AGENTS.md](file:///d:/Clovent%20Business%20Operating%20System/AGENTS.md)
+**Authoritative Reference:** [AGENTS.md](../../AGENTS.md)
 
 ---
 
@@ -41,23 +41,50 @@ Execute full test passes when coordinating cross-cutting architectural changes a
 
 ---
 
-## 3. Test Fixtures & In-Memory Isolation
+## 3. Absolute Workstation Test Isolation
 
-- **Isolated SQLite In-Memory Database:** Integration tests requiring relational persistence use `Microsoft.EntityFrameworkCore.Sqlite` with `DataSource=:memory:`.
-- **Zero Real Database Mutation:** Automated unit/integration tests must never connect to or mutate the production SQL Server database (`Clovent_BusinessOperatingSystem`).
-- **Fake Repositories & MediatR Handlers:** Use test support fakes (`FakeRecommendationRuleRepository`, test mediator harnesses) for application handler verification.
+- **In-Memory SQLite Isolation:** Unit and integration tests requiring relational persistence must use SQLite in-memory (`Microsoft.EntityFrameworkCore.Sqlite` with `DataSource=:memory:`).
+- **Zero Workstation State Pollution:** Automated tests must never read from or write to host machine `%ProgramData%\Clovent`, `%LocalAppData%\Clovent`, the registry, or developer machine SQL Server instances.
+- **Temporary Test Directories:** Tests verifying file operations, logs, or continuity journals must create and clean up isolated temporary directories (`Path.GetTempPath()`).
+- **Test Fakes & Harnesses:** Use test fakes for application handler verification.
 
 ---
 
-## 4. Verification Claims & Terminology (Strict)
+## 4. Change-to-Test Mapping
 
-Accuracy in verification reporting is paramount. The following distinctions are strictly enforced:
+Every code modification must have direct, verifiable test coverage:
+- **Domain & Application Logic:** Covered by unit tests asserting state changes, domain events, and boundary exceptions.
+- **Financial Calculations:** Every change to money math, rounding, discounts, tax, or day close must include parameterized invariant tests asserting penny-exact results.
+- **EF Core Configurations:** Tested via entity mapping and round-trip persistence tests.
+- **Defect Remediation:** Every bug fix must introduce a regression test recreating the failure condition before proving the fix.
 
-### UI Verification Claims:
-- **`LIVE UI EXECUTED`:** State this **only** if the actual Windows executable was interactively launched and visually/interactively exercised by an operator or GUI automation tool on a real display surface.
-- **`LIVE UI NOT EXECUTED`:** State this whenever work was validated via unit tests, headless test runners, reflection, `DrawToBitmap`, form constructor instantiation, or layout calculation tests.
-  - *Never* describe constructor instantiation, reflection, or automated test runners as "live UI testing".
+---
 
-### Visual Studio Designer Claims:
-- **`VISUAL STUDIO DESIGNER UI EXECUTED`:** State this **only** if the form was opened and viewed directly within an active Visual Studio Designer host.
-- **`VISUAL STUDIO DESIGNER NOT EXECUTED`:** State this if Designer compatibility was verified structurally via CodeDom syntax audits, constructor inspection, or automated tests without physically opening Visual Studio Designer.
+## 5. Real SQL Server Validation Triggers
+
+Automated in-memory tests provide rapid feedback but do not prove SQL Server compatibility. Real SQL Server validation is strictly required when:
+1. Adding or altering EF Core migrations (`[__EFMigrationsHistory]`, `Up`/`Down` scripts).
+2. Changing column types, precision, nullability, or indexes.
+3. Modifying raw SQL queries, sequence generators, or concurrency tokens (`RowVersion`).
+4. Qualifying a candidate build for release packaging.
+
+---
+
+## 6. Truthful Runtime Evidence Vocabulary (Strict)
+
+Accuracy in verification reporting is mandatory. All agents and engineers must use the following standard evidence vocabulary:
+
+| Standard Vocabulary Term | Meaning & Evidence Standard |
+|---|---|
+| **`STATIC SOURCE CONFIRMED`** | Code was inspected structurally via AST, grep, or file viewing. |
+| **`AUTOMATED TEST VALIDATED`** | Passing execution of automated unit/integration tests in a test runner. |
+| **`REAL SQL SERVER VALIDATED`** | Executed against an actual Microsoft SQL Server instance (not in-memory SQLite). |
+| **`LIVE UI EXECUTED`** | The actual Windows WinForms executable was launched and interactively exercised on a physical or virtual display. |
+| **`LIVE UI NOT EXECUTED`** | The UI was validated headlessly via unit tests, reflection, `DrawToBitmap`, or layout math without live interactive execution. |
+| **`VISUAL STUDIO DESIGNER UI EXECUTED`** | Form was interactively opened and edited inside the Visual Studio Designer. |
+| **`VISUAL STUDIO DESIGNER UI NOT EXECUTED`**| Form was verified structurally or via compile tests without opening VS Designer. |
+| **`CLEAN MACHINE ACCEPTED`** | Verified inside a fresh, pristine Windows Sandbox or VM without development SDKs. |
+| **`EXTERNAL INTEGRATION VALIDATED`** | Validated against live external endpoints (not simulated/in-memory test fakes). |
+| **`TARGET ONLY`** | Design goal or roadmap milestone not yet validated against running software. |
+| **`SYNTHETIC BENCHMARK`** | Performance measured in an isolated micro-benchmark harness. |
+| **`END-TO-END MEASUREMENT`** | Performance measured during realistic operational workflow execution. |

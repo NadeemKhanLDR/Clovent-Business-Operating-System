@@ -83,4 +83,4 @@ As architectural decisions are formalized and corresponding code is committed, i
 ## 4. Cross References
 - [Documentation Coverage Matrix](documentation-coverage.md)
 - [Known Limitations](known-limitations.md)
-- [System Architecture](system-architecture.md)
+- [System Architecture](architecture/system-architecture.md)
