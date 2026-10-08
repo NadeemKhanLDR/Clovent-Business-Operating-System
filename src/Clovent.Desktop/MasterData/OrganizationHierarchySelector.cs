@@ -56,21 +56,29 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
             var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
             var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
             _layout.Padding = new Padding(left, top, right, bottom);
+            ScaleCombos();
         };
 
-        // The Designer's combo widths (220) are 96-DPI logical values - this
-        // app has no AutoScaleMode, so re-scale each combo once it has a real
-        // device DPI to keep it from clipping its content at above-100% DPI.
+        HandleCreated += (_, _) => ScaleCombos();
+        ParentChanged += (_, _) => ScaleCombos();
+        VisibleChanged += (_, _) => ScaleCombos();
+    }
+
+    private void ScaleCombos()
+    {
+        var targetWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(260, this);
+        var targetHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this);
         foreach (var combo in new[] { _organizationCombo, _companyCombo, _branchCombo })
         {
-            var logicalWidth = combo.Width;
-            combo.HandleCreated += (_, _) => combo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(logicalWidth, combo);
+            combo.Width = targetWidth;
+            combo.MinimumSize = new System.Drawing.Size(targetWidth, targetHeight);
         }
     }
 
     /// <summary>Loads every organization into the top-level combo. Call once when the hosting screen loads.</summary>
     public async Task LoadOrganizationsAsync(CancellationToken cancellationToken = default)
     {
+        ScaleCombos();
         var organizations = await _mediator.Send(new ListOrganizationsQuery(), cancellationToken);
 
         _organizationsByDisplay.Clear();

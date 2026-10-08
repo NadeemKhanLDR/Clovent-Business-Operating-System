@@ -499,6 +499,9 @@ public sealed partial class MenuItemsForm : BaseForm
         var categories = await LoadCategoryOptionsAsync();
         _categoryFilterByDisplay = new Dictionary<string, Guid?> { [AllCategoriesDisplay] = null };
         cboCategory.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        cboCategory.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        cboCategory.Properties.AppearanceDropDown.Options.UseFont = true;
+        cboCategory.Properties.DropDownRows = 10;
         cboCategory.Properties.Items.Clear();
         cboCategory.Properties.Items.Add(AllCategoriesDisplay);
         foreach (var (id, display) in categories)

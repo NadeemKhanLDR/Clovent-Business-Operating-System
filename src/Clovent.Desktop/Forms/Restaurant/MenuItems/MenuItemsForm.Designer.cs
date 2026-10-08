@@ -46,6 +46,10 @@ partial class MenuItemsForm
         //
         txtSearch.Name = "txtSearch";
         txtSearch.Properties.NullValuePrompt = "Search menu items...";
+        txtSearch.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
+        txtSearch.Properties.Appearance.Options.UseFont = true;
+        txtSearch.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        txtSearch.Properties.Appearance.Options.UseTextOptions = true;
         txtSearch.TabIndex = 0;
         txtSearch.EditValueChanged += TxtSearch_EditValueChanged;
         //
@@ -53,6 +57,13 @@ partial class MenuItemsForm
         //
         cboCategory.Name = "cboCategory";
         cboCategory.TabIndex = 1;
+        cboCategory.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
+        cboCategory.Properties.Appearance.Options.UseFont = true;
+        cboCategory.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        cboCategory.Properties.Appearance.Options.UseTextOptions = true;
+        cboCategory.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        cboCategory.Properties.AppearanceDropDown.Options.UseFont = true;
+        cboCategory.Properties.DropDownRows = 10;
         cboCategory.EditValueChanged += CboCategory_EditValueChanged;
         //
         // btnNewMenuItem

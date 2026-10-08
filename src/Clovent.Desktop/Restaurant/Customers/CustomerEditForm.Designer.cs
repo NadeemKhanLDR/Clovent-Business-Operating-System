@@ -63,7 +63,7 @@ partial class CustomerEditForm
         _creditLimitEdit = new DevExpress.XtraEditors.SpinEdit();
         _isCreditAllowedCheck = new DevExpress.XtraEditors.CheckEdit();
         _isDefaultCheck = new DevExpress.XtraEditors.CheckEdit();
-        _notesEdit = new DevExpress.XtraEditors.TextEdit();
+        _notesEdit = new DevExpress.XtraEditors.MemoEdit();
 
         ((System.ComponentModel.ISupportInitialize)_codeEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_nameEdit.Properties).BeginInit();
@@ -81,7 +81,7 @@ partial class CustomerEditForm
 
         SuspendLayout();
         _contentPanel.SuspendLayout();
-        _contentPanel.AutoScroll = false;
+        _contentPanel.AutoScroll = true;
         _contentPanel.AutoSize = false;
         _contentPanel.Padding = new Padding(16, 8, 16, 8);
         _contentPanel.ColumnCount = 4;
@@ -124,8 +124,9 @@ partial class CustomerEditForm
         _lblSectionDetails.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _lblSectionDetails.ForeColor = Color.FromArgb(14, 116, 144); // Slate teal
         _lblSectionDetails.Dock = DockStyle.Top;
-        _lblSectionDetails.Padding = new Padding(0, 2, 0, 2);
-        _lblSectionDetails.Margin = new Padding(0, 2, 0, 4);
+        _lblSectionDetails.AutoSizeMode = LabelAutoSizeMode.Default;
+        _lblSectionDetails.Padding = new Padding(0, 4, 0, 2);
+        _lblSectionDetails.Margin = new Padding(0, 8, 0, 6);
         _contentPanel.Controls.Add(_lblSectionDetails, 0, row);
         _contentPanel.SetColumnSpan(_lblSectionDetails, 4);
         row++;
@@ -155,8 +156,9 @@ partial class CustomerEditForm
         _lblSectionAccount.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _lblSectionAccount.ForeColor = Color.FromArgb(14, 116, 144);
         _lblSectionAccount.Dock = DockStyle.Top;
-        _lblSectionAccount.Padding = new Padding(0, 2, 0, 2);
-        _lblSectionAccount.Margin = new Padding(0, 6, 0, 4);
+        _lblSectionAccount.AutoSizeMode = LabelAutoSizeMode.Default;
+        _lblSectionAccount.Padding = new Padding(0, 4, 0, 2);
+        _lblSectionAccount.Margin = new Padding(0, 10, 0, 6);
         _contentPanel.Controls.Add(_lblSectionAccount, 0, row);
         _contentPanel.SetColumnSpan(_lblSectionAccount, 4);
         row++;
@@ -170,8 +172,9 @@ partial class CustomerEditForm
         _lblSectionCredit.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _lblSectionCredit.ForeColor = Color.FromArgb(14, 116, 144);
         _lblSectionCredit.Dock = DockStyle.Top;
-        _lblSectionCredit.Padding = new Padding(0, 2, 0, 2);
-        _lblSectionCredit.Margin = new Padding(0, 6, 0, 4);
+        _lblSectionCredit.AutoSizeMode = LabelAutoSizeMode.Default;
+        _lblSectionCredit.Padding = new Padding(0, 4, 0, 2);
+        _lblSectionCredit.Margin = new Padding(0, 10, 0, 6);
         _contentPanel.Controls.Add(_lblSectionCredit, 0, row);
         _contentPanel.SetColumnSpan(_lblSectionCredit, 4);
         row++;
@@ -246,21 +249,24 @@ partial class CustomerEditForm
         _lblSectionNotes.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _lblSectionNotes.ForeColor = Color.FromArgb(14, 116, 144);
         _lblSectionNotes.Dock = DockStyle.Top;
-        _lblSectionNotes.Padding = new Padding(0, 2, 0, 2);
-        _lblSectionNotes.Margin = new Padding(0, 6, 0, 4);
+        _lblSectionNotes.AutoSizeMode = LabelAutoSizeMode.Default;
+        _lblSectionNotes.Padding = new Padding(0, 4, 0, 2);
+        _lblSectionNotes.Margin = new Padding(0, 10, 0, 6);
         _contentPanel.Controls.Add(_lblSectionNotes, 0, row);
         _contentPanel.SetColumnSpan(_lblSectionNotes, 4);
         row++;
 
-        // Notes TextEdit (compact single-line editor)
+        // Notes MemoEdit (multiline editor)
         label8.AutoSize = false;
         label8.Dock = DockStyle.Fill;
         label8.Text = "Notes:";
-        label8.TextAlign = ContentAlignment.MiddleLeft;
-        label8.Padding = new Padding(0, 0, 6, 0);
-        label8.Margin = new Padding(0, 3, 6, 4);
+        label8.TextAlign = ContentAlignment.TopLeft;
+        label8.Padding = new Padding(0, 4, 6, 0);
+        label8.Margin = new Padding(0, 5, 6, 4);
         _notesEdit.Dock = DockStyle.Fill;
-        _notesEdit.Margin = new Padding(0, 3, 0, 4);
+        _notesEdit.Margin = new Padding(0, 5, 0, 4);
+        _notesEdit.MinimumSize = new Size(0, 65);
+        _notesEdit.Properties.ScrollBars = ScrollBars.Vertical;
         _contentPanel.Controls.Add(label8, 0, row);
         _contentPanel.Controls.Add(_notesEdit, 1, row);
         _contentPanel.SetColumnSpan(_notesEdit, 3);
@@ -306,8 +312,8 @@ partial class CustomerEditForm
         ((System.ComponentModel.ISupportInitialize)_isDefaultCheck.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_notesEdit.Properties).EndInit();
 
-        ClientSize = new Size(780, 460);
-        MinimumSize = new Size(740, 430);
+        ClientSize = new Size(800, 580);
+        MinimumSize = new Size(740, 500);
         ResumeLayout(false);
     }
 
@@ -318,10 +324,10 @@ partial class CustomerEditForm
         label.Text = labelText;
         label.TextAlign = ContentAlignment.MiddleLeft;
         label.Padding = new Padding(0, 0, 6, 0);
-        label.Margin = new Padding(0, 3, 6, 4);
+        label.Margin = new Padding(0, 5, 6, 5);
 
         editor.Dock = DockStyle.Fill;
-        editor.Margin = new Padding(0, 3, col == 0 ? 16 : 0, 4);
+        editor.Margin = new Padding(0, 5, col == 0 ? 16 : 0, 5);
 
         _contentPanel.Controls.Add(label, col, row);
         _contentPanel.Controls.Add(editor, col + 1, row);
@@ -347,7 +353,7 @@ partial class CustomerEditForm
     private DevExpress.XtraEditors.SpinEdit _creditLimitEdit;
     private DevExpress.XtraEditors.CheckEdit _isCreditAllowedCheck;
     private DevExpress.XtraEditors.CheckEdit _isDefaultCheck;
-    private DevExpress.XtraEditors.TextEdit _notesEdit;
+    private DevExpress.XtraEditors.MemoEdit _notesEdit;
 
     private System.Windows.Forms.Label label1;
     private System.Windows.Forms.Label label2;

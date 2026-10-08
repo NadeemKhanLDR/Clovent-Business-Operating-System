@@ -130,9 +130,35 @@ public static class CommandPanelLayout
                 // at its framework default instead of Width, a cosmetic
                 // gap, not the crash this replaces.
             }
+
+            UpdateChildWidths();
+        }
+
+        void UpdateChildWidths()
+        {
+            var target = GetRequiredSidebarWidth();
+            var available = split.SplitterDistance > 0
+                ? split.SplitterDistance - commandPanel.Padding.Horizontal - 8
+                : DesktopDpi.Scale(Width - 24, split);
+            var w = Math.Max(available, target - commandPanel.Padding.Horizontal - 8);
+            if (w <= 0) return;
+
+            foreach (Control control in commandFlow.Controls)
+            {
+                if (control is BaseEdit or TextEdit or ComboBoxEdit)
+                {
+                    control.Width = w;
+                }
+                else if (control is SimpleButton btn)
+                {
+                    btn.MinimumSize = new Size(w, DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, split));
+                }
+            }
         }
 
         split.Resize += (_, _) => EnsureSplitterDistance();
+        split.SplitterMoved += (_, _) => UpdateChildWidths();
+        commandFlow.Resize += (_, _) => UpdateChildWidths();
 
         // Restore triggers beyond Resize: a DevExpress document tab that is
         // hidden and re-shown at the SAME size fires VisibleChanged without
@@ -149,16 +175,8 @@ public static class CommandPanelLayout
     {
         Text = text,
         Appearance = { Font = DesktopStyle.SectionHeadingFont, Options = { UseFont = true } },
-        // LabelControl's default AutoSizeMode ("Default") recomputes and
-        // overrides an explicitly-assigned Height regardless of whether
-        // AutoSize is set - confirmed via two live screenshots where
-        // neither a bare Height=32 nor AutoSize=true stopped "Actions" from
-        // overlapping the search box above it (the same root cause
-        // LoginForm's tagline label hit earlier). AutoSizeMode.None is what
-        // actually makes Height stick.
-        AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None,
-        Height = 32,
-        Margin = new Padding(0, 10, 0, 6),
+        AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.Default,
+        Margin = new Padding(0, 14, 0, 6),
     };
 
     /// <summary>
@@ -178,15 +196,16 @@ public static class CommandPanelLayout
 
     /// <summary>
     /// Adds a search box/filter editor to the left command panel. Width is
-    /// DPI-scaled and anchored Left|Right so the editor stretches if the
-    /// user drags the splitter wider, instead of the fixed unscaled width
-    /// callers used to set themselves (which clipped their prompt text at
-    /// above-100% DPI - see the Activity Log/Menu Items audit screenshots).
+    /// DPI-scaled and avoids Top/Right anchoring which disrupts FlowLayoutPanel
+    /// vertical layout and leads to control overlap.
     /// </summary>
     public static void AddEditor(FlowLayoutPanel commandFlow, Control editor)
     {
-        editor.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
-        editor.Width = DesktopDpi.Scale(Width - 24, commandFlow);
+        editor.Anchor = AnchorStyles.None;
+        var w = DesktopDpi.Scale(Width - 24, commandFlow);
+        var h = DesktopDpi.Scale(30, commandFlow);
+        editor.Width = w;
+        editor.MinimumSize = new Size(w, h);
         editor.Margin = new Padding(0, 2, 0, DesktopStyle.PanelPadding);
         commandFlow.Controls.Add(editor);
     }
