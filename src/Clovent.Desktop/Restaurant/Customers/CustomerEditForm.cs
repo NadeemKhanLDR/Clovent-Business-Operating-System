@@ -70,12 +70,12 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         DialogOkButton.Size = new System.Drawing.Size(120, 30);
 
         StartPosition = FormStartPosition.CenterParent;
-        _contentPanel.AutoScroll = false;
-        Clovent.Desktop.Forms.Base.DesktopDialogSizing.Apply(this, 780, 460, 740, 430, this.Owner ?? this.Parent, false);
+        _contentPanel.AutoScroll = true;
+        Clovent.Desktop.Forms.Base.DesktopDialogSizing.Apply(this, 800, 580, 740, 500, this.Owner ?? this.Parent, true);
 
         Load += (s, e) =>
         {
-            var labelWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(145, this);
+            var labelWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(150, this);
             if (_contentPanel.ColumnStyles.Count >= 3)
             {
                 _contentPanel.ColumnStyles[0].SizeType = System.Windows.Forms.SizeType.Absolute;
@@ -83,6 +83,8 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
                 _contentPanel.ColumnStyles[2].SizeType = System.Windows.Forms.SizeType.Absolute;
                 _contentPanel.ColumnStyles[2].Width = labelWidth;
             }
+
+            _notesEdit.Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(65, this);
 
             _contentPanel.AutoScrollPosition = new System.Drawing.Point(0, 0);
             if (isNew && !_codeEdit.Properties.ReadOnly)

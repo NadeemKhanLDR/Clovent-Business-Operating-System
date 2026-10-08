@@ -124,12 +124,17 @@ partial class RestaurantSetupView
         _prefixEdit.Width = 200;
         _prefixEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _prefixEdit.Properties.Appearance.Options.UseFont = true;
+        _prefixEdit.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _prefixEdit.Properties.Appearance.Options.UseTextOptions = true;
         _prefixEdit.EditValueChanged += PrefixEdit_EditValueChanged;
 
         _startingNumberEdit.Name = "_startingNumberEdit";
         _startingNumberEdit.Width = 200;
         _startingNumberEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _startingNumberEdit.Properties.Appearance.Options.UseFont = true;
+        _startingNumberEdit.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _startingNumberEdit.Properties.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Near;
+        _startingNumberEdit.Properties.Appearance.Options.UseTextOptions = true;
         _startingNumberEdit.EditValueChanged += StartingNumberEdit_EditValueChanged;
 
         _previewLabel.Name = "_previewLabel";
@@ -137,6 +142,8 @@ partial class RestaurantSetupView
         _previewLabel.Appearance.ForeColor = Color.FromArgb(15, 23, 42);
         _previewLabel.Appearance.Options.UseFont = true;
         _previewLabel.Appearance.Options.UseForeColor = true;
+        _previewLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _previewLabel.Appearance.Options.UseTextOptions = true;
         _previewLabel.Margin = new Padding(0, 4, 0, 4);
 
         _numberingCard = BuildCard("ORDER NUMBERING");
@@ -158,8 +165,11 @@ partial class RestaurantSetupView
         _languageCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _languageCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _languageCombo.Properties.Appearance.Options.UseFont = true;
+        _languageCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _languageCombo.Properties.Appearance.Options.UseTextOptions = true;
         _languageCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _languageCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _languageCombo.Properties.DropDownRows = 8;
 
         _languageCard = BuildCard("DISPLAY");
         var languageForm = BuildFieldTable();
@@ -178,8 +188,11 @@ partial class RestaurantSetupView
         _itemsPerRowCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _itemsPerRowCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         _itemsPerRowCombo.Properties.Appearance.Options.UseFont = true;
+        _itemsPerRowCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _itemsPerRowCombo.Properties.Appearance.Options.UseTextOptions = true;
         _itemsPerRowCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _itemsPerRowCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _itemsPerRowCombo.Properties.DropDownRows = 8;
         for (int i = 4; i <= 8; i++)
         {
             _itemsPerRowCombo.Properties.Items.Add(i);
@@ -187,8 +200,7 @@ partial class RestaurantSetupView
 
         _activeOrdersRadioGroup.Name = "_activeOrdersRadioGroup";
         _activeOrdersRadioGroup.Width = 220;
-        _activeOrdersRadioGroup.Height = 26;
-        _activeOrdersRadioGroup.MaximumSize = new Size(0, 26);
+        _activeOrdersRadioGroup.Height = 32;
         _activeOrdersRadioGroup.BackColor = Color.Transparent;
         _activeOrdersRadioGroup.Properties.Appearance.BackColor = Color.Transparent;
         _activeOrdersRadioGroup.Properties.Appearance.Options.UseBackColor = true;
@@ -207,13 +219,24 @@ partial class RestaurantSetupView
         _defaultPaymentMethodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _defaultPaymentMethodCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _defaultPaymentMethodCombo.Properties.Appearance.Options.UseFont = true;
+        _defaultPaymentMethodCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _defaultPaymentMethodCombo.Properties.Appearance.Options.UseTextOptions = true;
         _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
         _defaultPaymentMethodCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _defaultPaymentMethodCombo.Properties.DropDownRows = 8;
 
         _defaultOrderModeRadioGroup.Name = "_defaultOrderModeRadioGroup";
-        _defaultOrderModeRadioGroup.Width = 320;
+        _defaultOrderModeRadioGroup.Width = 340;
+        _defaultOrderModeRadioGroup.Height = 32;
+        _defaultOrderModeRadioGroup.BackColor = Color.Transparent;
+        _defaultOrderModeRadioGroup.Properties.Appearance.BackColor = Color.Transparent;
+        _defaultOrderModeRadioGroup.Properties.Appearance.Options.UseBackColor = true;
+        _defaultOrderModeRadioGroup.Properties.AppearanceFocused.BackColor = Color.Transparent;
+        _defaultOrderModeRadioGroup.Properties.AppearanceFocused.Options.UseBackColor = true;
         _defaultOrderModeRadioGroup.Properties.Appearance.Font = new Font("Segoe UI", 9F);
         _defaultOrderModeRadioGroup.Properties.Appearance.Options.UseFont = true;
+        _defaultOrderModeRadioGroup.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+        _defaultOrderModeRadioGroup.Properties.Padding = new Padding(0);
         _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("DineIn", "Dining"));
         _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("TakeAway", "Take Away"));
         _defaultOrderModeRadioGroup.Properties.Items.Add(new DevExpress.XtraEditors.Controls.RadioGroupItem("Delivery", "Delivery"));
@@ -222,9 +245,9 @@ partial class RestaurantSetupView
         _posCard = BuildCard("POS LAYOUT");
         var posForm = BuildFieldTable();
         AddRow(posForm, "Items Per Row:", _itemsPerRowCombo);
-        AddRow(posForm, "Active Orders:", _activeOrdersRadioGroup, topPaddingAdjustment: 4);
+        AddRow(posForm, "Active Orders:", _activeOrdersRadioGroup);
         AddRow(posForm, "Default Payment Method:", _defaultPaymentMethodCombo);
-        AddRow(posForm, "Default Order Mode:", _defaultOrderModeRadioGroup, topPaddingAdjustment: 4);
+        AddRow(posForm, "Default Order Mode:", _defaultOrderModeRadioGroup);
 
         var posNote = BuildNote("Controls menu density, Active Orders visibility, default tender method, and initial POS order mode.");
         AddNoteRow(posForm, posNote);
@@ -324,7 +347,7 @@ partial class RestaurantSetupView
             Padding = new Padding(0, 4, 0, 0),
             Margin = new Padding(0)
         };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200F)); // Uniform label column across all cards
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220F)); // Uniform label column across all cards
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         return panel;
     }
@@ -348,14 +371,14 @@ partial class RestaurantSetupView
             Text = labelText,
             Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
             ForeColor = Color.FromArgb(51, 65, 85),
-            Padding = new Padding(0, 4 + topPaddingAdjustment, 12, 4),
+            Padding = new Padding(0, 6 + topPaddingAdjustment, 12, 6),
             Dock = DockStyle.Fill
         };
         lbl.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         panel.Controls.Add(lbl, 0, panel.RowCount - 1);
 
         editor.Anchor = AnchorStyles.Left;
-        editor.Margin = new Padding(0, 4 + topPaddingAdjustment, 0, 4);
+        editor.Margin = new Padding(0, 6 + topPaddingAdjustment, 0, 6);
         panel.Controls.Add(editor, 1, panel.RowCount - 1);
     }
 

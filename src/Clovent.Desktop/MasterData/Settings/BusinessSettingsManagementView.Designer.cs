@@ -151,19 +151,30 @@ partial class BusinessSettingsManagementView
 
         mainLayout.Controls.Add(buttonRow, 0, 3);
 
-        foreach (var combo in new[] { _currencyCombo, _languageCombo, _fiscalYearCombo, _timeFormatCombo, _quantityPrecisionCombo })
+        foreach (var combo in new[] { _currencyCombo, _languageCombo, _fiscalYearCombo, _timeFormatCombo, _quantityPrecisionCombo, _dateFormatCombo })
         {
             combo.Dock = DockStyle.Left;
             combo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(450, this);
-            combo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+            combo.MinimumSize = new Size(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this));
+            combo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            combo.Properties.Appearance.Options.UseTextOptions = true;
+            combo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+            combo.Properties.AppearanceDropDown.Options.UseFont = true;
+            combo.Properties.DropDownRows = 10;
+            if (combo != _dateFormatCombo)
+            {
+                combo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+            }
         }
 
         _timeZoneCombo.Dock = DockStyle.Left;
         _timeZoneCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(450, this);
-
-        _dateFormatCombo.Dock = DockStyle.Left;
-        _dateFormatCombo.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(450, this);
-        _dateFormatCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
+        _timeZoneCombo.MinimumSize = new Size(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this));
+        _timeZoneCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _timeZoneCombo.Properties.Appearance.Options.UseTextOptions = true;
+        _timeZoneCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        _timeZoneCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _timeZoneCombo.Properties.DropDownRows = 10;
 
         _exampleLabel.Dock = DockStyle.Left;
         _exampleLabel.Padding = new Padding(0, 6, 0, 0);
@@ -187,6 +198,8 @@ partial class BusinessSettingsManagementView
             Padding = Padding.Empty,
             AutoSizeMode = LabelAutoSizeMode.Horizontal
         };
+        lbl.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lbl.Appearance.Options.UseTextOptions = true;
         editor.Anchor = AnchorStyles.Left;
         editor.Margin = new Padding(0, 4, 0, 4);
         panel.Controls.Add(lbl, 0, rowIndex);

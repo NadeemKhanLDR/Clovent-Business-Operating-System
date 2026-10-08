@@ -122,7 +122,27 @@ public partial class MasterDataEditFormBase : XtraForm
         var scaledFixedHeight = fixedHeight is { } fh ? (int?)Clovent.Desktop.Forms.Base.DesktopDpi.Scale(fh, this) : null;
         _contentPanel.RowStyles.Add(scaledFixedHeight is { } height ? new RowStyle(SizeType.Absolute, height) : new RowStyle(SizeType.AutoSize));
 
-        var labelControl = new LabelControl { Text = label, Padding = new Padding(0, 6, 8, 0) };
+        var labelControl = new LabelControl 
+        { 
+            Text = label, 
+            Padding = new Padding(0, 6, 8, 0),
+            Dock = DockStyle.Fill
+        };
+        labelControl.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        labelControl.Appearance.Options.UseTextOptions = true;
+
+        if (editor is BaseEdit baseEdit)
+        {
+            baseEdit.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+            baseEdit.Properties.Appearance.Options.UseTextOptions = true;
+            if (baseEdit is ComboBoxEdit combo)
+            {
+                combo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+                combo.Properties.AppearanceDropDown.Options.UseFont = true;
+                combo.Properties.DropDownRows = 10;
+            }
+        }
+
         // CheckEdit's own caption (not the row's label, usually empty for a
         // checkbox field) needs room for its actual text, not the fixed
         // 260px every other editor uses - a live screenshot showed
@@ -137,6 +157,7 @@ public partial class MasterDataEditFormBase : XtraForm
         else
         {
             editor.Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(280, this);
+            editor.MinimumSize = new Size(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this));
         }
 
         editor.Margin = new Padding(0, 3, 0, 3);

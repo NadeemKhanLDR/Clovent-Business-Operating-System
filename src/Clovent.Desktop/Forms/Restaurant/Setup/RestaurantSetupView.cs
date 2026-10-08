@@ -137,25 +137,40 @@ public sealed partial class RestaurantSetupView : XtraUserControl
         int maxContentW = DesktopDpi.Scale(840, this);
         _contentLayout.MaximumSize = new Size(maxContentW, 0);
 
+        int controlH = DesktopDpi.Scale(30, this);
+        int radioH = DesktopDpi.Scale(34, this);
+
         _prefixEdit.Width = DesktopDpi.Scale(200, this);
+        _prefixEdit.MinimumSize = new Size(0, controlH);
+
         _startingNumberEdit.Width = DesktopDpi.Scale(200, this);
+        _startingNumberEdit.MinimumSize = new Size(0, controlH);
+
         _languageCombo.Width = DesktopDpi.Scale(240, this);
-        int editorH = DesktopDpi.Scale(26, this);
+        _languageCombo.MinimumSize = new Size(0, controlH);
+
         _itemsPerRowCombo.Width = DesktopDpi.Scale(120, this);
-        _activeOrdersRadioGroup.Width = DesktopDpi.Scale(220, this);
-        _activeOrdersRadioGroup.Height = editorH;
-        _activeOrdersRadioGroup.MaximumSize = new Size(0, editorH);
-        _activeOrdersRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(2, this), 0, DesktopDpi.Scale(2, this));
-        _defaultOrderModeRadioGroup.Width = DesktopDpi.Scale(320, this);
-        _defaultOrderModeRadioGroup.Height = editorH;
-        _defaultOrderModeRadioGroup.MaximumSize = new Size(0, editorH);
-        _defaultOrderModeRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(2, this), 0, DesktopDpi.Scale(2, this));
+        _itemsPerRowCombo.MinimumSize = new Size(0, controlH);
+
+        _activeOrdersRadioGroup.Width = DesktopDpi.Scale(240, this);
+        _activeOrdersRadioGroup.Height = radioH;
+        _activeOrdersRadioGroup.MinimumSize = new Size(0, radioH);
+        _activeOrdersRadioGroup.MaximumSize = Size.Empty;
+        _activeOrdersRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(4, this));
+
         _defaultPaymentMethodCombo.Width = DesktopDpi.Scale(240, this);
+        _defaultPaymentMethodCombo.MinimumSize = new Size(0, controlH);
+
+        _defaultOrderModeRadioGroup.Width = DesktopDpi.Scale(360, this);
+        _defaultOrderModeRadioGroup.Height = radioH;
+        _defaultOrderModeRadioGroup.MinimumSize = new Size(0, radioH);
+        _defaultOrderModeRadioGroup.MaximumSize = Size.Empty;
+        _defaultOrderModeRadioGroup.Margin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(4, this));
 
         _saveSettingsButton.Size = new Size(DesktopDpi.Scale(150, this), DesktopDpi.Scale(38, this));
 
         // Update card label column widths to be identical
-        int labelColWidth = DesktopDpi.Scale(200, this);
+        int labelColWidth = DesktopDpi.Scale(220, this);
         UpdateCardColumnWidth(_numberingCard, labelColWidth);
         UpdateCardColumnWidth(_languageCard, labelColWidth);
         UpdateCardColumnWidth(_posCard, labelColWidth);

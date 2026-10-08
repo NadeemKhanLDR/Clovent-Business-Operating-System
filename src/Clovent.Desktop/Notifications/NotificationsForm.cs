@@ -1,8 +1,11 @@
+using System.Drawing;
+using System.Windows.Forms;
+using Clovent.Desktop.Forms.Base;
 using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Notifications;
 
-/// <summary>A simple modal list of the Shell's current notifications. Built entirely in code - see <see cref="Clovent.Desktop.Forms.Shell.MainForm"/>'s doc comment for why.</summary>
+/// <summary>A simple modal list of the Shell's current notifications.</summary>
 public sealed partial class NotificationsForm : XtraForm
 {
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
@@ -18,10 +21,19 @@ public sealed partial class NotificationsForm : XtraForm
     {
         InitializeComponent();
 
-        if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
+        if (DesignModeHelper.IsInDesignMode)
             return;
 
-        Load += (s, e) => Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
+        Load += (s, e) =>
+        {
+            DesktopDialogSizing.Apply(this, 560, 420, 440, 320, owner: Owner, resizable: true);
+            _notificationsList.ItemHeight = DesktopDpi.Scale(36, this);
+            _closeButton.Size = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(32, this));
+            Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
+        };
+
+        AcceptButton = _closeButton;
+        CancelButton = _closeButton;
 
         _notificationsList.Items.AddRange([.. notifications.Select(n => $"{n.TimestampUtc:g}  -  {n.Title}: {n.Message}")]);
         if (notifications.Count == 0)
