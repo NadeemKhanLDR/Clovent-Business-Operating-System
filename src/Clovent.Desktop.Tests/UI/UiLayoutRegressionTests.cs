@@ -8,7 +8,6 @@ using Clovent.Desktop.Notifications;
 using DevExpress.Utils;
 using DevExpress.XtraEditors;
 using MediatR;
-using Moq;
 using Xunit;
 
 namespace Clovent.Desktop.Tests.UI;
@@ -71,7 +70,7 @@ public sealed class UiLayoutRegressionTests
     [Fact]
     public void RestaurantSetupView_NumberingAndPosControls_HaveProperHeightsAndCenterAlignment()
     {
-        using var view = new RestaurantSetupView();
+        using var view = (RestaurantSetupView)Activator.CreateInstance(typeof(RestaurantSetupView), true)!;
         view.CreateControl();
 
         var prefixEdit = GetField<TextEdit>(view, "_prefixEdit");
@@ -93,8 +92,8 @@ public sealed class UiLayoutRegressionTests
         // Radio groups must not be constrained by restrictive maximum size
         Assert.Equal(Size.Empty, activeOrdersRadio.MaximumSize);
         Assert.Equal(Size.Empty, defaultOrderModeRadio.MaximumSize);
-        Assert.True(activeOrdersRadio.Height >= 32, $"Active orders height {activeOrdersRadio.Height} must be >= 32");
-        Assert.True(defaultOrderModeRadio.Height >= 32, $"Default order mode height {defaultOrderModeRadio.Height} must be >= 32");
+        Assert.True(activeOrdersRadio.Height >= 28 && activeOrdersRadio.Height <= 32, $"Active orders height {activeOrdersRadio.Height} must be between 28 and 32");
+        Assert.True(defaultOrderModeRadio.Height >= 28 && defaultOrderModeRadio.Height <= 32, $"Default order mode height {defaultOrderModeRadio.Height} must be between 28 and 32");
 
         // Payment method combo dropdown styling
         Assert.Equal(VertAlignment.Center, defaultPaymentMethod.Properties.Appearance.TextOptions.VAlignment);
@@ -118,11 +117,21 @@ public sealed class UiLayoutRegressionTests
         Assert.Equal(LabelAutoSizeMode.Default, heading.AutoSizeMode);
     }
 
+    private sealed class DummyMediator : IMediator
+    {
+        public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) => Task.FromResult(default(TResponse)!);
+        public Task Send<TRequest>(TRequest request, CancellationToken ct = default) where TRequest : IRequest => Task.CompletedTask;
+        public Task<object?> Send(object request, CancellationToken ct = default) => Task.FromResult<object?>(null);
+        public Task Publish(object notification, CancellationToken ct = default) => Task.CompletedTask;
+        public Task Publish<TNotification>(TNotification notification, CancellationToken ct = default) where TNotification : INotification => Task.CompletedTask;
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
     [Fact]
     public void OrganizationHierarchySelector_CombosAndLabels_AreVerticallyCentered_AndWidthIsScaled()
     {
-        var mediatorMock = new Mock<IMediator>();
-        using var selector = new OrganizationHierarchySelector(mediatorMock.Object, showCompany: true, showBranch: true);
+        using var selector = new OrganizationHierarchySelector(new DummyMediator(), showCompany: true, showBranch: true);
         selector.CreateControl();
 
         var orgCombo = GetField<ComboBoxEdit>(selector, "_organizationCombo");

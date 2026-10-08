@@ -122,6 +122,9 @@ public sealed partial class RestaurantSetupView : XtraUserControl
             return;
 
         ScaleLayoutAtRuntime();
+        if (_mediator == null)
+            return;
+
         await LoadAsync();
     }
 
@@ -138,7 +141,7 @@ public sealed partial class RestaurantSetupView : XtraUserControl
         _contentLayout.MaximumSize = new Size(maxContentW, 0);
 
         int controlH = DesktopDpi.Scale(30, this);
-        int radioH = DesktopDpi.Scale(34, this);
+        int radioH = DesktopDpi.Scale(30, this);
 
         _prefixEdit.Width = DesktopDpi.Scale(200, this);
         _prefixEdit.MinimumSize = new Size(0, controlH);
