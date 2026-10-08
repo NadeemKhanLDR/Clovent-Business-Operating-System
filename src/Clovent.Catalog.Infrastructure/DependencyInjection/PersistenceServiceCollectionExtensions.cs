@@ -49,6 +49,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IProductVariantRepository, ProductVariantRepository>();
         services.TryAddScoped<IBarcodeRepository, BarcodeRepository>();
         services.TryAddScoped<IProductPriceRepository, ProductPriceRepository>();
+        services.TryAddScoped<Clovent.Catalog.TaxProfiles.ITaxProfileRepository, TaxProfileRepository>();
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 

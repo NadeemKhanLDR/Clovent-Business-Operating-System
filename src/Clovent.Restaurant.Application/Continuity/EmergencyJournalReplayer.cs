@@ -167,7 +167,21 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 order.Complete();
 
                 var snapshotItems = tx.OrderSnapshot.Lines.Select(l =>
-                    new ReceiptSnapshotItem(l.ProductVariantId, l.Sku, l.Name, l.Quantity, l.UnitPrice, l.LineTotal, l.Notes)).ToList();
+                    new ReceiptSnapshotItem(
+                        l.ProductVariantId,
+                        l.Sku,
+                        l.Name,
+                        l.Quantity,
+                        l.UnitPrice,
+                        l.LineTotal,
+                        l.Notes,
+                        l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
+                        $"PK-TAX-{l.TaxRatePercentage:0.##}",
+                        l.TaxRatePercentage,
+                        l.TaxIsInclusive,
+                        l.TaxIsInclusive ? l.LineTotal - l.TaxAmount : l.LineTotal,
+                        l.TaxAmount,
+                        l.DiscountAmount)).ToList();
 
                 var snapshotPayments = new List<ReceiptSnapshotPayment>
                 {
@@ -190,7 +204,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     snapshotPayments,
                     tx.CashierName,
                     tx.TerminalId,
-                    tx.OrderSnapshot.CustomerNotes);
+                    tx.OrderSnapshot.CustomerNotes,
+                    null,
+                    "1.3.0-AwayFromZero-v1",
+                    tx.OrderSnapshot.Subtotal,
+                    tx.OrderSnapshot.Lines.Where(l => !l.TaxIsInclusive).Sum(l => l.TaxAmount),
+                    tx.OrderSnapshot.Lines.Where(l => l.TaxIsInclusive).Sum(l => l.TaxAmount));
 
                 order.SetReceiptSnapshot(JsonSerializer.Serialize(receiptSnapshot));
                 await _orderRepository.AddAsync(order, cancellationToken).ConfigureAwait(false);

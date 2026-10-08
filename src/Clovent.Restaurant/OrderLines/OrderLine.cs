@@ -63,6 +63,27 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
     /// <summary>This line's total before tax/discounts: <see cref="Quantity"/> times <see cref="UnitPrice"/>.</summary>
     public decimal LineTotal => Quantity * UnitPrice;
 
+    /// <summary>Statutory tax classification snapshotted at creation.</summary>
+    public string TaxClassification { get; private set; }
+
+    /// <summary>Revenue authority governing this tax snapshotted at creation.</summary>
+    public string TaxAuthority { get; private set; }
+
+    /// <summary>Statutory tax code snapshotted at creation.</summary>
+    public string TaxCode { get; private set; }
+
+    /// <summary>Net taxable base amount snapshotted at sale completion.</summary>
+    public decimal? TaxableBase { get; private set; }
+
+    /// <summary>Allocated order discount amount.</summary>
+    public decimal AllocatedDiscount { get; private set; }
+
+    /// <summary>Calculated tax amount snapshotted at sale completion.</summary>
+    public decimal? TaxAmount { get; private set; }
+
+    /// <summary>Calculation policy version under which this line was evaluated.</summary>
+    public string? CalculationPolicyVersion { get; private set; }
+
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
     private OrderLine(
         OrderLineId id,
@@ -79,7 +100,14 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         bool taxIsInclusive,
         string? notes,
         bool isVoided,
-        DateTimeOffset createdAtUtc)
+        DateTimeOffset createdAtUtc,
+        string? taxClassification = null,
+        string? taxAuthority = null,
+        string? taxCode = null,
+        decimal? taxableBase = null,
+        decimal allocatedDiscount = 0m,
+        decimal? taxAmount = null,
+        string? calculationPolicyVersion = null)
     {
         Id = id;
         OrderId = orderId;
@@ -96,6 +124,13 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         Notes = notes;
         IsVoided = isVoided;
         CreatedAtUtc = createdAtUtc;
+        TaxClassification = taxClassification ?? (taxRatePercentage > 0m ? "Taxable" : "OutOfScope");
+        TaxAuthority = taxAuthority ?? "PRA";
+        TaxCode = taxCode ?? (taxRatePercentage > 0m ? $"PK-TAX-{taxRatePercentage:0.##}" : "PK-EXEMPT");
+        TaxableBase = taxableBase;
+        AllocatedDiscount = allocatedDiscount;
+        TaxAmount = taxAmount;
+        CalculationPolicyVersion = calculationPolicyVersion ?? "1.3.0-AwayFromZero-v1";
     }
 
     /// <summary>Creates a new order line.</summary>
@@ -107,15 +142,38 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         decimal unitPrice,
         decimal taxRatePercentage,
         bool taxIsInclusive,
-        string? notes = null)
+        string? notes = null,
+        string? taxClassification = null,
+        string? taxAuthority = null,
+        string? taxCode = null)
     {
         RequirePositiveQuantity(quantity);
         RequireNonNegativePrice(unitPrice);
 
         var now = DateTimeOffset.UtcNow;
-        var line = new OrderLine(OrderLineId.New(), orderId, productVariantId, quantity, unitPrice, unitPrice, false, null, null, null, taxRatePercentage, taxIsInclusive, notes, false, now);
+        var classification = taxClassification ?? (taxRatePercentage > 0m ? "Taxable" : "OutOfScope");
+        var authority = taxAuthority ?? "PRA";
+        var code = taxCode ?? (taxRatePercentage > 0m ? $"PK-TAX-{taxRatePercentage:0.##}" : "PK-EXEMPT");
+
+        var line = new OrderLine(
+            OrderLineId.New(), orderId, productVariantId, quantity, unitPrice, unitPrice,
+            false, null, null, null, taxRatePercentage, taxIsInclusive, notes, false, now,
+            classification, authority, code, null, 0m, null, "1.3.0-AwayFromZero-v1");
         line.AddDomainEvent(new OrderLineCreated(line.Id, line.OrderId, line.ProductVariantId, line.Quantity, line.UnitPrice, now));
         return line;
+    }
+
+    /// <summary>Captures immutable tax and discount facts calculated at completion.</summary>
+    public void SetTaxSnapshot(
+        decimal taxableBase,
+        decimal taxAmount,
+        decimal allocatedDiscount,
+        string policyVersion = "1.3.0-AwayFromZero-v1")
+    {
+        TaxableBase = taxableBase;
+        TaxAmount = taxAmount;
+        AllocatedDiscount = allocatedDiscount;
+        CalculationPolicyVersion = policyVersion;
     }
 
     /// <summary>

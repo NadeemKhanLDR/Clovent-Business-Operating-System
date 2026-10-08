@@ -95,6 +95,12 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     /// <summary>Transactional OutboxMessage entities.</summary>
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    /// <summary>Compensating Refund aggregates.</summary>
+    public DbSet<Clovent.Restaurant.Refunds.Refund> Refunds => Set<Clovent.Restaurant.Refunds.Refund>();
+
+    /// <summary>Compensating RefundLine entities.</summary>
+    public DbSet<Clovent.Restaurant.Refunds.RefundLine> RefundLines => Set<Clovent.Restaurant.Refunds.RefundLine>();
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -15,7 +15,11 @@ public sealed record ProductDto(
     bool TaxIsInclusive,
     string Status,
     DateTimeOffset CreatedAtUtc,
-    string ItemType = "Prepared")
+    string ItemType = "Prepared",
+    string TaxClassification = "Taxable",
+    string? TaxCode = null,
+    string? TaxAuthority = null,
+    Guid? TaxProfileId = null)
 {
     /// <summary>Projects a domain <see cref="Product"/> into its DTO.</summary>
     public static ProductDto FromDomain(Product product) => new(
@@ -30,5 +34,9 @@ public sealed record ProductDto(
         product.TaxConfiguration.IsInclusive,
         product.Status.ToString(),
         product.CreatedAtUtc,
-        product.ItemType.ToString());
+        product.ItemType.ToString(),
+        product.TaxConfiguration.TaxClassification.ToString(),
+        product.TaxConfiguration.TaxCode,
+        product.TaxConfiguration.Authority,
+        product.TaxConfiguration.TaxProfileId?.Value);
 }

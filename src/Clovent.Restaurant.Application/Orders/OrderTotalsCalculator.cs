@@ -3,18 +3,18 @@ using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Payments.Dtos;
 using Clovent.Restaurant.Application.ServiceCharges.Dtos;
 using Clovent.Restaurant.Discounts;
+using Clovent.Restaurant.DomainServices;
+using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.ServiceCharges;
 
 namespace Clovent.Restaurant.Application.Orders;
 
 /// <summary>
 /// Pure calculation logic for an order's running total, tax summary, and
-/// payment balance - deliberately kept out of the <c>Order</c> aggregate
-/// (see its doc comment) and out of any command handler, so it can be unit
-/// tested without a repository or a database. Used by both
-/// <c>CompleteOrderCommandHandler</c> (to verify the balance is zero before
-/// completing) and <c>GetOrderSummaryQuery</c> (to show the POS screen's
-/// running total).
+/// payment balance. Governed by the centralized <see cref="MoneyRoundingPolicy"/>
+/// and <see cref="TaxCalculator"/> adhering to the AwayFromZero midpoint rounding rule.
+/// Used by <c>CompleteOrderCommandHandler</c>, <c>GetOrderSummaryQuery</c>,
+/// receipt formatting, and Day Close summaries.
 /// </summary>
 public static class OrderTotalsCalculator
 {
@@ -25,32 +25,62 @@ public static class OrderTotalsCalculator
         IReadOnlyCollection<ServiceChargeDto> serviceCharges,
         IReadOnlyCollection<PaymentDto> payments)
     {
+        ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(discounts);
+        ArgumentNullException.ThrowIfNull(serviceCharges);
+        ArgumentNullException.ThrowIfNull(payments);
+
         var activeLines = lines.Where(l => !l.IsVoided).ToList();
 
-        var subtotal = activeLines.Sum(l => l.Quantity * l.UnitPrice);
-        var taxTotal = activeLines.Sum(CalculateLineTax);
-        var exclusiveTaxAddOn = activeLines.Where(l => !l.TaxIsInclusive).Sum(CalculateLineTax);
+        // 1. Compute gross line base
+        var subtotal = activeLines.Sum(l => MoneyRoundingPolicy.RoundMoney(l.Quantity * l.UnitPrice));
 
-        var discountTotal = discounts.Sum(d => ResolveAmount(d.DiscountType == nameof(DiscountType.Percentage), d.Value, subtotal));
-        var serviceChargeTotal = serviceCharges.Sum(s => ResolveAmount(s.ServiceChargeType == nameof(ServiceChargeType.Percentage), s.Value, subtotal));
+        // 2. Resolve order-level discount amount
+        var orderDiscountTotal = discounts.Sum(d =>
+            ResolveAmount(d.DiscountType == nameof(DiscountType.Percentage), d.Value, subtotal));
 
-        var grandTotal = subtotal - discountTotal + serviceChargeTotal + exclusiveTaxAddOn;
-        var paidTotal = payments.Where(p => !p.IsVoided).Sum(p => p.Amount);
-        var balance = grandTotal - paidTotal;
+        // 3. Prepare inputs for TaxCalculator
+        var calcLines = activeLines.Select(l => new TaxCalculationLineInput(
+            l.Id,
+            l.Quantity,
+            l.UnitPrice,
+            0m,
+            l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
+            "PRA",
+            $"PK-TAX-{l.TaxRatePercentage:0.##}",
+            l.TaxRatePercentage,
+            l.TaxIsInclusive)).ToList();
 
-        return new OrderTotals(subtotal, taxTotal, discountTotal, serviceChargeTotal, grandTotal, paidTotal, balance);
-    }
+        var taxResult = TaxCalculator.Calculate(calcLines, orderDiscountTotal);
 
-    private static decimal CalculateLineTax(OrderLineDto line)
-    {
-        if (line.TaxRatePercentage <= 0) return 0m;
+        // 4. Resolve service charges
+        var serviceChargeTotal = serviceCharges.Sum(s =>
+            ResolveAmount(s.ServiceChargeType == nameof(ServiceChargeType.Percentage), s.Value, subtotal));
 
-        var lineTotal = line.Quantity * line.UnitPrice;
-        return line.TaxIsInclusive
-            ? lineTotal - lineTotal / (1 + line.TaxRatePercentage / 100m)
-            : lineTotal * line.TaxRatePercentage / 100m;
+        // 5. Compute Grand Total and Balance
+        var grandTotal = MoneyRoundingPolicy.RoundMoney(
+            subtotal - taxResult.TotalDiscounts + serviceChargeTotal + taxResult.TotalExclusiveTax);
+
+        var paidTotal = payments.Where(p => !p.IsVoided).Sum(p => MoneyRoundingPolicy.RoundMoney(p.Amount));
+        var balance = MoneyRoundingPolicy.RoundMoney(grandTotal - paidTotal);
+
+        return new OrderTotals(
+            subtotal,
+            taxResult.TotalTax,
+            taxResult.TotalDiscounts,
+            serviceChargeTotal,
+            grandTotal,
+            paidTotal,
+            balance,
+            taxResult.TotalExclusiveTax,
+            taxResult.TotalInclusiveTax,
+            taxResult.TotalTaxableBase,
+            taxResult.LineSnapshots,
+            taxResult.TaxSummary);
     }
 
     private static decimal ResolveAmount(bool isPercentage, decimal value, decimal subtotal) =>
-        isPercentage ? subtotal * value / 100m : value;
+        isPercentage
+            ? MoneyRoundingPolicy.RoundMoney(subtotal * value / 100m)
+            : MoneyRoundingPolicy.RoundMoney(value);
 }
