@@ -45,7 +45,10 @@ public sealed class AddOrderLineCommandHandler(IOrderRepository orderRepository,
             sellingPrice?.Amount ?? 0m,
             product.TaxRatePercentage,
             product.TaxIsInclusive,
-            request.Notes);
+            request.Notes,
+            product.TaxClassification,
+            product.TaxAuthority ?? "PRA",
+            product.TaxCode ?? $"PK-TAX-{product.TaxRatePercentage:0.##}");
 
         order.AddOrderLine(line.Id);
         await orderLineRepository.AddAsync(line, cancellationToken);

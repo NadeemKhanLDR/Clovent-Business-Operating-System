@@ -19,8 +19,18 @@ public sealed record OrderLineDto(
     string? Notes,
     bool IsVoided,
     decimal LineTotal,
-    DateTimeOffset CreatedAtUtc)
+    DateTimeOffset CreatedAtUtc,
+    string TaxClassification = "Taxable",
+    string TaxAuthority = "PRA",
+    string TaxCode = "PK-PRA-16",
+    decimal? TaxableBase = null,
+    decimal AllocatedDiscount = 0m,
+    decimal? TaxAmount = null,
+    string? CalculationPolicyVersion = null)
 {
+    /// <summary>Convenience alias for OrderLineId.</summary>
+    public Guid Id => OrderLineId;
+
     /// <summary>Projects a domain <see cref="OrderLine"/> into its DTO.</summary>
     public static OrderLineDto FromDomain(OrderLine line) => new(
         line.Id.Value,
@@ -38,5 +48,12 @@ public sealed record OrderLineDto(
         line.Notes,
         line.IsVoided,
         line.LineTotal,
-        line.CreatedAtUtc);
+        line.CreatedAtUtc,
+        line.TaxClassification,
+        line.TaxAuthority,
+        line.TaxCode,
+        line.TaxableBase,
+        line.AllocatedDiscount,
+        line.TaxAmount,
+        line.CalculationPolicyVersion);
 }

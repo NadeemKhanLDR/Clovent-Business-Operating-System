@@ -1,14 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Identity.Branches;
 using Clovent.Restaurant.Application.DayClose.Dtos;
 using Clovent.Restaurant.Application.Shifts.Services;
 using Clovent.Restaurant.DayClose;
+using Clovent.Restaurant.DomainServices;
+using Clovent.Restaurant.OrderLines;
+using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Refunds;
 using Clovent.Restaurant.Shifts;
 using MediatR;
 
@@ -23,7 +28,10 @@ public sealed class GetBusinessDaySummaryQueryHandler(
     IShiftRepository shiftRepository,
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    IBusinessDateProvider businessDateProvider) : IRequestHandler<GetBusinessDaySummaryQuery, BusinessDaySummaryDto>
+    IBusinessDateProvider businessDateProvider,
+    IOrderRepository? orderRepository = null,
+    IOrderLineRepository? orderLineRepository = null,
+    IRefundRepository? refundRepository = null) : IRequestHandler<GetBusinessDaySummaryQuery, BusinessDaySummaryDto>
 {
     /// <inheritdoc/>
     public async Task<BusinessDaySummaryDto> Handle(GetBusinessDaySummaryQuery request, CancellationToken cancellationToken)
@@ -128,6 +136,52 @@ public sealed class GetBusinessDaySummaryQueryHandler(
         }
 
         decimal totalSales = totalCashSales + totalCardSales + totalOtherSales;
+
+        decimal totalTax = 0m;
+        decimal totalDiscounts = 0m;
+
+        if (orderRepository != null)
+        {
+            foreach (var orderId in distinctOrderIds)
+            {
+                var order = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken);
+                if (order is null) continue;
+
+                if (!string.IsNullOrEmpty(order.ReceiptSnapshotJson))
+                {
+                    try
+                    {
+                        var snapshot = JsonSerializer.Deserialize<ReceiptSnapshot>(order.ReceiptSnapshotJson);
+                        if (snapshot != null)
+                        {
+                            totalTax += snapshot.TaxTotal;
+                            totalDiscounts += snapshot.DiscountTotal;
+                            continue;
+                        }
+                    }
+                    catch
+                    {
+                        // Fallback to order lines
+                    }
+                }
+
+                if (orderLineRepository != null)
+                {
+                    var lines = await orderLineRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+                    totalTax += lines.Sum(l => l.TaxAmount ?? 0m);
+                    totalDiscounts += lines.Sum(l => l.AllocatedDiscount);
+                }
+            }
+        }
+
+        decimal totalRefunds = 0m;
+        if (refundRepository != null)
+        {
+            var dayRefunds = await refundRepository.GetByDateRangeAsync(startUtc, endUtc, cancellationToken);
+            var branchRefunds = dayRefunds.Where(r => r.BranchId == branchId).ToList();
+            totalRefunds = branchRefunds.Sum(r => r.GrandTotalRefunded);
+        }
+
         bool isAlreadyClosed = existingClose != null;
         bool canClose = !isAlreadyClosed && openShiftsList.Count == 0;
 
@@ -150,16 +204,16 @@ public sealed class GetBusinessDaySummaryQueryHandler(
             closedShiftDtos,
             branchShifts.Count,
             distinctOrderIds.Count,
-            totalSales,
-            totalCashSales,
-            totalCardSales,
-            totalOtherSales,
-            0m,
-            0m,
-            0m,
-            totalCashIn,
-            totalCashOut,
-            totalVariance,
+            MoneyRoundingPolicy.RoundMoney(totalSales),
+            MoneyRoundingPolicy.RoundMoney(totalCashSales),
+            MoneyRoundingPolicy.RoundMoney(totalCardSales),
+            MoneyRoundingPolicy.RoundMoney(totalOtherSales),
+            MoneyRoundingPolicy.RoundMoney(totalRefunds),
+            MoneyRoundingPolicy.RoundMoney(totalDiscounts),
+            MoneyRoundingPolicy.RoundMoney(totalTax),
+            MoneyRoundingPolicy.RoundMoney(totalCashIn),
+            MoneyRoundingPolicy.RoundMoney(totalCashOut),
+            MoneyRoundingPolicy.RoundMoney(totalVariance),
             canClose,
             blockingReason);
     }

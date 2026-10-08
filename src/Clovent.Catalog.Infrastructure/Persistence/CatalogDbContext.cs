@@ -4,6 +4,7 @@ using Clovent.Catalog.Categories;
 using Clovent.Catalog.Groups;
 using Clovent.Catalog.Prices;
 using Clovent.Catalog.Products;
+using Clovent.Catalog.TaxProfiles;
 using Clovent.Catalog.UnitsOfMeasure;
 using Clovent.Catalog.Variants;
 using Microsoft.EntityFrameworkCore;
@@ -41,6 +42,9 @@ public sealed class CatalogDbContext(DbContextOptions<CatalogDbContext> options)
 
     /// <summary>ProductPrice aggregates.</summary>
     public DbSet<ProductPrice> ProductPrices => Set<ProductPrice>();
+
+    /// <summary>TaxProfile aggregates.</summary>
+    public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
 
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)

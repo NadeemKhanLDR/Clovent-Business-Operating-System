@@ -1,6 +1,8 @@
+using Clovent.Catalog.Application.TaxProfiles.Services;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Clovent.Catalog.Application.DependencyInjection;
 
@@ -14,6 +16,7 @@ public static class ApplicationServiceCollectionExtensions
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
+        services.TryAddScoped<ITaxProfileResolver, TaxProfileResolver>();
 
         return services;
     }

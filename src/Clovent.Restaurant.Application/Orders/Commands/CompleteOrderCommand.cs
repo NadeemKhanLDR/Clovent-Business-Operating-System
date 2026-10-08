@@ -87,15 +87,36 @@ public sealed class CompleteOrderCommandHandler(
             order.AssignDailySalesNumber(nextDailyNumber);
         }
 
+        // Freeze tax snapshot on order lines
+        var lineSnapMap = totals.LineTaxSnapshots?.ToDictionary(s => s.OrderLineId) ?? [];
+        foreach (var line in lines.Where(l => !l.IsVoided))
+        {
+            if (lineSnapMap.TryGetValue(line.Id.Value, out var snap))
+            {
+                line.SetTaxSnapshot(snap.TaxableBase, snap.TaxAmount, snap.AllocatedOrderDiscountAmount, snap.CalculationPolicyVersion);
+            }
+        }
+
         // Freeze receipt snapshot immutably on the order
-        var snapshotItems = lineDtos.Where(l => !l.IsVoided).Select(l => new ReceiptSnapshotItem(
-            l.ProductVariantId,
-            "",
-            "",
-            l.Quantity,
-            l.UnitPrice,
-            l.LineTotal,
-            l.Notes)).ToList();
+        var snapshotItems = lineDtos.Where(l => !l.IsVoided).Select(l =>
+        {
+            lineSnapMap.TryGetValue(l.Id, out var snap);
+            return new ReceiptSnapshotItem(
+                l.ProductVariantId,
+                "",
+                "",
+                l.Quantity,
+                l.UnitPrice,
+                l.LineTotal,
+                l.Notes,
+                snap?.TaxClassification ?? (l.TaxRatePercentage > 0m ? "Taxable" : "Exempt"),
+                snap?.TaxCode ?? $"PK-TAX-{l.TaxRatePercentage:0.##}",
+                snap?.TaxRatePercentage ?? l.TaxRatePercentage,
+                snap?.TaxIsInclusive ?? l.TaxIsInclusive,
+                snap?.TaxableBase ?? l.LineTotal,
+                snap?.TaxAmount ?? 0m,
+                snap?.TotalDiscountAmount ?? 0m);
+        }).ToList();
 
         var snapshotPayments = payments.Where(p => !p.IsVoided).Select(p => new ReceiptSnapshotPayment(
             p.Amount,
@@ -117,7 +138,12 @@ public sealed class CompleteOrderCommandHandler(
             snapshotPayments,
             null,
             Environment.MachineName,
-            order.CustomerNotes);
+            order.CustomerNotes,
+            totals.TaxSummary,
+            "1.3.0-AwayFromZero-v1",
+            totals.TaxableBaseTotal,
+            totals.ExclusiveTaxTotal,
+            totals.InclusiveTaxTotal);
 
         order.SetReceiptSnapshot(JsonSerializer.Serialize(snapshot));
 
