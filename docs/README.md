@@ -232,6 +232,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Enterprise Glossary** | [`docs/glossary.md`](glossary.md) | All Readers | VALIDATED |
 | **Verified Known Limitations** | [`docs/known-limitations.md`](known-limitations.md) | All Readers | FACTUAL BASELINE |
 | **Canonical Engineering Roadmap** | [`docs/roadmap/engineering-roadmap.md`](roadmap/engineering-roadmap.md)| Architects, PMs | CANONICAL BASELINE |
+| **1.2.3 Implementation Handoff** | [`docs/roadmap/cbos-1.2.3-implementation-handoff.md`](roadmap/cbos-1.2.3-implementation-handoff.md) | Leads, Devs, QA | ACCEPTED PLANNING BASELINE |
 
 ---
 
