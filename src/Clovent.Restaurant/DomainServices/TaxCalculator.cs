@@ -43,10 +43,12 @@ public static class TaxCalculator
 
     /// <summary>
     /// Executes the complete financial calculation contract across lines, discounts, and taxes.
+    /// Supports both gross-subtotal tax base (standard POS baseline) and net-of-discount tax base (FBR trade discount).
     /// </summary>
     public static OrderTaxCalculationResult Calculate(
         IReadOnlyList<TaxCalculationLineInput> lines,
-        decimal orderDiscountAmount = 0m)
+        decimal orderDiscountAmount = 0m,
+        bool discountAppliesBeforeTax = false)
     {
         ArgumentNullException.ThrowIfNull(lines);
 
@@ -105,6 +107,8 @@ public static class TaxCalculator
             decimal taxAmount;
             decimal linePayable;
 
+            var baseForTax = discountAppliesBeforeTax ? discountedAmount : (gross - lineDisc);
+
             bool isTaxable = string.Equals(l.TaxClassification, "Taxable", StringComparison.OrdinalIgnoreCase) &&
                              l.TaxRatePercentage > 0m;
 
@@ -115,26 +119,26 @@ public static class TaxCalculator
                     // Inclusive Tax Extraction: shelf price already includes tax.
                     // PreTaxNet = RoundAwayFromZero(DiscountedGross / (1 + Rate / 100))
                     // InclusiveTax = DiscountedGross - PreTaxNet
-                    var preTaxNet = MoneyRoundingPolicy.RoundMoney(discountedAmount / (1m + l.TaxRatePercentage / 100m));
-                    taxAmount = discountedAmount - preTaxNet;
+                    var preTaxNet = MoneyRoundingPolicy.RoundMoney(baseForTax / (1m + l.TaxRatePercentage / 100m));
+                    taxAmount = baseForTax - preTaxNet;
                     taxableBase = preTaxNet;
                     linePayable = discountedAmount;
                     totalInclusiveTax += taxAmount;
                 }
                 else
                 {
-                    // Exclusive Tax Addition: tax is added on top of discounted base.
-                    // ExclusiveTax = RoundAwayFromZero(DiscountedNet * Rate / 100)
-                    taxableBase = discountedAmount;
+                    // Exclusive Tax Addition: tax is added on top.
+                    // ExclusiveTax = RoundAwayFromZero(TaxableBase * Rate / 100)
+                    taxableBase = baseForTax;
                     taxAmount = MoneyRoundingPolicy.RoundMoney(taxableBase * l.TaxRatePercentage / 100m);
-                    linePayable = taxableBase + taxAmount;
+                    linePayable = discountedAmount + taxAmount;
                     totalExclusiveTax += taxAmount;
                 }
             }
             else
             {
                 // Non-taxable, zero-rated, exempt, or out of scope
-                taxableBase = discountedAmount;
+                taxableBase = baseForTax;
                 taxAmount = 0.00m;
                 linePayable = discountedAmount;
             }

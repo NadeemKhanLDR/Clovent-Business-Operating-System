@@ -22,12 +22,110 @@ public sealed class TaxProfileResolver : ITaxProfileResolver
     /// <summary>Initializes a new instance of <see cref="TaxProfileResolver"/>.</summary>
     public TaxProfileResolver(
         ITaxProfileRepository taxProfileRepository,
-        IProductRepository productRepository,
-        IProductCategoryRepository categoryRepository)
+        IProductRepository? productRepository = null,
+        IProductCategoryRepository? categoryRepository = null)
     {
         _taxProfileRepository = taxProfileRepository;
-        _productRepository = productRepository;
-        _categoryRepository = categoryRepository;
+        _productRepository = productRepository!;
+        _categoryRepository = categoryRepository!;
+    }
+
+    /// <summary>
+    /// Directly resolves tax rules for a TaxConfiguration without requiring a persisted Product.
+    /// </summary>
+    public async Task<TaxResolutionResult> ResolveAsync(
+        Clovent.Catalog.Products.ValueObjects.TaxConfiguration taxConfig,
+        string jurisdiction,
+        ItemTaxClassification itemClassification = ItemTaxClassification.Services,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(jurisdiction))
+            throw new ArgumentException("Jurisdiction is required to resolve tax profile.", nameof(jurisdiction));
+
+        if (taxConfig.TaxClassification == TaxClassification.Exempt)
+        {
+            return new TaxResolutionResult(
+                null,
+                taxConfig.TaxCode ?? "PK-EXEMPT",
+                "Sales Tax (Exempt)",
+                taxConfig.Authority ?? "FBR",
+                jurisdiction,
+                TaxClassification.Exempt,
+                itemClassification,
+                0.00m,
+                false,
+                null,
+                "Sixth Schedule / Statutory Exemption");
+        }
+
+        if (taxConfig.TaxClassification == TaxClassification.ZeroRated)
+        {
+            return new TaxResolutionResult(
+                null,
+                taxConfig.TaxCode ?? "PK-ZERO",
+                "Sales Tax (Zero-Rated)",
+                taxConfig.Authority ?? "FBR",
+                jurisdiction,
+                TaxClassification.ZeroRated,
+                itemClassification,
+                0.00m,
+                false,
+                null,
+                "Fifth Schedule / Zero-Rated");
+        }
+
+        if (taxConfig.TaxClassification == TaxClassification.OutOfScope)
+        {
+            return new TaxResolutionResult(
+                null,
+                taxConfig.TaxCode ?? "PK-OUT-OF-SCOPE",
+                "Non-Taxable",
+                taxConfig.Authority ?? "N/A",
+                jurisdiction,
+                TaxClassification.OutOfScope,
+                itemClassification,
+                0.00m,
+                false,
+                null,
+                "Out of Scope");
+        }
+
+        if (taxConfig.TaxProfileId.HasValue)
+        {
+            var profile = await _taxProfileRepository.GetByIdAsync(taxConfig.TaxProfileId.Value, cancellationToken);
+            if (profile != null)
+            {
+                return MapProfileToResult(profile, null, false);
+            }
+        }
+
+        var effectiveProfiles = await _taxProfileRepository.GetEffectiveAsync(DateTimeOffset.UtcNow, cancellationToken);
+        var matchingProfiles = effectiveProfiles
+            .Where(p => string.Equals(p.Jurisdiction, jurisdiction, StringComparison.OrdinalIgnoreCase) &&
+                        p.ItemClassification == itemClassification &&
+                        p.TaxClassification == TaxClassification.Taxable)
+            .ToList();
+
+        if (matchingProfiles.Count > 1)
+        {
+            var standardProfiles = matchingProfiles.Where(p => string.IsNullOrEmpty(p.PaymentMethodRestriction)).ToList();
+            if (standardProfiles.Count > 1)
+            {
+                throw CatalogDomainException.ConflictingTaxProfile(
+                    string.Join(", ", standardProfiles.Select(p => p.Code)),
+                    jurisdiction);
+            }
+            if (standardProfiles.Count == 1)
+            {
+                return MapProfileToResult(standardProfiles[0], null, false);
+            }
+        }
+        else if (matchingProfiles.Count == 1)
+        {
+            return MapProfileToResult(matchingProfiles[0], null, false);
+        }
+
+        throw CatalogDomainException.UnresolvedTaxConfiguration("Item", jurisdiction);
     }
 
     /// <inheritdoc/>

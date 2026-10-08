@@ -206,6 +206,35 @@ public static class ReceiptFormatter
         return sb.ToString();
     }
 
+    /// <summary>Formats a plain-text refund credit note from a RefundDto and original order number.</summary>
+    public static string FormatRefundCreditNote(Clovent.Restaurant.Application.Refunds.Dtos.RefundDto refund, string originalOrderNumber)
+    {
+        ArgumentNullException.ThrowIfNull(refund);
+
+        var items = refund.Lines.Select(l => new RefundItemPrintLine(
+            l.Name,
+            l.Quantity,
+            l.UnitPrice,
+            l.LineTotalRefunded,
+            l.DiscountReversed,
+            l.TaxReversed,
+            l.InventoryDisposition)).ToList();
+
+        return FormatRefundCreditNote(
+            refund.RefundNumber,
+            originalOrderNumber,
+            refund.RefundedAtUtc,
+            refund.CashierName,
+            refund.ApprovedByUserName,
+            refund.Reason,
+            refund.SettlementMethod,
+            items,
+            refund.SubtotalRefunded,
+            refund.DiscountReversedTotal,
+            refund.TaxReversedTotal,
+            refund.GrandTotalRefunded);
+    }
+
     /// <summary>Formats a plain-text refund credit note referencing the original invoice.</summary>
     public static string FormatRefundCreditNote(
         string refundNumber,

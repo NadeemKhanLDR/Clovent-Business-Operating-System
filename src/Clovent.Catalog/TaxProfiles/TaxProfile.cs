@@ -110,7 +110,7 @@ public sealed class TaxProfile : AggregateRoot<TaxProfileId>
         ItemTaxClassification itemClassification,
         decimal ratePercentage,
         TaxPricingMode pricingMode,
-        DateTimeOffset effectiveFromUtc,
+        DateTimeOffset? effectiveFromUtc = null,
         DateTimeOffset? effectiveToUtc = null,
         string? referenceDocument = null,
         string? paymentMethodRestriction = null,
@@ -130,6 +130,7 @@ public sealed class TaxProfile : AggregateRoot<TaxProfileId>
         if (taxClassification != TaxClassification.Taxable && ratePercentage != 0m)
             throw new ArgumentException("Non-taxable, zero-rated, and exempt profiles must have a 0% tax rate.", nameof(ratePercentage));
 
+        var effectiveFrom = effectiveFromUtc ?? DateTimeOffset.UtcNow;
         var now = DateTimeOffset.UtcNow;
         return new TaxProfile(
             TaxProfileId.New(),
@@ -141,7 +142,7 @@ public sealed class TaxProfile : AggregateRoot<TaxProfileId>
             itemClassification,
             ratePercentage,
             pricingMode,
-            effectiveFromUtc,
+            effectiveFrom,
             effectiveToUtc,
             true,
             referenceDocument?.Trim(),

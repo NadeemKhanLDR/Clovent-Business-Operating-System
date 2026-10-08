@@ -79,6 +79,5 @@ internal sealed class RefundLineConfiguration : IEntityTypeConfiguration<RefundL
             .IsRequired();
 
         builder.Ignore(l => l.GrossAmount);
-        builder.Ignore(l => l.DomainEvents);
     }
 }
