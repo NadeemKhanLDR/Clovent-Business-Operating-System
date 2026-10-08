@@ -67,7 +67,7 @@ public static class OrderTotalsCalculator
         return new OrderTotals(
             subtotal,
             taxResult.TotalTax,
-            taxResult.TotalDiscounts,
+            taxResult.TotalLineDiscounts + orderDiscountTotal,
             serviceChargeTotal,
             grandTotal,
             paidTotal,
