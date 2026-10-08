@@ -58,6 +58,7 @@ partial class ErrorDialogForm
         _buttonPanel.Controls.Add(_detailsToggle);
         _buttonPanel.Dock = DockStyle.Bottom;
         _buttonPanel.Height = 44;
+        _buttonPanel.Padding = new Padding(12, 6, 12, 6);
         _buttonPanel.Name = "_buttonPanel";
         //
         // _detailsToggle
@@ -65,15 +66,16 @@ partial class ErrorDialogForm
         _detailsToggle.Dock = DockStyle.Left;
         _detailsToggle.Name = "_detailsToggle";
         _detailsToggle.Text = "Show Details";
-        _detailsToggle.Width = 120;
+        _detailsToggle.Width = 130;
         _detailsToggle.Click += DetailsToggle_Click;
         //
         // _copyButton
         //
         _copyButton.Dock = DockStyle.Left;
+        _copyButton.Margin = new Padding(8, 0, 0, 0);
         _copyButton.Name = "_copyButton";
         _copyButton.Text = "Copy Details";
-        _copyButton.Width = 120;
+        _copyButton.Width = 130;
         _copyButton.Click += CopyButton_Click;
         //
         // _closeButton
@@ -89,9 +91,8 @@ partial class ErrorDialogForm
         //
         Text = "An error occurred";
         StartPosition = FormStartPosition.CenterScreen;
-        Width = 560;
-        Height = 200;
-        MinimumSize = new Size(420, 160);
+        ClientSize = new Size(580, 220);
+        MinimumSize = new Size(480, 180);
         MaximizeBox = false;
         MinimizeBox = false;
         Controls.Add(_detailsMemo);

@@ -41,7 +41,17 @@ public sealed class ActiveOrderCheckpointStore : IActiveOrderCheckpointStore
 
         if (!Directory.Exists(_checkpointDirectory))
         {
-            Directory.CreateDirectory(_checkpointDirectory);
+            try
+            {
+                Directory.CreateDirectory(_checkpointDirectory);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _checkpointDirectory = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "CartCheckpoints");
+                Directory.CreateDirectory(_checkpointDirectory);
+                _logger?.LogWarning(ex, "Failed to create directory in ProgramData. Falling back to LocalAppData: {FallbackPath}", _checkpointDirectory);
+            }
         }
     }
 

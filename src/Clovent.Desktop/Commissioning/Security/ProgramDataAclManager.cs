@@ -41,6 +41,21 @@ public static class ProgramDataAclManager
     public static string StateDirectory => Path.Combine(BaseDirectory, "State");
 
     /// <summary>
+    /// Subdirectory for encrypted continuity transactions journal.
+    /// </summary>
+    public static string ContinuityJournalDirectory => Path.Combine(BaseDirectory, "ContinuityJournal");
+
+    /// <summary>
+    /// Subdirectory for operational catalog and pricing cache.
+    /// </summary>
+    public static string OperationalCacheDirectory => Path.Combine(BaseDirectory, "OperationalCache");
+
+    /// <summary>
+    /// Subdirectory for active cart recovery checkpoints.
+    /// </summary>
+    public static string CartCheckpointsDirectory => Path.Combine(BaseDirectory, "CartCheckpoints");
+
+    /// <summary>
     /// All managed subdirectories under %ProgramData%\Clovent\BusinessOperatingSystem\.
     /// </summary>
     public static readonly string[] ManagedSubdirectories =
@@ -48,13 +63,16 @@ public static class ProgramDataAclManager
         ConfigDirectory,
         LicenseDirectory,
         LogsDirectory,
-        StateDirectory
+        StateDirectory,
+        ContinuityJournalDirectory,
+        OperationalCacheDirectory,
+        CartCheckpointsDirectory
     ];
 
     /// <summary>
     /// Creates the standard directory structure and applies hardened Windows ACLs.
     /// Administrators &amp; SYSTEM: FullControl.
-    /// Built-in Users: Read-only on Config, License, State; Modify on Logs.
+    /// Built-in Users: Read-only on Config, License, State; Modify on Logs, ContinuityJournal, OperationalCache, CartCheckpoints.
     /// Handles errors gracefully if running in a non-elevated or restricted context.
     /// </summary>
     /// <returns>True if all directories and ACLs were configured successfully; otherwise, false.</returns>
@@ -81,16 +99,26 @@ public static class ProgramDataAclManager
 
         try
         {
-            // 1. Ensure root directory exists and is secured
-            ApplyDirectorySecurity(BaseDirectory, isLogs: false);
+            // 1. Ensure all directories exist BEFORE hardening permissions
+            EnsureDirectoryExists(BaseDirectory);
+            foreach (var sub in ManagedSubdirectories)
+            {
+                EnsureDirectoryExists(sub);
+            }
 
-            // 2. Ensure and secure Config, License, State (Read-only for standard users)
+            // 2. Base directory: allow Builtin Users Read & Execute, Synchronize, and CreateDirectories
+            ApplyBaseDirectorySecurity(BaseDirectory);
+
+            // 3. Ensure and secure Config, License, State (Read-only for standard users)
             ApplyDirectorySecurity(ConfigDirectory, isLogs: false);
             ApplyDirectorySecurity(LicenseDirectory, isLogs: false);
             ApplyDirectorySecurity(StateDirectory, isLogs: false);
 
-            // 3. Ensure and secure Logs (Read + Modify for standard users)
+            // 4. Ensure and secure runtime operational stores (Read + Modify for standard users)
             ApplyDirectorySecurity(LogsDirectory, isLogs: true);
+            ApplyDirectorySecurity(ContinuityJournalDirectory, isLogs: true);
+            ApplyDirectorySecurity(OperationalCacheDirectory, isLogs: true);
+            ApplyDirectorySecurity(CartCheckpointsDirectory, isLogs: true);
 
             return true;
         }
@@ -98,6 +126,82 @@ public static class ProgramDataAclManager
         {
             errorMessage = $"Failed to configure directory ACLs: {ex.Message}";
             return false;
+        }
+    }
+
+    private static void EnsureDirectoryExists(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            try
+            {
+                Directory.CreateDirectory(path);
+            }
+            catch
+            {
+                // Best-effort in non-elevated or restricted execution contexts
+            }
+        }
+    }
+
+    private static void ApplyBaseDirectorySecurity(string path)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var dirInfo = new DirectoryInfo(path);
+        if (!dirInfo.Exists)
+        {
+            try
+            {
+                dirInfo.Create();
+                dirInfo.Refresh();
+            }
+            catch
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            var security = dirInfo.GetAccessControl(AccessControlSections.Access);
+            security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+            security.PurgeAccessRules(AdminSid);
+            security.PurgeAccessRules(SystemSid);
+            security.PurgeAccessRules(UsersSid);
+
+            // Administrators: FullControl
+            security.AddAccessRule(new FileSystemAccessRule(
+                AdminSid,
+                FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+
+            // SYSTEM: FullControl
+            security.AddAccessRule(new FileSystemAccessRule(
+                SystemSid,
+                FileSystemRights.FullControl,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+
+            // Built-in Users: ReadAndExecute, CreateDirectories, Synchronize
+            security.AddAccessRule(new FileSystemAccessRule(
+                UsersSid,
+                FileSystemRights.ReadAndExecute | FileSystemRights.CreateDirectories | FileSystemRights.Synchronize,
+                InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                PropagationFlags.None,
+                AccessControlType.Allow));
+
+            dirInfo.SetAccessControl(security);
+        }
+        catch
+        {
+            // Best-effort in non-elevated or restricted execution contexts
         }
     }
 

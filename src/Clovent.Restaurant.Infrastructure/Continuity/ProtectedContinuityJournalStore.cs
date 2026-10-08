@@ -52,7 +52,18 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
         var dirPath = Path.GetDirectoryName(_journalFilePath);
         if (!string.IsNullOrWhiteSpace(dirPath) && !Directory.Exists(dirPath))
         {
-            Directory.CreateDirectory(dirPath);
+            try
+            {
+                Directory.CreateDirectory(dirPath);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var fallbackDir = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "ContinuityJournal");
+                _journalFilePath = Path.Combine(fallbackDir, "journal.dat");
+                Directory.CreateDirectory(fallbackDir);
+                _logger?.LogWarning(ex, "Failed to create directory {DirPath}. Falling back to LocalAppData: {FallbackPath}", dirPath, _journalFilePath);
+            }
         }
     }
 

@@ -76914,3 +76914,1250 @@
   KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
   ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=694}, ClientRect={X=0,Y=0,Width=1884,Height=694}
 --------------------------------------------------------------------------------
+[2026-10-08 19:02:47.256] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=148,Width=118,Height=225}, ClientRect={X=0,Y=0,Width=118,Height=225}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=80,Height=195}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=440,Height=90}, PreferredSize={Width=440, Height=90}, Min={Width=440, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=385,Width=118,Height=201}, ClientRect={X=0,Y=0,Width=118,Height=201}
+  ResultsGrid: Bounds={X=3,Y=2,Width=112,Height=-2}, ClientRect={X=0,Y=0,Width=112,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:02:47.259] EVENT: ParentChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=DevExpress.XtraBars.Docking2010.DocumentContainer, Name='', Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}
+  Parent Font: Segoe UI 10pt, Parent DeviceDpi=240
+  FilterCard: Bounds={X=16,Y=148,Width=118,Height=225}, ClientRect={X=0,Y=0,Width=118,Height=225}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=80,Height=195}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=440,Height=90}, PreferredSize={Width=440, Height=90}, Min={Width=440, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=385,Width=118,Height=201}, ClientRect={X=0,Y=0,Width=118,Height=201}
+  ResultsGrid: Bounds={X=3,Y=2,Width=112,Height=-2}, ClientRect={X=0,Y=0,Width=112,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:02:47.267] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}, DisplayRect={X=0,Y=0,Width=3826,Height=1572}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=DevExpress.XtraBars.Docking2010.DocumentContainer, Name='', Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}
+  Parent Font: Segoe UI 10pt, Parent DeviceDpi=240
+  FilterCard: Bounds={X=16,Y=148,Width=3794,Height=225}, ClientRect={X=0,Y=0,Width=3794,Height=225}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=3756,Height=195}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=440,Height=90}, PreferredSize={Width=440, Height=90}, Min={Width=440, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=385,Width=3794,Height=201}, ClientRect={X=0,Y=0,Width=3794,Height=201}
+  ResultsGrid: Bounds={X=3,Y=3,Width=3788,Height=844}, ClientRect={X=0,Y=0,Width=3788,Height=844}
+--------------------------------------------------------------------------------
+[2026-10-08 19:02:47.270] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}, DisplayRect={X=0,Y=0,Width=3826,Height=1572}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=DevExpress.XtraBars.Docking2010.DocumentContainer, Name='', Bounds={X=-3826,Y=-1572,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}
+  Parent Font: Segoe UI 10pt, Parent DeviceDpi=240
+  FilterCard: Bounds={X=16,Y=148,Width=3794,Height=225}, ClientRect={X=0,Y=0,Width=3794,Height=225}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=3756,Height=195}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=440,Height=90}, PreferredSize={Width=440, Height=90}, Min={Width=440, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=385,Width=3794,Height=201}, ClientRect={X=0,Y=0,Width=3794,Height=201}
+  ResultsGrid: Bounds={X=3,Y=3,Width=3788,Height=844}, ClientRect={X=0,Y=0,Width=3788,Height=844}
+--------------------------------------------------------------------------------
+[2026-10-08 19:02:47.432] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}, DisplayRect={X=0,Y=0,Width=3826,Height=1572}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=DevExpress.XtraBars.Docking2010.DocumentContainer, Name='', Bounds={X=-3826,Y=-1572,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}
+  Parent Font: Segoe UI 10pt, Parent DeviceDpi=240
+  FilterCard: Bounds={X=16,Y=148,Width=3794,Height=228}, ClientRect={X=0,Y=0,Width=3794,Height=228}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=3756,Height=198}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=480,Height=90}, PreferredSize={Width=480, Height=90}, Min={Width=480, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=388,Width=3794,Height=201}, ClientRect={X=0,Y=0,Width=3794,Height=201}
+  ResultsGrid: Bounds={X=3,Y=3,Width=3788,Height=841}, ClientRect={X=0,Y=0,Width=3788,Height=841}
+--------------------------------------------------------------------------------
+[2026-10-08 19:02:47.574] EVENT: BeginInvoke 100ms after load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=240
+  Bounds={X=0,Y=0,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}, DisplayRect={X=0,Y=0,Width=3826,Height=1572}
+  Font: Segoe UI 10pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=DevExpress.XtraBars.Docking2010.DocumentContainer, Name='', Bounds={X=7,Y=82,Width=3826,Height=1572}, ClientRect={X=0,Y=0,Width=3826,Height=1572}
+  Parent Font: Segoe UI 10pt, Parent DeviceDpi=240
+  FilterCard: Bounds={X=16,Y=148,Width=3794,Height=225}, ClientRect={X=0,Y=0,Width=3794,Height=225}
+  FilterTableLayout: Bounds={X=19,Y=15,Width=3756,Height=195}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=215,Height=41}, PreferredSize={Width=215, Height=41}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=55,Width=450,Height=90}, PreferredSize={Width=450, Height=90}, Min={Width=450, Height=90}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=490,Y=0,Width=306,Height=41}, PreferredSize={Width=306, Height=41}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=490,Y=55,Width=750,Height=90}, PreferredSize={Width=750, Height=90}, Min={Width=700, Height=90}
+  AnalyzeBtn: Bounds={X=1280,Y=55,Width=480,Height=90}, PreferredSize={Width=480, Height=90}, Min={Width=480, Height=90}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=385,Width=3794,Height=201}, ClientRect={X=0,Y=0,Width=3794,Height=201}
+  ResultsGrid: Bounds={X=3,Y=3,Width=3788,Height=841}, ClientRect={X=0,Y=0,Width=3788,Height=841}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:01.344] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:01.349] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:01.352] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:01.414] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=111}, ClientRect={X=0,Y=0,Width=1334,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:01.430] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:40.132] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:40.326] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:40.859] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:40.863] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=385}, ClientRect={X=0,Y=0,Width=988,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:40.864] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=385}, ClientRect={X=0,Y=0,Width=988,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:41.029] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=111}, ClientRect={X=0,Y=0,Width=992,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=382}, ClientRect={X=0,Y=0,Width=988,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.096] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=382}, ClientRect={X=0,Y=0,Width=988,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.215] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.221] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.224] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.414] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=111}, ClientRect={X=0,Y=0,Width=1334,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.528] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.628] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.635] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=697}, ClientRect={X=0,Y=0,Width=1884,Height=697}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.637] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=697}, ClientRect={X=0,Y=0,Width=1884,Height=697}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.747] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=111}, ClientRect={X=0,Y=0,Width=1888,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=694}, ClientRect={X=0,Y=0,Width=1884,Height=694}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:42.905] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=694}, ClientRect={X=0,Y=0,Width=1884,Height=694}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.181] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.186] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=385}, ClientRect={X=0,Y=0,Width=988,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.226] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.234] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.325] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.330] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=697}, ClientRect={X=0,Y=0,Width=1884,Height=697}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.468] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.593] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.651] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:44.940] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:45.837] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.088] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.091] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=385}, ClientRect={X=0,Y=0,Width=988,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.092] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=385}, ClientRect={X=0,Y=0,Width=988,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.178] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=111}, ClientRect={X=0,Y=0,Width=992,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=382}, ClientRect={X=0,Y=0,Width=988,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.195] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1024,Height=768}, ClientRect={X=0,Y=0,Width=1024,Height=768}, DisplayRect={X=0,Y=0,Width=1024,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=992,Height=108}, ClientRect={X=0,Y=0,Width=992,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=956,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=992,Height=99}, ClientRect={X=0,Y=0,Width=992,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=988,Height=382}, ClientRect={X=0,Y=0,Width=988,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.229] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.235] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.243] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=385}, ClientRect={X=0,Y=0,Width=1330,Height=385}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.417] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=111}, ClientRect={X=0,Y=0,Width=1334,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.443] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1366,Height=768}, ClientRect={X=0,Y=0,Width=1366,Height=768}, DisplayRect={X=0,Y=0,Width=1366,Height=768}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1334,Height=108}, ClientRect={X=0,Y=0,Width=1334,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1298,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1334,Height=99}, ClientRect={X=0,Y=0,Width=1334,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1330,Height=382}, ClientRect={X=0,Y=0,Width=1330,Height=382}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.542] EVENT: Constructor End
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=150,Height=150}, ClientRect={X=0,Y=0,Width=150,Height=150}, DisplayRect={X=0,Y=0,Width=150,Height=150}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=118,Height=108}, ClientRect={X=0,Y=0,Width=118,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=82,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=118,Height=99}, ClientRect={X=0,Y=0,Width=118,Height=99}
+  ResultsGrid: Bounds={X=2,Y=1,Width=114,Height=-2}, ClientRect={X=0,Y=0,Width=114,Height=-2}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.552] EVENT: SizeChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=697}, ClientRect={X=0,Y=0,Width=1884,Height=697}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.554] EVENT: HandleCreated
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=176,Height=36}, PreferredSize={Width=176, Height=36}, Min={Width=176, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=697}, ClientRect={X=0,Y=0,Width=1884,Height=697}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.719] EVENT: Load
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=111}, ClientRect={X=0,Y=0,Width=1888,Height=111}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=83}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=202,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=694}, ClientRect={X=0,Y=0,Width=1884,Height=694}
+--------------------------------------------------------------------------------
+[2026-10-08 19:51:46.741] EVENT: VisibleChanged
+  View: Type=Clovent.Desktop.Restaurant.SmartPos.SmartComboBuilderView, Name='SmartComboBuilderView', DeviceDpi=96
+  Bounds={X=0,Y=0,Width=1920,Height=1080}, ClientRect={X=0,Y=0,Width=1920,Height=1080}, DisplayRect={X=0,Y=0,Width=1920,Height=1080}
+  Font: Tahoma 8.25pt, Style=Regular
+  Container: AutoScaleMode=Inherit, AutoScaleDimensions={Width=0, Height=0}, CurrentAutoScaleDimensions={Width=0, Height=0}
+  Parent: Type=null, Name='', Bounds=N/A, ClientRect=N/A
+  FilterCard: Bounds={X=16,Y=79,Width=1888,Height=108}, ClientRect={X=0,Y=0,Width=1888,Height=108}
+  FilterTableLayout: Bounds={X=18,Y=14,Width=1852,Height=80}, Rows=3, Cols=4
+    Col[0]: SizeType=AutoSize, Width=0
+    Col[1]: SizeType=AutoSize, Width=0
+    Col[2]: SizeType=AutoSize, Width=0
+    Col[3]: SizeType=Percent, Width=100
+    Row[0]: SizeType=AutoSize, Height=0
+    Row[1]: SizeType=AutoSize, Height=0
+    Row[2]: SizeType=AutoSize, Height=0
+  PeriodLabel: Bounds={X=0,Y=0,Width=82,Height=15}, PreferredSize={Width=82, Height=15}, Font=Segoe UI 9pt
+  PeriodEdit: Bounds={X=0,Y=19,Width=180,Height=36}, PreferredSize={Width=180, Height=36}, Min={Width=180, Height=36}, Max={Width=0, Height=0}
+  LocationLabel: Bounds={X=196,Y=0,Width=121,Height=15}, PreferredSize={Width=121, Height=15}, Font=Segoe UI 9pt
+  LocationEdit: Bounds={X=196,Y=19,Width=300,Height=36}, PreferredSize={Width=300, Height=36}, Min={Width=280, Height=36}
+  AnalyzeBtn: Bounds={X=512,Y=19,Width=192,Height=36}, PreferredSize={Width=192, Height=36}, Min={Width=192, Height=36}, Font=Segoe UI 9pt
+  KpiCards: Bounds={X=16,Y=199,Width=1888,Height=99}, ClientRect={X=0,Y=0,Width=1888,Height=99}
+  ResultsGrid: Bounds={X=2,Y=2,Width=1884,Height=694}, ClientRect={X=0,Y=0,Width=1884,Height=694}
+--------------------------------------------------------------------------------

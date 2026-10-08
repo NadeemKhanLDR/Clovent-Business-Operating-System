@@ -56,7 +56,17 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
 
         if (!Directory.Exists(_cacheDirectory))
         {
-            Directory.CreateDirectory(_cacheDirectory);
+            try
+            {
+                Directory.CreateDirectory(_cacheDirectory);
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            {
+                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _cacheDirectory = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "OperationalCache");
+                Directory.CreateDirectory(_cacheDirectory);
+                _logger?.LogWarning(ex, "Failed to create directory in ProgramData. Falling back to LocalAppData: {FallbackPath}", _cacheDirectory);
+            }
         }
     }
 

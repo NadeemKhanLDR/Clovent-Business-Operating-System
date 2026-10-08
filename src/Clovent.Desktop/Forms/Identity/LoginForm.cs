@@ -149,14 +149,21 @@ public sealed partial class LoginForm : XtraForm
         txtPassword.Properties.UseSystemPasswordChar = true;
         txtPin.Properties.UseSystemPasswordChar = true;
 
-#if DEBUG
         // Development-only convenience: pre-fill demo credentials for fast local workflow
-        if (string.IsNullOrWhiteSpace(txtUsername.Text))
+        // when running in DEBUG or on the designated development workstation.
+        var currentMachineId = Clovent.Desktop.Licensing.MachineFingerprint.GetCurrentMachineId();
+        var isDevelopmentMachine = string.Equals(currentMachineId, "0712-7CA3-8171-7B34", StringComparison.OrdinalIgnoreCase);
+#if DEBUG
+        var isDebugBuild = true;
+#else
+        var isDebugBuild = false;
+#endif
+
+        if ((isDebugBuild || isDevelopmentMachine) && string.IsNullOrWhiteSpace(txtUsername.Text))
         {
             txtUsername.Text = "Admin";
             txtPassword.Text = "Admin123!";
         }
-#endif
 
         cmbLanguage.SelectedIndexChanged += CmbLanguage_SelectedIndexChanged;
     }
