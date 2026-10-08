@@ -16,8 +16,28 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// </summary>
 public static class SmartPosLayoutTelemetry
 {
+    public static readonly string TelemetryDir = FindTelemetryDir();
+
+    private static string FindTelemetryDir()
+    {
+        try
+        {
+            var dir = AppContext.BaseDirectory;
+            while (!string.IsNullOrEmpty(dir))
+            {
+                if (File.Exists(Path.Combine(dir, "Clovent.BusinessOperatingSystem.slnx")))
+                {
+                    return Path.Combine(dir, "qa", "runtime_layout");
+                }
+                var parent = Directory.GetParent(dir);
+                if (parent == null) break;
+                dir = parent.FullName;
+            }
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "qa", "runtime_layout");
+        }
+    }
+
     private static readonly object FileLock = new();
-    public static readonly string TelemetryDir = Path.Combine("D:\\Clovent Business Operating System", "qa", "runtime_layout");
 
     public static void EnsureDirectory()
     {
