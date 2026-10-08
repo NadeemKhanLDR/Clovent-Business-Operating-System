@@ -21,6 +21,7 @@
 ## 2. Authentication & Brute-Force Protection
 
 - **Bounded Brute-Force Protection:** Interactive authentication mechanisms (passwords and PINs) must implement bounded brute-force defense, including rate limiting, exponential backoff, or temporary account/terminal lockout upon repeated failed attempts.
+- **Terminal-Level PIN Throttling Governance (TASK-02):** Process-local throttling alone does not satisfy terminal-level protection against brute-force attacks. TASK-02 must address restart and multiple-instance bypass, using a bounded design compatible with zero database migrations. If not resolved during implementation, that limitation must remain explicitly open for pilot acceptance; do not silently mark this requirement complete merely because UI delays work.
 - **Generic Authentication Failure Responses:** Authentication errors must return generic failure messages without revealing whether a username or PIN exists.
 - **Credential Storage:** All stored passwords and PINs must be cryptographically hashed using industry-standard, salted algorithms (e.g., PBKDF2 with SHA-256 or BCrypt).
 
@@ -36,7 +37,13 @@
   - **Missing Services Fail Closed:** Missing services, unconfigured authorization providers, or failed authorization checks deny access immediately.
 - **No Hardcoded Administrative Usernames:** Authorization decisions must evaluate authenticated user roles and granular permissions. Fast-path elevation based on literal usernames (such as `"admin"` or `"administrator"`) is strictly forbidden.
 - **UI Visibility Is Not Authorization:** Hiding or disabling UI controls (ribbon buttons, menu items, views) is a usability feature, not security enforcement. Authoritative authorization must be enforced independently at the application layer (`MediatR` pipeline or service boundary).
-- **Action-Specific Manager Elevation:** Managerial overrides (price overrides, discount limits, credit limit overrides, voids) must challenge the operator for distinct managerial credentials and evaluate permissions specific to that action. If the authorization service is unavailable, the challenge must fail closed.
+- **Action-Specific Manager Elevation & Pilot Scope (TASK-05):**
+  - Managerial overrides (price overrides, discount limits, credit limit overrides, voids) must challenge the operator for distinct managerial credentials and evaluate permissions specific to that action. If the authorization service is unavailable, the challenge must fail closed.
+  - A dedicated manager-approval database table is **not mandatory for the 1.2.3 pilot**, and its absence alone is not an implementation blocker.
+  - The application layer must execute trusted validation binding manager identity, permission, cashier/session, action, order/customer, amount/excess, and `PaymentAttemptId`, with safe expiry, consumption, and retry behavior.
+  - Record durable audit evidence in suitable existing storage (`[Authentication].[LoginAttempts]` or existing audit events); audit text itself is never authorization.
+  - An authorized retry of an already committed payment returns the original result even after its approval token expires; an uncommitted attempt after restart may require fresh approval.
+  - If these guarantees cannot be achieved securely without migrations, report the precise demonstrated limitation rather than assuming feasibility.
 - **One-Time Admin Bootstrap:** The initial administrator provisioning endpoint permanently disables itself once an active administrator account exists in the database.
 
 ---

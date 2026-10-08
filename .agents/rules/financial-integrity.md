@@ -44,7 +44,10 @@ All financial rounding must use the single centrally approved `MoneyRoundingPoli
 ### C. Selected Pilot Midpoint Direction & TASK-03 Calculation Contract
 > [!IMPORTANT]
 > **Selected Pilot Midpoint Direction & Pre-TASK-03 Scope:**
-> - **Selected Pilot Direction:** `MidpointRounding.AwayFromZero` is recorded as the **selected pilot midpoint direction**, pending completion of TASK-03's explicit calculation contract.
+> - **Selected Pilot Direction:** `MidpointRounding.AwayFromZero` remains the **selected pilot midpoint direction**, pending completion of TASK-03's explicit calculation contract.
+> - **Provisional Sequence & Contract Mandate:** The currently written tax/discount/service-charge calculation sequence is **PROVISIONAL**. Before modifying calculations in code, TASK-03 must formally establish the supported contract and include combined examples of order discounts interacting with inclusive/exclusive taxes and applicable service charges.
+> - **No Approval from Separate Arithmetic:** Separate arithmetic examples do not constitute approval of the full combined sequence.
+> - **Historical Snapshots & Replay Contract:** Completed historical snapshots remain strictly immutable. Continuity replay must preserve sale-time financial facts (prices, tax rates, discount amounts at sale time) rather than repricing transactions under current settings upon reconnection.
 > - **Contract Decisions to be Resolved by TASK-03:** TASK-03 (financial rounding contract) must formally complete and verify:
 >   1. **Rounding Boundaries:** Define exact points in the calculation pipeline where intermediate rounding occurs versus where full decimal precision is preserved.
 >   2. **Tax & Discount Ordering:** Establish the exact execution sequence between line-item discounts, line-level exclusive/inclusive taxes, order-level discounts, and service charges.
@@ -82,7 +85,7 @@ Transactional currency precision must match the approved persistence schema and 
 
 ---
 
-## 7. Payment Idempotency & Identity Governance (TASK-05)
+## 7. Payment Idempotency & Concurrency Governance (TASK-05)
 
 - **Payment Attempt Identity Rule:**
   - Generate `PaymentAttemptId` once per intentional payment attempt.
@@ -90,9 +93,22 @@ Transactional currency precision must match the approved persistence schema and 
   - A genuinely separate intentional payment receives a new ID.
   - Reusing an ID with conflicting payment details must be rejected.
   - Do not prescribe a new schema for this documentation task.
+- **Payment Concurrency & Unique Recovery:**
+  - **Do not describe the unique idempotency index as protection against all payment concurrency problems.** While it detects duplicate submissions of the identical `PaymentAttemptId`, it does not prevent competing attempts against the same balance.
+  - **Strict Unique Recovery:** Only the identified `IdempotencyKey` unique-constraint conflict (`IX_Payments_IdempotencyKey`) may enter duplicate-success recovery. Never treat every `DbUpdateException` as success.
+  - Rollback and clean-context handling and immutable-detail checks remain strictly required: discard the tainted DbContext, reload the committed payment in a clean context, verify immutable details, and return the committed result.
+  - Concurrency tests must cover different attempt IDs competing against the same remaining order balance, in addition to duplicate requests sharing one ID.
+- **Manager Approval Protocol & Pilot Persistence:**
+  - A dedicated manager-approval table is **not mandatory for the 1.2.3 pilot**; its absence alone is not an implementation blocker.
+  - Require trusted application-layer validation binding manager identity, permission (`pos.exceedcreditlimit`), cashier/session, action, order/customer, amount/excess, and `PaymentAttemptId`, with safe expiry, consumption, and retry behavior.
+  - Record durable audit evidence in suitable existing storage (`[Authentication].[LoginAttempts]` or existing audit structures).
+  - Audit text itself is never authorization.
+  - An authorized retry of an already committed payment returns the original result even after its approval token expires.
+  - An uncommitted attempt after restart may require fresh approval.
+  - If these guarantees cannot be achieved securely without migrations, report the precise demonstrated limitation rather than assuming feasibility.
 - **Persistence Boundary Enforcement:** Handlers and database configurations must enforce idempotency at the persistence boundary to prevent duplicate payment postings.
 - In-flight payment mutations must fail closed on concurrency collisions.
-- Payment idempotency and credit-limit approval gating are governed under **TASK-05**.
+
 
 ---
 

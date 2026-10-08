@@ -6,14 +6,17 @@
 | **Preceding Baseline** | CBOS 1.2.2 Frozen Internal Acceptance Baseline (`d9d38cbb17828fe771568ca5ab6abb036fe8798b`) |
 | **Database Migration Invariant** | **STRICT ZERO DATABASE MIGRATIONS** |
 | **Audience** | Implementation Leads, Engineering Agents, QA Engineers |
-| **Status** | **DRAFT — PENDING TECHNICAL SIGN-OFF** |
+| **Status** | **ACCEPTED PLANNING BASELINE — IMPLEMENTATION AND RUNTIME VALIDATION PENDING** |
 | **Classification** | **PUBLIC-SAFE** |
 
 ---
 
 ## 1. Executive Summary & Architectural Invariants
 
-This handoff document provides the detailed technical specification for the ten canonical hardening tasks required to deliver **CBOS 1.2.3** as a controlled, attended, single-terminal commercial pilot release. This document is a **draft pending formal technical sign-off** and does not self-certify release approval or proven feasibility.
+This handoff document provides the detailed technical specification for the ten canonical hardening tasks required to deliver **CBOS 1.2.3** as a controlled, attended, single-terminal commercial pilot release.
+
+**Governance & Status Record:**
+The general governance review is closed for the agreed scope. This handoff specification is formally accepted as an **ACCEPTED PLANNING BASELINE — IMPLEMENTATION AND RUNTIME VALIDATION PENDING**, subject to four binding implementation clarifications. This status closes the planning review but does **not** mean the software is pilot-ready or that application fixes have been executed. Production implementation, runtime qualification, and clean-machine acceptance remain pending.
 
 ### Core Architectural Invariants:
 1. **Strict Zero Database Migrations:** No schema modifications, no EF Core migrations, and no schema snapshot alterations may be introduced in CBOS 1.2.3. All persistence capabilities (idempotency, outbox messages, day close aggregation, and snapshot storage) must leverage existing database tables and columns created in the 1.2.2 baseline. Aggregate concurrency tokens (`RowVersion`) belong strictly to CBOS 1.3.0.
@@ -89,10 +92,14 @@ This handoff document provides the detailed technical specification for the ten 
   - Source-confirmed seed behavior: `DevelopmentUserSeedStartupTask.cs` matches on username `"admin"` or email `"admin@clovent.local"` and, when `Desktop:SeedDevelopmentUser` is enabled, overwrites the account's password hash if it does not verify against the built-in development password constant.
   - Required behavior:
     1. Apply rate limiting and progressive delays at the **authentication service boundary** (`LoginService` / `AuthenticateByPin`), not merely in the WinForms UI controls. Unmatched PIN attempts trigger progressive delays (e.g. 2-second delay after 3 failures; 30-second lockout after 5 failures).
-    2. **Throttling Scope & Restart Limitations:** A process-local in-memory rate limiter protects against rapid automated guessing in the running application process, but resets if the application process restarts or if multiple application instances run concurrently. Full terminal-wide protection across restarts would require persistent cross-process state; this limitation must be explicitly documented.
+    2. **Terminal-Level Throttling Scope & Bypass Protection:**
+       - **Binding Clarification:** Process-local in-memory throttling alone does **not** satisfy terminal-level protection against brute-force attacks, as an attacker could bypass delays simply by restarting the application process or launching concurrent application instances.
+       - TASK-02 must address restart and multiple-instance bypass using a bounded design compatible with zero database migrations (e.g. cross-process mutex/lock or local state storage in `%ProgramData%\Clovent\BusinessOperatingSystem\` with machine DPAPI, or existing storage).
+       - If not resolved during implementation, keep that limitation open as an explicit known limitation for pilot acceptance.
+       - Do **not** silently mark this requirement complete merely because UI delays or in-memory timers work.
     3. **Seed Protection:** `DevelopmentUserSeedStartupTask` must remain permanently disabled in production builds (guarded by `#if DEBUG` and environment gating) regardless of configuration flags. In all environments, existing user credentials must **never** be reset or overwritten by seeding; if a user already exists, seed execution must be a complete no-op.
 - **Intended Bounded Change:**
-  - Implement `ITerminalPinThrottleService` and enforce throttling at the authentication service boundary in `LoginService.cs`.
+  - Implement `ITerminalPinThrottleService` and enforce throttling at the authentication service boundary in `LoginService.cs`, addressing restart and multi-instance bypass without migrations (or documenting the open limitation).
   - Modify `DevelopmentUserSeedStartupTask.cs`: if an existing user is found, never alter their password; only seed if no user exists and environment is explicitly non-production (`#if DEBUG`).
 - **Dependencies:** TASK-01.
 - **Existing Tests to Extend & Regression Cases:**
@@ -101,10 +108,12 @@ This handoff document provides the detailed technical specification for the ten 
     - Rapid invalid PIN submissions trigger delay and lockout at the service boundary.
     - Valid PIN resets the failure counter upon successful login.
     - Existing administrator credentials are not overwritten by seed tasks when `SeedDevelopmentUser` is enabled.
+    - Multi-instance and restart attempts are tested against terminal-level lockout.
 - **Acceptance Criteria:**
   - Unmatched PIN submissions trigger progressive delay and lockout at the service boundary.
+  - Restart and multi-instance bypass is addressed via zero-migration bounded design, or the limitation remains explicitly open for pilot acceptance.
   - Seed tasks never overwrite existing credentials and cannot execute in production builds.
-- **Zero-Migration Compliance:** 100% compliant (in-memory rate limiting and C# startup task gating).
+- **Zero-Migration Compliance:** 100% compliant (machine DPAPI/file/mutex state and C# startup task gating).
 
 ---
 
@@ -121,7 +130,13 @@ This handoff document provides the detailed technical specification for the ten 
 - **Current Defect / Required Behavior:**
   - Financial calculations lack a single centralized rounding policy. Sporadic ad-hoc rounding occurs across components.
   - Required behavior: Implement a centralized domain service `MoneyRoundingPolicy` using `MidpointRounding.AwayFromZero` as the selected pilot midpoint direction.
-  - **Supported Calculation Contract Sequence:**
+  - **Binding Clarification — Provisional Sequence & Contract Precondition:**
+    - `MidpointRounding.AwayFromZero` remains the selected midpoint direction for the CBOS 1.2.3 pilot.
+    - **The currently written tax / discount / service-charge calculation sequence is PROVISIONAL.**
+    - Before modifying calculations in code, TASK-03 must formally establish the supported contract and include combined examples of order discounts with inclusive/exclusive taxes and applicable service charges.
+    - Do **not** treat separate arithmetic examples as approval of the full sequence.
+    - **Historical Snapshot Preservation & Replay Contract:** Completed historical transaction records and `ReceiptSnapshotJson` snapshots remain permanently immutable. Offline Continuity replay (`EmergencyJournalReplayer`) must preserve sale-time financial facts (prices, tax rates, discount rates, and net values captured when the offline sale occurred) rather than repricing or recalculating transactions under current/modified operational settings upon reconnection.
+  - **Provisional Calculation Contract Sequence:**
     1. **Line Gross Base:** $\text{UnitPrice} \times \text{Quantity}$.
     2. **Line Discounts:** Deducted to produce line net amount.
     3. **Inclusive Tax Extraction:**
@@ -132,7 +147,7 @@ This handoff document provides the detailed technical specification for the ten 
     5. **Order-Level Discount Allocation:** Apportioned across lines using the Largest Remainder Method (Hamilton-Hare) to distribute residual cents without rounding loss.
     6. **Service Charges & Fees:** Calculated on order subtotal and rounded AwayFromZero.
     7. **Payable Total:** $\sum \text{Line Subtotals} + \sum \text{Exclusive Taxes} - \text{Order Discounts} + \sum \text{Service Charges}$.
-  - **Worked Dummy Examples:**
+  - **Provisional Component Arithmetic Examples (Component Illustrations Only — Not Full Sequence Approval):**
     - *Example 1 (Residual Cent Allocation):*
       An order discount of \$1.00 is applied across 3 identical \$10.00 items (Total = \$30.00).
       Unrounded discount per item = \$1.00 / 3 = \$0.333333...
@@ -152,11 +167,18 @@ This handoff document provides the detailed technical specification for the ten 
       1 item with base price \$10.00 subject to 16% exclusive sales tax.
       $\text{Tax Amount} = \text{RoundAwayFromZero}(\$10.00 \times 0.16) = \$1.60$.
       $\text{Payable Total} = \$10.00 + \$1.60 = \$11.60$.
+    - *Example 4 (Combined Interaction Scope — Required in TASK-03 Prior to Code Modification):*
+      Before calculation logic is modified, TASK-03 must establish the combined contract specification and include concrete examples covering:
+      - Interaction between order-level discounts and line items subject to inclusive taxes (does the discount reduce the tax-inclusive shelf price before extracting tax, or reduce the net base?).
+      - Interaction between order-level discounts and exclusive taxes (does exclusive tax apply before or after apportioning order discounts?).
+      - Service charges applied on orders with both inclusive-tax items and exclusive-tax items, and whether service charges themselves are taxable.
+      Separate arithmetic examples above illustrate isolated mathematical rules and must not be treated as approval of the combined sequence.
   - **Consistency Across Engines:**
-    The identical calculation contract governs online POS calculations (`OrderTotalsCalculator`), offline continuity replay (`EmergencyJournalReplayer`), receipt printing, and Day Close summaries.
-  - **Historical Transaction Immutability:**
-    Do **not** recalculate completed historical transactions using current rules. Completed historical order records and snapshot JSON remain permanently immutable.
+    The formally established calculation contract governs online POS calculations (`OrderTotalsCalculator`), offline continuity replay (`EmergencyJournalReplayer`), receipt printing, and Day Close summaries.
+  - **Historical Transaction Immutability & Replay Contract:**
+    Completed historical order records and snapshot JSON remain permanently immutable. Replay must preserve sale-time financial facts rather than repricing transactions under current settings.
 - **Intended Bounded Change:**
+  - Establish supported calculation contract with combined examples in TASK-03 before modifying calculations.
   - Introduce `MoneyRoundingPolicy` in `Clovent.Restaurant/DomainServices/`.
   - Refactor `OrderTotalsCalculator` and calculation paths to route through `MoneyRoundingPolicy`.
 - **Dependencies:** None.
@@ -235,29 +257,37 @@ This handoff document provides the detailed technical specification for the ten 
   - Rapid double-clicks or retransmissions can create duplicate payment records.
   - Manager elevation for credit-limit override can be bypassed if handled via an unverified caller-provided boolean or string.
   - Required behavior:
-    1. **Payment Idempotency Protocol:**
+    1. **Payment Idempotency & Concurrency Protocol:**
        - Retain the existing `[Restaurant].[Payments].[IdempotencyKey]` column (NVARCHAR(200)) and unique filtered index `IX_Payments_IdempotencyKey`.
        - A preliminary repository lookup via `GetByIdempotencyKeyAsync` is an **optimization** to avoid redundant work, **not concurrency protection**.
-       - True concurrency protection relies on the database unique index.
-       - One attempt identity (`IdempotencyKey`) is generated once per intentional payment attempt and reused across retries.
+       - True duplicate-request protection relies on the database unique index. However, **do not describe the unique idempotency index as protection against all payment concurrency problems.** The unique index prevents duplicate processing of the exact same payment attempt; it does not prevent concurrency conflicts where *different* attempt IDs compete simultaneously against the same remaining order balance.
+       - One attempt identity (`PaymentAttemptId` / `IdempotencyKey`) is generated once per intentional payment attempt and reused across retries, retransmissions, and duplicate UI submissions.
        - If a retry or retransmission reuses an `IdempotencyKey` but differs in immutable payment details (`OrderId`, `PaymentMethodId`, `Amount`, `CustomerId`), the system must reject the request immediately (`IdempotencyKeyConflictException`).
        - Payment aggregate, customer-ledger entry, order state transition, and Outbox messages must be committed **atomically** in a single database transaction (`UnitOfWorkBehavior`).
-       - **Unique-Conflict Recovery:** Under concurrent submissions of the same `IdempotencyKey`, the concurrent execution encountering a unique constraint violation (`DbUpdateException`) must catch the exception, reload the committed payment using a clean DbContext, verify that immutable details match, and return the committed original result (`PaymentDto.FromDomain(payment)`).
+       - **Strict Unique-Conflict Recovery:** Under concurrent submissions of the same `IdempotencyKey`, **only the identified `IdempotencyKey` unique-constraint conflict (`IX_Payments_IdempotencyKey`) may enter duplicate-success recovery.** **Never treat every `DbUpdateException` as success.** Foreign key failures, check constraints, database timeouts, deadlocks, or general database exceptions must fail closed.
+       - **Rollback & Clean-Context Handling:** When an identified `IdempotencyKey` unique constraint collision occurs, discard the tainted DbContext, reload the committed payment using a clean DbContext, verify that immutable details match, and return the committed original result (`PaymentDto.FromDomain(payment)`).
        - After an ambiguous timeout or retry, resubmission returns the committed original result without executing duplicate customer ledger postings, duplicate order completions, or duplicate Outbox messages.
     2. **Trusted Manager Approval Protocol:**
+       - **A dedicated manager-approval table is NOT mandatory for the 1.2.3 pilot.** Its absence alone is **not** an implementation blocker.
        - A caller-provided boolean, manager name, client DTO, or audit string is **not proof of authorization**.
        - The application layer must execute trusted validation of:
-         a. Authenticated approving manager identity and required permission (`pos.exceedcreditlimit`) verified through `IManagerAuthorizationService`.
+         a. Authenticated approving manager identity (`UserId`) and required permission (`pos.exceedcreditlimit`) verified through `IManagerAuthorizationService`.
          b. Cashier session context (challenge occurred within active cashier's session).
          c. Specific challenged action (`pos.exceedcreditlimit`).
          d. Target `OrderId` and `CustomerId`.
          e. Exact payment amount and calculated credit-limit excess.
-         f. Single-use consumption and short TTL (e.g. 60-second in-memory/cryptographic token) preventing replay across multiple payments.
-       - The approval must be bound to the payment attempt (`IdempotencyKey`), allowing safe retries of that exact attempt while preventing reuse for any subsequent payment.
+         f. Specific payment attempt identity (`PaymentAttemptId` / `IdempotencyKey`).
+         g. Safe expiry and single-use consumption (e.g. short TTL token).
+       - **Safe Expiry, Consumption & Retry Behavior:**
+         - The approval must be bound to the specific payment attempt (`PaymentAttemptId`), allowing safe retries of that exact attempt while preventing reuse for any subsequent payment.
+         - An authorized retry of an already committed payment returns the original result even after its approval token expires.
+         - An uncommitted attempt after restart may require fresh manager approval.
        - Raw manager credentials (passwords, PINs) must **never** be passed into persisted commands or logs.
-       - Audit text in `CustomerLedgerEntry.Description` or `Order.Notes` is an evidentiary record, **never** the authorization source.
+       - Record durable audit evidence in suitable existing storage (`[Authentication].[LoginAttempts]` or existing audit events).
+       - **Audit text itself is never authorization:** Audit text in `CustomerLedgerEntry.Description` or `Order.Notes` is an evidentiary record, **never** the authorization source.
+       - **Feasibility & Demonstrated Limitation Requirement:** If these guarantees cannot be achieved securely without migrations, report the precise demonstrated limitation rather than assuming feasibility.
 - **Intended Bounded Change:**
-  - In `RecordPaymentCommand`: retain idempotency key; implement atomic unit-of-work commit; catch unique constraint violations and recover by returning the original committed payment.
+  - In `RecordPaymentCommand`: retain idempotency key; implement atomic unit-of-work commit; catch specifically the `IX_Payments_IdempotencyKey` unique constraint violation; discard tainted context, reload committed payment via clean context, verify immutable details, and return original committed payment.
   - In `RecordPaymentCommandHandler`: validate trusted manager authorization token; verify manager permission, order context, amount excess, and single-use status before applying credit sale.
 - **Dependencies:** TASK-01, TASK-04.
 - **Existing Tests to Extend & Regression Cases:**
@@ -265,14 +295,17 @@ This handoff document provides the detailed technical specification for the ten 
   - Extend: `src/Clovent.Restaurant.Application.Tests/Payments/PaymentIdempotencyTests.cs`
   - Regression cases:
     - Simultaneous submissions with identical `IdempotencyKey` produce exactly one payment and return identical results.
-    - Retry after successful commit returns original result without duplicate ledger entries or Outbox messages.
+    - Tests for different attempt IDs competing against the same remaining order balance, verifying overpayment rejection and balance consistency.
+    - Only identified `IX_Payments_IdempotencyKey` unique conflict enters duplicate-success recovery; other `DbUpdateException` types fail closed.
+    - Authorized retry of an already committed payment returns the original result even after its approval token expires.
+    - Uncommitted attempt after restart requires fresh approval.
     - Transaction rollback on failure leaves zero orphan payment or ledger rows.
-    - Separate intentional equal-value payments with distinct idempotency keys both succeed.
+    - Separate intentional equal-value payments with distinct idempotency keys both succeed if balance permits.
     - Submission with reused `IdempotencyKey` but different amount is rejected.
     - Credit sale exceeding credit limit without valid manager approval fails closed.
-- **Precise Blocker & Zero-Migration Persistence Analysis:**
-  - *Payment Idempotency Feasibility:* Supported by existing 1.2.2 schema (`IdempotencyKey` column, unique filtered index, entity property, and repository). Zero migrations required.
-  - *Manager Approval Blocker / Scope Boundary:* Dedicated relational tables or entity foreign-key properties for manager approvals (e.g. `Payment.ManagerOverrideUserId` referencing `Users.Id`, or a standalone `[Restaurant].[ManagerApprovals]` table) **do not exist in the 1.2.2 baseline schema**. Introducing new database columns or foreign keys would violate the strict zero-migration constraint and is deferred to CBOS 1.3.0. For the CBOS 1.2.3 pilot, manager approvals must be validated in the application-layer pipeline and recorded in existing audit fields (`[Authentication].[LoginAttempts]` and description text). If database-level relational foreign-key approval persistence is required, this constitutes an **unresolved blocker requiring an authorized schema migration**.
+- **Precise Scope Boundary & Zero-Migration Persistence Analysis:**
+  - *Payment Idempotency Feasibility:* Supported by existing 1.2.2 schema (`IdempotencyKey` column, unique filtered index `IX_Payments_IdempotencyKey`, entity property, and repository). Zero migrations required.
+  - *Manager Approval Scope Boundary:* A dedicated relational manager-approval table is **not mandatory for the 1.2.3 pilot**, and its absence alone is not an implementation blocker. Approvals must be validated at the application layer binding manager identity, permission, cashier session, action, order/customer, amount excess, and PaymentAttemptId, with durable audit recorded in existing storage. If implementation demonstrates that these security guarantees cannot be achieved without migrations, report the precise demonstrated limitation rather than assuming feasibility.
 
 ---
 
@@ -475,6 +508,15 @@ powershell -ExecutionPolicy Bypass -File tools/ReleaseGuard/ScanReleasePackage.p
 
 ## 4. Implementation Readiness Sign-Off
 
-**Status:** **DRAFT — PENDING TECHNICAL SIGN-OFF**
+**Status:** **ACCEPTED PLANNING BASELINE — IMPLEMENTATION AND RUNTIME VALIDATION PENDING**
 
-The ten canonical hardening tasks are defined and mapped against actual codebase source files. Implementation is strictly not launched within this governance closure phase. Development will proceed in authorized feature worktrees following the multi-stream ownership model under the zero database migration constraint once formal technical sign-off is granted.
+The general governance review is closed for the agreed scope. This implementation handoff specification is formally accepted as a planning baseline, subject to four binding implementation clarifications:
+1. **TASK-03 (Calculation Contract):** `AwayFromZero` remains the selected midpoint direction. The currently written tax/discount/service-charge sequence is provisional. Before modifying calculations, TASK-03 must establish the supported contract and include combined examples of order discounts with inclusive/exclusive taxes and applicable service charges. Separate arithmetic examples do not constitute approval of the full sequence. Completed historical snapshots remain immutable; replay must preserve sale-time financial facts rather than reprice transactions under current settings.
+2. **TASK-05 (Manager Approval):** A dedicated manager-approval table is not mandatory for the 1.2.3 pilot, and its absence alone is not an implementation blocker. Require trusted application-layer validation binding manager identity, permission, cashier/session, action, order/customer, amount/excess, and PaymentAttemptId, with safe expiry, consumption, and retry behavior. Record durable audit evidence in suitable existing storage. Audit text itself is never authorization. An authorized retry of an already committed payment returns the original result even after its approval token expires. An uncommitted attempt after restart may require fresh approval. If these guarantees cannot be achieved securely without migrations, report the precise demonstrated limitation rather than assuming feasibility.
+3. **TASK-05 (Payment Concurrency):** Only the identified IdempotencyKey unique-constraint conflict (`IX_Payments_IdempotencyKey`) may enter duplicate-success recovery. Never treat every `DbUpdateException` as success. Rollback/clean-context handling and immutable-detail checks remain required. Require tests for different attempt IDs competing against the same remaining order balance, in addition to duplicate requests sharing one ID. Do not describe the unique idempotency index as protection against all payment concurrency problems.
+4. **TASK-02 (PIN Throttling):** Process-local throttling alone does not satisfy terminal-level protection. TASK-02 must address restart and multiple-instance bypass, using a bounded design compatible with zero database migrations. If not resolved, keep that limitation open for pilot acceptance. Do not silently mark this requirement complete merely because UI delays work.
+
+**Release & Verification Standing:**
+- Closing the governance review does **not** mean the software is pilot-ready.
+- The CBOS 1.2.2 Windows Sandbox clean-machine acceptance status remains **`PENDING — EVIDENCE INCOMPLETE`** (no new verifiable clean-machine runtime evidence has been supplied).
+- Implementation in production code is strictly not launched within this governance closure; development will proceed in authorized feature worktrees under strict zero-migration constraints once implementation is authorized.
