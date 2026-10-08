@@ -83,10 +83,10 @@ In accordance with Domain-Driven Design (DDD) principles:
 | **`PaymentMethod`** | `PaymentMethodId` (Guid) | `Name`, `Status` | Available payment tender types (e.g., Cash, Card, Mobile Wallet, On Account). |
 | **`Shift`** | `ShiftId` (Guid) | `ShiftNumber`, `TerminalId`, `CashierId`, `Status`, `StartingCash`, `ExpectedCash`, `CountedCash`, `CashVariance`, `OpenedAtUtc`, `ClosedAtUtc` | Cashier drawer session. Owns mid-shift `CashMovement` entries. |
 | **`CashMovement`** | `CashMovementId` (Guid) | `ShiftId`, `Type` (`CashIn` / `CashOut`), `Amount`, `Reason`, `UserId` | Mid-shift drawer adjustments. |
-| **`Customer`** | `CustomerId` (Guid) | `Name`, `PhoneNumber`, `CreditLimit`, `CurrentBalance`, `AdvanceBalance` | Customer account managing credit sales, advance deposits, and receivables. |
-| **`CustomerLedgerEntry`** | `CustomerLedgerEntryId` (Guid) | `CustomerId`, `OrderId`, `Type`, `Debit`, `Credit`, `BalanceAfter` | Immutable financial ledger for customer accounts receivable. |
-| **`CustomerPaymentAllocation`**| `AllocationId` (Guid) | `PaymentId`, `CustomerId`, `AmountAllocated` | Links customer payments to outstanding receivables or advance credits. |
-| **`OutboxMessage`** | `OutboxMessageId` (Guid) | `MessageType`, `Payload`, `Status`, `RetryCount`, `NextRetryUtc`, `CreatedAtUtc` | Transactional outbox table for asynchronous integration dispatch. |
+| **`Customer`** | `CustomerId` (Guid) | `Code`, `Name`, `MobileNumber`, `CreditLimit`, `OutstandingBalance` | Customer account managing credit sales and receivables. Tracks net `OutstandingBalance` (receivable when positive; advance credit balance when negative via computed `AdvanceBalance`). |
+| **`CustomerLedgerEntry`** | `CustomerLedgerEntryId` (Guid) | `CustomerId`, `Date`, `Reference`, `Description`, `Debit`, `Credit`, `RunningBalance`, `ShiftId`, `PaymentMethod` | Single-entry subledger for customer accounts receivable. Preserves approved current behavior; dual entries and automated advance creation/consumption require a separately reviewed financial contract. |
+| **`CustomerPaymentAllocation`**| `AllocationId` (Guid) | `PaymentId`, `CustomerId`, `AmountAllocated` | Links customer payments to outstanding receivables. |
+| **`OutboxMessage`** | `OutboxMessageId` (Guid) | `MessageType`, `Payload`, `Status`, `RetryCount`, `NextRetryUtc`, `CreatedAtUtc` | Transactional outbox table for asynchronous integration dispatch (TASK-07 automatic startup). |
 
 ---
 
@@ -94,12 +94,13 @@ In accordance with Domain-Driven Design (DDD) principles:
 
 ### Customer Bill Reconciliation:
 $$\text{Total Amount} = \sum(\text{OrderLine.LineTotal}) - \text{DiscountAmount} + \text{ServiceCharge} + \text{TaxAmount}$$
-$$\text{Total Settled} = \text{PaidAmount} + \text{OnAccountAmount} = \text{Total Amount}$$
+$$\text{Applied Payments} + \text{On Account Applied} = \text{Total Amount}$$
+*(Applied Payments represents net settled tender across payment methods, e.g. Net Cash Applied + Card, with $\text{Net Cash Applied} = \text{Cash Tendered} - \text{Change}$. Terms must not double-count).*
 
 ### Shift Cash Drawer Reconciliation:
-$$\text{Expected Cash} = \text{StartingCash} + \text{Cash In} + \text{Cash Sales} + \text{Cash Collections} - \text{Cash Out}$$
+$$\text{Expected Cash} = \text{StartingCash} + \text{Cash In} + \text{Net Cash Sales} + \text{Cash Collections} - \text{Cash Out}$$
 $$\text{Cash Variance} = \text{CountedCash} - \text{Expected Cash}$$
-*(For open shifts, `CountedCash` and `CashVariance` are strictly `null` and displayed as `N/A`)*.
+*(where $\text{Net Cash Sales} = \sum(\text{Cash Tendered} - \text{Change})$ from cash-settled orders; On Account credit sales, non-cash tenders, and existing advance usage are strictly excluded from drawer cash. For open shifts, `CountedCash` and `CashVariance` are strictly `null` and displayed as `N/A`. Unresolved reconciliation mappings are marked as TASK-03/TASK-06 contract work).*
 
 ---
 

@@ -53,15 +53,16 @@ flowchart TD
 - **Resilience:** Front-of-house operations continue offline in Continuity Mode if SQL Server service halts. On-demand backups created prior to upgrades; daily backups via Windows Task Scheduler.
 - **Maturity Status:** **TARGET OF 1.2.3 ATTENDED PILOT HARDENING**.
 
-### 2.2 Topology B: Dedicated Database Server + Networked POS Terminals (Planned CBOS 1.4.0+)
+### 2.2 Topology B: Dedicated Database Server + Networked POS Terminals (Future Milestone Target)
 - **Best Suited For:** Multi-station restaurants, busy supermarkets, and multi-lane retail stores.
 - **Architecture:**
   - One central machine acts as the **Database Server** running SQL Server (Port 1433 TCP).
   - Multiple client PCs run CBOS Desktop, each registered as an independent `Terminal` in Master Data.
-- **Current Operational Boundaries:**
-  - In CBOS 1.2.2 / 1.2.3, multiple clients connecting over LAN can read/write to the central database, but **there is NO multi-terminal peer synchronization, NO cross-terminal order handoff, and NO distributed offline failover**.
-  - During a database server outage, terminals enter local Continuity Mode independently without peer communication.
-- **Maturity Status:** **PLANNED ARCHITECTURE (CBOS 1.4.0+)**. Commercial rollout of multi-terminal topologies requires the concurrency and failover capabilities scheduled for CBOS 1.4.0+.
+- **Operational Boundaries & Scope:**
+  - In CBOS 1.2.2 / 1.2.3, operations are bounded to single-terminal attended scope.
+  - Multi-terminal deployments with concurrent access to a shared SQL Server instance represent a future milestone target.
+  - **Terminal-Local Continuity & DPAPI:** During a database outage, each terminal operates strictly in terminal-local Continuity Mode protected by machine-bound DPAPI.
+  - **Unapproved Exploratory Concepts:** Distributed peer-to-peer LAN continuity synchronization and headquarters replication are **unapproved exploratory concepts** and are NOT part of accepted roadmap scope.
 
 ### 2.3 Topology C: Back Office Workstation
 - **Best Suited For:** Store managers, inventory controllers, and accountants managing catalogs, purchase receipts, and financial statements.

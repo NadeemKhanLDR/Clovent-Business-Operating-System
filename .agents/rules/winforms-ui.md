@@ -86,4 +86,16 @@ public sealed partial class CustomReportView : DevExpress.XtraEditors.XtraUserCo
 
 1. **Reports Are Read-Only:** Report views provide analytics, audit trails, and financial reconciliation. Operational edits (stock receipts, price changes) belong in operational modules.
 2. **Navigation Hygiene:** Provide exactly one canonical ribbon/navigation entry point per feature.
-3. **Execution Claims:** Never report `LIVE UI EXECUTED` unless the application was interactively run on a display. Never report `VISUAL STUDIO DESIGNER UI EXECUTED` unless Visual Studio Designer was opened.
+3. **Execution Claims:** Never report `LIVE UI EXECUTED` unless the application was interactively run on a display. Never report `VISUAL STUDIO DESIGNER UI EXECUTED` unless Visual Studio Designer was opened. Stating `LIVE UI NOT EXECUTED` or `VISUAL STUDIO DESIGNER UI NOT EXECUTED` indicates that interactive display or designer execution was not performed, and must not imply that headless validation occurred unless supported by explicit automated test evidence.
+
+---
+
+## 5. Central Date, Time, Currency & Quantity Formatters
+
+Always use central formatters located in `src/Clovent.Desktop/Forms/Base/`:
+- **Date Formatting:** `BusinessDateFormatter.Format(date)` (respects company format, e.g. `dd-MMM-yyyy`, and business timezone).
+- **Time Formatting:** `BusinessTimeFormatter.Format(time)` (respects 12-hour vs 24-hour setting).
+- **Date & Time Combined:** `BusinessDateTimeFormatter.Format(dateTimeOffset)`.
+- **Quantities:** `QuantityDisplay.Format(quantity)` (respects company precision, default 2 decimals, e.g. `145.00`; never prefixes currency symbols).
+- **Currency:** `CurrencyDisplay.Format(amount)` (respects symbol, e.g. `Rs. 850.00`, and precision).
+- Never scatter hardcoded format strings (`"yyyy-MM-dd"`, `"C"`, `0.00`) across screens.

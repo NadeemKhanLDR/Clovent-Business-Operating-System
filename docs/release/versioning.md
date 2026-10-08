@@ -151,8 +151,8 @@ For development, testing, and release candidates, SemVer pre-release strings are
 | **Product Release** | `1.2.2` | Frozen Internal Acceptance Baseline (Not GA / Not Paid-Pilot Ready) |
 | **Clovent.Desktop** | `1.2.2.0` | net10.0-windows |
 | **Domain & Application Contexts** | `1.2.2.0` | net10.0 |
-| **Database Schemas** | Up-to-date with 1.2.2 migrations | SQL Server 2019/2022 |
+| **Database Schemas** | Up-to-date with 1.2.2 migrations (Zero migrations for 1.2.3; concurrency tokens belong to 1.3.0) | SQL Server 2019/2022 |
 | **License Schema** | `clovent-2026-v2` | RSA-2048 / SHA-256 |
 | **Installer** | `1.2.2` | Inno Setup 6 |
 
-> **Note on Maturity:** CBOS 1.2.2 is strictly an internal acceptance baseline. Paid pilot operations begin with CBOS 1.2.3 (Controlled Attended Single-Terminal Pilot Hardening), and commercial GA begins with CBOS 1.3.0. See [Engineering Roadmap](../roadmap/engineering-roadmap.md) and [Readiness Levels](../development/readiness-levels.md).
+> **Note on Maturity & Readiness:** CBOS 1.2.2 is strictly a frozen internal acceptance baseline (clean-machine acceptance remains PENDING unless actual runtime acceptance evidence is supplied). Version numbers (such as 1.2.3 or 1.3.0) represent target release milestones, not automatic grants of operational or commercial readiness. No version number automatically confers pilot readiness or GA status; readiness is earned strictly through qualification gates. Paid pilot operations are targeted for CBOS 1.2.3 (with zero database schema migrations), and commercial GA is targeted for CBOS 1.3.0. See [Engineering Roadmap](../roadmap/engineering-roadmap.md) and [Product Readiness Levels](../development/readiness-levels.md).

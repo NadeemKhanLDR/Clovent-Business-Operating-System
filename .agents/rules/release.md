@@ -29,15 +29,16 @@
 
 ## 3. Cryptographic Signing & Integrity Verification
 
-1. **Authenticode Signing Pipeline Order:**
+1. **Authenticode Signing Bounded to First-Party Deliverables:**
    - Compile binaries in Release mode.
-   - Sign client executables and assemblies (`Clovent.Desktop.exe`, `Clovent.*.dll`) using Authenticode with RFC 3161 timestamping.
-   - Verify digital signatures on compiled binaries.
+   - Code signing is strictly bounded to approved first-party deliverables (explicitly including `Clovent.Installer.Provisioner.exe`, `Clovent.Desktop.exe`, and approved first-party `Clovent.*.dll`) using Authenticode with RFC 3161 timestamping.
+   - Third-party binaries and vendor signatures (e.g., DevExpress, Microsoft, SQLite) must be preserved; never re-sign or modify third-party components.
+   - Verify digital signatures on compiled first-party binaries.
    - Package the installer/distribution payload.
    - Sign the final installer executable (`Setup-Clovent.BusinessOperatingSystem-<version>.exe`) with RFC 3161 timestamping.
-   - Execute clean-machine acceptance testing (Windows Sandbox) on the signed installer.
+   - Retain verification, compute final installer SHA-256 hashing in `SHA256SUMS.txt`, and perform clean-machine acceptance testing on the exact signed artifact intended for distribution.
 2. **External Signing Material:** Signing private keys and hardware tokens remain strictly outside the repository in protected enterprise key storage.
-3. **SHA-256 Integrity Manifest:** Every release package must produce an accompanying SHA-256 manifest (`SHA256SUMS.txt`) documenting cryptographic hashes of all distributable files.
+3. **SHA-256 Integrity Manifest:** Every release package must produce an accompanying SHA-256 manifest (`SHA256SUMS.txt`) documenting cryptographic hashes of all distributable files, including the final signed installer.
 
 ---
 
@@ -91,5 +92,5 @@ Before certifying any build for client deployment:
 - [ ] Zero private keys or developer signing material present.
 - [ ] Zero source code files or development JSON files present.
 - [ ] Automated ReleaseGuard scan exits with return code 0 (`PASS`).
-- [ ] SHA-256 checksum manifest is generated.
-- [ ] Clean Windows Sandbox install test completed successfully on final signed package.
+- [ ] SHA-256 checksum manifest is generated for all distributable files including the installer.
+- [ ] Clean Windows Sandbox install test completed successfully on final signed package. (Note: CBOS 1.2.2 clean-machine acceptance is marked as PENDING unless actual runtime acceptance evidence is supplied; a frozen baseline designation is not a passed gate).

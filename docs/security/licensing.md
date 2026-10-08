@@ -88,13 +88,14 @@ For new deployments without an active commercial license:
 
 ---
 
-## 4. Non-Destructive Expiration Policy
+## 4. Non-Destructive Expiration Policy & RBAC Enforcement
 
 In adherence to ethical enterprise software governance:
-- **Behavior on Expiration:** When a license or evaluation trial expires, CBOS transitions to **Read-Only Historical Mode**.
-- **Allowed Actions:** Operators and accountants can launch Back Office, view historical sales reports, inspect audit logs, and execute database backups.
-- **Blocked Actions:** Creating new orders, processing payments, or adding inventory transactions is disabled.
-- **Zero Data Hostage Policy:** Customer financial records are never deleted, corrupted, or encrypted upon expiration.
+- **Data Sovereignty & Access Preservation:** Expiry must never destroy data or remove authorized historical access. Customer financial records and audit histories are never deleted, corrupted, or encrypted upon expiration.
+- **Authentication & RBAC Remain Enforced:** Authentication and role-based access control (RBAC) remain strictly enforced at all times. Unauthenticated access is denied; user logins and role permissions continue to govern historical data access and database backup operations.
+- **Accepted Policy vs. Source Behavior:**
+  - *Accepted Policy (PDR-0002):* When a license or evaluation trial expires, CBOS transitions to Read-Only Historical Mode. Operators and accountants can view historical sales reports, inspect audit logs, and execute database backups, while creating new orders, processing payments, or adding inventory transactions is strictly gated.
+  - *Source-Verified Expiry Behavior (1.2.2 Baseline):* In the 1.2.2 baseline source code (`Program.cs`), an expired license issues an informational warning dialog alerting the operator to read-only mode and proceeds to normal authentication without destroying data. An expiry warning alone does not establish read-only transaction gating; this is recorded as a known gap without implementing or assigning new release scope.
 
 ---
 

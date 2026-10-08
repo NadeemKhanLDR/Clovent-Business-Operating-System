@@ -41,7 +41,7 @@ flowchart TD
 
 ### 2.3 Persistence & Atomicity Integration Tests (`Clovent.<Context>.Infrastructure.Tests`)
 - **Scope:** EF Core model mapping, shadow property binding, value converters, and outbox atomicity.
-- **Provider:** Utilizes `Microsoft.EntityFrameworkCore.Sqlite` in-memory provider for isolated test runs without requiring a live SQL Server instance.
+- **Provider Scope:** SQLite in-memory (`Microsoft.EntityFrameworkCore.Sqlite`) is an available fast-test provider for isolated test runs without requiring a live SQL Server instance, but is not mandatory for all tests. Tests requiring Microsoft SQL Server must execute against explicitly isolated, disposable databases or throwaway test environments, and must never touch customer or developer operational databases or configurations.
 
 ### 2.4 WinForms Layout & Structural Tests
 - **Scope:** Verifies that form control hierarchies, docking styles, anchors, and fonts match `DesktopStyle` standards.
@@ -62,9 +62,10 @@ flowchart TD
 ## 3. Verification Claims Policy (Strict)
 
 When reporting testing status in release notes and PRs:
-- **`LIVE UI EXECUTED`:** State **only** if the Windows application was interactively launched and exercised on a physical display.
-- **`LIVE UI NOT EXECUTED`:** Mandatory when results are based on headless runners or unit tests.
-- **`VISUAL STUDIO DESIGNER UI EXECUTED`:** State **only** if the form was interactively loaded in the Visual Studio Designer.
+- **`LIVE UI EXECUTED`:** State **only** if the Windows application was interactively launched and exercised on a physical or virtual display.
+- **`LIVE UI NOT EXECUTED`:** Mandatory when interactive execution on a display was not performed. **This terminology must NOT imply that headless validation occurred.**
+- **`VISUAL STUDIO DESIGNER UI EXECUTED`:** State **only** if the form was interactively loaded and edited in the Visual Studio Designer.
+- **`VISUAL STUDIO DESIGNER UI NOT EXECUTED`:** Mandatory when form was not opened inside the interactive Visual Studio Designer. **Does not imply design-time execution or headless validation.**
 
 ---
 

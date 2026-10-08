@@ -75,7 +75,8 @@ options.UseSqlServer(connectionString, sql =>
    builder.Property(e => e.Quantity).HasPrecision(18, 4);
    ```
    Never rely on database provider default precisions.
-3. **Optimistic Concurrency:** Aggregate roots subject to concurrent modifications (e.g., `Order`, `Table`, `Shift`, `WarehouseStock`) must declare concurrency tokens (`RowVersion` / `IsRowVersion()`) to prevent lost updates.
+3. **Zero Database Migrations for CBOS 1.2.3:** CBOS 1.2.3 requires zero database schema migrations; the database schema remains strictly frozen at the 1.2.2 baseline.
+4. **Milestone Bounding for Optimistic Concurrency:** Aggregate-level optimistic concurrency tokens (`RowVersion` / `IsRowVersion()`) across `Order`, `Table`, `Shift`, and `WarehouseStock` belong to the approved **CBOS 1.3.0** milestone. This permanent rule must not silently expand the scope of CBOS 1.2.3 or mandate immediate schema migrations before CBOS 1.3.0.
 
 ---
 
@@ -93,8 +94,14 @@ Routine POS and back-office operations run under the least-privileged `cbos_app`
 - Schema migrations (`dotnet ef database update`) and database initial provisioning are executed exclusively by maintenance credentials or DBA setup routines.
 - Setup credentials are never stored in client workstation settings.
 
-### C. DPAPI Credential Storage
+### C. DPAPI Credential Storage & Configuration Precedence
 - Database passwords entered via connection dialogs are encrypted using the Windows Data Protection API (DPAPI).
-- **Multi-User Terminals:** Encrypted with `DataProtectionScope.LocalMachine` in `%ProgramData%\Clovent\BusinessOperatingSystem\Config\database.config.json` (Administrators: Full Control; Users: Read-Only).
-- **Single-User Terminals:** Encrypted with `DataProtectionScope.CurrentUser` in `%LocalAppData%\Clovent\Clovent.BusinessOperatingSystem\database.config.json`.
+- **Configuration Precedence:** Commissioned machine configuration in `%ProgramData%\Clovent\BusinessOperatingSystem\Config\database.config.json` (encrypted with `DataProtectionScope.LocalMachine`; Administrators: Full Control, Users: Read-Only) takes strict precedence.
+- **LocalAppData Fallback:** User-level configuration in `%LocalAppData%\Clovent\Clovent.BusinessOperatingSystem\database.config.json` (encrypted with `DataProtectionScope.CurrentUser`) is strictly limited to controlled development and test scenarios and must never override commissioned machine configuration.
+- **Atomic Writes for Critical Configuration:** Writes to Tier-1 database and commissioning configurations must execute atomically: write to a temporary file, validate structure and content, flush to disk, and atomically replace the target file. This requirement targets Tier-1 critical configuration and does not expand into a rewrite of every UI theme or preference store.
 - Plaintext SQL connection passwords must **never** be logged, printed to console, or saved to JSON.
+
+### D. Backup & Disaster Recovery Encryption Rules
+- **TDE vs. Native Backup Encryption:** Transparent Data Encryption (TDE - protecting database files at rest) and native backup encryption (`BACKUP ... WITH ENCRYPTION`) are distinct SQL Server features. Neither is supported natively in SQL Server Express.
+- **DPAPI Disaster Recovery Mandate:** While local credentials and terminal caches use machine-bound Windows DPAPI, **disaster recovery must NOT depend solely on the original machine's DPAPI**. Off-machine backup archives must use portable, machine-independent protection so databases can be restored on replacement hardware following catastrophic machine failure.
+- **Future Design Selection (Non-Blocking):** Specific archive technology selection (such as passphrase-protected archive tools or encrypted external storage with escrowed keys) represents technical design work for the CBOS 1.3.1+ backup and maintenance expansion and is explicitly **not a blocker for closing this governance and documentation baseline**. Zero claims of eliminating all operational data-loss risk are made.

@@ -111,10 +111,10 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 > **AUTHORITATIVE RELEASE MATURITY STATUS:**
 > - **CBOS 1.2.2** is a **FROZEN INTERNAL ACCEPTANCE BASELINE ONLY**.
 > - It is **NOT** paid-pilot ready, **NOT** commercial GA, and **NOT** production-certified.
-> - Customer pilots and commercial rollouts require the hardening deliverables planned for **CBOS 1.2.3** and **CBOS 1.3.0**. Consult the [Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md) and [Product Readiness Levels](docs/development/readiness-levels.md).
+> - **Release Targets vs. Achieved Readiness:** Milestone designations (e.g. `1.2.3`, `1.3.0`) represent planned engineering targets, not automatic grants of operational or commercial readiness. **No version number automatically confers pilot readiness or GA status.** Customer pilots and commercial rollouts require the hardening deliverables planned for **CBOS 1.2.3** and **CBOS 1.3.0**. Consult the [Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md) and [Product Readiness Levels](docs/development/readiness-levels.md).
 
 - **Current Baseline:** `1.2.2` (Internal Acceptance Baseline)
-- **Next Target:** `1.2.3` (Controlled Single-Terminal Pilot Hardening)
+- **Next Target Milestone:** `1.2.3` (Controlled Single-Terminal Pilot Hardening Target)
 - **Automated Verification:**
   - 1,824 automated unit/integration tests passing cleanly.
   - Debug and Release compilation clean (0 errors).

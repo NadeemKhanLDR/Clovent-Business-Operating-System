@@ -50,19 +50,19 @@ Any failure to resolve permission, missing authentication context, or unexpected
 Exactly one physical SQL Server database: `Clovent_BusinessOperatingSystem`. Each bounded context maintains its own `DbContext` targeting its dedicated schema (`[Authentication]`, `[Identity]`, `[MasterData]`, `[Catalog]`, `[Inventory]`, `[Restaurant]`) with isolated migration history tables.
 
 ### 5. CACHE IS NOT AUTHORITATIVE
-The local Operational Cache exists exclusively for fast UI rendering and read lookups during primary database connectivity. The SQL Server relational database is the single source of truth.
+Validated operational cache reads support online operation and authorized offline Continuity Mode. The SQL Server relational database is the single source of truth. Offline sales are durably journaled pending reconciliation; the operational cache is not the financial transaction ledger.
 
 ### 6. CONTINUITY IS CONTROLLED AND RECONCILABLE
 Continuity Mode operates strictly in cash-only mode against validated cached catalog items. All emergency transactions are cryptographically journaled with DPAPI/HMAC and must be reconciled upon primary database reconnection.
 
 ### 7. AUTOMATED TESTS MUST NOT POLLUTE WORKSTATION STATE
-Unit and integration tests must run in complete isolation (in-memory SQLite, temporary directories). Tests must never modify `%ProgramData%`, local application settings, registry keys, or live SQL databases.
+SQLite is an available fast-test provider, not mandatory for all tests. SQL Server tests must use explicitly isolated disposable databases or test environments. Tests must never touch customer or developer operational databases, host configurations, `%ProgramData%`, local application settings, or registry keys.
 
 ### 8. EXACT TESTED ARTIFACT = RELEASED ARTIFACT
-The exact binary package tested and accepted in a clean Windows Sandbox is the final released artifact. Never rebuild, repackage, or alter binaries after acceptance qualification.
+Code signing is bounded to approved first-party deliverables (explicitly including `Clovent.Installer.Provisioner.exe`, `Clovent.Desktop.exe`, and approved first-party `Clovent.*.dll`) while preserving third-party binaries and signatures. Final installer hashing (SHA-256) and clean-machine acceptance testing must be executed on the exact signed artifact intended for distribution. Never rebuild, repackage, or alter binaries after acceptance qualification.
 
 ### 9. REAL RUNTIME EVIDENCE OUTRANKS SIMULATION
-Truthful evidence reporting is mandatory. Distinguish `REAL SQL SERVER VALIDATED` from SQLite in-memory, `LIVE UI EXECUTED` from headless execution, and `CLEAN MACHINE ACCEPTED` from workstation test runs.
+Truthful evidence reporting is mandatory. Distinguish `REAL SQL SERVER VALIDATED` from SQLite in-memory, `LIVE UI EXECUTED` from non-interactive execution (where `NOT EXECUTED` does not imply headless validation occurred), and `CLEAN MACHINE ACCEPTED` from workstation test runs. Mark CBOS 1.2.2 clean-machine acceptance as pending unless actual acceptance evidence is supplied; a frozen baseline designation is not a passed gate.
 
 ### 10. PARALLEL IMPLEMENTATION REQUIRES ISOLATED WORKTREES
 Parallel agents and developers must operate in isolated Git worktrees. Do not edit shared files across uncoordinated workstreams.
@@ -71,7 +71,7 @@ Parallel agents and developers must operate in isolated Git worktrees. Do not ed
 Outbox payloads, Continuity journals, Operational Cache tables, configuration JSON files, and cart checkpoints are persisted contracts. Any future contract changes require an explicit backwards-compatibility strategy.
 
 ### 12. CUSTOMER DATA PRIVACY & ACCESS GUARANTEE
-Never commit, log, or distribute real customer business data. Use synthetic test data only. Customer historical records remain permanently accessible and exportable in read-only mode even after software license expiration.
+Never commit, log, or distribute real customer business data. Use synthetic test data only. Expiry must not destroy data or remove authorized historical access. Authentication and RBAC remain strictly enforced; customer historical records remain accessible and exportable in read-only mode to authorized users.
 
 ---
 

@@ -160,8 +160,10 @@ In accordance with CBOS quality standards:
     Get-FileHash -Algorithm SHA256 artifacts\release\CloventSetup-*.exe
     ```
 - [ ] **Digital Signing (When Production Code Signing Certificate Configured)**
+  - [ ] Code signing strictly bounded to approved first-party deliverables (`Clovent.Desktop.exe`, `Clovent.*.dll`) and final installer executable, preserving third-party binaries and vendor signatures.
   - [ ] `signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 ...`
   - [ ] Digital signature verified: `signtool.exe verify /pa CloventSetup-*.exe`
+  - [ ] Final installer SHA-256 hash verified and clean-machine acceptance performed on exact signed artifact.
 
 ---
 

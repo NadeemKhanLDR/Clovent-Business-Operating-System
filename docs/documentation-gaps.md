@@ -14,6 +14,9 @@
 
 In adherence to the CBOS Documentation Principles, technical documentation must never guess or fabricate unverified software behavior. Where codebase inspection reveals ambiguities, partially implemented features without explicit specifications, or pending architectural choices, they are formally recorded in this Gap Report.
 
+> [!NOTE]
+> **Governance Baseline Scope:** Technical design questions (such as workstation settings directory relocation in Gap 3, direct printer hardware cut dialects in Gap 4, and off-machine backup archive technology selection) are design items for their respective future implementation milestones (CBOS 1.3.1+) and are explicitly **non-blocking for closing this governance and documentation baseline**. Customer ledger dual entries and automated advance lifecycle semantics require a separately reviewed financial contract before introduction. Any unresolved financial rounding or reconciliation mappings are governed under **TASK-03** and **TASK-06** contract work.
+
 ---
 
 ## 2. Identified Documentation Gaps & Open Architectural Questions

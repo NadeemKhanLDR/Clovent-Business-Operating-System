@@ -29,10 +29,16 @@
 
 ## 2. Technical Constraints for SQL Server Express Backups
 
-When deploying on Microsoft SQL Server Express (the standard standalone single-store configuration), administrators must account for three native platform constraints:
+When deploying on Microsoft SQL Server Express (the standard standalone single-store configuration), administrators must account for platform constraints:
 1. **NO SQL SERVER AGENT:** SQL Server Express does **not** include the SQL Server Agent service. Scheduled automated backups **cannot** be scheduled via SQL Agent jobs. **They must be scheduled via Windows Task Scheduler using PowerShell or batch scripts.**
 2. **NO NATIVE BACKUP COMPRESSION:** The `WITH COMPRESSION` option is disabled by Microsoft in SQL Server Express. Backups produced by `BACKUP DATABASE` are uncompressed. Administrators should compress `.bak` files using external compression tools (e.g., PowerShell `Compress-Archive` or 7-Zip).
-3. **NO NATIVE BACKUP ENCRYPTION:** Transparent backup encryption (`ENCRYPTION = ...`) is unavailable in Express. Backups should reside on BitLocker-encrypted drives or DPAPI-encrypted storage.
+3. **NO NATIVE BACKUP ENCRYPTION VS. TDE DISTINCTION:**
+   - **Transparent Data Encryption (TDE):** TDE encrypts database data-at-rest (`.mdf`/`.ldf` files) and is **not supported** in SQL Server Express.
+   - **Native Backup Encryption:** The `BACKUP DATABASE ... WITH ENCRYPTION` clause (which encrypts the backup stream using server certificates or asymmetric keys) is **not supported** in SQL Server Express.
+4. **DISASTER RECOVERY ARCHIVE PROTECTION (DPAPI RULE):**
+   - Windows DPAPI (`DataProtectionScope.LocalMachine` or `CurrentUser`) binds encryption keys to the specific host machine hardware and OS installation.
+   - **Critical Rule:** **Disaster recovery must NOT depend solely on the original machine's DPAPI.**
+   - Off-machine disaster recovery archives must be protected using machine-independent mechanisms so that restores can be performed on replacement hardware following catastrophic machine failure. Specific archive technology selection (such as external passphrase-protected tools or encrypted volume schemes) represents future design work for the CBOS 1.3.1+ backup expansion and is explicitly **not a blocker for closing this governance and documentation baseline**. Zero claims of eliminating all operational data-loss risk are made.
 
 ---
 

@@ -62,8 +62,8 @@ To maintain privacy and compliance:
 - **No SQL Telemetry Interceptor:** EF Core database command interception (`DbCommandInterceptor`) is not implemented; query latency and SQL error telemetry are not logged.
 - **Incomplete Correlation Propagation:** Correlation IDs are not systematically propagated across MediatR handlers and background outbox worker tasks.
 
-### 4.3 Planned Architecture (CBOS 1.3.1+)
-- **Structured JSON Logging:** Migration to Serilog / OpenTelemetry with full stack trace capture.
+### 4.3 Planned Architecture & Candidate Proposals (CBOS 1.3.1+)
+- **Structured JSON Diagnostics (Candidate Proposals):** Transition to structured JSON logging with full stack trace capture. Framework selections (such as Serilog, OpenTelemetry, or enhanced `Microsoft.Extensions.Logging` providers) represent candidate proposals under architectural evaluation, not permanent architectural mandates.
 - **Support Package Bundler:** One-click UI export bundling sanitized logs, hardware fingerprints, health metrics, and outbox state.
 - **Full EF Core SQL Interceptor:** Execution time, parameter inspection (sanitized), and slow query logging.
 

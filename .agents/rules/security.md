@@ -28,7 +28,12 @@
 
 ## 3. Authorization & Privilege Governance
 
-- **Authorization Fails Closed:** If an authorization check encounters an error, a missing service, an unmapped permission, or an unauthenticated session, access must be denied immediately. Systems must never fail open.
+- **Authorization Fails Closed:** If an authorization check encounters an error, a missing service, an unmapped permission, or an unauthenticated session, access must be denied immediately. Systems must never fail open. Missing services or failed authorization checks deny access.
+- **Administrative Operation Protections:**
+  - **Pre-Login Sensitive Changes:** Before application login (e.g. initial commissioning, pre-login database configuration, or license setup), sensitive database configuration and software license changes require Windows administrator elevation (UAC).
+  - **Post-Login Sensitive Changes:** After application login, sensitive configuration changes require authenticated application Administrator authorization (`AdministrativePrivilegeChecker` evaluating authenticated application roles and permissions).
+  - **OS Access Control Invariant:** Application role checks do not bypass OS or filesystem access controls (NTFS ACLs). Both application-layer authorization and operating system ACLs must be satisfied.
+  - **Missing Services Fail Closed:** Missing services, unconfigured authorization providers, or failed authorization checks deny access immediately.
 - **No Hardcoded Administrative Usernames:** Authorization decisions must evaluate authenticated user roles and granular permissions. Fast-path elevation based on literal usernames (such as `"admin"` or `"administrator"`) is strictly forbidden.
 - **UI Visibility Is Not Authorization:** Hiding or disabling UI controls (ribbon buttons, menu items, views) is a usability feature, not security enforcement. Authoritative authorization must be enforced independently at the application layer (`MediatR` pipeline or service boundary).
 - **Action-Specific Manager Elevation:** Managerial overrides (price overrides, discount limits, credit limit overrides, voids) must challenge the operator for distinct managerial credentials and evaluate permissions specific to that action. If the authorization service is unavailable, the challenge must fail closed.
@@ -60,7 +65,9 @@ Shared terminal assets must be secured against unauthorized tampering in `%Progr
   - Generic releases ship **without** an active license file (`clovent.lic` excluded).
   - Licenses are issued per customer/company using dedicated licensing tooling.
 - **Pre-Copy Import Validation:** When importing a new license, the candidate file must be cryptographically validated **before** copying to protected storage. If invalid or tampered, the active valid license is preserved.
-- **Non-Destructive Expiry Guarantee:**
-  - CBOS **never** deletes customer data, encrypts existing records, destroys databases, or blocks database backups upon license expiration.
-  - Expired licenses permit read-only operations (financial reports, customer receivables, order history, inventory lookups, data export, backups).
-  - Creation of new commercial sales orders, payments, or inventory adjustments is gated until a renewed license is imported.
+- **Non-Destructive Expiry Policy & RBAC Enforcement:**
+  - Expiry must never destroy data or remove authorized historical access. CBOS never deletes customer data, encrypts existing records, destroys databases, or blocks database backups upon license expiration.
+  - **Authentication and RBAC Remain Strictly Enforced:** Authentication and role-based access control (RBAC) remain enforced regardless of license expiration status. Users must authenticate with valid credentials, and permissions continue to restrict administrative actions and historical report views.
+  - **Separation of Accepted Policy from Source-Verified Expiry Behavior:**
+    - *Accepted Policy (PDR-0002):* Expired licenses restrict operations to read-only historical inspection (financial reports, customer receivables, order history, inventory lookups, data export, backups), while gating the creation of new commercial sales orders, payments, or inventory movements.
+    - *Source-Verified Expiry Behavior (1.2.2 Baseline):* In the 1.2.2 baseline source code (`Program.cs`), an expired license issues an informational warning dialog alerting the user to read-only mode and proceeds to normal authentication without destroying data. An expiry warning alone does not establish read-only transaction gating; this is recorded as a known gap without implementing or assigning new release scope.

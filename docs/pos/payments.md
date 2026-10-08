@@ -49,7 +49,7 @@ flowchart TD
 ### 2.1 Cash
 - **Workflow:** Cashier enters amount tendered or clicks quick-cash denominations (`Exact`, `500`, `1000`, `5000`).
 - **Drawer Linkage:** Tendered cash is automatically linked to the active `ShiftId`.
-- **Change Calculation:** If tendered cash exceeds the bill total, change is calculated and displayed on screen; the payment record is saved for the exact bill total (or the overage is recorded as customer advance if account-linked).
+- **Change Calculation:** If tendered cash exceeds the bill total, change returned to the customer is calculated and displayed on screen ($\text{Change} = \text{Cash Tendered} - \text{Net Cash Applied}$). The recorded payment applies the exact required settlement amount.
 
 ### 2.2 Card (Debit / Credit) — Manual Tender Classification Only
 > [!IMPORTANT]
@@ -60,22 +60,25 @@ flowchart TD
 
 ### 2.3 On Account (Customer Credit Sales)
 - **Workflow:** Allows trusted corporate or repeat customers to purchase on credit.
-- **Credit Limit Verification:** Validates that the order amount does not breach the customer's `CreditLimit`.
-- **Ledger Posting:** Creates a debit entry in `[Restaurant].[CustomerLedgerEntries]` increasing the customer's accounts receivable balance.
-- **Advance Balance Consumption:** If the customer holds pre-paid advance credits (`AdvanceBalance > 0`), CBOS consumes advance credits first before extending new credit.
+- **Credit Limit Verification & Manager Elevation (TASK-05):** Validates that the credit sale does not breach the customer's `CreditLimit`. Exceeding limits requires fail-closed managerial approval (cannot be forged with a bare Boolean).
+- **Ledger Posting (Approved Current Behavior):** Posts a debit entry in `[Restaurant].[CustomerLedgerEntries]` increasing the customer's accounts receivable (`OutstandingBalance`). Dual entries and automated advance creation/consumption are unsupported in 1.2.2 and require a separately reviewed financial contract before introduction. Do not introduce new advance-payment functionality.
 
 ### 2.4 Split Tender
-Split billing in CBOS is an inherent property of the relational data model. An `Order` accumulates multiple `Payment` records (e.g. $20 Cash + $30 Card) until the remaining unpaid balance is at or below half a cent (`BalanceEpsilon = 0.005m`).
+Split billing in CBOS is an inherent property of the relational data model. An `Order` accumulates multiple `Payment` records (e.g. $20 Cash + $30 Card, or Cash + On Account) until the remaining unpaid balance is settled. (Note: Baseline 1.2.2 uses `BalanceEpsilon = 0.005m`; complete elimination of `BalanceEpsilon` in favor of exact 2-decimal zero-balance settlement is scheduled under **TASK-04: BalanceEpsilon Elimination + Completed Void Restriction**).
 
 ---
 
-## 3. Payment Idempotency & Immutability
+## 3. Payment Identity Governance & Immutability (TASK-05: Payment Idempotency + Credit-Limit Approval)
 
-To prevent duplicate charges caused by double-clicking payment buttons or network retransmissions during high cashier velocity:
-1. Every payment submission generates a client-side idempotency key (`IdempotencyKey`).
-2. Handlers and database configurations enforce unique constraints on active payments by idempotency key.
-3. If an identical command is retried, the existing payment record is returned without creating duplicate financial debits.
-4. Payments are **immutable**: historical records are never deleted. Adjustments occur exclusively via compensating entries.
+To prevent duplicate charges caused by double-clicking payment buttons, rapid cashier inputs, or network retransmissions during high cashier velocity:
+1. **Exact Payment Identity Rule:**
+   - Generate `PaymentAttemptId` once per intentional payment attempt.
+   - Reuse it across retries, retransmissions, and duplicate UI submissions.
+   - A genuinely separate intentional payment receives a new ID.
+   - Reusing an ID with conflicting payment details must be rejected.
+   - *(Do not prescribe a new schema for this documentation task).*
+2. **Persistence Boundary Enforcement:** Handlers and database configurations enforce uniqueness and idempotency constraints on active payments.
+3. **Immutable Financial Facts vs. Metadata:** Completed payment records, amounts, tenders, and receipt snapshots are strictly immutable. They are explicitly distinguished from operational metadata updates (such as notes); financial corrections through metadata exceptions are strictly prohibited. Adjustments occur exclusively via compensating entries (compensating transactions correct posted financial effects; unpaid draft cancellation remains possible under domain rules).
 
 ---
 

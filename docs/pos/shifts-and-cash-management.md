@@ -49,19 +49,22 @@ During service, currency additions or extractions that do not originate from imm
 - **`CashOut`:** Safe drops, manager mid-day sweeps, or authorized petty cash disbursements (e.g. ice purchase).
 - **Mandatory Fields:** Movement Type, Amount, Business Reason, and Authorizing User ID.
 
-### 2.3 Linking Sales & Collections
-- **Cash Sales:** Every cash payment recorded on an order binds the current `ShiftId`.
-- **Customer Collections:** Cash payments collected against outstanding customer ledger accounts are linked to the active shift, contributing to expected cash.
+### 2.3 Non-Overlapping Tender & Collection Linking
+- **Net Cash Sales:** Net cash applied from sales ($\text{Cash Tendered} - \text{Change}$) during the shift, including the cash portion of every supported split tender (such as Cash plus Card, or Cash plus On Account), without double-counting collections. Tendered cash and change are netted to avoid double-counting. Pure non-cash payments (Card) and the credit portion of sales ("On Account") do not enter drawer cash calculations.
+- **Customer Collections:** Cash received from customer debt repayments against credit accounts is linked to the active shift, contributing directly to expected drawer cash.
+- **Existing Advance Usage:** Consuming pre-existing customer credit/advance balances is neither drawer cash nor new credit extended ("On Account"); it is strictly excluded from cash drawer reconciliation. Do not introduce new advance-payment functionality.
+- **Contract Scope:** Any unresolved mappings or edge-case breakdowns are marked as **TASK-03: Financial Rounding Contract** and **TASK-06: Business Day Close Aggregation** contract work. Day Close in TASK-06 captures real Tax and Discount totals, with Refund = 0 because refunds are explicitly disabled for the pilot, not because missing data is concealed (never use zero to conceal unsupported or missing financial data).
 
 ### 2.4 Closing & Reconciling a Shift
 When a cashier completes their work period, they initiate **Close Shift**:
-1. **Blind Cash Count:** The cashier physically counts the currency and coins in the till and enters `CountedCash`.
+1. **Blind Cash Count:** The cashier counts the currency and coins in the drawer and enters `CountedCash`.
 2. **System Evaluation of Expected Cash:**
-   $$\text{Starting Cash Float} + \text{Cash In} + \text{Cash Sales} + \text{Cash Collections} - \text{Cash Out} = \text{Expected Cash}$$
+   $$\text{Starting Cash Float} + \text{Cash In} + \text{Net Cash Sales} + \text{Cash Collections} - \text{Cash Out} = \text{Expected Cash}$$
 3. **Variance Computation:**
    $$\text{Counted Cash} - \text{Expected Cash} = \text{Variance}$$
+   - For open/active shifts where no count has occurred, `CountedCash` and `Variance` must remain `null` / `"N/A"`. Fake negative variances are prohibited.
 4. **Mandatory Variance Reason:** If `Variance != 0`, the cashier or supervisor must enter a mandatory explanation before closure is accepted.
-5. **Final Status:** Transitions to `ShiftStatus.Closed`. The shift summary receipt prints automatically, and expected/counted/variance totals become immutable.
+5. **Final Status:** Transitions to `ShiftStatus.Closed`. The shift summary receipt prints automatically, and expected/counted/variance totals become immutable financial facts. Operational metadata updates cannot alter financial figures.
 
 ---
 

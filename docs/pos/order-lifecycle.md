@@ -72,19 +72,19 @@ stateDiagram-v2
   - `Order.Void()` with managerial justification.
 
 ### 2.3 `Completed`
-- **Definition:** Fully paid and finalized check.
-- **Completion Trigger:** Automatically achieved when `PaidAmount + OnAccountAmount >= TotalAmount` within a half-cent tolerance (`BalanceEpsilon = 0.005m`).
-- **Post-Completion Invariants:** Strictly immutable. No new order lines or payment adjustments can be added.
-- **Outbox Side Effects:** Triggers generation of `QuickBooksSync`, `ReceiptPrint`, and `InventoryPosting` messages in the Transactional Outbox.
+- **Definition:** Fully settled and finalized check.
+- **Completion Trigger:** Achieved when $\text{Applied Payments} + \text{On Account Applied} = \text{Total Amount}$. (In the 1.2.2 baseline, half-cent tolerance `BalanceEpsilon = 0.005m` is utilized; complete elimination of `BalanceEpsilon` in favor of exact 2-decimal zero-balance settlement is scheduled under **TASK-04: BalanceEpsilon Elimination + Completed Void Restriction**).
+- **Post-Completion Invariants:** Completed financial facts and `ReceiptSnapshotJson` are strictly immutable. Allowed operational metadata updates are distinguished from financial facts; financial corrections through metadata exceptions are strictly prohibited. No new order lines or payment adjustments can be added.
+- **Outbox Side Effects:** Triggers generation of `QuickBooksSync`, `ReceiptPrint`, and `InventoryPosting` messages in the Transactional Outbox (governed under **TASK-07: Outbox Processor Startup**).
 
 ### 2.4 `Voided`
 - **Definition:** Invalidated order before completion. Can occur from `Open` or `Held`.
-- **Pilot Governance Rule (1.2.3):** Voiding already `Completed` orders is strictly prohibited during the attended single-terminal pilot to protect ledger and reporting integrity.
+- **Pilot Governance Rule (TASK-04 in CBOS 1.2.3):** Voiding already `Completed` orders is strictly prohibited during the attended single-terminal pilot to protect ledger and reporting integrity. Enforcing domain and UI blocking for completed-order voids is governed under **TASK-04: BalanceEpsilon Elimination + Completed Void Restriction** pending the formal 1.3.0 Refund aggregate.
 - **Audit Rules:** Requires mandatory manager authorization and free-text justification reason. Historical records remain in the database for financial audit inspection; rows are never physically deleted.
 
-### 2.5 `Cancelled`
+### 2.5 `Cancelled` (Unpaid Draft Cancellation)
 - **Definition:** Abandoned order discarded before any payment was recorded (e.g. customer walked away before paying at the counter).
-- **Rule:** Permitted only if zero payments have been posted to the check.
+- **Rule:** Permitted only if zero payments have been posted to the check. Legitimate unpaid/unposted draft cancellation remains possible under domain rules; compensating transactions correct posted financial effects.
 
 ---
 
