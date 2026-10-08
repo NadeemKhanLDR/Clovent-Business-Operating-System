@@ -160,7 +160,7 @@ public sealed class CustomerEditFormLayoutTests
     }
 
     [Fact]
-    public void CustomerEditForm_AutoScroll_IsDisabled_And_Layout_IsCompact()
+    public void CustomerEditForm_AutoScroll_IsEnabled_ForHighDpiSafety()
     {
         using var form = new CustomerEditForm("New Customer");
         form.CreateControl();
@@ -169,8 +169,7 @@ public sealed class CustomerEditFormLayoutTests
             .GetField("_contentPanel", BindingFlags.NonPublic | BindingFlags.Instance)!
             .GetValue(form)!;
 
-        Assert.False(contentPanel.AutoScroll, "Content panel AutoScroll must be false to prevent unnecessary vertical scrollbars");
-        Assert.True(form.ClientSize.Height <= 500, $"Form height {form.ClientSize.Height} should be <= 500 to avoid empty space below notes");
+        Assert.True(contentPanel.AutoScroll, "Content panel AutoScroll must be true to ensure all fields are reachable at high DPI");
         Assert.Equal(FormStartPosition.CenterParent, form.StartPosition);
     }
 
@@ -204,25 +203,25 @@ public sealed class CustomerEditFormLayoutTests
     }
 
     [Fact]
-    public void CustomerEditForm_NotesEditor_IsSingleLineTextEdit_And_ProperlyAligned()
+    public void CustomerEditForm_NotesEditor_IsMultilineMemoEdit_And_ProperlyAligned()
     {
         using var form = new CustomerEditForm("New Customer");
         form.CreateControl();
 
         var notesField = typeof(CustomerEditForm).GetField("_notesEdit", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var notesEdit = (DevExpress.XtraEditors.TextEdit)notesField.GetValue(form)!;
+        var notesEdit = (DevExpress.XtraEditors.MemoEdit)notesField.GetValue(form)!;
         Assert.NotNull(notesEdit);
-        Assert.False(notesEdit is DevExpress.XtraEditors.MemoEdit, "Notes editor must be a single-line TextEdit, not MemoEdit");
 
-        // Label 8 (Notes:) must be middle-left aligned for single-line TextEdit
+        // Label 8 (Notes:) must be top-left aligned for multiline MemoEdit
         var label8Field = typeof(CustomerEditForm).GetField("label8", BindingFlags.NonPublic | BindingFlags.Instance)!;
         var label8 = (Label)label8Field.GetValue(form)!;
         Assert.NotNull(label8);
-        Assert.Equal(ContentAlignment.MiddleLeft, label8.TextAlign);
+        Assert.Equal(ContentAlignment.TopLeft, label8.TextAlign);
 
         // Editor margins must have deliberate vertical spacing (>= 3px top, >= 4px bottom)
         Assert.True(notesEdit.Margin.Top >= 3, $"Notes margin top was {notesEdit.Margin.Top}");
         Assert.True(notesEdit.Margin.Bottom >= 4, $"Notes margin bottom was {notesEdit.Margin.Bottom}");
+        Assert.True(notesEdit.MinimumSize.Height >= 50, $"Notes editor minimum height must be at least 50px for multiline input");
     }
 
     [Fact]
