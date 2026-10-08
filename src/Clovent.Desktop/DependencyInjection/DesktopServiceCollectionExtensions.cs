@@ -16,7 +16,10 @@ using Clovent.Desktop.Forms.Dashboard;
 using Clovent.Desktop.Forms.Identity;
 using Clovent.Desktop.Forms.Identity.Roles;
 using Clovent.Desktop.Forms.Identity.Users;
+using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Forms.Shell;
+using Clovent.Desktop.Printing;
+using Clovent.Platform.Printing;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -224,6 +227,26 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<ActivityLogView>();
         services.TryAddTransient<AppearanceSettingsView>();
         services.TryAddTransient<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>();
+
+        // Platform Printer Management & Hardware Routing Subsystem
+        services.TryAddTransient<PrinterSettingsForm>();
+        services.TryAddSingleton<IWindowsPrinterQueueProvider, WindowsPrinterQueueProvider>();
+        services.TryAddSingleton<IPrinterConfigurationStore, WindowsPrinterConfigurationStore>();
+        services.TryAddSingleton<IPrinterRouter, PrinterRouter>();
+        services.TryAddSingleton<IPrinterJobTracker, DurableFilePrinterJobTracker>();
+        services.TryAddSingleton<IPrinterAdapter, WindowsSpoolerPrinterAdapter>();
+        services.TryAddSingleton<PrinterManagementService>(sp =>
+            new PrinterManagementService(
+                sp.GetRequiredService<IWindowsPrinterQueueProvider>(),
+                sp.GetRequiredService<IPrinterConfigurationStore>(),
+                sp.GetRequiredService<IPrinterRouter>(),
+                sp.GetRequiredService<IPrinterJobTracker>(),
+                sp.GetRequiredService<IPrinterAdapter>(),
+                authorizationService: null,
+                currentSession: sp.GetService<Sessions.ICurrentSession>(),
+                logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<PrinterManagementService>>(),
+                scopeFactory: sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddSingleton<Clovent.Restaurant.Application.Printing.IReceiptPrintService, DesktopReceiptPrintService>();
 
         return services;
     }

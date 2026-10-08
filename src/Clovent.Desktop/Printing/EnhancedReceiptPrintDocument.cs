@@ -71,23 +71,19 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
             return;
         }
 
-        // Use high-quality rendering for crisp thermal print
+        // High quality raster hints
         graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.SingleBitPerPixelGridFit;
 
-        // Choose appropriate font: Segoe UI or Consolas for complex script vs GenericMonospace
-        using var font = _containsComplexScript
-            ? new Font("Segoe UI", 8.5f, FontStyle.Regular, GraphicsUnit.Point)
-            : new Font(FontFamily.GenericMonospace, 8.5f, FontStyle.Regular, GraphicsUnit.Point);
+        // Fonts: monospace for numbers/tables to maintain rigid column alignment, Segoe UI for complex/Urdu shaping
+        using var monoFont = new Font(FontFamily.GenericMonospace, 8.5f, FontStyle.Regular, GraphicsUnit.Point);
+        using var complexFont = new Font("Segoe UI", 8.5f, FontStyle.Regular, GraphicsUnit.Point);
 
-        var lineHeight = font.GetHeight(graphics) + 1.5f;
+        var lineHeight = Math.Max(monoFont.GetHeight(graphics), complexFont.GetHeight(graphics)) + 1.5f;
         var y = (float)e.MarginBounds.Top;
         var left = (float)e.MarginBounds.Left;
         var width = (float)e.MarginBounds.Width;
 
         using var brush = new SolidBrush(Color.Black);
-        using var leftFormat = new StringFormat { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
-        using var centerFormat = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-        using var rightFormat = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center };
         using var rtlFormat = new StringFormat(StringFormatFlags.DirectionRightToLeft) { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
 
         while (_nextLineIndex < _lines.Length)
@@ -103,13 +99,13 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
 
             if (ReceiptSnapshotFormatter.HasComplexScript(line))
             {
-                // Urdu / Arabic line: render with RTL direction flag
-                graphics.DrawString(line, font, brush, rect, rtlFormat);
+                // Urdu / Arabic line: render with complex font and RTL direction
+                graphics.DrawString(line, complexFont, brush, rect, rtlFormat);
             }
             else
             {
-                // Monospace alignment
-                graphics.DrawString(line, font, brush, left, y);
+                // Monospace alignment for table headers, columns, dividers, and money figures
+                graphics.DrawString(line, monoFont, brush, left, y);
             }
 
             y += lineHeight;

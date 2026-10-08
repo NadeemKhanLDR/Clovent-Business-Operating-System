@@ -125,4 +125,109 @@ public class PrinterRouterTests
         Assert.Equal(kitchenProfile.Id, router.ResolvePrinter(orgId, null, null, PrinterRole.Kitchen)?.Id);
         Assert.Equal(barProfile.Id, router.ResolvePrinter(orgId, null, null, PrinterRole.Bar)?.Id);
     }
+
+    [Fact]
+    public void ResolvePrinterDetailed_ProfileDisabled_ReturnsDisabledOutcome()
+    {
+        var orgId = Guid.NewGuid();
+        var profile = new PrinterProfile { Id = Guid.NewGuid(), ProfileName = "Disabled Receipt", Role = PrinterRole.Receipt, IsEnabled = false };
+        var config = new PrinterConfiguration
+        {
+            Profiles = [profile],
+            Assignments =
+            [
+                new PrinterAssignment { Id = Guid.NewGuid(), OrganizationId = orgId, Role = PrinterRole.Receipt, PrinterProfileId = profile.Id }
+            ]
+        };
+
+        var router = new PrinterRouter(config);
+        var result = router.ResolvePrinterDetailed(orgId, null, null, PrinterRole.Receipt);
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(PrinterResolutionOutcome.ProfileDisabled, result.Outcome);
+        Assert.NotNull(result.Profile);
+        Assert.Null(router.ResolvePrinter(orgId, null, null, PrinterRole.Receipt));
+    }
+
+    [Fact]
+    public void ResolvePrinterDetailed_DefaultReceiptDisabled_ReturnsDisabledOutcome()
+    {
+        var orgId = Guid.NewGuid();
+        var defaultProfile = new PrinterProfile { Id = Guid.NewGuid(), ProfileName = "Default Receipt", Role = PrinterRole.Receipt, IsEnabled = false };
+        var config = new PrinterConfiguration
+        {
+            DefaultReceiptProfileId = defaultProfile.Id,
+            Profiles = [defaultProfile],
+            Assignments = []
+        };
+
+        var router = new PrinterRouter(config);
+        var result = router.ResolvePrinterDetailed(orgId, null, null, PrinterRole.Receipt);
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(PrinterResolutionOutcome.ProfileDisabled, result.Outcome);
+        Assert.Equal(defaultProfile.Id, result.Profile?.Id);
+    }
+
+    [Fact]
+    public void ResolvePrinterDetailed_CrossOrgAssignment_ReturnsCrossOrganizationDeniedOutcome()
+    {
+        var orgA = Guid.NewGuid();
+        var orgB = Guid.NewGuid();
+        var profileB = new PrinterProfile { Id = Guid.NewGuid(), ProfileName = "Org B Kitchen", Role = PrinterRole.Kitchen, IsEnabled = true };
+        var config = new PrinterConfiguration
+        {
+            Profiles = [profileB],
+            Assignments =
+            [
+                new PrinterAssignment { Id = Guid.NewGuid(), OrganizationId = orgB, Role = PrinterRole.Kitchen, PrinterProfileId = profileB.Id }
+            ]
+        };
+
+        var router = new PrinterRouter(config);
+        var result = router.ResolvePrinterDetailed(orgA, null, null, PrinterRole.Kitchen);
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(PrinterResolutionOutcome.CrossOrganizationDenied, result.Outcome);
+        Assert.Null(result.Profile);
+    }
+
+    [Fact]
+    public void ResolvePrinterDetailed_NoProfilesForRole_ReturnsNoAssignmentFoundOutcome()
+    {
+        var orgId = Guid.NewGuid();
+        var receiptProfile = new PrinterProfile { Id = Guid.NewGuid(), ProfileName = "Receipt", Role = PrinterRole.Receipt, IsEnabled = true };
+        var config = new PrinterConfiguration
+        {
+            Profiles = [receiptProfile],
+            Assignments = []
+        };
+
+        var router = new PrinterRouter(config);
+        var result = router.ResolvePrinterDetailed(orgId, null, null, PrinterRole.Kitchen);
+
+        Assert.False(result.IsResolved);
+        Assert.Equal(PrinterResolutionOutcome.NoAssignmentFound, result.Outcome);
+    }
+
+    [Fact]
+    public void ResolvePrinter_RoleIsolation_KitchenNeverFallsBackToReceiptPrinter()
+    {
+        var orgId = Guid.NewGuid();
+        var receiptProfile = new PrinterProfile { Id = Guid.NewGuid(), ProfileName = "Receipt Only", Role = PrinterRole.Receipt, IsEnabled = true };
+        var config = new PrinterConfiguration
+        {
+            DefaultReceiptProfileId = receiptProfile.Id,
+            Profiles = [receiptProfile],
+            Assignments =
+            [
+                new PrinterAssignment { Id = Guid.NewGuid(), OrganizationId = orgId, Role = PrinterRole.Receipt, PrinterProfileId = receiptProfile.Id }
+            ]
+        };
+
+        var router = new PrinterRouter(config);
+        var kitchenPrinter = router.ResolvePrinter(orgId, null, null, PrinterRole.Kitchen);
+
+        Assert.Null(kitchenPrinter);
+    }
 }

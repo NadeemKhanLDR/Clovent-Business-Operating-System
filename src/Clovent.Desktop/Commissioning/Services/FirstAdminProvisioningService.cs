@@ -105,7 +105,7 @@ public sealed class FirstAdminProvisioningService(ILogger<FirstAdminProvisioning
         "orderhistory", "endofday", "menuitems", "restaurantsetup", "paymentmethods",
         "activitylog", "appearance", "customers", "customerreceivables", "shifts",
         "attendance", "recommendationrules", "smartcombos", "quickordertemplates",
-        "upsellperformance"
+        "upsellperformance", "printers"
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
@@ -118,6 +118,7 @@ public sealed class FirstAdminProvisioningService(ILogger<FirstAdminProvisioning
         ("departments", ["create", "edit", "activate", "deactivate"]),
         ("warehouses", ["create", "edit", "activate", "deactivate"]),
         ("terminals", ["create", "edit", "activate", "deactivate"]),
+        ("printers", ["manage", "test", "view"]),
         ("fiscalyears", ["create", "edit", "deactivate"]),
         ("currencies", ["create", "activate", "deactivate"]),
         ("businesssettings", ["edit"]),

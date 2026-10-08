@@ -323,7 +323,7 @@ public partial class PrinterSettingsForm : XtraForm
         if (_service != null)
         {
             lblStatus.Text = "Sending test print to Windows spooler...";
-            var result = await _service.ExecuteTestPrintAsync(_selectedProfile.Id, "Administrator", authorizedExplicitly: true);
+            var result = await _service.ExecuteTestPrintAsync(_selectedProfile.Id, "Administrator");
 
             if (result.Success)
             {

@@ -21,4 +21,8 @@ public sealed record PrintDispatchResult(
     /// <summary>Creates a failed print dispatch result with actionable error message.</summary>
     public static PrintDispatchResult Failed(string? queueName, string errorMessage) =>
         new(false, PrinterJobStatus.Failed, queueName, errorMessage, false);
+
+    /// <summary>Creates an ambiguous print dispatch result when submission outcome is uncertain.</summary>
+    public static PrintDispatchResult Ambiguous(string? queueName, string errorMessage) =>
+        new(false, PrinterJobStatus.Ambiguous, queueName, errorMessage, false);
 }

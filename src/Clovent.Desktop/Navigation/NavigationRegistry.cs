@@ -16,6 +16,7 @@ using Clovent.Desktop.Forms.Restaurant.ActivityLog;
 using Clovent.Desktop.Forms.Restaurant.Appearance;
 using Clovent.Desktop.Forms.Restaurant.MenuItems;
 using Clovent.Desktop.Forms.Restaurant.Setup;
+using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -541,6 +542,17 @@ public static class NavigationRegistry
             Description: "POS terminal machines, printers, and hardware mapping"),
 
         new(
+            Key: "printers",
+            Caption: "Printers",
+            RibbonPage: NavigationPage.Settings,
+            RibbonGroup: "Hardware",
+            IconUri: "svgimages/print/print.svg",
+            Permission: "menu.printers",
+            Order: 955,
+            IsPrimaryAction: false,
+            Description: "Logical printer profiles, roll widths, and hardware queues"),
+
+        new(
             Key: "appearance",
             Caption: "Appearance",
             RibbonPage: NavigationPage.Settings,
@@ -635,5 +647,6 @@ public static class NavigationRegistry
         navigationService.Register("activitylog", () => serviceProvider.GetRequiredService<ActivityLogView>());
         navigationService.Register("appearance", () => serviceProvider.GetRequiredService<AppearanceSettingsView>());
         navigationService.Register("shifts", () => serviceProvider.GetRequiredService<ShiftHistoryView>());
+        navigationService.Register("printers", () => serviceProvider.GetRequiredService<PrinterSettingsForm>());
     }
 }

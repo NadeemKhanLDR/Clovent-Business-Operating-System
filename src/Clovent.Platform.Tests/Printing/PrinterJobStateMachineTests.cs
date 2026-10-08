@@ -65,22 +65,45 @@ public class PrinterJobStateMachineTests
     }
 
     [Fact]
-    public void CircularBuffer_EvictsOldestWhenCapacityExceeded()
+    public void CircularBuffer_EvictsOldestResolvedWhenCapacityExceeded()
     {
         // Arrange: capacity = 5
         var tracker = new InMemoryPrinterJobTracker(maxCapacity: 5);
         var firstJob = PrinterJob.Create("TestPrint", Guid.NewGuid(), "POS-80", "First");
         tracker.RecordJob(firstJob);
+        tracker.MarkConfirmed(firstJob.JobId);
 
-        // Act: Add 6 more jobs
+        // Act: Add and confirm 6 more jobs
         for (int i = 0; i < 6; i++)
         {
             var next = PrinterJob.Create("TestPrint", Guid.NewGuid(), "POS-80", $"Job {i}");
             tracker.RecordJob(next);
+            tracker.MarkConfirmed(next.JobId);
         }
 
-        // Assert: firstJob should have been evicted
+        // Assert: firstJob (resolved) should have been evicted
         Assert.Null(tracker.GetJob(firstJob.JobId));
         Assert.Equal(5, tracker.GetRecentJobs(10).Count);
+    }
+
+    [Fact]
+    public void CircularBuffer_DoesNotEvictUnresolvedJobs_WhenCapacityExceeded()
+    {
+        // Arrange: capacity = 3
+        var tracker = new InMemoryPrinterJobTracker(maxCapacity: 3);
+        var unresolvedJob = PrinterJob.Create("TestPrint", Guid.NewGuid(), "POS-80", "Unresolved");
+        tracker.RecordJob(unresolvedJob); // Status: Requested (Unresolved)
+
+        // Act: Add 5 resolved jobs
+        for (int i = 0; i < 5; i++)
+        {
+            var next = PrinterJob.Create("TestPrint", Guid.NewGuid(), "POS-80", $"Job {i}");
+            tracker.RecordJob(next);
+            tracker.MarkConfirmed(next.JobId);
+        }
+
+        // Assert: unresolvedJob must NOT be evicted merely because buffer reached capacity
+        Assert.NotNull(tracker.GetJob(unresolvedJob.JobId));
+        Assert.True(tracker.GetJob(unresolvedJob.JobId)!.IsUnresolved);
     }
 }

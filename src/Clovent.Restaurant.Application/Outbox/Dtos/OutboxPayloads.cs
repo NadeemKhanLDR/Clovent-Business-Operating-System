@@ -24,7 +24,8 @@ public sealed record ReceiptPrintPayload(
     Guid OrderId,
     string OrderNumber,
     string ReceiptText,
-    string? TargetPrinter = null);
+    string? TargetPrinter = null,
+    string? SnapshotJson = null);
 
 /// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.CloudSync"/>.</summary>
 public sealed record CloudSyncPayload(

@@ -1,4 +1,6 @@
 using Clovent.Desktop.Printing;
+using Clovent.Desktop.Sessions;
+using Clovent.Identity.Application.Authorization;
 using Clovent.Platform.Printing;
 using Xunit;
 
@@ -43,6 +45,35 @@ public class PrinterManagementServiceTests : IDisposable
 
             return Task.FromResult(PrintDispatchResult.SpoolerAccepted(profile.SystemPrinterName));
         }
+    }
+
+    private sealed class FakeCurrentSession : ICurrentSession
+    {
+        public bool IsAuthenticated { get; set; } = true;
+        public Guid? UserId { get; set; } = Guid.NewGuid();
+        public Guid? SessionId { get; set; } = Guid.NewGuid();
+        public string? DisplayName { get; set; } = "Test Operator";
+        public event EventHandler? Changed;
+        public void SignIn(Guid userId, Guid sessionId, string displayName) { }
+        public void SignOut() { }
+    }
+
+    private sealed class FakeAuthorizationService : IAuthorizationService
+    {
+        public HashSet<string> GrantedPermissions { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public HashSet<string> GrantedRoles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        public Task<IReadOnlyCollection<string>> GetPermissionCodesAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult((IReadOnlyCollection<string>)GrantedPermissions.ToList());
+
+        public Task<bool> HasPermissionAsync(Guid userId, string permissionCode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(GrantedPermissions.Contains(permissionCode));
+
+        public Task<bool> HasRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(GrantedRoles.Contains(roleName));
+
+        public Task<bool> SatisfiesPolicyAsync(Guid userId, string policyName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
     }
 
     public PrinterManagementServiceTests()
@@ -181,7 +212,7 @@ public class PrinterManagementServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task ExecuteTestPrint_RequiresExplicitAuthorization_ThrowsWhenUnauthorized()
+    public async Task ExecuteTestPrint_RequiresServiceBoundaryPermission_ThrowsWhenUnauthorized()
     {
         // Arrange
         var queueProvider = new FakeQueueProvider();
@@ -189,17 +220,19 @@ public class PrinterManagementServiceTests : IDisposable
         var router = new PrinterRouter(store);
         var tracker = new InMemoryPrinterJobTracker();
         var adapter = new FakePrinterAdapter();
-        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+        var session = new FakeCurrentSession();
+        var authService = new FakeAuthorizationService(); // No permissions granted
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter, authService, session);
 
         var profileId = Guid.NewGuid();
 
-        // Act & Assert: Must throw when authorizedExplicitly is false
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.ExecuteTestPrintAsync(profileId, "Cashier", authorizedExplicitly: false));
+        // Act & Assert: Must throw UnauthorizedAccessException at service boundary
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.ExecuteTestPrintAsync(profileId, "Cashier"));
     }
 
     [Fact]
-    public async Task ExecuteTestPrint_WithExplicitAuthorization_DispatchesDiagnosticTestSlip()
+    public async Task ExecuteTestPrint_WithAuthorizedPermission_DispatchesDiagnosticTestSlip()
     {
         // Arrange
         var queueProvider = new FakeQueueProvider();
@@ -207,7 +240,11 @@ public class PrinterManagementServiceTests : IDisposable
         var router = new PrinterRouter(store);
         var tracker = new InMemoryPrinterJobTracker();
         var adapter = new FakePrinterAdapter();
-        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+        var session = new FakeCurrentSession();
+        var authService = new FakeAuthorizationService();
+        authService.GrantedPermissions.Add("feature.printers.test");
+        authService.GrantedPermissions.Add("feature.printers.manage");
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter, authService, session);
 
         var profile = new PrinterProfile
         {
@@ -220,7 +257,7 @@ public class PrinterManagementServiceTests : IDisposable
         await service.SaveProfileAsync(profile);
 
         // Act
-        var result = await service.ExecuteTestPrintAsync(profile.Id, "Cashier", authorizedExplicitly: true);
+        var result = await service.ExecuteTestPrintAsync(profile.Id, "Cashier");
 
         // Assert
         Assert.True(result.Success);

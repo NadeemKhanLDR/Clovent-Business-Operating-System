@@ -3,7 +3,7 @@ namespace Clovent.Platform.Printing;
 /// <summary>
 /// Default implementation of <see cref="IPrinterRouter"/>.
 /// Evaluates hierarchical scopes (Terminal -> Branch -> Organization -> Global Default)
-/// while strictly preventing cross-organization confidential document leaks.
+/// while strictly preventing cross-organization confidential document leaks and disabled profile selection.
 /// </summary>
 public sealed class PrinterRouter : IPrinterRouter
 {
@@ -39,6 +39,17 @@ public sealed class PrinterRouter : IPrinterRouter
         Guid? terminalId,
         PrinterRole role = PrinterRole.Receipt)
     {
+        var result = ResolvePrinterDetailed(organizationId, branchId, terminalId, role);
+        return result.IsResolved ? result.Profile : null;
+    }
+
+    /// <inheritdoc/>
+    public PrinterResolutionResult ResolvePrinterDetailed(
+        Guid? organizationId,
+        Guid? branchId,
+        Guid? terminalId,
+        PrinterRole role = PrinterRole.Receipt)
+    {
         var config = GetConfiguration();
         var assignments = config.Assignments;
 
@@ -53,9 +64,11 @@ public sealed class PrinterRouter : IPrinterRouter
             if (terminalMatch != null)
             {
                 var profile = config.FindProfile(terminalMatch.PrinterProfileId);
-                if (profile is { IsEnabled: true })
+                if (profile != null)
                 {
-                    return profile;
+                    return profile.IsEnabled
+                        ? PrinterResolutionResult.Success(profile)
+                        : PrinterResolutionResult.Disabled(profile);
                 }
             }
         }
@@ -72,9 +85,11 @@ public sealed class PrinterRouter : IPrinterRouter
             if (branchMatch != null)
             {
                 var profile = config.FindProfile(branchMatch.PrinterProfileId);
-                if (profile is { IsEnabled: true })
+                if (profile != null)
                 {
-                    return profile;
+                    return profile.IsEnabled
+                        ? PrinterResolutionResult.Success(profile)
+                        : PrinterResolutionResult.Disabled(profile);
                 }
             }
         }
@@ -91,14 +106,16 @@ public sealed class PrinterRouter : IPrinterRouter
             if (orgMatch != null)
             {
                 var profile = config.FindProfile(orgMatch.PrinterProfileId);
-                if (profile is { IsEnabled: true })
+                if (profile != null)
                 {
-                    return profile;
+                    return profile.IsEnabled
+                        ? PrinterResolutionResult.Success(profile)
+                        : PrinterResolutionResult.Disabled(profile);
                 }
             }
         }
 
-        // 4. Default Receipt Printer fallback (strictly for Receipt role or general fallback)
+        // 4. Default Receipt Printer fallback (strictly for Receipt role)
         if (role == PrinterRole.Receipt)
         {
             var defaultProfile = config.GetDefaultReceiptProfile();
@@ -112,17 +129,37 @@ public sealed class PrinterRouter : IPrinterRouter
 
                 if (conflictingAssignment == null)
                 {
-                    return defaultProfile;
+                    return defaultProfile.IsEnabled
+                        ? PrinterResolutionResult.Success(defaultProfile)
+                        : PrinterResolutionResult.Disabled(defaultProfile);
                 }
             }
         }
 
         // 5. Any active profile matching the role that is not bound to a different organization
-        var anyRoleProfile = config.Profiles.FirstOrDefault(p =>
-            p.Role == role &&
-            p.IsEnabled &&
-            !assignments.Any(a => a.PrinterProfileId == p.Id && a.OrganizationId.HasValue && a.OrganizationId != organizationId));
+        var roleProfiles = config.Profiles.Where(p => p.Role == role).ToList();
+        if (roleProfiles.Count == 0)
+        {
+            return PrinterResolutionResult.NoAssignment($"No printer profiles configured for role '{role}'.");
+        }
 
-        return anyRoleProfile;
+        // Filter profiles that are not assigned to a competing organization
+        var accessibleProfiles = roleProfiles
+            .Where(p => !assignments.Any(a => a.PrinterProfileId == p.Id && a.OrganizationId.HasValue && (organizationId == null || a.OrganizationId != organizationId)))
+            .ToList();
+
+        if (accessibleProfiles.Count == 0)
+        {
+            return PrinterResolutionResult.CrossOrgDenied($"All printer profiles for role '{role}' are assigned to other organizations.");
+        }
+
+        var enabledProfile = accessibleProfiles.FirstOrDefault(p => p.IsEnabled);
+        if (enabledProfile != null)
+        {
+            return PrinterResolutionResult.Success(enabledProfile);
+        }
+
+        var disabledProfile = accessibleProfiles.First();
+        return PrinterResolutionResult.Disabled(disabledProfile);
     }
 }

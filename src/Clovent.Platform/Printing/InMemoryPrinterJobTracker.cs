@@ -24,11 +24,13 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
 
         if (_jobs.Count > _maxCapacity)
         {
-            var oldest = _jobs.Values
+            // Governance invariant: Never evict unresolved work (Requested, Queued, Ambiguous)
+            var resolvedOldest = _jobs.Values
+                .Where(j => !j.IsUnresolved)
                 .OrderBy(j => j.CreatedAtUtc)
                 .Take(_jobs.Count - _maxCapacity);
 
-            foreach (var old in oldest)
+            foreach (var old in resolvedOldest)
             {
                 _jobs.TryRemove(old.JobId, out _);
             }
@@ -95,4 +97,22 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
             job.CompletedAtUtc = DateTimeOffset.UtcNow;
         }
     }
+
+    /// <inheritdoc/>
+    public void MarkAmbiguous(Guid jobId, string reason)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.Ambiguous;
+            job.ErrorMessage = reason;
+            job.CompletedAtUtc = DateTimeOffset.UtcNow;
+        }
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<PrinterJob> GetUnresolvedJobs() =>
+        _jobs.Values
+            .Where(j => j.IsUnresolved)
+            .OrderBy(j => j.CreatedAtUtc)
+            .ToList();
 }

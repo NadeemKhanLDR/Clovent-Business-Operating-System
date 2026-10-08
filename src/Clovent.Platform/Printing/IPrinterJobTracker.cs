@@ -28,4 +28,10 @@ public interface IPrinterJobTracker
 
     /// <summary>Transitions job status to Cancelled.</summary>
     void MarkCancelled(Guid jobId);
+
+    /// <summary>Transitions job status to Ambiguous when submission outcome cannot be verified.</summary>
+    void MarkAmbiguous(Guid jobId, string reason);
+
+    /// <summary>Retrieves all unresolved jobs (Requested, Queued, Ambiguous) pending operator resolution.</summary>
+    IReadOnlyList<PrinterJob> GetUnresolvedJobs();
 }

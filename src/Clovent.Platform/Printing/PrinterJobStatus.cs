@@ -22,5 +22,8 @@ public enum PrinterJobStatus
     Failed = 4,
 
     /// <summary>Job was cancelled by an operator prior to submission.</summary>
-    Cancelled = 5
+    Cancelled = 5,
+
+    /// <summary>Submission status is uncertain (e.g. timeout or restart during dispatch); manual inspection required.</summary>
+    Ambiguous = 6
 }
