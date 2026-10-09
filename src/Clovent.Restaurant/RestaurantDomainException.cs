@@ -222,4 +222,24 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>An attendance session PunchOut was attempted with a timestamp earlier than punch in.</summary>
     public static RestaurantDomainException InvalidPunchOutTimestamp() =>
         new("Punch out time cannot be earlier than punch in time.");
+
+    /// <summary>Order cannot be refunded because it is not in Completed status.</summary>
+    public static RestaurantDomainException OrderNotEligibleForRefund(OrderId orderId, OrderStatus status) =>
+        new($"Order '{orderId}' with status '{status}' is not eligible for refund. Only completed financial orders can be refunded.");
+
+    /// <summary>Refund quantity or amount exceeds remaining refundable balance.</summary>
+    public static RestaurantDomainException RefundExceedsRemainingEligibility(OrderLineId lineId, decimal requested, decimal remaining) =>
+        new($"Requested refund of {requested:N2} exceeds remaining refundable quantity/amount of {remaining:N2} for line '{lineId}'.");
+
+    /// <summary>Cash refund payout exceeds remaining net cash paid on original sale.</summary>
+    public static RestaurantDomainException CashRefundExceedsPaidFunds(decimal requested, decimal maxAllowed) =>
+        new($"Cash refund payout of {requested:N2} exceeds remaining eligible cash paid of {maxAllowed:N2} on original sale.");
+
+    /// <summary>Conflicting reuse of refund idempotency key with different request details.</summary>
+    public static RestaurantDomainException IdempotencyKeyConflict(string key) =>
+        new($"Idempotency key '{key}' was already used with conflicting refund parameters.");
+
+    /// <summary>Manager authorization required for refund action.</summary>
+    public static RestaurantDomainException ManagerAuthorizationRequired(string action) =>
+        new($"Action '{action}' requires trusted manager authorization.");
 }

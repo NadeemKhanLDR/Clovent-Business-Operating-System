@@ -13,7 +13,8 @@ internal sealed class FakeMediator : IMediator
 {
     private readonly Func<object, Task<object?>> _handler;
 
-    public FakeMediator(Func<object, Task<object?>> handler) => _handler = handler;
+    public FakeMediator(Func<object, Task<object?>>? handler = null) =>
+        _handler = handler ?? (_ => Task.FromResult<object?>(null));
 
     public async Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default) =>
         (TResponse)(await _handler(request))!;

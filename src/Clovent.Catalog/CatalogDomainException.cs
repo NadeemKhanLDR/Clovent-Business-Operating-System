@@ -92,4 +92,12 @@ public sealed class CatalogDomainException : DomainException
     /// <summary>A price Deactivate() was attempted while not active.</summary>
     public static CatalogDomainException PriceNotActive(ProductPriceId priceId) =>
         new($"Product price '{priceId}' is not active.");
+
+    /// <summary>A taxable item cannot be resolved to any active tax profile in the operating jurisdiction.</summary>
+    public static CatalogDomainException UnresolvedTaxConfiguration(string itemIdentifier, string jurisdiction) =>
+        new($"Taxable item '{itemIdentifier}' has no active tax profile configured in jurisdiction '{jurisdiction}'. Silent fallback to zero tax is prohibited by financial integrity rules.");
+
+    /// <summary>Conflicting active tax profiles detected for the same authority, jurisdiction, and classification.</summary>
+    public static CatalogDomainException ConflictingTaxProfile(string code, string jurisdiction) =>
+        new($"Conflicting active tax profile detected for code '{code}' in jurisdiction '{jurisdiction}'. Multiple active rates for the same jurisdiction and item classification are not permitted.");
 }

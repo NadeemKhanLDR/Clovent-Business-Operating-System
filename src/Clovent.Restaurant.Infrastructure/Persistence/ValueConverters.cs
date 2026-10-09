@@ -238,5 +238,17 @@ internal static class ValueConverters
     /// <summary>Nullable <see cref="CustomerLedgerEntryId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<CustomerLedgerEntryId?, Guid?> NullableCustomerLedgerEntryIdConverter =
         new(id => id == null ? null : id.Value.Value, value => value == null ? null : new CustomerLedgerEntryId(value.Value));
+
+    /// <summary><see cref="Clovent.Restaurant.Refunds.RefundId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Refunds.RefundId, Guid> RefundIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.Refunds.RefundId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.Refunds.RefundLineId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Refunds.RefundLineId, Guid> RefundLineIdConverter =
+        new(id => id.Value, value => new Clovent.Restaurant.Refunds.RefundLineId(value));
+
+    /// <summary><see cref="Clovent.Restaurant.Refunds.RefundNumber"/> &lt;-&gt; <see cref="string"/>.</summary>
+    public static readonly ValueConverter<Clovent.Restaurant.Refunds.RefundNumber, string> RefundNumberConverter =
+        new(rn => rn.Value, value => new Clovent.Restaurant.Refunds.RefundNumber(value));
 }
 

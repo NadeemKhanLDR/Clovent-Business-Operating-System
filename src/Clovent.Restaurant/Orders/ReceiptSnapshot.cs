@@ -8,7 +8,14 @@ public sealed record ReceiptSnapshotItem(
     decimal Quantity,
     decimal UnitPrice,
     decimal LineTotal,
-    string? Notes);
+    string? Notes,
+    string TaxClassification = "Taxable",
+    string TaxCode = "PK-PRA-16",
+    decimal TaxRatePercentage = 0m,
+    bool TaxIsInclusive = false,
+    decimal TaxableBase = 0m,
+    decimal TaxAmount = 0m,
+    decimal DiscountAmount = 0m);
 
 /// <summary>Single immutable payment tender in a completed receipt snapshot.</summary>
 public sealed record ReceiptSnapshotPayment(
@@ -19,6 +26,7 @@ public sealed record ReceiptSnapshotPayment(
 /// Frozen immutable snapshot of an order receipt captured at transaction completion.
 /// Guaranteed to reproduce the customer receipt identically on reprint without
 /// querying catalog variants, current prices, or external services.
+/// Preserves statutory tax breakdown facts and calculation policy version.
 /// </summary>
 public sealed record ReceiptSnapshot(
     Guid OrderId,
@@ -36,4 +44,9 @@ public sealed record ReceiptSnapshot(
     IReadOnlyList<ReceiptSnapshotPayment> Payments,
     string? CashierName,
     string? TerminalName,
-    string? CustomerNotes);
+    string? CustomerNotes,
+    IReadOnlyList<OrderTaxSummarySnapshot>? TaxBreakdown = null,
+    string? CalculationPolicyVersion = "1.3.0-AwayFromZero-v1",
+    decimal TotalTaxableBase = 0m,
+    decimal TotalExclusiveTax = 0m,
+    decimal TotalInclusiveTax = 0m);

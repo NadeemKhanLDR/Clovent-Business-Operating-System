@@ -108,6 +108,15 @@ internal static class ValueConverters
     public static readonly ValueConverter<BarcodeValue, string> BarcodeValueConverter =
         new(v => v.Value, v => BarcodeValue.Create(v));
 
+    /// <summary><see cref="TaxProfileId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Catalog.TaxProfiles.TaxProfileId, Guid> TaxProfileIdConverter =
+        new(id => id.Value, value => new Clovent.Catalog.TaxProfiles.TaxProfileId(value));
+
+    /// <summary>Nullable <see cref="TaxProfileId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    public static readonly ValueConverter<Clovent.Catalog.TaxProfiles.TaxProfileId?, Guid?> NullableTaxProfileIdConverter =
+        new(id => id == null ? null : id.Value.Value, value => value == null ? null : new Clovent.Catalog.TaxProfiles.TaxProfileId(value.Value));
+
+
     /// <summary>
     /// <see cref="TaxConfiguration"/> &lt;-&gt; a single JSON column - the
     /// identical reasoning as <c>Clovent.Identity.Infrastructure.Persistence.ValueConverters.AddressConverter</c>:
@@ -115,14 +124,32 @@ internal static class ValueConverters
     /// owned type, so it stays constructor-bindable on <see cref="Products.Product"/>.
     /// </summary>
     public static readonly ValueConverter<TaxConfiguration, string> TaxConfigurationConverter = new(
-        v => JsonSerializer.Serialize(new TaxConfigurationJson(v.RatePercentage, v.IsInclusive), (JsonSerializerOptions?)null),
+        v => JsonSerializer.Serialize(new TaxConfigurationJson(
+            v.RatePercentage,
+            v.IsInclusive,
+            v.TaxClassification.ToString(),
+            v.TaxCode,
+            v.Authority,
+            v.TaxProfileId.HasValue ? v.TaxProfileId.Value.Value : null), (JsonSerializerOptions?)null),
         v => Deserialize(v));
 
     private static TaxConfiguration Deserialize(string json)
     {
         var dto = JsonSerializer.Deserialize<TaxConfigurationJson>(json, (JsonSerializerOptions?)null)!;
-        return TaxConfiguration.Create(dto.RatePercentage, dto.IsInclusive);
+        Clovent.Catalog.TaxProfiles.TaxClassification? classification =
+            Enum.TryParse<Clovent.Catalog.TaxProfiles.TaxClassification>(dto.TaxClassification, true, out var c) ? c : null;
+        Clovent.Catalog.TaxProfiles.TaxProfileId? profileId =
+            dto.TaxProfileId.HasValue && dto.TaxProfileId.Value != Guid.Empty
+                ? new Clovent.Catalog.TaxProfiles.TaxProfileId(dto.TaxProfileId.Value)
+                : null;
+        return TaxConfiguration.Create(dto.RatePercentage, dto.IsInclusive, classification, dto.TaxCode, dto.Authority, profileId);
     }
 
-    private sealed record TaxConfigurationJson(decimal RatePercentage, bool IsInclusive);
+    private sealed record TaxConfigurationJson(
+        decimal RatePercentage,
+        bool IsInclusive,
+        string? TaxClassification = null,
+        string? TaxCode = null,
+        string? Authority = null,
+        Guid? TaxProfileId = null);
 }

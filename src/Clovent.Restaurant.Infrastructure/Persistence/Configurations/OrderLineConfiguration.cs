@@ -34,6 +34,13 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
         builder.Property(l => l.PriceOverriddenAtUtc);
         builder.Property(l => l.TaxRatePercentage).HasPrecision(5, 2).IsRequired();
         builder.Property(l => l.TaxIsInclusive).IsRequired();
+        builder.Property(l => l.TaxClassification).HasMaxLength(30);
+        builder.Property(l => l.TaxAuthority).HasMaxLength(50);
+        builder.Property(l => l.TaxCode).HasMaxLength(50);
+        builder.Property(l => l.TaxableBase).HasPrecision(18, 2);
+        builder.Property(l => l.AllocatedDiscount).HasPrecision(18, 2).HasDefaultValue(0.00m).IsRequired();
+        builder.Property(l => l.TaxAmount).HasPrecision(18, 2);
+        builder.Property(l => l.CalculationPolicyVersion).HasMaxLength(50);
 
         builder.Property(l => l.Notes).HasMaxLength(500);
         builder.Property(l => l.IsVoided).IsRequired();
