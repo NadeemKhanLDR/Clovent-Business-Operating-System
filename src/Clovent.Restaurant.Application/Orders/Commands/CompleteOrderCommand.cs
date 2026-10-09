@@ -119,7 +119,8 @@ public sealed class CompleteOrderCommandHandler(
             Environment.MachineName,
             order.CustomerNotes);
 
-        order.SetReceiptSnapshot(JsonSerializer.Serialize(snapshot));
+        var snapshotJson = JsonSerializer.Serialize(snapshot);
+        order.SetReceiptSnapshot(snapshotJson);
 
         if (outboxRepository is not null)
         {
@@ -161,7 +162,9 @@ public sealed class CompleteOrderCommandHandler(
             var printPayload = new ReceiptPrintPayload(
                 order.Id.Value,
                 order.OrderNumber.Value,
-                $"Receipt for Order {order.OrderNumber.Value} - Total {totals.GrandTotal:N2}");
+                $"Receipt for Order {order.OrderNumber.Value} - Total {totals.GrandTotal:N2}",
+                null,
+                snapshotJson);
 
             var printMessage = OutboxMessage.Create(
                 OutboxMessageType.ReceiptPrint,
