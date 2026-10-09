@@ -39,6 +39,11 @@ partial class EntityPicker
         //
         _combo.Name = "_combo";
         _combo.Properties.TextEditStyle = TextEditStyles.DisableTextEditor;
+        _combo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _combo.Properties.Appearance.Options.UseTextOptions = true;
+        _combo.Properties.AppearanceDropDown.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        _combo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _combo.Properties.DropDownRows = 10;
         _combo.SelectedIndexChanged += Combo_SelectedIndexChanged;
         _combo.Anchor = AnchorStyles.Left;
         _combo.Margin = Padding.Empty;
@@ -47,9 +52,11 @@ partial class EntityPicker
         //
         _label.Name = "_label";
         _label.Anchor = AnchorStyles.Left;
-        _label.Margin = new Padding(0, 0, 4, 0);
+        _label.Margin = new Padding(0, 0, 6, 0);
         _label.Padding = Padding.Empty;
         _label.AutoSizeMode = LabelAutoSizeMode.Horizontal;
+        _label.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _label.Appearance.Options.UseTextOptions = true;
         //
         // _layout
         //

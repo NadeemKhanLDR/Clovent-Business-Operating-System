@@ -24,6 +24,11 @@ public static class ComboBoxBinder
     public static Dictionary<string, Guid?> Bind(ComboBoxEdit combo, IReadOnlyList<(Guid Id, string Display)> items, bool includeEmpty = false)
     {
         combo.Properties.TextEditStyle = TextEditStyles.DisableTextEditor;
+        combo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        combo.Properties.Appearance.Options.UseTextOptions = true;
+        combo.Properties.AppearanceDropDown.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        combo.Properties.AppearanceDropDown.Options.UseFont = true;
+        combo.Properties.DropDownRows = 10;
 
         var map = new Dictionary<string, Guid?>();
         combo.Properties.Items.Clear();

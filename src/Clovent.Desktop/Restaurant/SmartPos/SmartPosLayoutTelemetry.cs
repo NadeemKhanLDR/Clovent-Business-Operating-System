@@ -35,6 +35,10 @@ public static class SmartPosLayoutTelemetry
             }
             return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "qa", "runtime_layout");
         }
+        catch
+        {
+            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "qa", "runtime_layout");
+        }
     }
 
     private static readonly object FileLock = new();
