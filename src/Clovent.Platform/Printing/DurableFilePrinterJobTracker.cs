@@ -227,4 +227,11 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
             PersistJob(job);
         }
     }
+
+    /// <inheritdoc/>
+    public int GetReprintCount(string documentReference)
+    {
+        if (string.IsNullOrWhiteSpace(documentReference)) return 0;
+        return _jobs.Values.Count(j => string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) && j.IsReprint);
+    }
 }

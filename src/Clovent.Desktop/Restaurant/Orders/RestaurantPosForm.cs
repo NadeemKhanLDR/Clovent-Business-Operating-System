@@ -6022,7 +6022,11 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         await PosPerformanceTracker.TrackAsync("OrderComplete", async () =>
         {
-            await _mediator.Send(new CompleteOrderCommand(_currentOrder!.OrderId));
+            await _mediator.Send(new CompleteOrderCommand(
+                _currentOrder!.OrderId,
+                null,
+                PosSettingsStore.LoadBranchId(),
+                PosSettingsStore.LoadTerminalId()));
             return true;
         });
 
@@ -6755,25 +6759,8 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (QueueRushModeStore.IsEnabled())
         {
-            // In Rush Mode: fast asynchronous printing dispatch, bypass modal preview to release cashier immediately
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var orderId = _currentOrder.OrderId;
-                    var orderNum = _currentOrder.OrderNumber;
-                    var printService = _scope.ServiceProvider.GetService<Clovent.Restaurant.Application.Printing.IReceiptPrintService>();
-                    if (printService != null)
-                    {
-                        var payload = new Clovent.Restaurant.Application.Outbox.Dtos.ReceiptPrintPayload(orderId, orderNum, receipt, null);
-                        await printService.PrintReceiptAsync(payload);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Background receipt print failed during Rush Mode.");
-                }
-            });
+            // In Rush Mode: background receipt printing is dispatched durably via Transactional Outbox;
+            // bypass modal preview to release cashier immediately.
             await LogActivityAsync("PrintRush", _currentOrder.OrderNumber);
             return;
         }
@@ -7235,10 +7222,13 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
 
             var receiptText = await ReceiptFormatter.FormatAsync(_mediator, lastOrder);
+            var jobTracker = _scope.ServiceProvider.GetService<Clovent.Platform.Printing.IPrinterJobTracker>();
+            var reprintCount = (jobTracker?.GetReprintCount(lastOrder.OrderNumber) ?? 0) + 1;
+
             using var preview = new ReceiptPreviewForm(receiptText);
             preview.ShowDialog(this);
 
-            await LogActivityAsync("Receipt Reprinted", $"Order #{lastOrder.OrderNumber} reprinted for Shift #{_activeShift.ShiftNumber}");
+            await LogActivityAsync("Receipt Reprinted", $"Order #{lastOrder.OrderNumber} reprinted (Copy #{reprintCount}) for Shift #{_activeShift.ShiftNumber}");
         }
         catch (Exception ex)
         {

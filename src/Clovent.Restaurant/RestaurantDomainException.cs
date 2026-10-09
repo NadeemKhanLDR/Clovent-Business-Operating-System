@@ -174,6 +174,10 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException DiscountExceedsOrderSubtotal(OrderId orderId, decimal discountTotal, decimal subtotal) =>
         new($"Discounts on order '{orderId}' would total {discountTotal:0.00}, which is more than the order's subtotal of {subtotal:0.00}.");
 
+    /// <summary>A requested discount exceeds the eligible order subtotal.</summary>
+    public static RestaurantDomainException DiscountExceedsSubtotal(decimal discountTotal, decimal subtotal) =>
+        new($"Requested discount of {discountTotal:0.00} exceeds eligible subtotal of {subtotal:0.00}. Excess discounts cannot be applied.");
+
     /// <summary>A MergeTablesCommand/SplitOrderCommand was attempted with a source table/order that has no open or held order to move lines from.</summary>
     public static RestaurantDomainException TableHasNoOpenOrder(TableId tableId) =>
         new($"Table '{tableId}' has no open or held order.");

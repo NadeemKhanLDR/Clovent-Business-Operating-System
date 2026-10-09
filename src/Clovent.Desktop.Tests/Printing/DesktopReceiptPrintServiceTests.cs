@@ -190,7 +190,7 @@ public class DesktopReceiptPrintServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task PrintReceiptAsync_WithCorruptSnapshotJson_FallsBackToReceiptText()
+    public async Task PrintReceiptAsync_WithCorruptSnapshotJson_RejectsFallbackAndReturnsPrintFailed()
     {
         // Arrange
         var payload = new ReceiptPrintPayload(
@@ -202,12 +202,10 @@ public class DesktopReceiptPrintServiceTests : IDisposable
         // Act
         var result = await _receiptPrintService.PrintReceiptAsync(payload);
 
-        // Assert
-        Assert.Equal(ReceiptPrintStatus.Printed, result.Status);
-        Assert.Equal("POS-Receipt", result.PrinterName);
-        Assert.Equal(1, _adapter.DispatchCount);
-        Assert.NotNull(_adapter.LastDispatchedJob);
-        Assert.Equal("=== FALLBACK TEXT RECEIPT ===", _adapter.LastDispatchedJob.PayloadText);
+        // Assert: Corruption must not silently become successful fallback printing
+        Assert.Equal(ReceiptPrintStatus.PrintFailed, result.Status);
+        Assert.Contains("corrupted", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, _adapter.DispatchCount);
     }
 
     [Fact]
@@ -265,5 +263,37 @@ public class DesktopReceiptPrintServiceTests : IDisposable
         Assert.Equal(ReceiptPrintStatus.PrintFailed, result.Status);
         Assert.Equal("POS-Receipt", result.PrinterName);
         Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_PassesStableOutboxMessageIdAsJobIdAndCapturedContext()
+    {
+        // Arrange
+        var outboxMessageId = Guid.NewGuid();
+        var orgId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var terminalId = Guid.NewGuid();
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-CONTEXT-006",
+            ReceiptText: "=== CONTEXT TEST ===",
+            SnapshotJson: null,
+            OutboxMessageId: outboxMessageId,
+            OrganizationId: orgId,
+            BranchId: branchId,
+            TerminalId: terminalId);
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert
+        Assert.Equal(ReceiptPrintStatus.Printed, result.Status);
+        Assert.Equal(1, _adapter.DispatchCount);
+        Assert.NotNull(_adapter.LastDispatchedJob);
+        Assert.Equal(outboxMessageId, _adapter.LastDispatchedJob.JobId);
+        Assert.Equal(orgId, _adapter.LastDispatchedJob.OrganizationId);
+        Assert.Equal(branchId, _adapter.LastDispatchedJob.BranchId);
+        Assert.Equal(terminalId, _adapter.LastDispatchedJob.TerminalId);
     }
 }

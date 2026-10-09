@@ -28,7 +28,11 @@ namespace Clovent.Restaurant.Application.Orders.Commands;
 /// accounting, QuickBooks, receipts, analytics, recommendations, cloud sync) asynchronously
 /// through the transactional outbox without stalling the cashier.
 /// </summary>
-public sealed record CompleteOrderCommand(Guid OrderId) : IRequest<OrderDto>;
+public sealed record CompleteOrderCommand(
+    Guid OrderId,
+    Guid? OrganizationId = null,
+    Guid? BranchId = null,
+    Guid? TerminalId = null) : IRequest<OrderDto>;
 
 /// <summary>Handles <see cref="CompleteOrderCommand"/>.</summary>
 public sealed class CompleteOrderCommandHandler(
@@ -190,7 +194,11 @@ public sealed class CompleteOrderCommandHandler(
                 order.OrderNumber.Value,
                 $"Receipt for Order {order.OrderNumber.Value} - Total {totals.GrandTotal:N2}",
                 null,
-                snapshotJson);
+                snapshotJson,
+                null,
+                request.OrganizationId,
+                request.BranchId,
+                request.TerminalId);
 
             var printMessage = OutboxMessage.Create(
                 OutboxMessageType.ReceiptPrint,
@@ -218,8 +226,8 @@ public sealed class CompleteOrderCommandHandler(
                 order.Id.Value,
                 order.OrderNumber.Value,
                 totals.GrandTotal,
-                Guid.Empty,
-                Guid.Empty,
+                request.BranchId ?? Guid.Empty,
+                request.TerminalId ?? Guid.Empty,
                 DateTimeOffset.UtcNow);
 
             var cloudMessage = OutboxMessage.Create(

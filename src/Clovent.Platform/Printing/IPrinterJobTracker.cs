@@ -34,4 +34,10 @@ public interface IPrinterJobTracker
 
     /// <summary>Retrieves all unresolved jobs (Requested, Queued, Ambiguous) pending operator resolution.</summary>
     IReadOnlyList<PrinterJob> GetUnresolvedJobs();
+
+    /// <summary>
+    /// Gets the number of times a document reference (e.g. order number) has been reprinted.
+    /// Survives application restarts when backed by durable storage.
+    /// </summary>
+    int GetReprintCount(string documentReference);
 }

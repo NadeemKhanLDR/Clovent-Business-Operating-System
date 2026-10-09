@@ -265,4 +265,94 @@ public class PrinterManagementServiceTests : IDisposable
         Assert.Contains("*** PRINTER DIAGNOSTIC TEST SLIP ***", adapter.LastDispatchedJob?.PayloadText);
         Assert.Equal("TestPrint", adapter.LastDispatchedJob?.DocumentType);
     }
+
+    [Fact]
+    public async Task DispatchReceiptAsync_WhenJobAlreadySubmitted_SuppressesDuplicateSpoolerSubmission()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var stableJobId = Guid.NewGuid();
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-IDEMPOTENT-01",
+            DailySalesNumber: 1,
+            OrderType: "TakeAway",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [],
+            Subtotal: 0m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 0m, Balance: 0m,
+            Payments: []);
+
+        // Act 1: Initial dispatch submits to spooler
+        var firstResult = await service.DispatchReceiptAsync(receiptData, null, null, null, jobId: stableJobId);
+        Assert.True(firstResult.Success);
+        Assert.Equal(1, adapter.DispatchCount);
+
+        // Act 2: Retry with exact same jobId
+        var retryResult = await service.DispatchReceiptAsync(receiptData, null, null, null, jobId: stableJobId);
+
+        // Assert: Spooler submission was suppressed; adapter dispatch count remains 1
+        Assert.True(retryResult.Success);
+        Assert.Equal(1, adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task DispatchReceiptAsync_WhenJobAmbiguous_ReturnsAmbiguousWithoutReSubmission()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var stableJobId = Guid.NewGuid();
+        var existingJob = PrinterJob.Create("CustomerReceipt", profile.Id, "POS-80", "Text", jobId: stableJobId);
+        tracker.RecordJob(existingJob);
+        tracker.MarkAmbiguous(stableJobId, "Spooler timeout");
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-AMBIGUOUS-01",
+            DailySalesNumber: 1,
+            OrderType: "TakeAway",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [],
+            Subtotal: 0m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 0m, Balance: 0m,
+            Payments: []);
+
+        // Act: Attempt dispatch on existing ambiguous job
+        var result = await service.DispatchReceiptAsync(receiptData, null, null, null, jobId: stableJobId);
+
+        // Assert: Duplicate submission is blocked; returns Ambiguous
+        Assert.False(result.Success);
+        Assert.Equal(PrinterJobStatus.Ambiguous, result.Status);
+        Assert.Equal(0, adapter.DispatchCount);
+    }
 }

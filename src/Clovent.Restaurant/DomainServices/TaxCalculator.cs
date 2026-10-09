@@ -17,6 +17,24 @@ public sealed record TaxCalculationLineInput(
     bool TaxIsInclusive = false);
 
 /// <summary>
+/// Configured calculation policy governing how sales taxes and order discounts interact.
+/// </summary>
+public enum TaxCalculationPolicy
+{
+    /// <summary>
+    /// Option 1: Gross-Base Tax Calculation Policy.
+    /// Sales tax is computed on gross line subtotal (less line discounts); order-level discount does not reduce the statutory tax base.
+    /// </summary>
+    GrossBase = 1,
+
+    /// <summary>
+    /// Option 2: Net-of-Discount Tax Calculation Policy (Statutory Trade Discount Rule).
+    /// Allocated order-level discounts reduce the taxable base prior to applying the statutory tax rate.
+    /// </summary>
+    NetOfDiscount = 2
+}
+
+/// <summary>
 /// Comprehensive result of pure financial calculation and Pakistan tax determination.
 /// </summary>
 public sealed record OrderTaxCalculationResult(
@@ -39,7 +57,21 @@ public sealed record OrderTaxCalculationResult(
 /// </summary>
 public static class TaxCalculator
 {
-    private const string PolicyVersion = "1.3.0-AwayFromZero-v1";
+    public const string PolicyVersionGrossBase = "CBOS-TaxPolicy-GrossBase-v1";
+    public const string PolicyVersionNetOfDiscount = "CBOS-TaxPolicy-NetOfDiscount-v1";
+
+    /// <summary>
+    /// Executes the complete financial calculation contract using a typed <see cref="TaxCalculationPolicy"/>.
+    /// </summary>
+    public static OrderTaxCalculationResult Calculate(
+        IReadOnlyList<TaxCalculationLineInput> lines,
+        decimal orderDiscountAmount,
+        TaxCalculationPolicy policy) =>
+        Calculate(
+            lines,
+            orderDiscountAmount,
+            discountAppliesBeforeTax: policy == TaxCalculationPolicy.NetOfDiscount,
+            policyVersion: policy == TaxCalculationPolicy.NetOfDiscount ? PolicyVersionNetOfDiscount : PolicyVersionGrossBase);
 
     /// <summary>
     /// Executes the complete financial calculation contract across lines, discounts, and taxes.
@@ -48,7 +80,8 @@ public static class TaxCalculator
     public static OrderTaxCalculationResult Calculate(
         IReadOnlyList<TaxCalculationLineInput> lines,
         decimal orderDiscountAmount = 0m,
-        bool discountAppliesBeforeTax = false)
+        bool discountAppliesBeforeTax = false,
+        string? policyVersion = null)
     {
         ArgumentNullException.ThrowIfNull(lines);
 
@@ -163,7 +196,7 @@ public static class TaxCalculator
                 taxableBase,
                 taxAmount,
                 linePayable,
-                PolicyVersion));
+                policyVersion ?? (discountAppliesBeforeTax ? PolicyVersionNetOfDiscount : PolicyVersionGrossBase)));
         }
 
         // 4. Statutory Tax Summary Grouping

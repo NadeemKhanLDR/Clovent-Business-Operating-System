@@ -115,4 +115,11 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
             .Where(j => j.IsUnresolved)
             .OrderBy(j => j.CreatedAtUtc)
             .ToList();
+
+    /// <inheritdoc/>
+    public int GetReprintCount(string documentReference)
+    {
+        if (string.IsNullOrWhiteSpace(documentReference)) return 0;
+        return _jobs.Values.Count(j => string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) && j.IsReprint);
+    }
 }

@@ -79,11 +79,12 @@ public sealed class PrinterJob
         int reprintCount = 1,
         string? reprintReason = null,
         Guid? correlationId = null,
-        string? documentReference = null)
+        string? documentReference = null,
+        Guid? jobId = null)
     {
         return new PrinterJob
         {
-            JobId = Guid.NewGuid(),
+            JobId = jobId ?? Guid.NewGuid(),
             CorrelationId = correlationId ?? Guid.NewGuid(),
             OrganizationId = organizationId,
             BranchId = branchId,

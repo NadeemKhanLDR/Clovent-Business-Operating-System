@@ -41,46 +41,55 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
         }
 
         PrintDispatchResult dispatchResult;
+        var jobId = payload.OutboxMessageId ?? payload.OrderId;
 
         // 1. If durable snapshot is available in payload, route and format via dynamic template
         if (!string.IsNullOrWhiteSpace(payload.SnapshotJson))
         {
+            ReceiptSnapshot? snapshot;
             try
             {
-                var snapshot = JsonSerializer.Deserialize<ReceiptSnapshot>(payload.SnapshotJson);
-                if (snapshot != null)
-                {
-                    var printableData = snapshot.ToPrintable();
-                    dispatchResult = await _printerManagementService.DispatchReceiptAsync(
-                        printableData,
-                        organizationId: null,
-                        branchId: null,
-                        terminalId: null,
-                        isReprint: false,
-                        reprintCount: 1,
-                        reprintReason: null,
-                        cancellationToken: cancellationToken).ConfigureAwait(false);
-
-                    return MapResult(dispatchResult);
-                }
+                snapshot = JsonSerializer.Deserialize<ReceiptSnapshot>(payload.SnapshotJson);
             }
             catch (Exception ex)
             {
-                _logger?.LogWarning(ex, "Failed to parse durable snapshot for order {OrderNumber}. Falling back to payload text.", payload.OrderNumber);
+                _logger?.LogError(ex, "Receipt snapshot for order {OrderNumber} is corrupted. Refusing fallback text print.", payload.OrderNumber);
+                return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, null, $"Receipt snapshot for order {payload.OrderNumber} is corrupted: {ex.Message}. Fallback printing rejected.");
             }
+
+            if (snapshot == null)
+            {
+                _logger?.LogError("Receipt snapshot for order {OrderNumber} is empty or null after deserialization. Refusing fallback text print.", payload.OrderNumber);
+                return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, null, $"Receipt snapshot for order {payload.OrderNumber} is invalid. Fallback printing rejected.");
+            }
+
+            var printableData = snapshot.ToPrintable();
+            dispatchResult = await _printerManagementService.DispatchReceiptAsync(
+                printableData,
+                organizationId: payload.OrganizationId,
+                branchId: payload.BranchId,
+                terminalId: payload.TerminalId,
+                isReprint: false,
+                reprintCount: 1,
+                reprintReason: null,
+                jobId: jobId,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            return MapResult(dispatchResult);
         }
 
-        // 2. Fallback to pre-formatted text payload
+        // 2. Missing legacy snapshot: only genuine legacy orders without snapshot JSON fall back to pre-formatted text payload
         dispatchResult = await _printerManagementService.DispatchTextAsync(
             payload.ReceiptText,
             documentType: "CustomerReceipt",
             documentReference: payload.OrderNumber,
-            organizationId: null,
-            branchId: null,
-            terminalId: null,
+            organizationId: payload.OrganizationId,
+            branchId: payload.BranchId,
+            terminalId: payload.TerminalId,
             isReprint: false,
             reprintCount: 1,
             reprintReason: null,
+            jobId: jobId,
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return MapResult(dispatchResult);
