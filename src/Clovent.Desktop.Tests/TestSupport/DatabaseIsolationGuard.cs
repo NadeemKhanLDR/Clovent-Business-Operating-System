@@ -68,6 +68,36 @@ public static class DatabaseIsolationGuard
     }
 
     /// <summary>
+    /// Known configuration keys across CBOS bounded contexts where connection strings are looked up.
+    /// </summary>
+    public static readonly string[] KnownConnectionStringKeys =
+    [
+        "Default",
+        "DefaultConnection",
+        "Authentication",
+        "Catalog",
+        "Identity",
+        "Inventory",
+        "MasterData",
+        "Restaurant"
+    ];
+
+    /// <summary>
+    /// Populates every known module and default connection string key in the provided configuration
+    /// with the isolated test connection string, ensuring no DbContext or initializer falls back to operational targets.
+    /// </summary>
+    public static void ApplyToConfiguration(Microsoft.Extensions.Configuration.IConfiguration configuration, string isolatedConnectionString)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        EnsureIsolated(isolatedConnectionString);
+
+        foreach (var key in KnownConnectionStringKeys)
+        {
+            configuration[$"ConnectionStrings:{key}"] = isolatedConnectionString;
+        }
+    }
+
+    /// <summary>
     /// Determines whether the connection string targets the operational database.
     /// </summary>
     public static bool IsOperationalDatabase(string connectionString)
@@ -80,7 +110,12 @@ public static class DatabaseIsolationGuard
         try
         {
             var builder = new SqlConnectionStringBuilder(connectionString);
-            return string.Equals(builder.InitialCatalog, OperationalDatabaseName, StringComparison.OrdinalIgnoreCase);
+            var catalog = builder.InitialCatalog;
+            if (string.IsNullOrWhiteSpace(catalog))
+            {
+                return true; // Reject unspecified database catalog to prevent default operational database routing
+            }
+            return string.Equals(catalog, OperationalDatabaseName, StringComparison.OrdinalIgnoreCase);
         }
         catch
         {

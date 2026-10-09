@@ -228,8 +228,21 @@ public sealed class TaxProfileResolver : ITaxProfileResolver
             }
         }
 
-        // Precedence 2: Category default tax profile (deferred to CBOS 1.3.0 schema migration)
-        // ProductCategory does not currently persist DefaultTaxProfileId on the frozen 1.2.3 baseline.
+        // Precedence 2: Category default tax profile inheritance
+        var effectiveCategory = categoryId ?? product?.CategoryId?.Value;
+
+        if (effectiveCategory.HasValue && _categoryRepository != null)
+        {
+            var category = await _categoryRepository.GetByIdAsync(new ProductCategoryId(effectiveCategory.Value), cancellationToken);
+            if (category?.DefaultTaxProfileId != null)
+            {
+                var catProfile = await _taxProfileRepository.GetByIdAsync(category.DefaultTaxProfileId.Value, cancellationToken);
+                if (catProfile != null && catProfile.IsEffectiveAt(effectiveAtUtc))
+                {
+                    return MapProfileToResult(catProfile, tenderType, isPaymentTenderVerified);
+                }
+            }
+        }
 
         // Precedence 3: Jurisdiction and item classification default profile
         var itemClassification = DetermineItemClassification(itemType);

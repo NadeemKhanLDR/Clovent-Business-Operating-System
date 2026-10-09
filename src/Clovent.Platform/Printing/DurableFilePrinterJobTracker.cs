@@ -78,13 +78,15 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
                         var job = JsonSerializer.Deserialize<PrinterJob>(json, JsonOpts);
                         if (job == null) continue;
 
-                        // Governance rule: If a job was Submitted when the process restarted,
+                        // Governance rule: If a job was Submitted or InFlight when the process restarted,
                         // operating system spooler acceptance or physical output is uncertain.
                         // Must NOT be automatically replayed as exactly-once printing; mark as Ambiguous.
-                        if (job.Status == PrinterJobStatus.Submitted)
+                        if (job.Status is PrinterJobStatus.Submitted or PrinterJobStatus.InFlight)
                         {
                             job.Status = PrinterJobStatus.Ambiguous;
-                            job.ErrorMessage = "Interrupted across restart after spooler submission. Status is ambiguous; manual inspection required.";
+                            job.ErrorMessage = job.Status == PrinterJobStatus.InFlight
+                                ? "Interrupted across restart during active dispatch. Spooler outcome is uncertain; manual inspection required."
+                                : "Interrupted across restart after spooler submission. Status is ambiguous; manual inspection required.";
                             job.CompletedAtUtc = DateTimeOffset.UtcNow;
                             AtomicFileWriter.WriteJsonAtomic(file, job, JsonOpts);
                             _logger?.LogWarning("Recovered interrupted print job {JobId} into Ambiguous status.", job.JobId);
@@ -171,6 +173,16 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
     }
 
     /// <inheritdoc/>
+    public void MarkInFlight(Guid jobId)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.InFlight;
+            PersistJob(job);
+        }
+    }
+
+    /// <inheritdoc/>
     public void MarkSubmitted(Guid jobId)
     {
         if (_jobs.TryGetValue(jobId, out var job))
@@ -229,9 +241,22 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
     }
 
     /// <inheritdoc/>
-    public int GetReprintCount(string documentReference)
+    public int GetReprintCount(string documentReference, Guid? organizationId = null)
     {
         if (string.IsNullOrWhiteSpace(documentReference)) return 0;
-        return _jobs.Values.Count(j => string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) && j.IsReprint);
+        return _jobs.Values.Count(j =>
+            string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
+    }
+
+    /// <inheritdoc/>
+    public int GetReprintCount(Guid documentId, Guid? organizationId = null)
+    {
+        if (documentId == Guid.Empty) return 0;
+        return _jobs.Values.Count(j =>
+            j.DocumentId == documentId &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
     }
 }

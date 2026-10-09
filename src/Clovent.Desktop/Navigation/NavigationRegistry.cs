@@ -34,6 +34,7 @@ using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
+using Clovent.Desktop.Restaurant.Reports;
 using Clovent.Desktop.Restaurant.Shifts;
 using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
@@ -472,6 +473,28 @@ public static class NavigationRegistry
             IsPrimaryAction: false,
             Description: "Smart recommendation conversion rates and revenue uplift"),
 
+        new(
+            Key: "taxsummary",
+            Caption: "Tax Summary",
+            RibbonPage: NavigationPage.Reports,
+            RibbonGroup: "Taxation",
+            IconUri: "svgimages/business%20objects/bo_report.svg",
+            Permission: "menu.taxsummary",
+            Order: 825,
+            IsPrimaryAction: false,
+            Description: "Statutory sales tax summary and authority breakdown"),
+
+        new(
+            Key: "refundreports",
+            Caption: "Refund Audit",
+            RibbonPage: NavigationPage.Reports,
+            RibbonGroup: "Audit",
+            IconUri: "svgimages/business%20objects/bo_report.svg",
+            Permission: "menu.refundreports",
+            Order: 830,
+            IsPrimaryAction: false,
+            Description: "Auditable refund register, reasons, and settlement breakdown"),
+
         // ==========================================
         // 8. SETTINGS PAGE
         // ==========================================
@@ -507,6 +530,17 @@ public static class NavigationRegistry
             Order: 920,
             IsPrimaryAction: false,
             Description: "Operational currencies, exchange rates, and decimal formats"),
+
+        new(
+            Key: "taxprofiles",
+            Caption: "Tax Profiles",
+            RibbonPage: NavigationPage.Settings,
+            RibbonGroup: "Financial",
+            IconUri: "svgimages/business%20objects/bo_sale.svg",
+            Permission: "menu.taxprofiles",
+            Order: 925,
+            IsPrimaryAction: false,
+            Description: "Statutory sales tax profiles, authorities, and rates"),
 
         new(
             Key: "restaurantsetup",
@@ -648,5 +682,8 @@ public static class NavigationRegistry
         navigationService.Register("appearance", () => serviceProvider.GetRequiredService<AppearanceSettingsView>());
         navigationService.Register("shifts", () => serviceProvider.GetRequiredService<ShiftHistoryView>());
         navigationService.Register("printers", () => serviceProvider.GetRequiredService<PrinterSettingsForm>());
+        navigationService.Register("taxprofiles", () => serviceProvider.GetRequiredService<TaxProfileManagementView>());
+        navigationService.Register("taxsummary", () => serviceProvider.GetRequiredService<TaxSummaryReportView>());
+        navigationService.Register("refundreports", () => serviceProvider.GetRequiredService<RefundAuditReportView>());
     }
 }

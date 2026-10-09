@@ -35,11 +35,22 @@ public sealed class ProductCategory : AggregateRoot<ProductCategoryId>
     /// <summary>Manual display position for owner-driven drag-drop reordering (lower sorts first). Defaults to 0 - every category starts equally-ordered until an owner reorders them.</summary>
     public int SortOrder { get; private set; }
 
+    /// <summary>Optional default statutory tax profile inherited by items in this category.</summary>
+    public Clovent.Catalog.TaxProfiles.TaxProfileId? DefaultTaxProfileId { get; private set; }
+
     /// <summary>UTC instant this category was created.</summary>
     public DateTimeOffset CreatedAtUtc { get; }
 
     /// <summary>Takes every persisted field explicitly so this is the single, unambiguous constructor an EF Core Infrastructure implementation can bind to.</summary>
-    private ProductCategory(ProductCategoryId id, ProductCategoryName name, ProductCategoryId? parentCategoryId, CatalogStatus status, string? colorHex, int sortOrder, DateTimeOffset createdAtUtc)
+    private ProductCategory(
+        ProductCategoryId id,
+        ProductCategoryName name,
+        ProductCategoryId? parentCategoryId,
+        CatalogStatus status,
+        string? colorHex,
+        int sortOrder,
+        DateTimeOffset createdAtUtc,
+        Clovent.Catalog.TaxProfiles.TaxProfileId? defaultTaxProfileId = null)
     {
         Id = id;
         Name = name;
@@ -48,18 +59,28 @@ public sealed class ProductCategory : AggregateRoot<ProductCategoryId>
         ColorHex = colorHex;
         SortOrder = sortOrder;
         CreatedAtUtc = createdAtUtc;
+        DefaultTaxProfileId = defaultTaxProfileId;
     }
 
     /// <summary>Creates a new, active category.</summary>
     /// <exception cref="CatalogDomainException"><paramref name="parentCategoryId"/> would make the category its own parent - impossible for a brand-new id, kept for symmetry with <see cref="SetParent"/>.</exception>
-    public static ProductCategory Create(ProductCategoryName name, ProductCategoryId? parentCategoryId = null)
+    public static ProductCategory Create(
+        ProductCategoryName name,
+        ProductCategoryId? parentCategoryId = null,
+        Clovent.Catalog.TaxProfiles.TaxProfileId? defaultTaxProfileId = null)
     {
         ArgumentNullException.ThrowIfNull(name);
 
         var now = DateTimeOffset.UtcNow;
-        var category = new ProductCategory(ProductCategoryId.New(), name, parentCategoryId, CatalogStatus.Active, null, 0, now);
+        var category = new ProductCategory(ProductCategoryId.New(), name, parentCategoryId, CatalogStatus.Active, null, 0, now, defaultTaxProfileId);
         category.AddDomainEvent(new ProductCategoryCreated(category.Id, category.Name, now));
         return category;
+    }
+
+    /// <summary>Sets or clears the default tax profile inherited by products in this category.</summary>
+    public void SetDefaultTaxProfile(Clovent.Catalog.TaxProfiles.TaxProfileId? defaultTaxProfileId)
+    {
+        DefaultTaxProfileId = defaultTaxProfileId;
     }
 
     /// <summary>Renames the category. A no-op (no event raised) if unchanged.</summary>

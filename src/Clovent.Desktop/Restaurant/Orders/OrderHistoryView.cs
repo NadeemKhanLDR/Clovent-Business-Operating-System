@@ -3,11 +3,13 @@ using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Application.Orders.Queries;
+using Clovent.Restaurant.Application.Refunds.Queries;
 using Clovent.Restaurant.Application.Tables.Queries;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Windows.Forms;
 
 namespace Clovent.Desktop.Restaurant.Orders;
 
@@ -171,6 +173,56 @@ public sealed partial class OrderHistoryView : XtraUserControl
         order.PaymentIds.Count,
         order.CreatedAtUtc,
         order.UpdatedAtUtc);
+
+    /// <summary>
+    /// Opens <see cref="RefundOrderDialog"/> allowing the cashier/manager to process
+    /// a full or partial refund against the selected completed order.
+    /// </summary>
+    private async Task ShowRefundDialogAsync(ClosedOrderRow row)
+    {
+        if (row.Status != "Completed")
+        {
+            XtraMessageBox.Show(this, "Only completed financial orders can be refunded.", "Refund Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var cashierId = _currentSession.UserId ?? Guid.Empty;
+        var cashierName = _currentSession.DisplayName ?? "Cashier";
+        var branchId = (Guid?)null;
+
+        using var dialog = new RefundOrderDialog(
+            _mediator,
+            _logger,
+            row.OrderId,
+            row.OrderNumber,
+            cashierId,
+            cashierName,
+            branchId);
+
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            await _listView.RefreshAsync();
+        }
+    }
+
+    /// <summary>
+    /// Displays the formatted refund credit note / receipt preview for any
+    /// refunds processed against the selected completed order.
+    /// </summary>
+    private async Task ShowRefundReceiptsAsync(ClosedOrderRow row)
+    {
+        var refunds = await _mediator.Send(new ListRefundsByOrderQuery(row.OrderId));
+        if (refunds.Count == 0)
+        {
+            XtraMessageBox.Show(this, $"No refunds have been processed for order {row.OrderNumber}.", "Refund Receipts", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var latestRefund = refunds.OrderByDescending(r => r.RefundedAtUtc).First();
+        var creditNoteText = ReceiptFormatter.FormatRefundCreditNote(latestRefund, row.OrderNumber);
+        using var preview = new ReceiptPreviewForm(creditNoteText);
+        preview.ShowDialog(this);
+    }
 
     /// <summary>
     /// Opens the existing <see cref="PaymentHistoryDialog"/> for the selected

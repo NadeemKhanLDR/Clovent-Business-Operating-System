@@ -6,11 +6,14 @@ using Clovent.Catalog.Application.Prices.Commands;
 using Clovent.Catalog.Application.Prices.Queries;
 using Clovent.Catalog.Application.Products.Commands;
 using Clovent.Catalog.Application.Products.Queries;
+using Clovent.Catalog.Application.TaxProfiles.Dtos;
+using Clovent.Catalog.Application.TaxProfiles.Queries;
 using Clovent.Catalog.Application.UnitsOfMeasure.Queries;
 using Clovent.Catalog.Application.Variants.Commands;
 using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Catalog.Prices;
 using Clovent.Catalog.Products;
+using Clovent.Catalog.TaxProfiles;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
 using Clovent.Desktop.MasterData;
@@ -486,10 +489,24 @@ public sealed partial class MenuItemsForm : BaseForm
                 availability,
                 primaryVariant.Status,
                 _imagesByProductId.GetValueOrDefault(primaryVariant.ProductId),
-                primaryVariant.SortOrder));
+                primaryVariant.SortOrder,
+                product?.TaxProfileId));
         }
 
         return [.. rows.OrderBy(r => r.SortOrder).ThenBy(r => r.Name)];
+    }
+
+    private async Task<IReadOnlyList<(Guid Id, string Display)>> LoadTaxProfileOptionsAsync()
+    {
+        try
+        {
+            var profiles = await _mediator.Send(new ListTaxProfilesQuery());
+            return [.. profiles.Where(p => p.IsActive).Select(p => (p.TaxProfileId, $"{p.InvoiceDisplayName} ({p.RatePercentage:0.##}%)"))];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private async Task LoadCategoryFilterOptionsAsync()
@@ -544,10 +561,16 @@ public sealed partial class MenuItemsForm : BaseForm
             return null;
         }
 
+        var taxProfileOptions = await LoadTaxProfileOptionsAsync();
+
         bool saveAndNew;
         do
         {
-            using var form = new MenuItemEditForm("Add Menu Item", await LoadCategoryOptionsAsync(), checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(Guid.Empty, val));
+            using var form = new MenuItemEditForm(
+                "Add Menu Item",
+                await LoadCategoryOptionsAsync(),
+                checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(Guid.Empty, val),
+                taxProfileOptions: taxProfileOptions);
             if (form.ShowDialog(this) != DialogResult.OK)
             {
                 return null;
@@ -635,6 +658,24 @@ public sealed partial class MenuItemsForm : BaseForm
                 }
             }
 
+            if (form.SelectedTaxProfileId.HasValue)
+            {
+                var taxProfiles = await _mediator.Send(new ListTaxProfilesQuery());
+                var selectedProfile = taxProfiles.FirstOrDefault(tp => tp.TaxProfileId == form.SelectedTaxProfileId.Value);
+                if (selectedProfile != null)
+                {
+                    Enum.TryParse<TaxClassification>(selectedProfile.TaxClassification, out var classification);
+                    await _mediator.Send(new SetProductTaxConfigurationCommand(
+                        productId,
+                        selectedProfile.RatePercentage,
+                        selectedProfile.IsInclusive,
+                        classification,
+                        selectedProfile.Code,
+                        selectedProfile.Authority,
+                        selectedProfile.TaxProfileId));
+                }
+            }
+
             saveAndNew = form.IsSaveAndNew;
             if (!saveAndNew)
             {
@@ -692,7 +733,9 @@ public sealed partial class MenuItemsForm : BaseForm
             checkBarcodeExists: async (val) => await IsBarcodeInUseAsync(row.ProductVariantId, val),
             variants: variantRows,
             itemType: row.ItemType,
-            costPrice: costPrice?.Amount ?? row.CostPrice);
+            costPrice: costPrice?.Amount ?? row.CostPrice,
+            taxProfileOptions: await LoadTaxProfileOptionsAsync(),
+            selectedTaxProfileId: row.TaxProfileId);
 
         if (form.ShowDialog(this) != DialogResult.OK)
         {
@@ -705,6 +748,35 @@ public sealed partial class MenuItemsForm : BaseForm
         if (Enum.TryParse<ProductItemType>(form.ItemTypeValue, out var parsedItemType))
         {
             await _mediator.Send(new SetProductItemTypeCommand(row.ProductId, parsedItemType));
+        }
+
+        if (form.SelectedTaxProfileId.HasValue)
+        {
+            var taxProfiles = await _mediator.Send(new ListTaxProfilesQuery());
+            var selectedProfile = taxProfiles.FirstOrDefault(tp => tp.TaxProfileId == form.SelectedTaxProfileId.Value);
+            if (selectedProfile != null)
+            {
+                Enum.TryParse<TaxClassification>(selectedProfile.TaxClassification, out var classification);
+                await _mediator.Send(new SetProductTaxConfigurationCommand(
+                    row.ProductId,
+                    selectedProfile.RatePercentage,
+                    selectedProfile.IsInclusive,
+                    classification,
+                    selectedProfile.Code,
+                    selectedProfile.Authority,
+                    selectedProfile.TaxProfileId));
+            }
+        }
+        else
+        {
+            await _mediator.Send(new SetProductTaxConfigurationCommand(
+                row.ProductId,
+                0m,
+                false,
+                TaxClassification.Taxable,
+                null,
+                null,
+                null));
         }
 
         var currencies = await _mediator.Send(new ListCurrenciesQuery());
@@ -977,5 +1049,6 @@ public sealed partial class MenuItemsForm : BaseForm
         string Availability,
         string Status,
         Image? Photo,
-        int SortOrder);
+        int SortOrder,
+        Guid? TaxProfileId = null);
 }

@@ -125,6 +125,77 @@ public class DurableFilePrinterJobTrackerTests
     }
 
     [Fact]
+    public void RestartRecovery_WhenInterruptedWhileInFlight_RecoversJobAsAmbiguous()
+    {
+        using var tempDir = new TempDirectory();
+        var job = PrinterJob.Create(
+            documentType: "CustomerReceipt",
+            profileId: Guid.NewGuid(),
+            systemPrinterName: "POS-80",
+            payloadText: "In-flight dispatch",
+            documentReference: "ORD-INFLIGHT-01");
+
+        // Phase 1: Job was marked InFlight actively being dispatched, then process abruptly died
+        {
+            var tracker1 = new DurableFilePrinterJobTracker(tempDir.Path);
+            tracker1.RecordJob(job);
+            tracker1.MarkInFlight(job.JobId);
+            Assert.Equal(PrinterJobStatus.InFlight, tracker1.GetJob(job.JobId)!.Status);
+        }
+
+        // Phase 2: Host restarts - status must transition to Ambiguous to prevent silent re-execution
+        {
+            var tracker2 = new DurableFilePrinterJobTracker(tempDir.Path);
+            var recovered = tracker2.GetJob(job.JobId);
+
+            Assert.NotNull(recovered);
+            Assert.Equal(PrinterJobStatus.Ambiguous, recovered.Status);
+            Assert.Contains("ambiguous", recovered.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.NotNull(recovered.CompletedAtUtc);
+
+            var unresolved = tracker2.GetUnresolvedJobs();
+            Assert.Contains(unresolved, j => j.JobId == job.JobId);
+        }
+    }
+
+    [Fact]
+    public void GetReprintCount_ScopedByDocumentIdAndOrganization_DistinguishesTenants()
+    {
+        using var tempDir = new TempDirectory();
+        var tracker = new DurableFilePrinterJobTracker(tempDir.Path);
+
+        var org1 = Guid.NewGuid();
+        var org2 = Guid.NewGuid();
+        var orderId1 = Guid.NewGuid();
+        var orderId2 = Guid.NewGuid();
+
+        // Org 1 reprint with display number ORD-100
+        var jobOrg1 = PrinterJob.Create(
+            "ReprintReceipt", Guid.NewGuid(), "POS-80", "Org1 Receipt",
+            organizationId: org1, isReprint: true, reprintCount: 1,
+            documentReference: "ORD-100", documentId: orderId1);
+        tracker.RecordJob(jobOrg1);
+
+        // Org 2 reprint with same display number ORD-100
+        var jobOrg2 = PrinterJob.Create(
+            "ReprintReceipt", Guid.NewGuid(), "POS-80", "Org2 Receipt",
+            organizationId: org2, isReprint: true, reprintCount: 1,
+            documentReference: "ORD-100", documentId: orderId2);
+        tracker.RecordJob(jobOrg2);
+
+        // Assert: Scoped by organization, display number ORD-100 does not collide
+        Assert.Equal(1, tracker.GetReprintCount("ORD-100", org1));
+        Assert.Equal(1, tracker.GetReprintCount("ORD-100", org2));
+        Assert.Equal(2, tracker.GetReprintCount("ORD-100", null)); // unscoped count
+
+        // Assert: Scoped by immutable document ID
+        Assert.Equal(1, tracker.GetReprintCount(orderId1, org1));
+        Assert.Equal(0, tracker.GetReprintCount(orderId1, org2));
+        Assert.Equal(1, tracker.GetReprintCount(orderId2, org2));
+        Assert.Equal(0, tracker.GetReprintCount(orderId2, org1));
+    }
+
+    [Fact]
     public void CapacityPruning_NeverEvictsUnresolvedJobsMerelyBecauseBufferReachesCapacity()
     {
         using var tempDir = new TempDirectory();

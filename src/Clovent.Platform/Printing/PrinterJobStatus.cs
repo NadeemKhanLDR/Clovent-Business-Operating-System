@@ -25,5 +25,8 @@ public enum PrinterJobStatus
     Cancelled = 5,
 
     /// <summary>Submission status is uncertain (e.g. timeout or restart during dispatch); manual inspection required.</summary>
-    Ambiguous = 6
+    Ambiguous = 6,
+
+    /// <summary>Job is currently in-flight being actively transmitted to operating system print spooler or hardware port.</summary>
+    InFlight = 7
 }

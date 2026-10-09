@@ -296,4 +296,109 @@ public class DesktopReceiptPrintServiceTests : IDisposable
         Assert.Equal(branchId, _adapter.LastDispatchedJob.BranchId);
         Assert.Equal(terminalId, _adapter.LastDispatchedJob.TerminalId);
     }
+
+    [Fact]
+    public async Task PrintReceiptAsync_WithStructurallyInvalidSnapshot_RejectsFallbackAndReturnsPrintFailed()
+    {
+        // Arrange: Valid JSON syntax, but structurally invalid (empty order number and no items)
+        var invalidSnapshot = new ReceiptSnapshot(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "", // empty!
+            DailySalesNumber: null,
+            OrderType: "TakeAway",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [], // no items!
+            Subtotal: 0m,
+            TaxTotal: 0m,
+            DiscountTotal: 0m,
+            ServiceChargeTotal: 0m,
+            GrandTotal: 0m,
+            Balance: 0m,
+            Payments: [],
+            CashierName: null,
+            TerminalName: null,
+            CustomerNotes: null);
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-INVALID-007",
+            ReceiptText: "=== FALLBACK TEXT THAT MUST BE REJECTED ===",
+            SnapshotJson: JsonSerializer.Serialize(invalidSnapshot));
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert: Structurally invalid snapshot must not fall back to text printing
+        Assert.Equal(ReceiptPrintStatus.PrintFailed, result.Status);
+        Assert.Contains("structurally invalid", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, _adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_WithEmptyLegacyText_ReturnsPrintFailed()
+    {
+        // Arrange: Legacy payload with null snapshot and whitespace-only receipt text
+        var payload = new ReceiptPrintPayload(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-EMPTY-008",
+            ReceiptText: "   ",
+            SnapshotJson: null);
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert
+        Assert.Equal(ReceiptPrintStatus.PrintFailed, result.Status);
+        Assert.Contains("empty", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, _adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_SnapshotScopePrecedenceOverCallerPayload_UsesSnapshotOwnership()
+    {
+        // Arrange: Snapshot has frozen sale-time scope
+        var snapshotOrg = Guid.NewGuid();
+        var snapshotBranch = Guid.NewGuid();
+        var snapshotTerminal = Guid.NewGuid();
+
+        var callerOrg = Guid.NewGuid();
+        var callerBranch = Guid.NewGuid();
+        var callerTerminal = Guid.NewGuid();
+
+        var snapshot = new ReceiptSnapshot(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-SCOPE-009",
+            DailySalesNumber: 5,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new ReceiptSnapshotItem(Guid.NewGuid(), "SKU-1", "Item", 1m, 100m, 100m, null)],
+            Subtotal: 100m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 100m, Balance: 0m,
+            Payments: [new ReceiptSnapshotPayment(100m, "Cash")],
+            CashierName: "Cashier",
+            TerminalName: "TERM-1",
+            CustomerNotes: null,
+            OrganizationId: snapshotOrg,
+            BranchId: snapshotBranch,
+            TerminalId: snapshotTerminal);
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: snapshot.OrderId,
+            OrderNumber: snapshot.OrderNumber,
+            ReceiptText: "Fallback text",
+            SnapshotJson: JsonSerializer.Serialize(snapshot),
+            OrganizationId: callerOrg,
+            BranchId: callerBranch,
+            TerminalId: callerTerminal);
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert: Immutable snapshot ownership takes precedence over caller-supplied scopes
+        Assert.Equal(ReceiptPrintStatus.Printed, result.Status);
+        Assert.Equal(1, _adapter.DispatchCount);
+        Assert.NotNull(_adapter.LastDispatchedJob);
+        Assert.Equal(snapshotOrg, _adapter.LastDispatchedJob.OrganizationId);
+        Assert.Equal(snapshotBranch, _adapter.LastDispatchedJob.BranchId);
+        Assert.Equal(snapshotTerminal, _adapter.LastDispatchedJob.TerminalId);
+    }
 }

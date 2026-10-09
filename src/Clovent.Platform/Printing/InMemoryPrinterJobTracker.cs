@@ -58,6 +58,15 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
     }
 
     /// <inheritdoc/>
+    public void MarkInFlight(Guid jobId)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.InFlight;
+        }
+    }
+
+    /// <inheritdoc/>
     public void MarkSubmitted(Guid jobId)
     {
         if (_jobs.TryGetValue(jobId, out var job))
@@ -117,9 +126,22 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
             .ToList();
 
     /// <inheritdoc/>
-    public int GetReprintCount(string documentReference)
+    public int GetReprintCount(string documentReference, Guid? organizationId = null)
     {
         if (string.IsNullOrWhiteSpace(documentReference)) return 0;
-        return _jobs.Values.Count(j => string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) && j.IsReprint);
+        return _jobs.Values.Count(j =>
+            string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
+    }
+
+    /// <inheritdoc/>
+    public int GetReprintCount(Guid documentId, Guid? organizationId = null)
+    {
+        if (documentId == Guid.Empty) return 0;
+        return _jobs.Values.Count(j =>
+            j.DocumentId == documentId &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
     }
 }

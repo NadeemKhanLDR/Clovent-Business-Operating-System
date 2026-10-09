@@ -35,9 +35,8 @@ partial class OrderHistoryView
             new MasterDataColumn("UpdatedAtUtc", "Closed", 160),
         ],
         [
-            // Gated on pos.void - the existing permission for reversing a
-            // recorded sale, which is the only thing this screen can do. No new
-            // permission code is introduced.
+            new MasterDataListAction<ClosedOrderRow>("Process Refund", ShowRefundDialogAsync, FeatureOperation: "void"),
+            new MasterDataListAction<ClosedOrderRow>("Refund Receipts", ShowRefundReceiptsAsync, FeatureOperation: "void"),
             new MasterDataListAction<ClosedOrderRow>("Payment History", ShowPaymentHistoryAsync, FeatureOperation: "void"),
         ])
         {

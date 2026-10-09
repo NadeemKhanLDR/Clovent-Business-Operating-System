@@ -29,21 +29,29 @@ public class PrinterManagementServiceTests : IDisposable
         public bool ShouldFail { get; set; }
         public int DispatchCount { get; private set; }
         public PrinterJob? LastDispatchedJob { get; private set; }
+        public Action<PrinterJob>? OnDispatchAction { get; set; }
+        public int DispatchDelayMs { get; set; }
 
         public Task<bool> IsAvailableAsync(PrinterProfile profile, CancellationToken cancellationToken = default) =>
             Task.FromResult(!ShouldFail);
 
-        public Task<PrintDispatchResult> DispatchAsync(PrinterProfile profile, PrinterJob job, CancellationToken cancellationToken = default)
+        public async Task<PrintDispatchResult> DispatchAsync(PrinterProfile profile, PrinterJob job, CancellationToken cancellationToken = default)
         {
             DispatchCount++;
             LastDispatchedJob = job;
+            OnDispatchAction?.Invoke(job);
+
+            if (DispatchDelayMs > 0)
+            {
+                await Task.Delay(DispatchDelayMs, cancellationToken).ConfigureAwait(false);
+            }
 
             if (ShouldFail)
             {
-                return Task.FromResult(PrintDispatchResult.Failed(profile.SystemPrinterName, "Simulated device offline error."));
+                return PrintDispatchResult.Failed(profile.SystemPrinterName, "Simulated device offline error.");
             }
 
-            return Task.FromResult(PrintDispatchResult.SpoolerAccepted(profile.SystemPrinterName));
+            return PrintDispatchResult.SpoolerAccepted(profile.SystemPrinterName);
         }
     }
 
@@ -354,5 +362,96 @@ public class PrinterManagementServiceTests : IDisposable
         Assert.False(result.Success);
         Assert.Equal(PrinterJobStatus.Ambiguous, result.Status);
         Assert.Equal(0, adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task DispatchReceiptAsync_MarksInFlightBeforeAdapterDispatch()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-INFLIGHT-TEST",
+            DailySalesNumber: 1,
+            OrderType: "TakeAway",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Tea", "SKU-T", 1m, 50m, 50m)],
+            Subtotal: 50m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 50m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 50m)]);
+
+        PrinterJobStatus? statusDuringDispatch = null;
+        adapter.OnDispatchAction = job =>
+        {
+            statusDuringDispatch = tracker.GetJob(job.JobId)?.Status;
+        };
+
+        // Act
+        var result = await service.DispatchReceiptAsync(receiptData, null, null, null);
+
+        // Assert: Job was marked InFlight BEFORE spooler adapter dispatch was executed
+        Assert.True(result.Success);
+        Assert.Equal(PrinterJobStatus.InFlight, statusDuringDispatch);
+        // After dispatch completion, tracker transitioned to Submitted
+        Assert.Equal(PrinterJobStatus.Submitted, tracker.GetJob(adapter.LastDispatchedJob!.JobId)?.Status);
+    }
+
+    [Fact]
+    public async Task DispatchReceiptAsync_ConcurrentDispatchesSameJob_SuppressesDuplicateAndDispatchesOnlyOnce()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter { DispatchDelayMs = 150 };
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var stableJobId = Guid.NewGuid();
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-CONCURRENT-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]);
+
+        // Act: Run two concurrent dispatches for the exact same jobId simultaneously
+        var task1 = service.DispatchReceiptAsync(receiptData, null, null, null, jobId: stableJobId);
+        var task2 = service.DispatchReceiptAsync(receiptData, null, null, null, jobId: stableJobId);
+
+        var results = await Task.WhenAll(task1, task2);
+
+        // Assert: Only 1 dispatch reached the spooler adapter; duplicate was suppressed
+        Assert.Equal(1, adapter.DispatchCount);
+        Assert.Contains(results, r => r.Success);
+        Assert.Contains(results, r => !r.Success && r.Status == PrinterJobStatus.Ambiguous);
     }
 }

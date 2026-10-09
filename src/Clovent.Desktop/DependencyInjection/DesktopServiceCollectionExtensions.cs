@@ -43,6 +43,7 @@ using Clovent.Desktop.Forms.Restaurant.Setup;
 using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
+using Clovent.Desktop.Restaurant.Reports;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
@@ -227,6 +228,9 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<ActivityLogView>();
         services.TryAddTransient<AppearanceSettingsView>();
         services.TryAddTransient<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>();
+        services.TryAddTransient<TaxProfileManagementView>();
+        services.TryAddTransient<TaxSummaryReportView>();
+        services.TryAddTransient<RefundAuditReportView>();
 
         // Platform Printer Management & Hardware Routing Subsystem
         services.TryAddTransient<PrinterSettingsForm>();

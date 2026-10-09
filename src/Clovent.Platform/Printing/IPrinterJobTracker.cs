@@ -17,6 +17,9 @@ public interface IPrinterJobTracker
     /// <summary>Transitions job status to Queued.</summary>
     void MarkQueued(Guid jobId);
 
+    /// <summary>Transitions job status to InFlight (actively being dispatched to spooler or hardware port).</summary>
+    void MarkInFlight(Guid jobId);
+
     /// <summary>Transitions job status to Submitted (accepted by spooler).</summary>
     void MarkSubmitted(Guid jobId);
 
@@ -32,12 +35,18 @@ public interface IPrinterJobTracker
     /// <summary>Transitions job status to Ambiguous when submission outcome cannot be verified.</summary>
     void MarkAmbiguous(Guid jobId, string reason);
 
-    /// <summary>Retrieves all unresolved jobs (Requested, Queued, Ambiguous) pending operator resolution.</summary>
+    /// <summary>Retrieves all unresolved jobs (Requested, Queued, InFlight, Ambiguous) pending operator resolution.</summary>
     IReadOnlyList<PrinterJob> GetUnresolvedJobs();
 
     /// <summary>
-    /// Gets the number of times a document reference (e.g. order number) has been reprinted.
+    /// Gets the number of times a document reference (e.g. order number) has been reprinted, scoped optionally by organization.
     /// Survives application restarts when backed by durable storage.
     /// </summary>
-    int GetReprintCount(string documentReference);
+    int GetReprintCount(string documentReference, Guid? organizationId = null);
+
+    /// <summary>
+    /// Gets the number of times an immutable document identifier (e.g. OrderId or RefundId) has been reprinted, scoped optionally by organization.
+    /// Survives application restarts when backed by durable storage.
+    /// </summary>
+    int GetReprintCount(Guid documentId, Guid? organizationId = null);
 }

@@ -45,11 +45,23 @@ namespace Clovent.Catalog.Infrastructure.Migrations
                 table: "TaxProfiles",
                 column: "Code",
                 unique: true);
+
+            migrationBuilder.AddColumn<Guid>(
+                name: "DefaultTaxProfileId",
+                schema: "Catalog",
+                table: "ProductCategories",
+                type: "uniqueidentifier",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropColumn(
+                name: "DefaultTaxProfileId",
+                schema: "Catalog",
+                table: "ProductCategories");
+
             migrationBuilder.DropTable(
                 name: "TaxProfiles",
                 schema: "Catalog");

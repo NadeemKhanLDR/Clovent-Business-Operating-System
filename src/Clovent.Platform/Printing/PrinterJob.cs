@@ -60,11 +60,14 @@ public sealed class PrinterJob
     /// <summary>Reference to the source document or snapshot (e.g. OrderNumber or snapshot ID).</summary>
     public string? DocumentReference { get; init; }
 
+    /// <summary>Immutable unique identifier of the source document/entity (e.g. OrderId or RefundId).</summary>
+    public Guid? DocumentId { get; init; }
+
     /// <summary>Number of dispatch attempts made for this print job.</summary>
     public int AttemptCount { get; set; }
 
-    /// <summary>Whether this job remains unresolved (Requested, Queued, or Ambiguous).</summary>
-    public bool IsUnresolved => Status is PrinterJobStatus.Requested or PrinterJobStatus.Queued or PrinterJobStatus.Ambiguous;
+    /// <summary>Whether this job remains unresolved (Requested, Queued, InFlight, or Ambiguous).</summary>
+    public bool IsUnresolved => Status is PrinterJobStatus.Requested or PrinterJobStatus.Queued or PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous;
 
     /// <summary>Creates a new print job.</summary>
     public static PrinterJob Create(
@@ -80,7 +83,8 @@ public sealed class PrinterJob
         string? reprintReason = null,
         Guid? correlationId = null,
         string? documentReference = null,
-        Guid? jobId = null)
+        Guid? jobId = null,
+        Guid? documentId = null)
     {
         return new PrinterJob
         {
@@ -91,6 +95,7 @@ public sealed class PrinterJob
             TerminalId = terminalId,
             DocumentType = documentType,
             DocumentReference = documentReference,
+            DocumentId = documentId,
             TargetPrinterProfileId = profileId,
             TargetSystemPrinterName = systemPrinterName,
             Status = PrinterJobStatus.Requested,

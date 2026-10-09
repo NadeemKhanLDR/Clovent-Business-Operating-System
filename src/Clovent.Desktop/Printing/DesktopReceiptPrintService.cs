@@ -63,12 +63,23 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
                 return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, null, $"Receipt snapshot for order {payload.OrderNumber} is invalid. Fallback printing rejected.");
             }
 
+            if (!snapshot.IsValid(out var validationError))
+            {
+                _logger?.LogError("Receipt snapshot for order {OrderNumber} is structurally invalid: {Error}. Refusing fallback text print.", payload.OrderNumber, validationError);
+                return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, null, $"Receipt snapshot for order {payload.OrderNumber} is structurally invalid: {validationError}. Fallback printing rejected.");
+            }
+
+            // Sale ownership from immutable snapshot takes precedence over arbitrary caller-supplied scopes
+            var effectiveOrgId = snapshot.OrganizationId ?? payload.OrganizationId;
+            var effectiveBranchId = snapshot.BranchId ?? payload.BranchId;
+            var effectiveTerminalId = snapshot.TerminalId ?? payload.TerminalId;
+
             var printableData = snapshot.ToPrintable();
             dispatchResult = await _printerManagementService.DispatchReceiptAsync(
                 printableData,
-                organizationId: payload.OrganizationId,
-                branchId: payload.BranchId,
-                terminalId: payload.TerminalId,
+                organizationId: effectiveOrgId,
+                branchId: effectiveBranchId,
+                terminalId: effectiveTerminalId,
                 isReprint: false,
                 reprintCount: 1,
                 reprintReason: null,
@@ -79,6 +90,12 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
         }
 
         // 2. Missing legacy snapshot: only genuine legacy orders without snapshot JSON fall back to pre-formatted text payload
+        if (string.IsNullOrWhiteSpace(payload.ReceiptText))
+        {
+            _logger?.LogError("Legacy receipt payload for order {OrderNumber} has empty pre-formatted text.", payload.OrderNumber);
+            return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, null, $"Legacy receipt for order {payload.OrderNumber} has empty receipt text. Cannot print.");
+        }
+
         dispatchResult = await _printerManagementService.DispatchTextAsync(
             payload.ReceiptText,
             documentType: "CustomerReceipt",

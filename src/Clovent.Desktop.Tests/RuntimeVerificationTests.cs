@@ -46,7 +46,7 @@ public sealed class RuntimeVerificationTests
             .WithLogging()
             .WithPlatform();
 
-        bootstrapper.Configuration["ConnectionStrings:DefaultConnection"] = isolatedConnStr;
+        Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.ApplyToConfiguration(bootstrapper.Configuration, isolatedConnStr);
 
         bootstrapper.Services.AddApplication(bootstrapper.Configuration);
         bootstrapper.Services.AddInfrastructure(bootstrapper.Configuration);

@@ -32,6 +32,9 @@ internal sealed class ProductCategoryConfiguration : IEntityTypeConfiguration<Pr
         builder.Property(c => c.ColorHex).HasMaxLength(7);
         builder.Property(c => c.SortOrder).IsRequired();
 
+        builder.Property(c => c.DefaultTaxProfileId)
+            .HasConversion(ValueConverters.NullableTaxProfileIdConverter);
+
         builder.Property(c => c.CreatedAtUtc).IsRequired();
 
         builder.Ignore(c => c.DomainEvents);

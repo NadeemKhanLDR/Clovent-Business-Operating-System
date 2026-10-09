@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Platform.Printing;
@@ -22,6 +23,7 @@ public sealed class PrinterManagementService
     private readonly IAuthorizationService? _authorizationService;
     private readonly ICurrentSession? _currentSession;
     private readonly ILogger<PrinterManagementService>? _logger;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _dispatchLocks = new();
 
     /// <summary>Constructs the printer management coordinator service.</summary>
     public PrinterManagementService(
@@ -197,96 +199,116 @@ public sealed class PrinterManagementService
     {
         ArgumentNullException.ThrowIfNull(data);
 
-        var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
-        if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
+        var effectiveJobId = jobId ?? Guid.NewGuid();
+        var lockKey = $"receipt:{effectiveJobId}";
+        var sem = _dispatchLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var lockAcquired = await sem.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+        if (!lockAcquired)
         {
-            _logger?.LogWarning("Receipt printer resolution failed ({Outcome}): {Message}", routingResult.Outcome, routingResult.Message);
-            return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+            _logger?.LogWarning("Concurrent dispatch already in progress for job {JobId} ({OrderNumber}); suppressing duplicate dispatch.", effectiveJobId, data.OrderNumber);
+            return PrintDispatchResult.Ambiguous(null, "Concurrent dispatch already in progress for this job; duplicate submission suppressed.");
         }
-
-        if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
-        {
-            _logger?.LogWarning("Target print queue '{Queue}' is not installed in Windows.", profile.SystemPrinterName);
-            return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
-        }
-
-        // Idempotency check: A retry after spooler acceptance cannot create a fresh duplicate job.
-        if (jobId.HasValue && _jobTracker.GetJob(jobId.Value) is { } existingJob)
-        {
-            if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
-            {
-                _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", jobId.Value, data.OrderNumber);
-                return existingJob.Status == PrinterJobStatus.Confirmed
-                    ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
-                    : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
-            }
-
-            if (existingJob.Status == PrinterJobStatus.Ambiguous)
-            {
-                _logger?.LogWarning("Print job {JobId} for {Ref} is in ambiguous state. Suppressing duplicate job.", jobId.Value, data.OrderNumber);
-                return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, "Previous print job execution is in ambiguous state.");
-            }
-        }
-
-        var renderOptions = new ReceiptRenderOptions(
-            PaperWidth: profile.PaperWidth,
-            CharactersPerLine: profile.CharactersPerLine,
-            IsReprint: isReprint,
-            ReprintCount: reprintCount,
-            ReprintReason: reprintReason);
-
-        var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
-
-        var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
-        var job = PrinterJob.Create(
-            docType,
-            profile.Id,
-            profile.SystemPrinterName,
-            formatted.FormattedText,
-            organizationId,
-            branchId,
-            terminalId,
-            isReprint,
-            reprintCount,
-            reprintReason,
-            documentReference: data.OrderNumber,
-            jobId: jobId);
-
-        _jobTracker.RecordJob(job);
-        _jobTracker.MarkQueued(job.JobId);
 
         try
         {
-            var dispatchResult = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken).ConfigureAwait(false);
-            if (dispatchResult.Success)
+            var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
+            if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
             {
-                try
-                {
-                    _jobTracker.MarkSubmitted(job.JobId);
-                }
-                catch (Exception persistEx)
-                {
-                    _logger?.LogError(persistEx, "Failed to persist submitted status for job {JobId}; marking as ambiguous", job.JobId);
-                    try { _jobTracker.MarkAmbiguous(job.JobId, "Spooler accepted job but state persistence failed."); } catch { }
-                    return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Print job accepted by spooler but status persistence failed.");
-                }
-            }
-            else
-            {
-                _jobTracker.MarkFailed(job.JobId, dispatchResult.ErrorMessage ?? "Unknown spooler error");
+                _logger?.LogWarning("Receipt printer resolution failed ({Outcome}): {Message}", routingResult.Outcome, routingResult.Message);
+                return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
             }
 
-            return dispatchResult;
+            if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
+            {
+                _logger?.LogWarning("Target print queue '{Queue}' is not installed in Windows.", profile.SystemPrinterName);
+                return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
+            }
+
+            // Idempotency check: A retry after spooler acceptance or in-flight dispatch cannot create a fresh duplicate job.
+            if (_jobTracker.GetJob(effectiveJobId) is { } existingJob)
+            {
+                if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
+                {
+                    _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", effectiveJobId, data.OrderNumber);
+                    return existingJob.Status == PrinterJobStatus.Confirmed
+                        ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
+                        : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
+                }
+
+                if (existingJob.Status is PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous)
+                {
+                    _logger?.LogWarning("Print job {JobId} for {Ref} is in {Status} state. Suppressing duplicate job.", effectiveJobId, data.OrderNumber, existingJob.Status);
+                    return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, $"Print job execution is in {existingJob.Status} state; automatic reprint suppressed.");
+                }
+            }
+
+            var renderOptions = new ReceiptRenderOptions(
+                PaperWidth: profile.PaperWidth,
+                CharactersPerLine: profile.CharactersPerLine,
+                IsReprint: isReprint,
+                ReprintCount: reprintCount,
+                ReprintReason: reprintReason);
+
+            var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
+
+            var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
+            var job = PrinterJob.Create(
+                docType,
+                profile.Id,
+                profile.SystemPrinterName,
+                formatted.FormattedText,
+                organizationId,
+                branchId,
+                terminalId,
+                isReprint,
+                reprintCount,
+                reprintReason,
+                documentReference: data.OrderNumber,
+                jobId: effectiveJobId,
+                documentId: data.OrderId);
+
+            _jobTracker.RecordJob(job);
+            _jobTracker.MarkQueued(job.JobId);
+            _jobTracker.MarkInFlight(job.JobId);
+
+            try
+            {
+                var dispatchResult = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken).ConfigureAwait(false);
+                if (dispatchResult.Success)
+                {
+                    try
+                    {
+                        _jobTracker.MarkSubmitted(job.JobId);
+                    }
+                    catch (Exception persistEx)
+                    {
+                        _logger?.LogError(persistEx, "Failed to persist submitted status for job {JobId}; marking as ambiguous", job.JobId);
+                        try { _jobTracker.MarkAmbiguous(job.JobId, "Spooler accepted job but state persistence failed."); } catch { }
+                        return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Print job accepted by spooler but status persistence failed.");
+                    }
+                }
+                else
+                {
+                    _jobTracker.MarkFailed(job.JobId, dispatchResult.ErrorMessage ?? "Unknown spooler error");
+                }
+
+                return dispatchResult;
+            }
+            catch (OperationCanceledException)
+            {
+                _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
+                return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
+            }
+            catch (Exception ex)
+            {
+                _jobTracker.MarkAmbiguous(job.JobId, $"Dispatch encountered unexpected error: {ex.Message}. Status is ambiguous.");
+                return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, $"Dispatch error: {ex.Message}. Spooler status uncertain.");
+            }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
-            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
-        }
-        catch (Exception ex)
-        {
-            _jobTracker.MarkAmbiguous(job.JobId, $"Dispatch encountered unexpected error: {ex.Message}. Status is ambiguous.");
-            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, $"Dispatch error: {ex.Message}. Spooler status uncertain.");
+            sem.Release();
+            _dispatchLocks.TryRemove(lockKey, out _);
         }
     }
 
@@ -309,84 +331,103 @@ public sealed class PrinterManagementService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rawText);
 
-        var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
-        if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
+        var effectiveJobId = jobId ?? Guid.NewGuid();
+        var lockKey = $"text:{effectiveJobId}";
+        var sem = _dispatchLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var lockAcquired = await sem.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+        if (!lockAcquired)
         {
-            return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+            _logger?.LogWarning("Concurrent dispatch already in progress for job {JobId} ({Ref}); suppressing duplicate dispatch.", effectiveJobId, documentReference);
+            return PrintDispatchResult.Ambiguous(null, "Concurrent dispatch already in progress for this job; duplicate submission suppressed.");
         }
-
-        if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
-        {
-            return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
-        }
-
-        // Idempotency check: A retry after spooler acceptance cannot create a fresh duplicate job.
-        if (jobId.HasValue && _jobTracker.GetJob(jobId.Value) is { } existingJob)
-        {
-            if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
-            {
-                _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", jobId.Value, documentReference);
-                return existingJob.Status == PrinterJobStatus.Confirmed
-                    ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
-                    : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
-            }
-
-            if (existingJob.Status == PrinterJobStatus.Ambiguous)
-            {
-                _logger?.LogWarning("Print job {JobId} for {Ref} is in ambiguous state. Suppressing duplicate job.", jobId.Value, documentReference);
-                return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, "Previous print job execution is in ambiguous state.");
-            }
-        }
-
-        var job = PrinterJob.Create(
-            documentType,
-            profile.Id,
-            profile.SystemPrinterName,
-            rawText,
-            organizationId,
-            branchId,
-            terminalId,
-            isReprint,
-            reprintCount,
-            reprintReason,
-            documentReference: documentReference,
-            jobId: jobId);
-
-        _jobTracker.RecordJob(job);
-        _jobTracker.MarkQueued(job.JobId);
 
         try
         {
-            var dispatchResult = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken).ConfigureAwait(false);
-            if (dispatchResult.Success)
+            var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
+            if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
             {
-                try
-                {
-                    _jobTracker.MarkSubmitted(job.JobId);
-                }
-                catch (Exception persistEx)
-                {
-                    _logger?.LogError(persistEx, "Failed to persist submitted status for job {JobId}; marking as ambiguous", job.JobId);
-                    try { _jobTracker.MarkAmbiguous(job.JobId, "Spooler accepted job but state persistence failed."); } catch { }
-                    return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Print job accepted by spooler but status persistence failed.");
-                }
-            }
-            else
-            {
-                _jobTracker.MarkFailed(job.JobId, dispatchResult.ErrorMessage ?? "Unknown spooler error");
+                return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
             }
 
-            return dispatchResult;
+            if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
+            {
+                return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
+            }
+
+            // Idempotency check: A retry after spooler acceptance or in-flight dispatch cannot create a fresh duplicate job.
+            if (_jobTracker.GetJob(effectiveJobId) is { } existingJob)
+            {
+                if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
+                {
+                    _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", effectiveJobId, documentReference);
+                    return existingJob.Status == PrinterJobStatus.Confirmed
+                        ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
+                        : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
+                }
+
+                if (existingJob.Status is PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous)
+                {
+                    _logger?.LogWarning("Print job {JobId} for {Ref} is in {Status} state. Suppressing duplicate job.", effectiveJobId, documentReference, existingJob.Status);
+                    return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, $"Print job execution is in {existingJob.Status} state; automatic reprint suppressed.");
+                }
+            }
+
+            var job = PrinterJob.Create(
+                documentType,
+                profile.Id,
+                profile.SystemPrinterName,
+                rawText,
+                organizationId,
+                branchId,
+                terminalId,
+                isReprint,
+                reprintCount,
+                reprintReason,
+                documentReference: documentReference,
+                jobId: effectiveJobId);
+
+            _jobTracker.RecordJob(job);
+            _jobTracker.MarkQueued(job.JobId);
+            _jobTracker.MarkInFlight(job.JobId);
+
+            try
+            {
+                var dispatchResult = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken).ConfigureAwait(false);
+                if (dispatchResult.Success)
+                {
+                    try
+                    {
+                        _jobTracker.MarkSubmitted(job.JobId);
+                    }
+                    catch (Exception persistEx)
+                    {
+                        _logger?.LogError(persistEx, "Failed to persist submitted status for job {JobId}; marking as ambiguous", job.JobId);
+                        try { _jobTracker.MarkAmbiguous(job.JobId, "Spooler accepted job but state persistence failed."); } catch { }
+                        return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Print job accepted by spooler but status persistence failed.");
+                    }
+                }
+                else
+                {
+                    _jobTracker.MarkFailed(job.JobId, dispatchResult.ErrorMessage ?? "Unknown spooler error");
+                }
+
+                return dispatchResult;
+            }
+            catch (OperationCanceledException)
+            {
+                _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
+                return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
+            }
+            catch (Exception ex)
+            {
+                _jobTracker.MarkAmbiguous(job.JobId, $"Dispatch encountered unexpected error: {ex.Message}. Status is ambiguous.");
+                return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, $"Dispatch error: {ex.Message}. Spooler status uncertain.");
+            }
         }
-        catch (OperationCanceledException)
+        finally
         {
-            _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
-            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
-        }
-        catch (Exception ex)
-        {
-            _jobTracker.MarkAmbiguous(job.JobId, $"Dispatch encountered unexpected error: {ex.Message}. Status is ambiguous.");
-            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, $"Dispatch error: {ex.Message}. Spooler status uncertain.");
+            sem.Release();
+            _dispatchLocks.TryRemove(lockKey, out _);
         }
     }
 
