@@ -174,7 +174,7 @@ public sealed class DevelopmentRestaurantReportingSeedStartupTask(
                 notes: "Development Reporting Seed Account",
                 shopNo: null,
                 mobile2: null,
-                phone: mobile,
+                phone: null,
                 isDefault: isDefault,
                 isCreditAllowed: !isDefault);
             customerRepository.AddAsync(created, cancellationToken).GetAwaiter().GetResult();

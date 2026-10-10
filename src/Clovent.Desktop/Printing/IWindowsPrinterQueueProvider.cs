@@ -1,3 +1,5 @@
+using Clovent.Platform.Printing;
+
 namespace Clovent.Desktop.Printing;
 
 /// <summary>
@@ -8,6 +10,17 @@ public sealed record WindowsPrinterInfo(
     bool IsDefault,
     bool IsNetwork,
     string Status);
+
+/// <summary>
+/// Detailed physical hardware connectivity, condition flags, and spooler depth of a printer queue.
+/// </summary>
+public sealed record PrinterHardwareStatusInfo(
+    string PrinterName,
+    bool IsInstalled,
+    bool IsOnline,
+    PrinterHardwareCondition Condition,
+    int QueueJobCount,
+    string StatusDescription);
 
 /// <summary>
 /// Provides discovery and status query capabilities for installed Windows print queues.
@@ -22,4 +35,7 @@ public interface IWindowsPrinterQueueProvider
 
     /// <summary>Returns the name of the system default printer queue, if any.</summary>
     string? GetDefaultPrinterName();
+
+    /// <summary>Queries physical hardware status, condition flags, and queue depth for a named printer.</summary>
+    PrinterHardwareStatusInfo GetPrinterStatus(string printerName);
 }

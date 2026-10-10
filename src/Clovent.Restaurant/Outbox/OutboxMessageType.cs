@@ -9,6 +9,15 @@ public static class OutboxMessageType
     /// <summary>QuickBooks Online / Desktop invoice and sales synchronization.</summary>
     public const string QuickBooksSync = "QuickBooksSync";
 
+    /// <summary>QuickBooks Online / Desktop individual sales invoice synchronization.</summary>
+    public const string QuickBooksInvoiceSync = "QuickBooksInvoiceSync";
+
+    /// <summary>QuickBooks Online / Desktop customer payment synchronization.</summary>
+    public const string QuickBooksPaymentSync = "QuickBooksPaymentSync";
+
+    /// <summary>QuickBooks Online / Desktop shift / daily close summary synchronization.</summary>
+    public const string QuickBooksShiftSync = "QuickBooksShiftSync";
+
     /// <summary>General accounting ledger / journal synchronization.</summary>
     public const string AccountingSync = "AccountingSync";
 
@@ -32,4 +41,19 @@ public static class OutboxMessageType
 
     /// <summary>General notification dispatch.</summary>
     public const string Notification = "Notification";
+
+    /// <summary>Multi-terminal delta synchronization packet envelope.</summary>
+    public const string DeltaSyncPacket = "DeltaSyncPacket";
+
+    /// <summary>Multi-terminal local inventory stock delta synchronization.</summary>
+    public const string InventoryDeltaSync = "InventoryDeltaSync";
+
+    /// <summary>Multi-terminal catalog price adjustment synchronization.</summary>
+    public const string CatalogPriceDeltaSync = "CatalogPriceDeltaSync";
+
+    /// <summary>Multi-terminal cashier shift opening/closing summary synchronization.</summary>
+    public const string ShiftSummaryDeltaSync = "ShiftSummaryDeltaSync";
+
+    /// <summary>Cashier audit anomaly alert notification for store managers.</summary>
+    public const string CashierAuditAlert = "CashierAuditAlert";
 }

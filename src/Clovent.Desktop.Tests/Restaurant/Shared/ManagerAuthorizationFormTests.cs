@@ -439,4 +439,50 @@ public sealed class ManagerAuthorizationFormTests
 
         form.Close();
     }
+
+    [Fact]
+    public async Task ManagerAuthorizationDialog_NullAuthService_FailsClosed()
+    {
+        using var form = new ManagerAuthorizationForm("Auth Title", "Auth Detail", authService: null);
+        form.CreateControl();
+
+        var userNameEdit = GetField<TextEdit>(form, "_userNameEdit");
+        var passwordEdit = GetField<TextEdit>(form, "_passwordEdit");
+
+        userNameEdit.Text = "manager";
+        passwordEdit.Text = "validpass";
+
+        var result = await form.PerformAuthorizeAsync();
+
+        Assert.False(result);
+        Assert.Equal(DialogResult.None, form.DialogResult);
+        Assert.True(form.InlineErrorVisible);
+        Assert.NotNull(form.CurrentInlineError);
+        Assert.Contains("unavailable", form.CurrentInlineError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ManagerAuthorizationDialog_AuthServiceThrows_FailsClosed()
+    {
+        var fakeAuth = new FakeManagerAuthorizationService
+        {
+            AuthorizeHandler = (_, _, _) => throw new InvalidOperationException("Database connection timeout")
+        };
+        using var form = new ManagerAuthorizationForm("Auth Title", "Auth Detail", fakeAuth);
+        form.CreateControl();
+
+        var userNameEdit = GetField<TextEdit>(form, "_userNameEdit");
+        var passwordEdit = GetField<TextEdit>(form, "_passwordEdit");
+
+        userNameEdit.Text = "manager";
+        passwordEdit.Text = "validpass";
+
+        var result = await form.PerformAuthorizeAsync();
+
+        Assert.False(result);
+        Assert.Equal(DialogResult.None, form.DialogResult);
+        Assert.True(form.InlineErrorVisible);
+        Assert.NotNull(form.CurrentInlineError);
+        Assert.Contains("Database connection timeout", form.CurrentInlineError, StringComparison.OrdinalIgnoreCase);
+    }
 }

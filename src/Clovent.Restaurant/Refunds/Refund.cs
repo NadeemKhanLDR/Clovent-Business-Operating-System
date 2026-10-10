@@ -53,16 +53,16 @@ public sealed class Refund : AggregateRoot<RefundId>
     public IReadOnlyList<RefundLine> Lines => _lines.AsReadOnly();
 
     /// <summary>Gross sum of refunded items before discount/tax adjustments.</summary>
-    public decimal SubtotalRefunded { get; }
+    public decimal SubtotalRefunded { get; private set; }
 
     /// <summary>Total original discounts reversed by this refund.</summary>
-    public decimal DiscountReversedTotal { get; }
+    public decimal DiscountReversedTotal { get; private set; }
 
     /// <summary>Total sales taxes reversed by this refund.</summary>
-    public decimal TaxReversedTotal { get; }
+    public decimal TaxReversedTotal { get; private set; }
 
     /// <summary>Net financial amount refunded/credited to customer: Subtotal - DiscountsReversed + ExclusiveTaxReversed.</summary>
-    public decimal GrandTotalRefunded { get; }
+    public decimal GrandTotalRefunded { get; private set; }
 
     /// <summary>Tender settlement mechanism used for the refund.</summary>
     public RefundSettlementMethod SettlementMethod { get; }
@@ -150,7 +150,7 @@ public sealed class Refund : AggregateRoot<RefundId>
         if (string.IsNullOrWhiteSpace(cashierName))
             throw new ArgumentException("Cashier name is mandatory.", nameof(cashierName));
 
-        var now = refundedAtUtc ?? DateTimeOffset.UtcNow;
+        var now = refundedAtUtc ?? Shifts.Shift.NextUtcNow();
         return new Refund(
             RefundId.New(),
             refundNumber,
@@ -190,11 +190,10 @@ public sealed class Refund : AggregateRoot<RefundId>
         decimal grandTotal,
         string creditNoteSnapshotJson)
     {
-        // Re-construct with finalized figures
-        typeof(Refund).GetProperty(nameof(SubtotalRefunded))!.SetValue(this, MoneyRoundingPolicy.RoundMoney(subtotal));
-        typeof(Refund).GetProperty(nameof(DiscountReversedTotal))!.SetValue(this, MoneyRoundingPolicy.RoundMoney(discountReversed));
-        typeof(Refund).GetProperty(nameof(TaxReversedTotal))!.SetValue(this, MoneyRoundingPolicy.RoundMoney(taxReversed));
-        typeof(Refund).GetProperty(nameof(GrandTotalRefunded))!.SetValue(this, MoneyRoundingPolicy.RoundMoney(grandTotal));
+        SubtotalRefunded = MoneyRoundingPolicy.RoundMoney(subtotal);
+        DiscountReversedTotal = MoneyRoundingPolicy.RoundMoney(discountReversed);
+        TaxReversedTotal = MoneyRoundingPolicy.RoundMoney(taxReversed);
+        GrandTotalRefunded = MoneyRoundingPolicy.RoundMoney(grandTotal);
         ReceiptSnapshotJson = creditNoteSnapshotJson;
     }
 }

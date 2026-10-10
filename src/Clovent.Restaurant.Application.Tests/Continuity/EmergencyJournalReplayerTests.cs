@@ -66,6 +66,8 @@ public sealed class EmergencyJournalReplayerTests
 
         var checksum = EmergencyTransaction.ComputeChecksum(
             txId, seq, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
+        var hmac = EmergencyTransaction.ComputeHmacSignature(
+            txId, seq, EmergencyTransaction.GenesisHash, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
 
         var snapshot = new EmergencyOrderSnapshot(
             "TakeAway", null, null,
@@ -76,6 +78,7 @@ public sealed class EmergencyJournalReplayerTests
         {
             TransactionId = txId,
             SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
             TimestampUtc = now,
             TerminalId = terminalId,
             BranchId = branchId,
@@ -87,6 +90,7 @@ public sealed class EmergencyJournalReplayerTests
             AmountTendered = 300m,
             ChangeGiven = 50m,
             Checksum = checksum,
+            HmacSignature = hmac,
             ReconciliationStatus = ReconciliationStatus.PendingReplay
         };
         await _journalStore.AppendAsync(tx);
@@ -143,6 +147,8 @@ public sealed class EmergencyJournalReplayerTests
 
         var checksum = EmergencyTransaction.ComputeChecksum(
             txId, seq, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
+        var hmac = EmergencyTransaction.ComputeHmacSignature(
+            txId, seq, EmergencyTransaction.GenesisHash, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
 
         var snapshot = new EmergencyOrderSnapshot(
             "TakeAway", null, null,
@@ -153,6 +159,7 @@ public sealed class EmergencyJournalReplayerTests
         {
             TransactionId = txId,
             SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
             TimestampUtc = now,
             TerminalId = terminalId,
             BranchId = branchId,
@@ -164,6 +171,7 @@ public sealed class EmergencyJournalReplayerTests
             AmountTendered = 100m,
             ChangeGiven = 0m,
             Checksum = checksum,
+            HmacSignature = hmac,
             ReconciliationStatus = ReconciliationStatus.PendingReplay
         };
         await _journalStore.AppendAsync(tx);
@@ -207,6 +215,8 @@ public sealed class EmergencyJournalReplayerTests
 
         var validChecksum = EmergencyTransaction.ComputeChecksum(
             txId, seq, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
+        var validHmac = EmergencyTransaction.ComputeHmacSignature(
+            txId, seq, EmergencyTransaction.GenesisHash, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
 
         // Tamper grand total so checksum will not verify
         var tamperedSnapshot = new EmergencyOrderSnapshot(
@@ -218,6 +228,7 @@ public sealed class EmergencyJournalReplayerTests
         {
             TransactionId = txId,
             SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
             TimestampUtc = now,
             TerminalId = terminalId,
             BranchId = branchId,
@@ -229,6 +240,7 @@ public sealed class EmergencyJournalReplayerTests
             AmountTendered = 100m,
             ChangeGiven = 0m,
             Checksum = validChecksum, // Invalid for 999m
+            HmacSignature = validHmac, // Also invalid for 999m
             ReconciliationStatus = ReconciliationStatus.PendingReplay
         };
         await _journalStore.AppendAsync(tx);
@@ -262,6 +274,8 @@ public sealed class EmergencyJournalReplayerTests
 
         var checksum = EmergencyTransaction.ComputeChecksum(
             txId, seq, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
+        var hmac = EmergencyTransaction.ComputeHmacSignature(
+            txId, seq, EmergencyTransaction.GenesisHash, now, terminalId, branchId, warehouseId, cashierName, grandTotal, paymentType);
 
         var snapshot = new EmergencyOrderSnapshot(
             "TakeAway", null, null,
@@ -272,6 +286,7 @@ public sealed class EmergencyJournalReplayerTests
         {
             TransactionId = txId,
             SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
             TimestampUtc = now,
             TerminalId = terminalId,
             BranchId = branchId,
@@ -283,6 +298,7 @@ public sealed class EmergencyJournalReplayerTests
             AmountTendered = 500m,
             ChangeGiven = 200m,
             Checksum = checksum,
+            HmacSignature = hmac,
             LocalReceiptNumber = "CONT-POS01-00005",
             CacheVersion = "1.2.0",
             ReconciliationStatus = ReconciliationStatus.PendingReplay
@@ -302,5 +318,103 @@ public sealed class EmergencyJournalReplayerTests
         var orders = await _orderRepo.GetAllAsync();
         var order = orders.First();
         Assert.Contains("CONT-POS01-00005", order.Notes);
+    }
+
+    [Fact]
+    public async Task ReplayPendingAsync_MissingHmacSignature_MarksConflictAndFails()
+    {
+        await SeedCashPaymentMethodAsync();
+
+        var txId = Guid.NewGuid();
+        var seq = 6L;
+        var now = DateTimeOffset.UtcNow;
+        var grandTotal = 150m;
+
+        var checksum = EmergencyTransaction.ComputeChecksum(
+            txId, seq, now, "POS-01", Guid.NewGuid(), Guid.NewGuid(), "Cashier", grandTotal, "Cash");
+
+        var snapshot = new EmergencyOrderSnapshot(
+            "TakeAway", null, null,
+            [new EmergencyTransactionLine(Guid.NewGuid(), "SKU-PIZZA", "Pizza", 1, grandTotal, grandTotal, null)],
+            grandTotal, 0, 0, 0, grandTotal, null, null);
+
+        var tx = new EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
+            TimestampUtc = now,
+            TerminalId = "POS-01",
+            BranchId = Guid.NewGuid(),
+            WarehouseId = Guid.NewGuid(),
+            CashierName = "Cashier",
+            OrderSnapshot = snapshot,
+            PaymentType = "Cash",
+            AmountTendered = grandTotal,
+            Checksum = checksum,
+            HmacSignature = string.Empty, // Missing HMAC
+            ReconciliationStatus = ReconciliationStatus.PendingReplay
+        };
+        await _journalStore.AppendAsync(tx);
+
+        var replayer = CreateReplayer();
+        var result = await replayer.ReplayPendingAsync();
+
+        Assert.Equal(1, result.TotalProcessed);
+        Assert.Equal(0, result.SuccessCount);
+        Assert.Equal(1, result.FailedCount);
+
+        var updatedTx = (await _journalStore.GetAllAsync()).First();
+        Assert.Equal(ReconciliationStatus.Conflict, updatedTx.ReconciliationStatus);
+        Assert.Contains("Tamper check failed", updatedTx.ReconciliationDetails);
+    }
+
+    [Fact]
+    public async Task ReplayPendingAsync_TamperedHmacSignature_MarksConflictAndFails()
+    {
+        await SeedCashPaymentMethodAsync();
+
+        var txId = Guid.NewGuid();
+        var seq = 7L;
+        var now = DateTimeOffset.UtcNow;
+        var grandTotal = 200m;
+
+        var checksum = EmergencyTransaction.ComputeChecksum(
+            txId, seq, now, "POS-01", Guid.NewGuid(), Guid.NewGuid(), "Cashier", grandTotal, "Cash");
+
+        var snapshot = new EmergencyOrderSnapshot(
+            "TakeAway", null, null,
+            [new EmergencyTransactionLine(Guid.NewGuid(), "SKU-BURGER", "Burger", 1, grandTotal, grandTotal, null)],
+            grandTotal, 0, 0, 0, grandTotal, null, null);
+
+        var tx = new EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = seq,
+            PreviousTransactionHash = EmergencyTransaction.GenesisHash,
+            TimestampUtc = now,
+            TerminalId = "POS-01",
+            BranchId = Guid.NewGuid(),
+            WarehouseId = Guid.NewGuid(),
+            CashierName = "Cashier",
+            OrderSnapshot = snapshot,
+            PaymentType = "Cash",
+            AmountTendered = grandTotal,
+            Checksum = checksum,
+            HmacSignature = "BAD_HMAC_SIGNATURE_TAMPERED",
+            ReconciliationStatus = ReconciliationStatus.PendingReplay
+        };
+        await _journalStore.AppendAsync(tx);
+
+        var replayer = CreateReplayer();
+        var result = await replayer.ReplayPendingAsync();
+
+        Assert.Equal(1, result.TotalProcessed);
+        Assert.Equal(0, result.SuccessCount);
+        Assert.Equal(1, result.FailedCount);
+
+        var updatedTx = (await _journalStore.GetAllAsync()).First();
+        Assert.Equal(ReconciliationStatus.Conflict, updatedTx.ReconciliationStatus);
+        Assert.Contains("Tamper check failed", updatedTx.ReconciliationDetails);
     }
 }

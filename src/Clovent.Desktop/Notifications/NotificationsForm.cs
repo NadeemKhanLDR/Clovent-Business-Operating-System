@@ -26,9 +26,24 @@ public sealed partial class NotificationsForm : XtraForm
 
         Load += (s, e) =>
         {
-            DesktopDialogSizing.Apply(this, 560, 420, 440, 320, owner: Owner, resizable: true);
+            DesktopDialogSizing.Apply(this, 560, 440, 460, 340, owner: Owner, resizable: true);
+            _headerPanel.Height = DesktopDpi.Scale(72, this);
+            _headerPanel.Padding = new Padding(
+                DesktopDpi.Scale(16, this),
+                DesktopDpi.Scale(14, this),
+                DesktopDpi.Scale(16, this),
+                DesktopDpi.Scale(8, this));
+            _footerPanel.Height = DesktopDpi.Scale(58, this);
+            _footerPanel.Padding = new Padding(
+                DesktopDpi.Scale(16, this),
+                DesktopDpi.Scale(10, this),
+                DesktopDpi.Scale(16, this),
+                DesktopDpi.Scale(12, this));
             _notificationsList.ItemHeight = DesktopDpi.Scale(36, this);
-            _closeButton.Size = new Size(DesktopDpi.Scale(100, this), DesktopDpi.Scale(32, this));
+            var btnWidth = DesktopDpi.Scale(120, this);
+            var btnHeight = DesktopDpi.Scale(36, this);
+            _closeButton.Size = new Size(btnWidth, btnHeight);
+            _closeButton.MinimumSize = new Size(DesktopDpi.Scale(110, this), DesktopDpi.Scale(34, this));
             Clovent.Desktop.Forms.Base.Localization.LocalizationHelper.LocalizeControl(this);
         };
 

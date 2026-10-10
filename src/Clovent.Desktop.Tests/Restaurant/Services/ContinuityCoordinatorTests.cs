@@ -244,4 +244,70 @@ public sealed class ContinuityCoordinatorTests
         var (status, _) = await coordinator.ValidateCacheAsync();
         Assert.Equal(CacheValidationStatus.Valid, status);
     }
+
+    [Fact]
+    public void EnterAndExitContinuityMode_LogsToSmartPosLayoutTelemetryAndDiagnosticFile()
+    {
+        var journalStore = new FakeJournalStore();
+        var cacheStore = new FakeCacheStore();
+        var services = new ServiceCollection().BuildServiceProvider();
+        var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+
+        var coordinator = new ContinuityCoordinator(journalStore, cacheStore, scopeFactory);
+        var terminalId = Guid.NewGuid();
+        coordinator.SetTerminalContext(
+            Guid.NewGuid(), "Co", Guid.NewGuid(), "Br",
+            terminalId, "Terminal", "POS01",
+            Guid.NewGuid(), "Wh", "PKR", "Rs.", 2);
+
+        var reason = "Database connection timed out during checkout test";
+        coordinator.EnterContinuityMode(reason);
+
+        var telemetryPath = Path.Combine(Clovent.Desktop.Restaurant.SmartPos.SmartPosLayoutTelemetry.TelemetryDir, "continuity_events_REAL_runtime.txt");
+        Assert.True(File.Exists(telemetryPath));
+        var content = File.ReadAllText(telemetryPath);
+        Assert.Contains("CONTINUITY_EVENT: EnterContinuityMode", content);
+        Assert.Contains(reason, content);
+        Assert.Contains("Code='POS01'", content);
+
+        coordinator.ExitContinuityMode(replayedCount: 7);
+
+        content = File.ReadAllText(telemetryPath);
+        Assert.Contains("CONTINUITY_EVENT: ExitContinuityMode", content);
+        Assert.Contains("ReplayedCount: 7", content);
+    }
+
+    [Fact]
+    public async Task RecordEmergencySale_LogsToSmartPosLayoutTelemetry()
+    {
+        var journalStore = new FakeJournalStore();
+        var cacheStore = new FakeCacheStore();
+        var services = new ServiceCollection().BuildServiceProvider();
+        var scopeFactory = services.GetRequiredService<IServiceScopeFactory>();
+
+        var coordinator = new ContinuityCoordinator(journalStore, cacheStore, scopeFactory);
+        coordinator.SetTerminalContext(
+            Guid.NewGuid(), "Co", Guid.NewGuid(), "Br",
+            Guid.NewGuid(), "Terminal", "POS01",
+            Guid.NewGuid(), "Wh", "PKR", "Rs.", 2);
+
+        var txId = Guid.NewGuid();
+        var tx = new EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = 1,
+            LocalReceiptNumber = "CONT-POS01-00001",
+            OrderSnapshot = new EmergencyOrderSnapshot(
+                "Takeaway", null, null, [], 100m, 0, 0, 0, 100m, null, null),
+            PaymentType = "Cash"
+        };
+
+        await coordinator.RecordEmergencySaleAsync(tx);
+
+        var telemetryPath = Path.Combine(Clovent.Desktop.Restaurant.SmartPos.SmartPosLayoutTelemetry.TelemetryDir, "continuity_events_REAL_runtime.txt");
+        Assert.True(File.Exists(telemetryPath));
+        var content = File.ReadAllText(telemetryPath);
+        Assert.Contains("CONTINUITY_EVENT: RecordEmergencySale", content);
+        Assert.Contains("CONT-POS01-00001", content);
+    }
 }

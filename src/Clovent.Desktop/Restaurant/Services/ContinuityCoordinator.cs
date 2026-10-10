@@ -1,3 +1,4 @@
+using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Restaurant.Application.Continuity;
 using Clovent.Restaurant.Continuity;
 using Clovent.Restaurant.Infrastructure.Persistence;
@@ -17,6 +18,7 @@ public sealed class ContinuityCoordinator : IContinuityCoordinator
     private readonly IOperationalCacheStore _cacheStore;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ContinuityCoordinator>? _logger;
+    private readonly SemaphoreSlim _replayGate = new(1, 1);
 
     private readonly object _stateLock = new();
     private bool _isActive;
@@ -197,6 +199,13 @@ public sealed class ContinuityCoordinator : IContinuityCoordinator
 
         if (changed)
         {
+            SmartPosLayoutTelemetry.LogContinuityEvent(
+                "EnterContinuityMode",
+                _terminalCode,
+                _terminalId,
+                true,
+                reason);
+
             StateChanged?.Invoke(this, new ContinuityStateChangedEventArgs(true, reason));
         }
     }
@@ -219,6 +228,14 @@ public sealed class ContinuityCoordinator : IContinuityCoordinator
 
         if (changed)
         {
+            SmartPosLayoutTelemetry.LogContinuityEvent(
+                "ExitContinuityMode",
+                _terminalCode,
+                _terminalId,
+                false,
+                "Normal operations resumed.",
+                replayedCount: replayedCount);
+
             StateChanged?.Invoke(this, new ContinuityStateChangedEventArgs(false, "Normal operations resumed.", replayedCount));
         }
     }
@@ -383,29 +400,55 @@ public sealed class ContinuityCoordinator : IContinuityCoordinator
         _logger?.LogInformation("Recorded emergency sale {TransactionId} (LocalReceipt: {Receipt}, Sequence: {Seq}) in local journal",
             transaction.TransactionId, transaction.LocalReceiptNumber, transaction.SequenceNumber);
 
+        SmartPosLayoutTelemetry.LogContinuityEvent(
+            "RecordEmergencySale",
+            _terminalCode,
+            _terminalId,
+            IsContinuityModeActive,
+            $"Offline cash sale {transaction.LocalReceiptNumber ?? transaction.TransactionId.ToString()} recorded",
+            details: $"Seq: {transaction.SequenceNumber}, Total: {transaction.OrderSnapshot?.GrandTotal:F2}");
+
         return transaction;
     }
 
     /// <inheritdoc />
     public async Task<EmergencyReplayResult> TriggerReplayAsync(CancellationToken cancellationToken = default)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var replayer = scope.ServiceProvider.GetRequiredService<IEmergencyJournalReplayer>();
-
-        var result = await replayer.ReplayPendingAsync(cancellationToken).ConfigureAwait(false);
-
-        if (result.FailedCount == 0 && IsContinuityModeActive)
+        await _replayGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            // If DB is healthy and all pending items replayed, synchronize cache and exit continuity mode
-            var isDbUp = await CheckDatabaseHealthAsync(cancellationToken).ConfigureAwait(false);
-            if (isDbUp)
-            {
-                _ = RefreshCacheAsync(cancellationToken);
-                ExitContinuityMode(result.SuccessCount);
-            }
-        }
+            using var scope = _scopeFactory.CreateScope();
+            var replayer = scope.ServiceProvider.GetRequiredService<IEmergencyJournalReplayer>();
 
-        return result;
+            var result = await replayer.ReplayPendingAsync(cancellationToken).ConfigureAwait(false);
+
+            if (result.FailedCount == 0 && IsContinuityModeActive)
+            {
+                // If DB is healthy and all pending items replayed, synchronize cache and exit continuity mode
+                var isDbUp = await CheckDatabaseHealthAsync(cancellationToken).ConfigureAwait(false);
+                if (isDbUp)
+                {
+                    _ = RefreshCacheAsync(cancellationToken);
+                    ExitContinuityMode(result.SuccessCount);
+                }
+            }
+
+            SmartPosLayoutTelemetry.LogContinuityEvent(
+                "TriggerReplayCompleted",
+                _terminalCode,
+                _terminalId,
+                IsContinuityModeActive,
+                result.FailedCount > 0 ? $"Replay completed with {result.FailedCount} failures" : "Replay completed successfully",
+                pendingJournalCount: result.TotalProcessed - result.SuccessCount - result.DuplicateIgnoredCount,
+                replayedCount: result.SuccessCount,
+                details: $"Total: {result.TotalProcessed}, Success: {result.SuccessCount}, DuplicateIgnored: {result.DuplicateIgnoredCount}, Failed: {result.FailedCount}");
+
+            return result;
+        }
+        finally
+        {
+            _replayGate.Release();
+        }
     }
 
     /// <inheritdoc />

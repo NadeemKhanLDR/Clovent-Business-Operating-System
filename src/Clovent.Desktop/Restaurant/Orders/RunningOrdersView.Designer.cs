@@ -27,28 +27,47 @@ partial class RunningOrdersView
         _comboOrderTypeFilter.SelectedIndex = 0;
         _comboOrderTypeFilter.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _comboOrderTypeFilter.Properties.Appearance.Options.UseFont = true;
-        _comboOrderTypeFilter.Size = new Size(150, 26);
+        _comboOrderTypeFilter.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _comboOrderTypeFilter.Properties.Appearance.Options.UseTextOptions = true;
+        _comboOrderTypeFilter.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        _comboOrderTypeFilter.Properties.AppearanceDropDown.Options.UseFont = true;
+        _comboOrderTypeFilter.Properties.DropDownRows = 8;
+        _comboOrderTypeFilter.Properties.AutoHeight = false;
+        _comboOrderTypeFilter.Anchor = AnchorStyles.Left;
+        _comboOrderTypeFilter.Margin = Padding.Empty;
+        _comboOrderTypeFilter.Size = new Size(180, 30);
         _comboOrderTypeFilter.SelectedIndexChanged += ComboOrderTypeFilter_SelectedIndexChanged;
 
-        var topFilterPanel = new FlowLayoutPanel
+        var topFilterPanel = new TableLayoutPanel
         {
             Dock = DockStyle.Top,
             AutoSize = true,
-            Padding = new Padding(12, 6, 12, 4),
-            FlowDirection = FlowDirection.LeftToRight
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(12, 8, 12, 8)
         };
+        topFilterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        topFilterPanel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        topFilterPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var lblFilter = new LabelControl
         {
             Text = "Order Type:",
             AutoSizeMode = LabelAutoSizeMode.Horizontal,
-            Padding = new Padding(0, 4, 8, 0)
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0),
+            Padding = Padding.Empty
         };
         lblFilter.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        lblFilter.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
         lblFilter.Appearance.Options.UseFont = true;
+        lblFilter.Appearance.Options.UseForeColor = true;
+        lblFilter.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        lblFilter.Appearance.Options.UseTextOptions = true;
 
-        topFilterPanel.Controls.Add(lblFilter);
-        topFilterPanel.Controls.Add(_comboOrderTypeFilter);
+        topFilterPanel.Controls.Add(lblFilter, 0, 0);
+        topFilterPanel.Controls.Add(_comboOrderTypeFilter, 1, 0);
 
         _listView = new MasterDataListView<OrderRow>(
         [

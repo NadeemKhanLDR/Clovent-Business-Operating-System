@@ -66,21 +66,42 @@ public sealed partial class RunningOrdersView : XtraUserControl
         _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
         _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
+
+        HandleCreated += (_, _) => ScaleFilter();
     }
 
     private void ComboOrderTypeFilter_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        if (_listView != null)
+        if (_listView != null && _mediator != null)
         {
             _ = _listView.RefreshAsync();
         }
+    }
+
+    private void ScaleFilter()
+    {
+        if (DesignModeHelper.IsInDesignMode) return;
+        var comboWidth = DesktopDpi.Scale(180, this);
+        var comboHeight = DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this);
+        _comboOrderTypeFilter.Size = new System.Drawing.Size(comboWidth, comboHeight);
+        _comboOrderTypeFilter.MinimumSize = new System.Drawing.Size(comboWidth, comboHeight);
     }
 
     private async void RunningOrdersView_Load(object? sender, EventArgs e)
     {
         if (DesignModeHelper.IsInDesignMode)
             return;
+        ScaleFilter();
+        if (_mediator == null)
+            return;
         await _listView.RefreshAsync();
+    }
+
+    /// <inheritdoc/>
+    protected override void OnDpiChangedAfterParent(EventArgs e)
+    {
+        base.OnDpiChangedAfterParent(e);
+        ScaleFilter();
     }
 
     /// <inheritdoc/>

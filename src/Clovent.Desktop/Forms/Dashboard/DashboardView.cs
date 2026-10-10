@@ -135,6 +135,12 @@ public sealed partial class DashboardView : BaseForm
         pnlDeliveryOrders.Click += OpenRunningOrders;
         lblDeliveryOrdersValue.Click += OpenRunningOrders;
         lblDeliveryOrdersCaption.Click += OpenRunningOrders;
+
+        lblBranchCaption.Cursor = Cursors.Hand;
+        lblBranchValue.Cursor = Cursors.Hand;
+        void OpenBranchSync(object? s, EventArgs e) => _navigationService?.NavigateTo("branchsync", "Branch Sync");
+        lblBranchCaption.Click += OpenBranchSync;
+        lblBranchValue.Click += OpenBranchSync;
     }
 
     /// <inheritdoc/>

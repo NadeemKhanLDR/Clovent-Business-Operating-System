@@ -36,6 +36,6 @@ public interface ICurrentSession
     /// <summary>Clears the current session.</summary>
     void SignOut();
 
-    /// <summary>Raised whenever <see cref="IsAuthenticated"/> changes, from either <see cref="SignIn"/> or <see cref="SignOut"/>.</summary>
+    /// <summary>Raised whenever <see cref="IsAuthenticated"/> changes, from either <see cref="SignIn(Guid, Guid, string)"/> or <see cref="SignOut"/>.</summary>
     event EventHandler? Changed;
 }

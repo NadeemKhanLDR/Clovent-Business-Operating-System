@@ -20,20 +20,35 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<Clovent.Restaurant.Application.Shifts.Services.IPosShiftAccessService, Clovent.Restaurant.Application.Shifts.Services.PosShiftAccessService>();
         services.AddScoped<Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService, Clovent.Restaurant.Application.Attendance.Services.AttendanceAccessService>();
 
+        services.AddScoped<Clovent.Restaurant.Application.CashierAudits.Services.ICashierAuditAnalyzerService, Clovent.Restaurant.Application.CashierAudits.Services.CashierAuditAnalyzerService>();
+
         // Integrations & Outbox Handlers
         services.AddSingleton<Clovent.Restaurant.Application.QuickBooks.IQuickBooksGateway, Clovent.Restaurant.Application.QuickBooks.DefaultQuickBooksGateway>();
         services.AddSingleton<Clovent.Restaurant.Application.Printing.IReceiptPrintService, Clovent.Restaurant.Application.Printing.DefaultReceiptPrintService>();
 
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksSyncOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksInvoiceSyncHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksPaymentSyncHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksShiftSyncHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.ReceiptPrintOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.AnalyticsEventOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.RecommendationLearningOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.CloudSyncOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.NotificationOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.CashierAuditAlertOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.DeltaSyncPacketOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.InventoryDeltaSyncOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.CatalogPriceDeltaSyncOutboxHandler>();
+        services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.ShiftSummaryDeltaSyncOutboxHandler>();
 
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IEmergencyJournalReplayer, Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>();
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IOperationalCacheSynchronizer, Clovent.Restaurant.Application.Continuity.OperationalCacheSynchronizer>();
+
+        // Multi-Terminal Branch Replication & Sync Ingestion Handlers
+        services.AddScoped<Clovent.Platform.Sync.ISyncIngestionHandler, Clovent.Restaurant.Application.Sync.InventoryDeltaIngestionHandler>();
+        services.AddScoped<Clovent.Platform.Sync.ISyncIngestionHandler, Clovent.Restaurant.Application.Sync.CatalogPriceDeltaIngestionHandler>();
+        services.AddScoped<Clovent.Platform.Sync.ISyncIngestionHandler, Clovent.Restaurant.Application.Sync.ShiftSummaryDeltaIngestionHandler>();
 
         return services;
     }

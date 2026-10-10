@@ -136,6 +136,35 @@ public sealed class ProtectedContinuityJournalStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task AppendAsync_MissingHmac_ThrowsContinuityTamperException()
+    {
+        var store = new ProtectedContinuityJournalStore(_journalPath, DataProtectionScope.LocalMachine);
+
+        var tx = CreateTestTransaction(1, EmergencyTransaction.GenesisHash);
+        var missingHmacTx = new EmergencyTransaction
+        {
+            TransactionId = tx.TransactionId,
+            SequenceNumber = tx.SequenceNumber,
+            PreviousTransactionHash = tx.PreviousTransactionHash,
+            TimestampUtc = tx.TimestampUtc,
+            TerminalId = tx.TerminalId,
+            BranchId = tx.BranchId,
+            WarehouseId = tx.WarehouseId,
+            CashierId = tx.CashierId,
+            CashierName = tx.CashierName,
+            OrderSnapshot = tx.OrderSnapshot,
+            PaymentType = tx.PaymentType,
+            AmountTendered = tx.AmountTendered,
+            ChangeGiven = tx.ChangeGiven,
+            Checksum = tx.Checksum,
+            HmacSignature = string.Empty // Missing HMAC
+        };
+
+        var ex = await Assert.ThrowsAsync<ContinuityTamperException>(() => store.AppendAsync(missingHmacTx));
+        Assert.Contains("HMAC signature validation failed", ex.Message);
+    }
+
+    [Fact]
     public async Task CorruptedJournalFile_ThrowsContinuitySecurityException_WithoutSilentFallback()
     {
         var store = new ProtectedContinuityJournalStore(_journalPath, DataProtectionScope.LocalMachine);

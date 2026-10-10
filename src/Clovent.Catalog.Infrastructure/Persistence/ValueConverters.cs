@@ -108,11 +108,11 @@ internal static class ValueConverters
     public static readonly ValueConverter<BarcodeValue, string> BarcodeValueConverter =
         new(v => v.Value, v => BarcodeValue.Create(v));
 
-    /// <summary><see cref="TaxProfileId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
+    /// <summary><see cref="Clovent.Catalog.TaxProfiles.TaxProfileId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<Clovent.Catalog.TaxProfiles.TaxProfileId, Guid> TaxProfileIdConverter =
         new(id => id.Value, value => new Clovent.Catalog.TaxProfiles.TaxProfileId(value));
 
-    /// <summary>Nullable <see cref="TaxProfileId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
+    /// <summary>Nullable <see cref="Clovent.Catalog.TaxProfiles.TaxProfileId"/> &lt;-&gt; nullable <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<Clovent.Catalog.TaxProfiles.TaxProfileId?, Guid?> NullableTaxProfileIdConverter =
         new(id => id == null ? null : id.Value.Value, value => value == null ? null : new Clovent.Catalog.TaxProfiles.TaxProfileId(value.Value));
 

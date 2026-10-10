@@ -40,7 +40,6 @@ public sealed partial class RestaurantSetupView : XtraUserControl
 
     /// <summary>Design-time-only constructor for the Visual Studio WinForms Designer - never used at runtime.</summary>
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
-    [Obsolete("Designer only", true)]
     public RestaurantSetupView()
     {
         _scope = null!;
@@ -122,6 +121,9 @@ public sealed partial class RestaurantSetupView : XtraUserControl
             return;
 
         ScaleLayoutAtRuntime();
+        if (_mediator is null)
+            return;
+
         await LoadAsync();
     }
 
@@ -138,7 +140,7 @@ public sealed partial class RestaurantSetupView : XtraUserControl
         _contentLayout.MaximumSize = new Size(maxContentW, 0);
 
         int controlH = DesktopDpi.Scale(30, this);
-        int radioH = DesktopDpi.Scale(34, this);
+        int radioH = DesktopDpi.Scale(32, this);
 
         _prefixEdit.Width = DesktopDpi.Scale(200, this);
         _prefixEdit.MinimumSize = new Size(0, controlH);

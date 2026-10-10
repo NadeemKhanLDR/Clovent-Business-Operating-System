@@ -69,21 +69,40 @@ partial class CustomerReceivablesReportView
         titleBar.Controls.Add(_subtitleLabel, 0, 1);
 
         // Filter toolbar (Row 1)
-        var asOfLabel = new LabelControl { Text = "As of Date:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
+        var asOfLabel = new LabelControl
+        {
+            Text = "As of Date:",
+            AutoSizeMode = LabelAutoSizeMode.Horizontal,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0),
+            Padding = Padding.Empty
+        };
         asOfLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         asOfLabel.Appearance.ForeColor = Color.FromArgb(51, 65, 85);
         asOfLabel.Appearance.Options.UseFont = true;
         asOfLabel.Appearance.Options.UseForeColor = true;
-        asOfLabel.Padding = new Padding(0, 6, 0, 0);
+        asOfLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        asOfLabel.Appearance.Options.UseTextOptions = true;
 
-        var filterLabel = new LabelControl { Text = "Filter:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
+        var filterLabel = new LabelControl
+        {
+            Text = "Filter:",
+            AutoSizeMode = LabelAutoSizeMode.Horizontal,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0),
+            Padding = Padding.Empty
+        };
         filterLabel.Appearance.ForeColor = Color.Gray;
         filterLabel.Appearance.Options.UseForeColor = true;
-        filterLabel.Padding = new Padding(0, 6, 0, 0);
+        filterLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        filterLabel.Appearance.Options.UseTextOptions = true;
 
         _asOfDateEdit.Width = 150;
         _asOfDateEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _asOfDateEdit.Properties.Appearance.Options.UseFont = true;
+        _asOfDateEdit.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _asOfDateEdit.Properties.Appearance.Options.UseTextOptions = true;
+        _asOfDateEdit.Properties.AutoHeight = false;
         _asOfDateEdit.Properties.DisplayFormat.FormatString = "dd-MMM-yyyy";
         _asOfDateEdit.Properties.DisplayFormat.FormatType = DevExpress.Utils.FormatType.DateTime;
         _asOfDateEdit.Properties.EditFormat.FormatString = "dd-MMM-yyyy";
@@ -95,19 +114,35 @@ partial class CustomerReceivablesReportView
         _filterCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _filterCombo.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _filterCombo.Properties.Appearance.Options.UseFont = true;
+        _filterCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _filterCombo.Properties.Appearance.Options.UseTextOptions = true;
+        _filterCombo.Properties.AutoHeight = false;
         _filterCombo.Properties.AppearanceDropDown.Font = new Font("Segoe UI", 9.5F);
+        _filterCombo.Properties.AppearanceDropDown.Options.UseFont = true;
+        _filterCombo.Properties.DropDownRows = 8;
         _filterCombo.Properties.Items.AddRange(new object[] { "All Customers", "Has Balance Only", "Over Limit Only", "Holding Advance" });
         _filterCombo.SelectedIndex = 1; // Default to "Has Balance Only"
 
-        var searchLabel = new LabelControl { Text = "Search:", AutoSizeMode = LabelAutoSizeMode.Horizontal };
+        var searchLabel = new LabelControl
+        {
+            Text = "Search:",
+            AutoSizeMode = LabelAutoSizeMode.Horizontal,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 8, 0),
+            Padding = Padding.Empty
+        };
         searchLabel.Appearance.ForeColor = Color.Gray;
         searchLabel.Appearance.Options.UseForeColor = true;
-        searchLabel.Padding = new Padding(0, 6, 0, 0);
+        searchLabel.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        searchLabel.Appearance.Options.UseTextOptions = true;
 
         _searchEdit.Width = 360;
         _searchEdit.Properties.NullValuePrompt = "Search code, name, mobile or phone...";
         _searchEdit.Properties.Appearance.Font = new Font("Segoe UI", 9.5F);
         _searchEdit.Properties.Appearance.Options.UseFont = true;
+        _searchEdit.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
+        _searchEdit.Properties.Appearance.Options.UseTextOptions = true;
+        _searchEdit.Properties.AutoHeight = false;
 
         var allButtons = new[]
         {
@@ -148,7 +183,7 @@ partial class CustomerReceivablesReportView
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 7,
             RowCount = 1,
-            Padding = new Padding(16, 2, 16, 2),
+            Padding = new Padding(16, 4, 16, 4),
         };
         _row1Panel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _row1Panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -159,19 +194,16 @@ partial class CustomerReceivablesReportView
         _row1Panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         _row1Panel.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        asOfLabel.Margin = new Padding(0, 6, 8, 4);
-        _asOfDateEdit.Margin = new Padding(0, 3, 14, 3);
+        _asOfDateEdit.Margin = new Padding(0, 0, 14, 0);
         _asOfDateEdit.Dock = DockStyle.Fill;
 
-        filterLabel.Margin = new Padding(0, 6, 8, 4);
-        _filterCombo.Margin = new Padding(0, 3, 14, 3);
+        _filterCombo.Margin = new Padding(0, 0, 14, 0);
         _filterCombo.Dock = DockStyle.Fill;
 
-        searchLabel.Margin = new Padding(0, 6, 8, 4);
-        _searchEdit.Margin = new Padding(0, 3, 12, 3);
+        _searchEdit.Margin = new Padding(0, 0, 12, 0);
         _searchEdit.Dock = DockStyle.Fill;
 
-        _refreshButton.Margin = new Padding(0, 3, 0, 3);
+        _refreshButton.Margin = Padding.Empty;
         _refreshButton.Dock = DockStyle.Fill;
 
         _row1Panel.Controls.Add(asOfLabel, 0, 0);

@@ -19,4 +19,9 @@ public interface IPrinterAdapter
     Task<bool> IsAvailableAsync(
         PrinterProfile profile,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Polls physical hardware and spooler health status (offline, paper out, cover open, cutter error, queue depth).</summary>
+    Task<PrinterHealthSnapshot> CheckHealthAsync(
+        PrinterProfile profile,
+        CancellationToken cancellationToken = default);
 }

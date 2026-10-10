@@ -81,7 +81,7 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
                 $"Emergency transaction {transaction.TransactionId} checksum validation failed. Tampering or corruption detected.");
         }
 
-        if (!string.IsNullOrEmpty(transaction.HmacSignature) && !transaction.VerifyHmacSignature())
+        if (string.IsNullOrWhiteSpace(transaction.HmacSignature) || !transaction.VerifyHmacSignature())
         {
             throw new ContinuityTamperException(
                 $"Emergency transaction {transaction.TransactionId} cryptographic HMAC signature validation failed. Unauthorized modification detected.");
@@ -102,7 +102,7 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
                 if (list.Count > 0)
                 {
                     var prev = list[^1];
-                    var expectedPrevHash = !string.IsNullOrEmpty(prev.HmacSignature) ? prev.HmacSignature : prev.Checksum;
+                    var expectedPrevHash = prev.HmacSignature;
                     if (!string.Equals(transaction.PreviousTransactionHash, expectedPrevHash, StringComparison.OrdinalIgnoreCase))
                     {
                         throw new ContinuityTamperException(

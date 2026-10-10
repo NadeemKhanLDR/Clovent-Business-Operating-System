@@ -50,6 +50,7 @@ public sealed partial class ErrorDialogForm : XtraForm
             _messageLabel.Text = $"{summary}\n\n{exception.Message}";
         }
         _detailsMemo.Text = exception.ToString();
+        ApplyDpiScaling();
     }
 
     /// <inheritdoc/>

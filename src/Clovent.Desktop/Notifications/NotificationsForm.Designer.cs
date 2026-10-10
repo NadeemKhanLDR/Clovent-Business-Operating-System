@@ -47,11 +47,11 @@ partial class NotificationsForm
         // _headerPanel
         //
         _headerPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-        _headerPanel.Controls.Add(_subtitleLabel);
         _headerPanel.Controls.Add(_titleLabel);
+        _headerPanel.Controls.Add(_subtitleLabel);
         _headerPanel.Dock = DockStyle.Top;
-        _headerPanel.Height = 56;
-        _headerPanel.Padding = new Padding(16, 12, 16, 6);
+        _headerPanel.Height = 72;
+        _headerPanel.Padding = new Padding(16, 14, 16, 8);
         _headerPanel.Name = "_headerPanel";
         //
         // _titleLabel
@@ -62,6 +62,7 @@ partial class NotificationsForm
         _titleLabel.Appearance.Options.UseForeColor = true;
         _titleLabel.Dock = DockStyle.Top;
         _titleLabel.Name = "_titleLabel";
+        _titleLabel.Padding = new Padding(0, 0, 0, 4);
         _titleLabel.Text = "NOTIFICATIONS";
         //
         // _subtitleLabel
@@ -70,8 +71,9 @@ partial class NotificationsForm
         _subtitleLabel.Appearance.ForeColor = Color.FromArgb(100, 116, 139);
         _subtitleLabel.Appearance.Options.UseFont = true;
         _subtitleLabel.Appearance.Options.UseForeColor = true;
-        _subtitleLabel.Dock = DockStyle.Bottom;
+        _subtitleLabel.Dock = DockStyle.Top;
         _subtitleLabel.Name = "_subtitleLabel";
+        _subtitleLabel.Padding = new Padding(0, 2, 0, 0);
         _subtitleLabel.Text = "Recent system alerts and operational messages.";
         //
         // _contentPanel
@@ -87,7 +89,7 @@ partial class NotificationsForm
         _notificationsList.Appearance.Font = new Font("Segoe UI", 9.5F);
         _notificationsList.Appearance.Options.UseFont = true;
         _notificationsList.Dock = DockStyle.Fill;
-        _notificationsList.ItemHeight = 34;
+        _notificationsList.ItemHeight = 36;
         _notificationsList.Name = "_notificationsList";
         //
         // _footerPanel
@@ -95,8 +97,8 @@ partial class NotificationsForm
         _footerPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
         _footerPanel.Controls.Add(_closeButton);
         _footerPanel.Dock = DockStyle.Bottom;
-        _footerPanel.Height = 50;
-        _footerPanel.Padding = new Padding(16, 8, 16, 10);
+        _footerPanel.Height = 58;
+        _footerPanel.Padding = new Padding(16, 10, 16, 12);
         _footerPanel.Name = "_footerPanel";
         //
         // _closeButton
@@ -106,21 +108,21 @@ partial class NotificationsForm
         _closeButton.DialogResult = DialogResult.OK;
         _closeButton.Dock = DockStyle.Right;
         _closeButton.Name = "_closeButton";
-        _closeButton.Size = new Size(100, 32);
+        _closeButton.Size = new Size(120, 36);
         _closeButton.Text = "Close";
         //
         // NotificationsForm
         //
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.None;
-        ClientSize = new Size(560, 420);
+        ClientSize = new Size(560, 440);
         Controls.Add(_contentPanel);
         Controls.Add(_footerPanel);
         Controls.Add(_headerPanel);
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = true;
         MinimizeBox = false;
-        MinimumSize = new Size(440, 320);
+        MinimumSize = new Size(460, 340);
         Name = "NotificationsForm";
         ShowInTaskbar = false;
         StartPosition = FormStartPosition.CenterParent;

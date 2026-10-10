@@ -48,7 +48,7 @@ public class PinCommandTests
 
         await handler.Handle(new SetPinCommand(userId.Value, ValidPin), CancellationToken.None);
 
-        var stored = repository.GetByUserIdAsync(userId).GetAwaiter().GetResult();
+        var stored = await repository.GetByUserIdAsync(userId);
         Assert.NotNull(stored);
         Assert.NotNull(stored!.PinHash);
     }
@@ -76,7 +76,7 @@ public class PinCommandTests
         await handler.Handle(new SetPinCommand(firstUserId.Value, ValidPin), CancellationToken.None);
 
         var (secondUserId, secondCredentials, _, _) = CreateUserWithPin(null);
-        repository.AddAsync(secondCredentials).GetAwaiter().GetResult();
+        await repository.AddAsync(secondCredentials);
 
         await Assert.ThrowsAsync<AuthenticationDomainException>(() =>
             handler.Handle(new SetPinCommand(secondUserId.Value, ValidPin), CancellationToken.None));

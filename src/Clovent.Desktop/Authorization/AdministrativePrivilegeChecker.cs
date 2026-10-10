@@ -48,17 +48,8 @@ public static class AdministrativePrivilegeChecker
         }
 
         var userId = session.UserId.Value;
-        var userName = session.UserName;
 
-        // 1. Fast-path check on system administrator username
-        if (!string.IsNullOrWhiteSpace(userName) &&
-            (string.Equals(userName, "admin", StringComparison.OrdinalIgnoreCase) ||
-             string.Equals(userName, "administrator", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        // 2. Evaluated check via Identity AuthorizationService
+        // Evaluated check via Identity AuthorizationService (fail-closed RBAC)
         try
         {
             using var scope = services.CreateScope();

@@ -52,6 +52,7 @@ public static class OrderTotalsCalculator
             l.TaxIsInclusive)).ToList();
 
         var taxResult = TaxCalculator.Calculate(calcLines, orderDiscountTotal);
+        var totalDiscounts = orderDiscountTotal + taxResult.TotalLineDiscounts;
 
         // 4. Resolve service charges
         var serviceChargeTotal = serviceCharges.Sum(s =>
@@ -59,7 +60,7 @@ public static class OrderTotalsCalculator
 
         // 5. Compute Grand Total and Balance
         var grandTotal = MoneyRoundingPolicy.RoundMoney(
-            subtotal - taxResult.TotalDiscounts + serviceChargeTotal + taxResult.TotalExclusiveTax);
+            subtotal - totalDiscounts + serviceChargeTotal + taxResult.TotalExclusiveTax);
 
         var paidTotal = payments.Where(p => !p.IsVoided).Sum(p => MoneyRoundingPolicy.RoundMoney(p.Amount));
         var balance = MoneyRoundingPolicy.RoundMoney(grandTotal - paidTotal);
@@ -67,7 +68,7 @@ public static class OrderTotalsCalculator
         return new OrderTotals(
             subtotal,
             taxResult.TotalTax,
-            taxResult.TotalDiscounts,
+            totalDiscounts,
             serviceChargeTotal,
             grandTotal,
             paidTotal,

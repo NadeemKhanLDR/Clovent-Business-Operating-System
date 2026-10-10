@@ -16,7 +16,26 @@ namespace Clovent.Restaurant.Shifts;
 /// </summary>
 public sealed class Shift : AggregateRoot<ShiftId>
 {
+    private static long _lastUtcTicks;
     private readonly List<CashMovement> _cashMovements = new();
+
+    /// <summary>
+    /// Returns a strictly increasing UTC timestamp to prevent same-tick boundary collisions
+    /// across sequential shift open/close transitions and refund postings.
+    /// </summary>
+    public static DateTimeOffset NextUtcNow()
+    {
+        while (true)
+        {
+            var current = System.Threading.Interlocked.Read(ref _lastUtcTicks);
+            var nowTicks = DateTimeOffset.UtcNow.UtcTicks;
+            var next = nowTicks > current ? nowTicks : current + 1;
+            if (System.Threading.Interlocked.CompareExchange(ref _lastUtcTicks, next, current) == current)
+            {
+                return new DateTimeOffset(next, TimeSpan.Zero);
+            }
+        }
+    }
 
     /// <summary>Sequential human-readable shift number (e.g. 1001, 1002...).</summary>
     public int ShiftNumber { get; }
@@ -142,7 +161,7 @@ public sealed class Shift : AggregateRoot<ShiftId>
         if (string.IsNullOrWhiteSpace(cashierName))
             throw new ArgumentException("Cashier name is required.", nameof(cashierName));
 
-        var now = DateTimeOffset.UtcNow;
+        var now = NextUtcNow();
         var shift = new Shift(
             ShiftId.New(),
             shiftNumber,
@@ -189,7 +208,7 @@ public sealed class Shift : AggregateRoot<ShiftId>
 
         var movement = CashMovement.Create(Id, type, amount, reason, userId, notes);
         _cashMovements.Add(movement);
-        UpdatedAtUtc = DateTimeOffset.UtcNow;
+        UpdatedAtUtc = NextUtcNow();
 
         AddDomainEvent(new CashMovementRecorded(
             Id,
@@ -217,7 +236,7 @@ public sealed class Shift : AggregateRoot<ShiftId>
         if (variance != 0 && string.IsNullOrWhiteSpace(varianceReason))
             throw new ArgumentException("Variance reason is required when counted cash differs from expected cash.", nameof(varianceReason));
 
-        var now = DateTimeOffset.UtcNow;
+        var now = NextUtcNow();
         ClosedAtUtc = now;
         Status = ShiftStatus.Closed;
         ExpectedCash = expectedCash;

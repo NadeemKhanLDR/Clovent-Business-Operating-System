@@ -91,6 +91,12 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         "recommendationrules",
         "smartcombos", "quickordertemplates",
         "upsellperformance",
+
+        // Autonomous multi-terminal replication & sync monitor
+        "branchsync",
+
+        // Enterprise QuickBooks accounting synchronization & reconciliation
+        "quickbooks",
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =

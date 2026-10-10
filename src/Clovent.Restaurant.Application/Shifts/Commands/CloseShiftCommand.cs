@@ -25,7 +25,9 @@ public sealed class CloseShiftCommandHandler(
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
     IActivityLogEntryRepository activityLogRepository,
-    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
+    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null,
+    Clovent.Restaurant.Outbox.IOutboxRepository? outboxRepository = null,
+    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
 {
     /// <inheritdoc/>
     public async Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken)
@@ -89,7 +91,21 @@ public sealed class CloseShiftCommandHandler(
                 .Sum(e => e.Credit);
         }
 
-        decimal expectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashOut;
+        decimal cashRefunds = 0m;
+        if (refundRepository is not null)
+        {
+            var shiftRefunds = await refundRepository.GetByDateRangeAsync(
+                shift.OpenedAtUtc,
+                Shift.NextUtcNow(),
+                cancellationToken);
+            cashRefunds = shiftRefunds
+                .Where(r => r.BranchId == shift.BranchId &&
+                            r.CashierId == shift.CashierId.Value &&
+                            r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout)
+                .Sum(r => r.GrandTotalRefunded);
+        }
+
+        decimal expectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashRefunds - cashOut;
 
         // Domain close handles variance calculation and validation
         shift.Close(request.CountedCash, expectedCash, request.VarianceReason, request.Notes);
@@ -105,6 +121,35 @@ public sealed class CloseShiftCommandHandler(
         await activityLogRepository.AddAsync(activity, cancellationToken);
 
         var movementDtos = shift.CashMovements.Select(CashMovementDto.FromDomain).ToList();
+
+        if (outboxRepository != null)
+        {
+            var syncPayload = new Clovent.Restaurant.Application.Outbox.Dtos.ShiftSummaryDeltaSyncPayload(
+                TerminalId: shift.TerminalId.Value,
+                BranchId: shift.BranchId.Value,
+                ShiftNumber: shift.ShiftNumber,
+                CashierId: shift.CashierId.Value,
+                CashierName: shift.CashierName,
+                OpenedAtUtc: shift.OpenedAtUtc,
+                ClosedAtUtc: shift.ClosedAtUtc,
+                StartingCash: shift.StartingCash,
+                CountedCash: shift.CountedCash,
+                ExpectedCash: shift.ExpectedCash,
+                CashVariance: shift.CashVariance,
+                NetSales: cashSales + cardSales + otherSales,
+                TotalOrdersCount: validPayments.Select(p => p.OrderId).Distinct().Count(),
+                TimestampUtc: DateTimeOffset.UtcNow);
+
+            var syncMsg = Clovent.Restaurant.Outbox.OutboxMessage.Create(
+                messageType: Clovent.Restaurant.Outbox.OutboxMessageType.ShiftSummaryDeltaSync,
+                aggregateType: "Shift",
+                aggregateId: shift.Id.Value.ToString(),
+                correlationId: Guid.NewGuid().ToString(),
+                payload: System.Text.Json.JsonSerializer.Serialize(syncPayload),
+                idempotencyKey: $"shift-summary:{shift.BranchId.Value}:{shift.TerminalId.Value}:{shift.ShiftNumber}");
+
+            await outboxRepository.AddAsync(syncMsg, cancellationToken);
+        }
 
         return new ShiftSummaryDto(
             ShiftDto.FromDomain(shift),

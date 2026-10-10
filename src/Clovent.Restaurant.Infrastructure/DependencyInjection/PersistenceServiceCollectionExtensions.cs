@@ -73,6 +73,8 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IQuickOrderTemplateRepository, QuickOrderTemplateRepository>();
         services.TryAddScoped<Clovent.Restaurant.DayClose.IBusinessDayCloseRepository, BusinessDayCloseRepository>();
         services.TryAddScoped<IOutboxRepository, OutboxRepository>();
+        services.TryAddScoped<Clovent.Restaurant.QuickBooks.IQuickBooksSyncMapRepository, QuickBooksSyncMapRepository>();
+        services.TryAddScoped<Clovent.Restaurant.AuditAlerts.ICashierAuditAlertRepository, CashierAuditAlertRepository>();
         services.TryAddScoped<Clovent.Restaurant.Refunds.IRefundRepository, RefundRepository>();
         services.TryAddSingleton<IContinuityJournalStore, ProtectedContinuityJournalStore>();
         services.TryAddSingleton<IOperationalCacheStore, ProtectedOperationalCacheStore>();

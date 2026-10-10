@@ -16,6 +16,12 @@ public static class InfrastructureServiceCollectionExtensions
     {
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(UnitOfWorkBehavior<,>));
         services.AddSingleton<Clovent.Restaurant.Application.Outbox.IOutboxProcessor, Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor>();
+        services.AddHostedService(sp => (Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor)sp.GetRequiredService<Clovent.Restaurant.Application.Outbox.IOutboxProcessor>());
+
+        // Durable Multi-Terminal Replication Persistence
+        services.AddScoped<Clovent.Platform.Sync.ISyncIdempotencyStore, Clovent.Restaurant.Infrastructure.Sync.DurableSyncInboxStore>();
+        services.AddScoped<Clovent.Platform.Sync.ISyncConflictStagingStore, Clovent.Restaurant.Infrastructure.Sync.DurableSyncConflictStore>();
+        services.AddScoped<Clovent.Restaurant.Application.Sync.IShiftSyncRegistry, Clovent.Restaurant.Infrastructure.Sync.DurableShiftSyncRegistry>();
 
         return services;
     }

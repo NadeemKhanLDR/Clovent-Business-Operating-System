@@ -239,6 +239,7 @@ internal static class Program
                     var initMediator = initScope.ServiceProvider.GetRequiredService<MediatR.IMediator>();
                     await Clovent.Desktop.Forms.Base.DateTimeDisplayLoader.ConfigureAsync(initMediator, h.Services).ConfigureAwait(false);
                     await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(initMediator).ConfigureAwait(false);
+                    await h.StartAsync().ConfigureAwait(false);
                     return h;
                 }).GetAwaiter().GetResult();
             }
@@ -352,6 +353,7 @@ internal static class Program
                 logger.LogInformation("STARTUP: LoginForm closed with {Result}, SelectedModule={Module}", dialogResult, loginForm.SelectedModuleKey);
                 if (dialogResult != DialogResult.OK || string.IsNullOrWhiteSpace(loginForm.SelectedModuleKey))
                 {
+                    StopAndDisposeHost(host, logger);
                     return;
                 }
                 selectedModule = loginForm.SelectedModuleKey;
@@ -415,6 +417,7 @@ internal static class Program
                 }, null);
 
                 Application.Run(navigator.ApplicationContext);
+                StopAndDisposeHost(host, logger);
             }
         }
         catch (Exception ex)
@@ -425,6 +428,27 @@ internal static class Program
                 "Startup Failed",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
+        }
+    }
+
+    private static void StopAndDisposeHost(Microsoft.Extensions.Hosting.IHost? host, ILogger? logger = null)
+    {
+        if (host == null) return;
+        try
+        {
+            Task.Run(async () =>
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await host.StopAsync(cts.Token).ConfigureAwait(false);
+            }).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogWarning(ex, "Host shutdown encountered a warning.");
+        }
+        finally
+        {
+            host.Dispose();
         }
     }
 }

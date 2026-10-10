@@ -6,7 +6,7 @@ namespace Clovent.Desktop.Forms.Base;
 /// Assigns DevExpress's own URI-based image-gallery icons to command
 /// buttons, so action buttons carry real vector glyphs instead of Unicode
 /// text symbols pretending to be icons. Uses only DevExpress's built-in
-/// <see cref="ImageOptions.ImageUri"/> mechanism (the DX Image Gallery) -
+/// <c>ImageOptions.ImageUri</c> mechanism (the DX Image Gallery) -
 /// no second icon framework, no custom-drawn or PNG images. If the gallery
 /// is unavailable in a given installation the URI simply resolves to no
 /// image and the button falls back to its text caption, so this is always

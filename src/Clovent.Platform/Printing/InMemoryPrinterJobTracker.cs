@@ -95,4 +95,15 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
             job.CompletedAtUtc = DateTimeOffset.UtcNow;
         }
     }
+
+    /// <inheritdoc/>
+    public void MarkQuarantined(Guid jobId, string reason)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.Quarantined;
+            job.ErrorMessage = reason;
+            job.CompletedAtUtc = DateTimeOffset.UtcNow;
+        }
+    }
 }

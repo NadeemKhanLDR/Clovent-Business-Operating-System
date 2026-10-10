@@ -20,4 +20,7 @@ public interface IOutboxProcessor
 
     /// <summary>Stops the background processing loop gracefully.</summary>
     Task StopAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Event raised whenever a batch completes processing with the number of processed messages.</summary>
+    event EventHandler<int>? BatchCompleted;
 }

@@ -28,4 +28,7 @@ public interface IPrinterJobTracker
 
     /// <summary>Transitions job status to Cancelled.</summary>
     void MarkCancelled(Guid jobId);
+
+    /// <summary>Transitions job status to Quarantined with actionable failure text.</summary>
+    void MarkQuarantined(Guid jobId, string reason);
 }

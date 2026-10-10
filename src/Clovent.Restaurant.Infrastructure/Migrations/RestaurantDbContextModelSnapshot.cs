@@ -480,6 +480,16 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("AllocatedDiscount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0.00m);
+
+                    b.Property<string>("CalculationPolicyVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -518,12 +528,35 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                         .HasPrecision(18, 4)
                         .HasColumnType("decimal(18,4)");
 
+                    b.Property<decimal?>("TaxAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TaxAuthority")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TaxClassification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TaxCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<bool>("TaxIsInclusive")
                         .HasColumnType("bit");
 
                     b.Property<decimal>("TaxRatePercentage")
                         .HasPrecision(5, 2)
                         .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal?>("TaxableBase")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
@@ -893,6 +926,179 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                     b.ToTable("QuickOrderTemplateItems", "Restaurant");
                 });
 
+            modelBuilder.Entity("Clovent.Restaurant.Refunds.Refund", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApprovedByUserName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("CashierId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CashierName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DiscountReversedTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("GrandTotalRefunded")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReceiptSnapshotJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RefundNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTimeOffset>("RefundedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("SettlementMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("SettlementReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("SubtotalRefunded")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("TaxReversedTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("RefundNumber")
+                        .IsUnique();
+
+                    b.HasIndex("RefundedAtUtc");
+
+                    b.ToTable("Refunds", "Restaurant");
+                });
+
+            modelBuilder.Entity("Clovent.Restaurant.Refunds.RefundLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DiscountReversed")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("InventoryDisposition")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("LineTotalRefunded")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("OrderLineId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductVariantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<Guid>("RefundId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("TaxClassification")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TaxCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("TaxIsInclusive")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("TaxRatePercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("TaxReversed")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderLineId");
+
+                    b.HasIndex("RefundId");
+
+                    b.ToTable("RefundLines", "Restaurant");
+                });
+
             modelBuilder.Entity("Clovent.Restaurant.Sales.DailySalesSequence", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1252,6 +1458,15 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Clovent.Restaurant.Refunds.RefundLine", b =>
+                {
+                    b.HasOne("Clovent.Restaurant.Refunds.Refund", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("RefundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Clovent.Restaurant.Shifts.CashMovement", b =>
                 {
                     b.HasOne("Clovent.Restaurant.Shifts.Shift", null)
@@ -1264,6 +1479,11 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
             modelBuilder.Entity("Clovent.Restaurant.QuickOrderTemplates.QuickOrderTemplate", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Clovent.Restaurant.Refunds.Refund", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("Clovent.Restaurant.Shifts.Shift", b =>

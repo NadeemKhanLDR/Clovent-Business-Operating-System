@@ -8,7 +8,9 @@ namespace Clovent.Catalog.Application.Prices.Commands;
 public sealed record UpdateProductPriceAmountCommand(Guid ProductPriceId, decimal Amount) : IRequest<ProductPriceDto>;
 
 /// <summary>Handles <see cref="UpdateProductPriceAmountCommand"/>.</summary>
-public sealed class UpdateProductPriceAmountCommandHandler(IProductPriceRepository repository)
+public sealed class UpdateProductPriceAmountCommandHandler(
+    IProductPriceRepository repository,
+    Clovent.Catalog.Application.Prices.Services.ICatalogPriceSyncNotifier? syncNotifier = null)
     : IRequestHandler<UpdateProductPriceAmountCommand, ProductPriceDto>
 {
     /// <inheritdoc/>
@@ -17,7 +19,14 @@ public sealed class UpdateProductPriceAmountCommandHandler(IProductPriceReposito
         var price = await repository.GetByIdAsync(new ProductPriceId(request.ProductPriceId), cancellationToken)
             ?? throw new NotFoundException(nameof(ProductPrice), request.ProductPriceId);
 
+        var oldAmount = price.Amount;
         price.UpdateAmount(request.Amount);
+
+        if (syncNotifier != null)
+        {
+            await syncNotifier.NotifyPriceUpdatedAsync(price, oldAmount, cancellationToken).ConfigureAwait(false);
+        }
+
         return ProductPriceDto.FromDomain(price);
     }
 }

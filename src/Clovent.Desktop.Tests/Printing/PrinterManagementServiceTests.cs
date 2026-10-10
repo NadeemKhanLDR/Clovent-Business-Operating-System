@@ -19,6 +19,8 @@ public class PrinterManagementServiceTests : IDisposable
         public IReadOnlyList<WindowsPrinterInfo> GetInstalledPrinters() => Installed;
         public bool IsPrinterInstalled(string printerName) => Installed.Any(p => p.Name.Equals(printerName, StringComparison.OrdinalIgnoreCase));
         public string? GetDefaultPrinterName() => "POS-80";
+        public PrinterHardwareStatusInfo GetPrinterStatus(string printerName) =>
+            new(printerName, IsPrinterInstalled(printerName), true, PrinterHardwareCondition.Normal, 0, "Ready");
     }
 
     private sealed class FakePrinterAdapter : IPrinterAdapter
@@ -30,6 +32,11 @@ public class PrinterManagementServiceTests : IDisposable
 
         public Task<bool> IsAvailableAsync(PrinterProfile profile, CancellationToken cancellationToken = default) =>
             Task.FromResult(!ShouldFail);
+
+        public Task<PrinterHealthSnapshot> CheckHealthAsync(PrinterProfile profile, CancellationToken cancellationToken = default) =>
+            Task.FromResult(ShouldFail
+                ? PrinterHealthSnapshot.Faulted(profile.SystemPrinterName ?? "TestPrinter", PrinterHardwareCondition.Offline, "Device offline", profile.Id)
+                : PrinterHealthSnapshot.Healthy(profile.SystemPrinterName ?? "TestPrinter", profile.Id));
 
         public Task<PrintDispatchResult> DispatchAsync(PrinterProfile profile, PrinterJob job, CancellationToken cancellationToken = default)
         {
@@ -175,9 +182,10 @@ public class PrinterManagementServiceTests : IDisposable
 
         // Assert
         Assert.False(result.Success);
-        Assert.Contains("offline", result.ErrorMessage);
-        Assert.NotNull(adapter.LastDispatchedJob);
-        Assert.Equal(PrinterJobStatus.Failed, tracker.GetJob(adapter.LastDispatchedJob.JobId)?.Status);
+        Assert.True(result.IsQuarantined);
+        Assert.Contains("offline", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var recentJob = Assert.Single(tracker.GetRecentJobs(1));
+        Assert.Equal(PrinterJobStatus.Quarantined, recentJob.Status);
     }
 
     [Fact]

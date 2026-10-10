@@ -234,7 +234,7 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
                 EntityCode.Create(code), name, mobile, address,
                 email: null, openingBalance: 0m, creditLimit: creditLimit,
                 notes: $"Reporting Acceptance Run - {currentBusinessDate:dd-MMM-yyyy}",
-                shopNo: null, mobile2: null, phone: mobile,
+                shopNo: null, mobile2: null, phone: null,
                 isDefault: isDefault, isCreditAllowed: isCreditAllowed);
             customerRepository.AddAsync(created, cancellationToken).GetAwaiter().GetResult();
             existingCusts.Add(created);

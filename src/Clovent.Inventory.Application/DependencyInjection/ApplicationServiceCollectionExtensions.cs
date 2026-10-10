@@ -15,6 +15,8 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
 
+        services.AddScoped<Clovent.Inventory.Application.Forecasting.Services.IInventoryForecastingService, Clovent.Inventory.Application.Forecasting.Services.InventoryForecastingService>();
+
         return services;
     }
 }

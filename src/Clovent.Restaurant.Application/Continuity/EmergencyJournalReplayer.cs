@@ -81,10 +81,11 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
 
         foreach (var tx in pending)
         {
+            var idempotencyKey = $"emergency:{tx.TransactionId}";
             try
             {
                 // Step 1: Verify cryptographic checksum and HMAC signature
-                if (!tx.VerifyChecksum() || (!string.IsNullOrEmpty(tx.HmacSignature) && !tx.VerifyHmacSignature()))
+                if (!tx.VerifyChecksum() || string.IsNullOrWhiteSpace(tx.HmacSignature) || !tx.VerifyHmacSignature())
                 {
                     tx.ReconciliationStatus = ReconciliationStatus.Conflict;
                     tx.ReconciliationDetails = "Tamper check failed: Cryptographic checksum or HMAC signature does not match transaction payload.";
@@ -95,7 +96,6 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 }
 
                 // Step 2: Idempotency check against existing payments
-                var idempotencyKey = $"emergency:{tx.TransactionId}";
                 var existingPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
                 if (existingPayment != null)
                 {
@@ -295,6 +295,26 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
             }
             catch (Exception ex)
             {
+                // Concurrency & idempotency check: did a concurrent replay thread already commit this payment?
+                try
+                {
+                    var committedPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+                    if (committedPayment != null)
+                    {
+                        tx.ReconciliationStatus = ReconciliationStatus.DuplicateIgnored;
+                        tx.ReconciliationDetails = $"Transaction already committed by concurrent replay as Payment {committedPayment.Id.Value}.";
+                        tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
+                        await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
+                        duplicateCount++;
+                        _logger?.LogInformation("Concurrent replay race resolved for {TransactionId}; successfully recovered as duplicate ignored.", tx.TransactionId);
+                        continue;
+                    }
+                }
+                catch (Exception recoveryEx)
+                {
+                    _logger?.LogWarning(recoveryEx, "Failed idempotency recovery check for transaction {TransactionId}", tx.TransactionId);
+                }
+
                 failedCount++;
                 errors.Add($"Failed to replay {tx.TransactionId}: {ex.Message}");
                 _logger?.LogError(ex, "Failed to replay emergency transaction {TransactionId}", tx.TransactionId);

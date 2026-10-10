@@ -1,0 +1,11 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Clovent Business Operating System - Database Connection Configuration Template. Persisted machine-wide in %ProgramData%\\Clovent\\BusinessOperatingSystem\\Config\\database.config.json with DPAPI encryption.",
+  "Server": ".",
+  "Database": "Clovent_BusinessOperatingSystem",
+  "UseWindowsAuthentication": true,
+  "UserId": null,
+  "EncryptedPassword": null,
+  "TrustServerCertificate": true,
+  "ConnectionTimeout": 15
+}

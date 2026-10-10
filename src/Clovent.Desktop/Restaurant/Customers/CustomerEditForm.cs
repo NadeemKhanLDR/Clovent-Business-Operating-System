@@ -71,7 +71,7 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
 
         StartPosition = FormStartPosition.CenterParent;
         _contentPanel.AutoScroll = true;
-        Clovent.Desktop.Forms.Base.DesktopDialogSizing.Apply(this, 800, 580, 740, 500, this.Owner ?? this.Parent, true);
+        Clovent.Desktop.Forms.Base.DesktopDialogSizing.Apply(this, 820, 620, 760, 540, this.Owner ?? this.Parent, true);
 
         Load += (s, e) =>
         {
@@ -84,7 +84,20 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
                 _contentPanel.ColumnStyles[2].Width = labelWidth;
             }
 
-            _notesEdit.Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(65, this);
+            var editorHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this);
+            var editors = new Control[]
+            {
+                _codeEdit, _nameEdit, _mobileEdit, _mobile2Edit,
+                _phoneEdit, _shopNoEdit, _addressEdit, _emailEdit,
+                _openingBalanceEdit, _creditLimitEdit
+            };
+            foreach (var ed in editors)
+            {
+                ed.MinimumSize = new System.Drawing.Size(0, editorHeight);
+            }
+
+            _notesEdit.Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(75, this);
+            _notesEdit.MinimumSize = new System.Drawing.Size(0, Clovent.Desktop.Forms.Base.DesktopDpi.Scale(75, this));
 
             _contentPanel.AutoScrollPosition = new System.Drawing.Point(0, 0);
             if (isNew && !_codeEdit.Properties.ReadOnly)

@@ -85,6 +85,9 @@ public sealed class NavigationRegistryTests
     [InlineData("inventorytransactions", NavigationPage.Inventory, "Movements")]
     [InlineData("activitylog", NavigationPage.Users, "Audit")]
     [InlineData("upsellperformance", NavigationPage.Reports, "Analytics")]
+    [InlineData("branchsync", NavigationPage.ManagerPanel, "Operations / Controls")]
+    [InlineData("quickbooks", NavigationPage.ManagerPanel, "Operations / Controls")]
+    [InlineData("auditanalytics", NavigationPage.ManagerPanel, "Operations / Controls")]
     public void SingleCanonicalLocations_AreStrictlyEnforced(string key, string expectedPage, string expectedGroup)
     {
         var item = NavigationRegistry.AllItems.SingleOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase));
@@ -155,6 +158,9 @@ public sealed class NavigationRegistryTests
     [InlineData("roles", NavigationPage.Users)]
     [InlineData("upsellperformance", NavigationPage.Reports)]
     [InlineData("businesssettings", NavigationPage.Settings)]
+    [InlineData("branchsync", NavigationPage.ManagerPanel)]
+    [InlineData("quickbooks", NavigationPage.ManagerPanel)]
+    [InlineData("auditanalytics", NavigationPage.ManagerPanel)]
     public void GetCanonicalPageForKey_ResolvesCorrectPage(string key, string expectedPage)
     {
         var actualPage = NavigationRegistry.GetCanonicalPageForKey(key);

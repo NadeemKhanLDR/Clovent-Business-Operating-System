@@ -19,7 +19,8 @@ public sealed class GetShiftSummaryQueryHandler(
     IShiftRepository shiftRepository,
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null) : IRequestHandler<GetShiftSummaryQuery, ShiftSummaryDto>
+    Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository? ledgerRepository = null,
+    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<GetShiftSummaryQuery, ShiftSummaryDto>
 {
     /// <inheritdoc/>
     public async Task<ShiftSummaryDto> Handle(GetShiftSummaryQuery request, CancellationToken cancellationToken)
@@ -76,7 +77,21 @@ public sealed class GetShiftSummaryQueryHandler(
                 .Sum(e => e.Credit);
         }
 
-        decimal calculatedExpectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashOut;
+        decimal cashRefunds = 0m;
+        if (refundRepository is not null)
+        {
+            var shiftRefunds = await refundRepository.GetByDateRangeAsync(
+                shift.OpenedAtUtc,
+                shift.ClosedAtUtc ?? Shift.NextUtcNow(),
+                cancellationToken);
+            cashRefunds = shiftRefunds
+                .Where(r => r.BranchId == shift.BranchId &&
+                            r.CashierId == shift.CashierId.Value &&
+                            r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout)
+                .Sum(r => r.GrandTotalRefunded);
+        }
+
+        decimal calculatedExpectedCash = shift.StartingCash + cashIn + cashSales + cashCustomerPayments - cashRefunds - cashOut;
         decimal expectedCash = shift.Status == ShiftStatus.Closed ? shift.ExpectedCash : calculatedExpectedCash;
 
         decimal countedCash = shift.Status == ShiftStatus.Closed ? shift.CountedCash : 0m;

@@ -5,6 +5,7 @@ using Clovent.Desktop.Authorization;
 using Clovent.Desktop.Configuration;
 using Clovent.Desktop.Licensing;
 using Clovent.Desktop.Sessions;
+using Clovent.Identity.Application.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -254,7 +255,22 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
         Assert.False(hasAdminRights, "Standard cashier user must NOT have administrative privileges.");
     }
 
-    // J. License Import authorization
+    private sealed class FakeAuthorizationService(Func<Guid, string, bool>? hasRole = null, Func<Guid, string, bool>? hasPermission = null) : IAuthorizationService
+    {
+        public Task<IReadOnlyCollection<string>> GetPermissionCodesAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<string>>([]);
+
+        public Task<bool> HasPermissionAsync(Guid userId, string permissionCode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(hasPermission?.Invoke(userId, permissionCode) ?? false);
+
+        public Task<bool> HasRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(hasRole?.Invoke(userId, roleName) ?? false);
+
+        public Task<bool> SatisfiesPolicyAsync(Guid userId, string policyName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+    }
+
+    // J. License Import authorization & fail-closed RBAC
     [Fact]
     public void Test_J_LicenseImport_RequiresAdministrativePrivileges()
     {
@@ -269,15 +285,54 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
         var hasAdminRights = AdministrativePrivilegeChecker.HasAdministrativePrivileges(sp);
         Assert.False(hasAdminRights, "License import requires administrative privileges; normal operator must be denied.");
 
-        // Now test with admin user
+        // User with username "admin" lacking Administrator role must be DENIED (no hardcoded username string bypass)
+        var unprivAdminSession = new CurrentSession();
+        unprivAdminSession.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Fake Admin", userName: "admin");
+        var unprivServices = new ServiceCollection();
+        unprivServices.AddSingleton<ICurrentSession>(unprivAdminSession);
+        var unprivSp = unprivServices.BuildServiceProvider();
+        Assert.False(AdministrativePrivilegeChecker.HasAdministrativePrivileges(unprivSp),
+            "User with username 'admin' lacking Administrator role must be denied administrative privileges.");
+
+        // User with Administrator role granted privileges regardless of custom username
+        var adminUserId = Guid.NewGuid();
         var adminSession = new CurrentSession();
-        adminSession.SignIn(Guid.NewGuid(), Guid.NewGuid(), "System Admin", userName: "admin");
+        adminSession.SignIn(adminUserId, Guid.NewGuid(), "System Admin", userName: "custom_admin");
         var adminServices = new ServiceCollection();
         adminServices.AddSingleton<ICurrentSession>(adminSession);
+        adminServices.AddSingleton<IAuthorizationService>(new FakeAuthorizationService(hasRole: (u, r) => u == adminUserId && r == "Administrator"));
         var adminSp = adminServices.BuildServiceProvider();
 
         var adminHasRights = AdministrativePrivilegeChecker.HasAdministrativePrivileges(adminSp);
-        Assert.True(adminHasRights, "Administrator must be granted privileges to import licenses.");
+        Assert.True(adminHasRights, "User with Administrator role must be granted privileges to import licenses.");
+    }
+
+    [Fact]
+    public void Test_RBAC_UsernameAdminWithoutRole_IsDenied()
+    {
+        var session = new CurrentSession();
+        session.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Imposter Admin", userName: "admin");
+        var services = new ServiceCollection();
+        services.AddSingleton<ICurrentSession>(session);
+        var sp = services.BuildServiceProvider();
+
+        Assert.False(AdministrativePrivilegeChecker.HasAdministrativePrivileges(sp),
+            "Username 'admin' without authenticated Administrator role must fail closed.");
+    }
+
+    [Fact]
+    public void Test_RBAC_CustomUsernameWithAdministratorRole_IsGranted()
+    {
+        var userId = Guid.NewGuid();
+        var session = new CurrentSession();
+        session.SignIn(userId, Guid.NewGuid(), "Special Operator", userName: "operator_99");
+        var services = new ServiceCollection();
+        services.AddSingleton<ICurrentSession>(session);
+        services.AddSingleton<IAuthorizationService>(new FakeAuthorizationService(hasRole: (u, r) => u == userId && r == "Administrator"));
+        var sp = services.BuildServiceProvider();
+
+        Assert.True(AdministrativePrivilegeChecker.HasAdministrativePrivileges(sp),
+            "Custom username with verified Administrator role must be granted administrative privileges.");
     }
 
     // K. Development license excluded from Release publish

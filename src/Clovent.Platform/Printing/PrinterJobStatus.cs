@@ -22,5 +22,8 @@ public enum PrinterJobStatus
     Failed = 4,
 
     /// <summary>Job was cancelled by an operator prior to submission.</summary>
-    Cancelled = 5
+    Cancelled = 5,
+
+    /// <summary>Job failed primary physical dispatch and is quarantined into durable storage pending recovery.</summary>
+    Quarantined = 6
 }

@@ -140,6 +140,21 @@ public sealed class OutboxMessage : AggregateRoot<OutboxMessageId>
         Version = Guid.NewGuid().ToByteArray();
     }
 
+    /// <summary>Defers an outbox message due to offline network or circuit breaker cooldown without consuming retry budget.</summary>
+    public void DeferForOffline(DateTimeOffset nextRetryAtUtc, string reason)
+    {
+        Status = OutboxMessageStatus.RetryScheduled;
+        NextRetryAtUtc = nextRetryAtUtc;
+        AvailableAtUtc = nextRetryAtUtc;
+        LastError = reason;
+        ProcessingStartedAtUtc = null;
+        if (AttemptCount > 0)
+        {
+            AttemptCount--; // Reverse the attempt penalty for planned offline periods
+        }
+        Version = Guid.NewGuid().ToByteArray();
+    }
+
     /// <summary>Schedules a retry with exponential backoff or routes to dead-letter if max attempts are exceeded.</summary>
     public void ScheduleRetry(string errorMessage, int maxAttempts = 5)
     {

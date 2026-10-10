@@ -399,6 +399,50 @@ public static class NavigationRegistry
             IsPrimaryAction: false,
             Description: "Upsell, cross-sell, and basket opportunity rules"),
 
+        new(
+            Key: "branchsync",
+            Caption: "Branch Sync",
+            RibbonPage: NavigationPage.ManagerPanel,
+            RibbonGroup: "Operations / Controls",
+            IconUri: "svgimages/setup/properties.svg",
+            Permission: "menu.branchsync",
+            Order: 640,
+            IsPrimaryAction: false,
+            Description: "Multi-terminal replication status, fleet health, and manager conflict review"),
+
+        new(
+            Key: "quickbooks",
+            Caption: "QuickBooks Sync",
+            RibbonPage: NavigationPage.ManagerPanel,
+            RibbonGroup: "Operations / Controls",
+            IconUri: "svgimages/business%20objects/bo_order.svg",
+            Permission: "menu.quickbooks",
+            Order: 650,
+            IsPrimaryAction: false,
+            Description: "QuickBooks accounting synchronization, outbox reconciliation, and manager override"),
+
+        new(
+            Key: "printerhealth",
+            Caption: "Printer Health",
+            RibbonPage: NavigationPage.ManagerPanel,
+            RibbonGroup: "Operations / Controls",
+            IconUri: "svgimages/print/print.svg",
+            Permission: "menu.printerhealth",
+            Order: 660,
+            IsPrimaryAction: false,
+            Description: "Peripheral hardware health, live spooler queue depths, and quarantined receipt jobs recovery"),
+
+        new(
+            Key: "auditanalytics",
+            Caption: "Audit Analytics",
+            RibbonPage: NavigationPage.ManagerPanel,
+            RibbonGroup: "Operations / Controls",
+            IconUri: "svgimages/dashboards/chart.svg",
+            Permission: "menu.audit.analytics",
+            Order: 670,
+            IsPrimaryAction: true,
+            Description: "Cashier behavior anomaly detection, risk scoring, and predictive inventory burn rates"),
+
         // ==========================================
         // 6. USERS PAGE
         // ==========================================
@@ -563,7 +607,7 @@ public static class NavigationRegistry
     }
 
     /// <summary>
-    /// Gets the canonical primary <see cref="RibbonPage"/> for a given navigation key.
+    /// Gets the canonical primary <see cref="NavigationItemDefinition.RibbonPage"/> for a given navigation key.
     /// Non-shortcut items take precedence over shortcuts.
     /// </summary>
     public static string? GetCanonicalPageForKey(string key)
@@ -635,5 +679,9 @@ public static class NavigationRegistry
         navigationService.Register("activitylog", () => serviceProvider.GetRequiredService<ActivityLogView>());
         navigationService.Register("appearance", () => serviceProvider.GetRequiredService<AppearanceSettingsView>());
         navigationService.Register("shifts", () => serviceProvider.GetRequiredService<ShiftHistoryView>());
+        navigationService.Register("branchsync", () => serviceProvider.GetRequiredService<Clovent.Desktop.Sync.BranchSyncStatusView>());
+        navigationService.Register("quickbooks", () => serviceProvider.GetRequiredService<Clovent.Desktop.QuickBooks.QuickBooksSyncLogView>());
+        navigationService.Register("printerhealth", () => serviceProvider.GetRequiredService<Clovent.Desktop.Printing.PrinterHardwareHealthView>());
+        navigationService.Register("auditanalytics", () => serviceProvider.GetRequiredService<Clovent.Desktop.Restaurant.Audit.CashierAuditAnalyticsControl>());
     }
 }

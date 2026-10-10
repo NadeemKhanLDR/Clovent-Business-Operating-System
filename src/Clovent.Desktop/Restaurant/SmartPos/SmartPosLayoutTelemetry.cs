@@ -18,10 +18,21 @@ public static class SmartPosLayoutTelemetry
 {
     public static readonly string TelemetryDir = FindTelemetryDir();
 
+    private static bool IsLiveDesktopProcess()
+    {
+        var entryName = Assembly.GetEntryAssembly()?.GetName().Name;
+        return string.Equals(entryName, "Clovent.Desktop", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string FindTelemetryDir()
     {
         try
         {
+            if (!IsLiveDesktopProcess())
+            {
+                return Path.Combine(AppContext.BaseDirectory, "qa", "runtime_layout");
+            }
+
             var dir = AppContext.BaseDirectory;
             while (!string.IsNullOrEmpty(dir))
             {
@@ -224,6 +235,82 @@ public static class SmartPosLayoutTelemetry
             lock (FileLock)
             {
                 File.AppendAllText(path, sb.ToString());
+            }
+        }
+        catch
+        {
+            // Best effort diagnostic
+        }
+    }
+
+    /// <summary>
+    /// Records offline continuity mode transitions, reconnection, journal records, and replay events
+    /// to both runtime layout telemetry and rolling diagnostic log files.
+    /// </summary>
+    public static void LogContinuityEvent(
+        string eventName,
+        string terminalCode,
+        Guid terminalId,
+        bool isContinuityActive,
+        string reason,
+        int pendingJournalCount = 0,
+        int replayedCount = 0,
+        string? details = null)
+    {
+        try
+        {
+            EnsureDirectory();
+            var path = Path.Combine(TelemetryDir, "continuity_events_REAL_runtime.txt");
+            var sb = new StringBuilder();
+            sb.AppendLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] CONTINUITY_EVENT: {eventName}");
+            sb.AppendLine($"  Terminal: Code='{terminalCode}', Id='{terminalId}'");
+            sb.AppendLine($"  ContinuityModeActive: {isContinuityActive}");
+            sb.AppendLine($"  Status: {(isContinuityActive ? "OFFLINE CONTINUITY (EMERGENCY)" : "ONLINE (NORMAL)")}");
+            sb.AppendLine($"  Reason: {reason}");
+            sb.AppendLine($"  PendingJournalCount: {pendingJournalCount}");
+            sb.AppendLine($"  ReplayedCount: {replayedCount}");
+            if (!string.IsNullOrWhiteSpace(details))
+            {
+                sb.AppendLine($"  Details: {details}");
+            }
+            sb.AppendLine("--------------------------------------------------------------------------------");
+
+            lock (FileLock)
+            {
+                File.AppendAllText(path, sb.ToString());
+            }
+
+            AppendDiagnosticLog(eventName, terminalCode, isContinuityActive, reason, details);
+        }
+        catch
+        {
+            // Best effort diagnostic
+        }
+    }
+
+    private static void AppendDiagnosticLog(
+        string eventName,
+        string terminalCode,
+        bool isContinuityActive,
+        string reason,
+        string? details)
+    {
+        try
+        {
+            var logDir = IsLiveDesktopProcess()
+                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "Clovent.BusinessOperatingSystem", "Logs")
+                : Path.Combine(TelemetryDir, "Logs");
+            if (!Directory.Exists(logDir))
+            {
+                Directory.CreateDirectory(logDir);
+            }
+
+            var logFile = Path.Combine(logDir, $"continuity_diagnostic_{DateTime.UtcNow:yyyyMMdd}.log");
+            var line = $"[{DateTime.UtcNow:O}] [{terminalCode}] [{(isContinuityActive ? "OFFLINE" : "ONLINE")}] {eventName} | Reason: {reason} | Details: {details ?? "None"}{Environment.NewLine}";
+
+            lock (FileLock)
+            {
+                File.AppendAllText(logFile, line);
             }
         }
         catch

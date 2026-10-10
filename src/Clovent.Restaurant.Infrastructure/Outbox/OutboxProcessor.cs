@@ -2,6 +2,7 @@ using Clovent.Platform.CircuitBreakers;
 using Clovent.Restaurant.Application.Outbox;
 using Clovent.Restaurant.Outbox;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Clovent.Restaurant.Infrastructure.Outbox;
@@ -11,7 +12,7 @@ namespace Clovent.Restaurant.Infrastructure.Outbox;
 /// Features atomic claiming, bounded concurrency, exponential backoff with jitter,
 /// dead-letter routing, and crash recovery for interrupted jobs.
 /// </summary>
-public sealed class OutboxProcessor : IOutboxProcessor, IDisposable
+public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxProcessor> _logger;
@@ -28,14 +29,30 @@ public sealed class OutboxProcessor : IOutboxProcessor, IDisposable
     /// <summary>Initializes a new instance of <see cref="OutboxProcessor"/>.</summary>
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
-        ILogger<OutboxProcessor> logger)
+        ILogger<OutboxProcessor> logger,
+        Clovent.Platform.Sync.INetworkConnectivityProbe? connectivityProbe = null)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+
+        if (connectivityProbe != null)
+        {
+            connectivityProbe.ConnectivityChanged += (_, isOnline) =>
+            {
+                if (isOnline)
+                {
+                    _logger.LogInformation("Network connectivity restored; triggering immediate outbox push.");
+                    TriggerImmediate();
+                }
+            };
+        }
     }
 
     /// <inheritdoc/>
     public bool IsRunning => _isRunning;
+
+    /// <inheritdoc/>
+    public event EventHandler<int>? BatchCompleted;
 
     /// <inheritdoc/>
     public void TriggerImmediate()
@@ -132,6 +149,7 @@ public sealed class OutboxProcessor : IOutboxProcessor, IDisposable
         }
 
         await Task.WhenAll(tasks).ConfigureAwait(false);
+        BatchCompleted?.Invoke(this, messages.Count);
         return messages.Count;
     }
 
@@ -155,6 +173,15 @@ public sealed class OutboxProcessor : IOutboxProcessor, IDisposable
             message.MarkCompleted(DateTimeOffset.UtcNow);
             await repository.UpdateAsync(message, CancellationToken.None).ConfigureAwait(false);
             _logger.LogDebug("Completed outbox message {Id} of type {MessageType}.", message.Id, message.MessageType);
+        }
+        catch (Clovent.Platform.Sync.NetworkOfflineException netEx)
+        {
+            var nextRetry = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
+            _logger.LogDebug("Network offline for outbox message {Id} ({MessageType}). Deferring retry at {NextRetry}.",
+                message.Id, message.MessageType, nextRetry);
+
+            message.DeferForOffline(nextRetry, netEx.Message);
+            await repository.UpdateAsync(message, CancellationToken.None).ConfigureAwait(false);
         }
         catch (CircuitBreakerOpenException cbEx)
         {
@@ -228,10 +255,15 @@ public sealed class OutboxProcessor : IOutboxProcessor, IDisposable
         }
     }
 
+    private bool _disposed;
+
     /// <inheritdoc/>
     public void Dispose()
     {
-        _cts.Cancel();
+        if (_disposed) return;
+        _disposed = true;
+
+        try { _cts.Cancel(); } catch { }
         _cts.Dispose();
         _signal.Dispose();
     }

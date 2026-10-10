@@ -278,10 +278,11 @@ public sealed partial class ManagerAuthorizationForm : XtraForm
             }
         }
 
-        // Test or decoupled fallback when no service injected
-        DialogResult = DialogResult.OK;
-        Close();
-        return true;
+        // Fail closed when no authorization service is available
+        _passwordEdit.Text = string.Empty;
+        ShowInlineError("Manager authorization service is unavailable. Authorization denied.");
+        _passwordEdit.Focus();
+        return false;
     }
 
     /// <summary>Displays an inline error on the dialog without opening secondary modals.</summary>

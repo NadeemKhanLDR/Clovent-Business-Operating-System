@@ -312,8 +312,8 @@ partial class CustomerEditForm
         ((System.ComponentModel.ISupportInitialize)_isDefaultCheck.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_notesEdit.Properties).EndInit();
 
-        ClientSize = new Size(800, 580);
-        MinimumSize = new Size(740, 500);
+        ClientSize = new Size(820, 620);
+        MinimumSize = new Size(760, 540);
         ResumeLayout(false);
     }
 
@@ -324,10 +324,10 @@ partial class CustomerEditForm
         label.Text = labelText;
         label.TextAlign = ContentAlignment.MiddleLeft;
         label.Padding = new Padding(0, 0, 6, 0);
-        label.Margin = new Padding(0, 5, 6, 5);
+        label.Margin = new Padding(0, 6, 6, 6);
 
         editor.Dock = DockStyle.Fill;
-        editor.Margin = new Padding(0, 5, col == 0 ? 16 : 0, 5);
+        editor.Margin = new Padding(0, 6, col == 0 ? 16 : 0, 6);
 
         _contentPanel.Controls.Add(label, col, row);
         _contentPanel.Controls.Add(editor, col + 1, row);

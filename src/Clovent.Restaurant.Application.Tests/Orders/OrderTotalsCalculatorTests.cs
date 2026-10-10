@@ -145,8 +145,14 @@ public class OrderTotalsCalculatorTests
 
         var totals = OrderTotalsCalculator.Calculate(lines, discounts, serviceCharges, []);
 
-        // Subtotal 100, discount 10% of 100 = 10, service charge flat 5, exclusive tax 10% of 100 = 10.
-        // GrandTotal = 100 - 10 + 5 + 10 = 105.
-        Assert.Equal(105m, totals.GrandTotal);
+        // Subtotal 100, discount 10% of 100 = 10, service charge flat 5, exclusive tax 10% on discounted base (100 - 10 = 90) = 9.
+        // Under Pakistan sales tax rules (FBR/PRA/SRB) and MoneyRoundingPolicy (AwayFromZero),
+        // sales tax applies to the discounted taxable base.
+        // GrandTotal = 100 - 10 + 5 + 9 = 104.
+        Assert.Equal(100m, totals.Subtotal);
+        Assert.Equal(10m, totals.DiscountTotal);
+        Assert.Equal(5m, totals.ServiceChargeTotal);
+        Assert.Equal(9m, totals.TaxTotal);
+        Assert.Equal(104m, totals.GrandTotal);
     }
 }

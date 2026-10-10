@@ -101,6 +101,22 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     /// <summary>Compensating RefundLine entities.</summary>
     public DbSet<Clovent.Restaurant.Refunds.RefundLine> RefundLines => Set<Clovent.Restaurant.Refunds.RefundLine>();
 
+    /// <summary>Durable multi-terminal delta synchronization inbox records.</summary>
+    public DbSet<Clovent.Platform.Sync.SyncInboxRecord> SyncInboxRecords => Set<Clovent.Platform.Sync.SyncInboxRecord>();
+
+    /// <summary>Durable multi-terminal synchronization conflict records staged for manager review.</summary>
+    public DbSet<Clovent.Platform.Sync.SyncConflictRecord> SyncConflicts => Set<Clovent.Platform.Sync.SyncConflictRecord>();
+
+    /// <summary>Durable replicated terminal shift summaries across the branch.</summary>
+    public DbSet<Clovent.Restaurant.Sync.TerminalShiftSyncSummary> TerminalShiftSyncSummaries => Set<Clovent.Restaurant.Sync.TerminalShiftSyncSummary>();
+
+    /// <summary>Durable bidirectional QuickBooks transaction mapping ledger.</summary>
+    public DbSet<Clovent.Restaurant.QuickBooks.QuickBooksSyncMap> QuickBooksSyncMaps => Set<Clovent.Restaurant.QuickBooks.QuickBooksSyncMap>();
+
+    /// <summary>Durable cashier behavioral audit anomaly alerts and shrinkage flags.</summary>
+    public DbSet<Clovent.Restaurant.AuditAlerts.CashierAuditAlert> CashierAuditAlerts => Set<Clovent.Restaurant.AuditAlerts.CashierAuditAlert>();
+
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -224,7 +224,7 @@ public sealed class EmergencyTransaction
                 throw new ContinuityTamperException($"Payload corruption detected: checksum failed for transaction {tx.TransactionId} at index {i}.");
             }
 
-            if (!string.IsNullOrEmpty(tx.HmacSignature) && !tx.VerifyHmacSignature())
+            if (string.IsNullOrWhiteSpace(tx.HmacSignature) || !tx.VerifyHmacSignature())
             {
                 throw new ContinuityTamperException($"Cryptographic signature invalid: HMAC authentication failed for transaction {tx.TransactionId} at index {i}.");
             }
@@ -238,7 +238,7 @@ public sealed class EmergencyTransaction
                         $"Journal sequence violation at index {i}: expected sequence {prev.SequenceNumber + 1}, found {tx.SequenceNumber}. Reordering or truncation detected.");
                 }
 
-                var expectedPrevHash = !string.IsNullOrEmpty(prev.HmacSignature) ? prev.HmacSignature : prev.Checksum;
+                var expectedPrevHash = prev.HmacSignature;
                 if (!string.Equals(tx.PreviousTransactionHash, expectedPrevHash, StringComparison.OrdinalIgnoreCase))
                 {
                     throw new ContinuityTamperException(

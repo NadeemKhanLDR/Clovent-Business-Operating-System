@@ -21,4 +21,11 @@ public sealed record PrintDispatchResult(
     /// <summary>Creates a failed print dispatch result with actionable error message.</summary>
     public static PrintDispatchResult Failed(string? queueName, string errorMessage) =>
         new(false, PrinterJobStatus.Failed, queueName, errorMessage, false);
+
+    /// <summary>Creates a quarantined print dispatch result indicating durable buffering pending device recovery.</summary>
+    public static PrintDispatchResult Quarantined(string? queueName, string errorMessage) =>
+        new(false, PrinterJobStatus.Quarantined, queueName, errorMessage, false);
+
+    /// <summary>Whether the print job was automatically buffered in quarantined storage.</summary>
+    public bool IsQuarantined => Status == PrinterJobStatus.Quarantined;
 }

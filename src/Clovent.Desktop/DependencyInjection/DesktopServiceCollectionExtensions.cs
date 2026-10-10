@@ -224,6 +224,21 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<ActivityLogView>();
         services.TryAddTransient<AppearanceSettingsView>();
         services.TryAddTransient<Clovent.Desktop.Restaurant.Shifts.ShiftHistoryView>();
+        services.TryAddTransient<Clovent.Desktop.Sync.BranchSyncStatusView>();
+        services.TryAddTransient<Clovent.Desktop.QuickBooks.QuickBooksSyncLogView>();
+        services.TryAddTransient<Clovent.Desktop.Restaurant.Audit.CashierAuditAnalyticsControl>();
+
+        // Printing Subsystem & Peripheral Health Monitoring
+        services.TryAddSingleton<Clovent.Desktop.Printing.IWindowsPrinterQueueProvider, Clovent.Desktop.Printing.WindowsPrinterQueueProvider>();
+        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterConfigurationStore, Clovent.Desktop.Printing.WindowsPrinterConfigurationStore>();
+        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterRouter, Clovent.Platform.Printing.PrinterRouter>();
+        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterJobTracker, Clovent.Platform.Printing.InMemoryPrinterJobTracker>();
+        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterAdapter, Clovent.Desktop.Printing.WindowsSpoolerPrinterAdapter>();
+        services.TryAddSingleton<Clovent.Platform.Printing.IPrintJobQuarantineStore, Clovent.Platform.Printing.PrintJobQuarantineStore>();
+        services.TryAddSingleton<Clovent.Desktop.Printing.PrinterManagementService>();
+        services.TryAddTransient<Clovent.Desktop.Printing.PrinterHardwareHealthControl>();
+        services.TryAddTransient<Clovent.Desktop.Printing.PrinterHardwareHealthView>();
+        services.TryAddTransient<Clovent.Desktop.Forms.Settings.PrinterSettingsForm>();
 
         return services;
     }

@@ -176,9 +176,9 @@ public class DiscountHandlerTests
 
         Assert.Equal(100m, totals.Subtotal);
         Assert.Equal(100m, totals.DiscountTotal);
-        Assert.Equal(10m, totals.TaxTotal);           // 10% exclusive on 100
-        Assert.Equal(10m, totals.ServiceChargeTotal); // 10% of 100
-        Assert.Equal(20m, totals.GrandTotal);         // 100 - 100 + 10 + 10
+        Assert.Equal(0m, totals.TaxTotal);           // Under Pakistan rules (FBR/PRA/SRB), 10% exclusive on net base (100 - 100 = 0) is 0
+        Assert.Equal(10m, totals.ServiceChargeTotal); // 10% of 100 subtotal
+        Assert.Equal(10m, totals.GrandTotal);         // 100 - 100 + 10 (service charge) + 0 (tax)
         Assert.True(totals.GrandTotal >= 0m);
     }
 

@@ -4,6 +4,7 @@ using System.Security.Principal;
 using Clovent.Desktop.Authorization;
 using Clovent.Desktop.Commissioning.Security;
 using Clovent.Desktop.Sessions;
+using Clovent.Identity.Application.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
@@ -51,6 +52,21 @@ public sealed class CommissioningSecurityTests
         Assert.Equal(expectedElevation, privEmptySession);
     }
 
+    private sealed class FakeAuthorizationService(Func<Guid, string, bool>? hasRole = null, Func<Guid, string, bool>? hasPermission = null) : IAuthorizationService
+    {
+        public Task<IReadOnlyCollection<string>> GetPermissionCodesAsync(Guid userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<string>>([]);
+
+        public Task<bool> HasPermissionAsync(Guid userId, string permissionCode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(hasPermission?.Invoke(userId, permissionCode) ?? false);
+
+        public Task<bool> HasRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(hasRole?.Invoke(userId, roleName) ?? false);
+
+        public Task<bool> SatisfiesPolicyAsync(Guid userId, string policyName, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+    }
+
     [Fact]
     public void AdministrativePrivilegeChecker_PostLogin_PreservesRoleAuthorization()
     {
@@ -63,11 +79,13 @@ public sealed class CommissioningSecurityTests
         Assert.True(AdministrativePrivilegeChecker.IsSessionActive(sp));
         Assert.False(AdministrativePrivilegeChecker.HasAdministrativePrivileges(sp));
 
-        // Admin session
+        // Admin session with Administrator role
+        var adminUserId = Guid.NewGuid();
         var adminServices = new ServiceCollection();
         var adminSession = new CurrentSession();
-        adminSession.SignIn(Guid.NewGuid(), Guid.NewGuid(), "System Administrator", userName: "admin");
+        adminSession.SignIn(adminUserId, Guid.NewGuid(), "System Administrator", userName: "admin");
         adminServices.AddSingleton<ICurrentSession>(adminSession);
+        adminServices.AddSingleton<IAuthorizationService>(new FakeAuthorizationService(hasRole: (u, r) => u == adminUserId && r == "Administrator"));
         var adminSp = adminServices.BuildServiceProvider();
 
         Assert.True(AdministrativePrivilegeChecker.IsSessionActive(adminSp));

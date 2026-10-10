@@ -47,3 +47,67 @@ public sealed record RecommendationLearningPayload(
     Guid OrderId,
     IReadOnlyList<Guid> ProductVariantIds,
     DateTimeOffset TimestampUtc);
+
+/// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.InventoryDeltaSync"/>.</summary>
+public sealed record InventoryDeltaSyncPayload(
+    Guid TerminalId,
+    Guid BranchId,
+    Guid WarehouseId,
+    Guid ProductVariantId,
+    string Sku,
+    decimal QuantityDelta,
+    string OperationType,
+    string? ConcurrencyToken,
+    DateTimeOffset TimestampUtc);
+
+/// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.CatalogPriceDeltaSync"/>.</summary>
+public sealed record CatalogPriceAdjustmentPayload(
+    Guid TerminalId,
+    Guid BranchId,
+    Guid ProductVariantId,
+    string PriceType,
+    decimal NewAmount,
+    decimal OldAmount,
+    string? ConcurrencyToken,
+    DateTimeOffset EffectiveFromUtc,
+    DateTimeOffset TimestampUtc,
+    Guid CurrencyId = default,
+    Guid? UnitOfMeasureId = null,
+    string? PriceListName = null,
+    DateTimeOffset? EffectiveToUtc = null);
+
+/// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.ShiftSummaryDeltaSync"/>.</summary>
+public sealed record ShiftSummaryDeltaSyncPayload(
+    Guid TerminalId,
+    Guid BranchId,
+    int ShiftNumber,
+    Guid CashierId,
+    string CashierName,
+    DateTimeOffset OpenedAtUtc,
+    DateTimeOffset? ClosedAtUtc,
+    decimal StartingCash,
+    decimal CountedCash,
+    decimal ExpectedCash,
+    decimal CashVariance,
+    decimal NetSales,
+    int TotalOrdersCount,
+    DateTimeOffset TimestampUtc);
+
+/// <summary>Payload envelope wrapping a generic <see cref="Clovent.Platform.Sync.SyncPacket"/> in the outbox.</summary>
+public sealed record DeltaSyncPacketEnvelopePayload(
+    Clovent.Platform.Sync.SyncPacket Packet);
+
+/// <summary>Payload for store manager notifications regarding cashier behavior anomalies.</summary>
+public sealed record CashierAuditAlertOutboxPayload(
+    Guid AlertId,
+    string CashierName,
+    string AnomalyType,
+    string Severity,
+    decimal RiskScore,
+    string Description,
+    DateTimeOffset DetectedAtUtc,
+    string? SuspectDetailsJson,
+    Guid? ShiftId = null,
+    Guid? OrderId = null);
+
+

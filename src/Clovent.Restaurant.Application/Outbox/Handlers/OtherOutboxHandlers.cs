@@ -71,3 +71,25 @@ public sealed class NotificationOutboxHandler(
         }, cancellationToken).ConfigureAwait(false);
     }
 }
+
+/// <summary>Dispatches high-priority cashier audit anomaly alerts to store managers.</summary>
+public sealed class CashierAuditAlertOutboxHandler(
+    ILogger<CashierAuditAlertOutboxHandler> logger) : IOutboxMessageHandler
+{
+    /// <inheritdoc/>
+    public string MessageType => OutboxMessageType.CashierAuditAlert;
+
+    /// <inheritdoc/>
+    public Task HandleAsync(OutboxMessage message, CancellationToken cancellationToken)
+    {
+        var payload = JsonSerializer.Deserialize<CashierAuditAlertOutboxPayload>(message.Payload);
+        if (payload != null)
+        {
+            logger.LogWarning(
+                "Manager Audit Alert Dispatched: Cashier {Cashier} triggered [{AnomalyType}] severity {Severity} with risk score {RiskScore:F1}. Description: {Desc}",
+                payload.CashierName, payload.AnomalyType, payload.Severity, payload.RiskScore, payload.Description);
+        }
+        return Task.CompletedTask;
+    }
+}
+
