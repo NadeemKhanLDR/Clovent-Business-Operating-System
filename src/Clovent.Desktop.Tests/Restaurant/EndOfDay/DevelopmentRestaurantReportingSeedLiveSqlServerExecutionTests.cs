@@ -16,7 +16,6 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
-
 namespace Clovent.Desktop.Tests.Restaurant.EndOfDay;
 
 public sealed class DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTests
@@ -24,12 +23,22 @@ public sealed class DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTest
     [Fact]
     public async Task LiveSqlServer_ExecuteReportingSeed_PopulatesRealDatabaseAndReconcilesSalesSummary()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            // Execution skipped: An explicit disposable test database (CBOS_TEST_SQL_CONNECTION) is required.
+            // Automated tests must never execute reporting seed or migrations against the operational database.
+            return;
+        }
+
+        var isolatedConnStr = Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.GetIsolatedConnectionStringOrThrow();
         var desktopPath = @"D:\Clovent Business Operating System\src\Clovent.Desktop";
 
         var bootstrapper = ApplicationBootstrapper
             .Create(basePath: desktopPath, environmentName: "Development")
             .WithLogging()
             .WithPlatform();
+
+        Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.ApplyToConfiguration(bootstrapper.Configuration, isolatedConnStr);
 
         bootstrapper.Services.AddApplication(bootstrapper.Configuration);
         bootstrapper.Services.AddInfrastructure(bootstrapper.Configuration);

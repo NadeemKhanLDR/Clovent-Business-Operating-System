@@ -16,7 +16,10 @@ using Clovent.Desktop.Forms.Dashboard;
 using Clovent.Desktop.Forms.Identity;
 using Clovent.Desktop.Forms.Identity.Roles;
 using Clovent.Desktop.Forms.Identity.Users;
+using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Forms.Shell;
+using Clovent.Desktop.Printing;
+using Clovent.Platform.Printing;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -40,6 +43,7 @@ using Clovent.Desktop.Forms.Restaurant.Setup;
 using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
+using Clovent.Desktop.Restaurant.Reports;
 using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
@@ -227,18 +231,35 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<Clovent.Desktop.Sync.BranchSyncStatusView>();
         services.TryAddTransient<Clovent.Desktop.QuickBooks.QuickBooksSyncLogView>();
         services.TryAddTransient<Clovent.Desktop.Restaurant.Audit.CashierAuditAnalyticsControl>();
+        services.TryAddTransient<TaxProfileManagementView>();
+        services.TryAddTransient<TaxSummaryReportView>();
+        services.TryAddTransient<RefundAuditReportView>();
 
-        // Printing Subsystem & Peripheral Health Monitoring
-        services.TryAddSingleton<Clovent.Desktop.Printing.IWindowsPrinterQueueProvider, Clovent.Desktop.Printing.WindowsPrinterQueueProvider>();
-        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterConfigurationStore, Clovent.Desktop.Printing.WindowsPrinterConfigurationStore>();
-        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterRouter, Clovent.Platform.Printing.PrinterRouter>();
-        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterJobTracker, Clovent.Platform.Printing.InMemoryPrinterJobTracker>();
-        services.TryAddSingleton<Clovent.Platform.Printing.IPrinterAdapter, Clovent.Desktop.Printing.WindowsSpoolerPrinterAdapter>();
-        services.TryAddSingleton<Clovent.Platform.Printing.IPrintJobQuarantineStore, Clovent.Platform.Printing.PrintJobQuarantineStore>();
-        services.TryAddSingleton<Clovent.Desktop.Printing.PrinterManagementService>();
+        // Platform Printer Management, Hardware Routing & Peripheral Health Monitoring Subsystem
+        services.TryAddTransient<PrinterSettingsForm>();
         services.TryAddTransient<Clovent.Desktop.Printing.PrinterHardwareHealthControl>();
         services.TryAddTransient<Clovent.Desktop.Printing.PrinterHardwareHealthView>();
-        services.TryAddTransient<Clovent.Desktop.Forms.Settings.PrinterSettingsForm>();
+        services.TryAddSingleton<IWindowsPrinterQueueProvider, WindowsPrinterQueueProvider>();
+        services.TryAddSingleton<IPrinterConfigurationStore, WindowsPrinterConfigurationStore>();
+        services.TryAddSingleton<IPrinterRouter, PrinterRouter>();
+        services.TryAddSingleton<IPrinterJobTracker, DurableFilePrinterJobTracker>();
+        services.TryAddSingleton<IPrintJobQuarantineStore, PrintJobQuarantineStore>();
+        services.TryAddSingleton<IPrinterAdapter, WindowsSpoolerPrinterAdapter>();
+        services.TryAddSingleton<PrinterManagementService>(sp =>
+            new PrinterManagementService(
+                sp.GetRequiredService<IWindowsPrinterQueueProvider>(),
+                sp.GetRequiredService<IPrinterConfigurationStore>(),
+                sp.GetRequiredService<IPrinterRouter>(),
+                sp.GetRequiredService<IPrinterJobTracker>(),
+                sp.GetRequiredService<IPrinterAdapter>(),
+                sp.GetService<IPrintJobQuarantineStore>(),
+                sp.GetService<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry>(),
+                sp.GetService<INotificationService>(),
+                authorizationService: null,
+                currentSession: sp.GetService<Sessions.ICurrentSession>(),
+                logger: sp.GetService<Microsoft.Extensions.Logging.ILogger<PrinterManagementService>>(),
+                scopeFactory: sp.GetRequiredService<IServiceScopeFactory>()));
+        services.AddSingleton<Clovent.Restaurant.Application.Printing.IReceiptPrintService, DesktopReceiptPrintService>();
 
         return services;
     }

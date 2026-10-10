@@ -176,6 +176,25 @@ public sealed class OrderLine : AggregateRoot<OrderLineId>
         CalculationPolicyVersion = policyVersion;
     }
 
+    /// <summary>Captures immutable tax and discount facts calculated at completion with explicit tax metadata.</summary>
+    public void SetTaxSnapshot(
+        string taxClassification,
+        string taxAuthority,
+        string taxCode,
+        decimal taxableBase,
+        decimal allocatedDiscount,
+        decimal taxAmount,
+        string policyVersion = "1.3.0-AwayFromZero-v1")
+    {
+        TaxClassification = taxClassification;
+        TaxAuthority = taxAuthority;
+        TaxCode = taxCode;
+        TaxableBase = taxableBase;
+        AllocatedDiscount = allocatedDiscount;
+        TaxAmount = taxAmount;
+        CalculationPolicyVersion = policyVersion;
+    }
+
     /// <summary>
     /// Manually sets this line's unit price away from its catalog-snapshotted
     /// value - the "Half Chicken Karahi, marked down to 300" case a menu's

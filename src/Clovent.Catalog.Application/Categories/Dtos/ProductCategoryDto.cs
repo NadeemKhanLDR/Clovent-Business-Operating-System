@@ -10,7 +10,8 @@ public sealed record ProductCategoryDto(
     string Status,
     string? ColorHex,
     int SortOrder,
-    DateTimeOffset CreatedAtUtc)
+    DateTimeOffset CreatedAtUtc,
+    Guid? DefaultTaxProfileId = null)
 {
     /// <summary>Projects a domain <see cref="ProductCategory"/> into its DTO.</summary>
     public static ProductCategoryDto FromDomain(ProductCategory category) => new(
@@ -20,5 +21,6 @@ public sealed record ProductCategoryDto(
         category.Status.ToString(),
         category.ColorHex,
         category.SortOrder,
-        category.CreatedAtUtc);
+        category.CreatedAtUtc,
+        category.DefaultTaxProfileId?.Value);
 }

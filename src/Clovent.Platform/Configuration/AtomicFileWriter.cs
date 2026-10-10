@@ -3,9 +3,9 @@ using System.Text.Json;
 namespace Clovent.Platform.Configuration;
 
 /// <summary>
-/// Provides atomic file write operations to guarantee that configuration files,
-/// state caches, and persisted journals are never corrupted or left in a 0-byte
-/// truncated state if the process or workstation experiences power failure during write.
+/// Provides crash-resilient atomic file write operations using write-temp-flush-replace mechanics
+/// to protect configuration files and state caches against partial or 0-byte truncated writes
+/// during ungraceful process termination or power loss.
 /// </summary>
 public static class AtomicFileWriter
 {

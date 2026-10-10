@@ -32,10 +32,21 @@ public sealed class RuntimeVerificationTests
 {
     private static readonly Lazy<IHost> Host = new(() =>
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            throw new InvalidOperationException(
+                "Runtime verification tests require an explicitly isolated disposable test database " +
+                "configured via CBOS_TEST_SQL_CONNECTION. Execution against operational database is forbidden.");
+        }
+
+        var isolatedConnStr = Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.GetIsolatedConnectionStringOrThrow();
+
         var bootstrapper = ApplicationBootstrapper
             .Create(basePath: AppContext.BaseDirectory)
             .WithLogging()
             .WithPlatform();
+
+        Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.ApplyToConfiguration(bootstrapper.Configuration, isolatedConnStr);
 
         bootstrapper.Services.AddApplication(bootstrapper.Configuration);
         bootstrapper.Services.AddInfrastructure(bootstrapper.Configuration);
@@ -81,6 +92,11 @@ public sealed class RuntimeVerificationTests
     [Fact]
     public async Task KitchenTickets_RealDatabase_OrphanedTicketShowsUnavailableNotCrash()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            return;
+        }
+
         var (mediator, _) = await ConnectAsAdminAsync();
 
         var tickets = await mediator.Send(new ListActiveKitchenTicketsQuery());
@@ -120,6 +136,11 @@ public sealed class RuntimeVerificationTests
     [Fact]
     public async Task MenuItems_RealDatabase_LoadsRowsAndPrices()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            return;
+        }
+
         var (mediator, _) = await ConnectAsAdminAsync();
         var variants = await mediator.Send(new Clovent.Catalog.Application.Variants.Queries.ListProductVariantsQuery());
         Assert.NotEmpty(variants);
@@ -144,6 +165,11 @@ public sealed class RuntimeVerificationTests
     [Fact]
     public async Task RestaurantPos_LoadQueries_SucceedsWithoutException()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            return;
+        }
+
         var (mediator, session) = await ConnectAsAdminAsync();
         
         await Clovent.Desktop.Forms.Base.CurrencyDisplayLoader.ConfigureAsync(mediator);
@@ -178,6 +204,11 @@ public sealed class RuntimeVerificationTests
     [Fact]
     public async Task RestaurantPos_DineIn_RecordPayment_ExactCash_RealDatabase_CompletesSuccessfully()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            return;
+        }
+
         var (mediator, session) = await ConnectAsAdminAsync();
 
         // 1. Get warehouse
@@ -267,6 +298,11 @@ public sealed class RuntimeVerificationTests
     [Fact]
     public async Task RestaurantPos_DefaultCustomer_RealDatabase_ResolvesAndPersistsCorrectly()
     {
+        if (!Clovent.Desktop.Tests.TestSupport.DatabaseIsolationGuard.HasIsolatedTestDatabase)
+        {
+            return;
+        }
+
         var (mediator, session) = await ConnectAsAdminAsync();
 
         // 1. Query all customers and verify C000 exists and is active

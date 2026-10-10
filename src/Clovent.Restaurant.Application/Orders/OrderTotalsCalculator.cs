@@ -18,12 +18,13 @@ namespace Clovent.Restaurant.Application.Orders;
 /// </summary>
 public static class OrderTotalsCalculator
 {
-    /// <summary>Computes every figure in <see cref="OrderTotals"/> from an order's lines, discounts, service charges, and payments.</summary>
+    /// <summary>Computes every figure in <see cref="OrderTotals"/> from an order's lines, discounts, service charges, and payments using a versioned <see cref="TaxCalculationPolicy"/>.</summary>
     public static OrderTotals Calculate(
         IReadOnlyCollection<OrderLineDto> lines,
         IReadOnlyCollection<DiscountDto> discounts,
         IReadOnlyCollection<ServiceChargeDto> serviceCharges,
-        IReadOnlyCollection<PaymentDto> payments)
+        IReadOnlyCollection<PaymentDto> payments,
+        TaxCalculationPolicy policy)
     {
         ArgumentNullException.ThrowIfNull(lines);
         ArgumentNullException.ThrowIfNull(discounts);
@@ -39,6 +40,14 @@ public static class OrderTotalsCalculator
         var orderDiscountTotal = discounts.Sum(d =>
             ResolveAmount(d.DiscountType == nameof(DiscountType.Percentage), d.Value, subtotal));
 
+        // Excess requested discount rejection:
+        // A requested discount exceeding the subtotal must be rejected before posting
+        // rather than returning internally inconsistent totals.
+        if (orderDiscountTotal > subtotal + 0.005m)
+        {
+            throw RestaurantDomainException.DiscountExceedsSubtotal(orderDiscountTotal, subtotal);
+        }
+
         // 3. Prepare inputs for TaxCalculator
         var calcLines = activeLines.Select(l => new TaxCalculationLineInput(
             l.Id,
@@ -46,21 +55,21 @@ public static class OrderTotalsCalculator
             l.UnitPrice,
             0m,
             l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
-            "PRA",
-            $"PK-TAX-{l.TaxRatePercentage:0.##}",
+            string.IsNullOrWhiteSpace(l.TaxAuthority) ? "PRA" : l.TaxAuthority,
+            string.IsNullOrWhiteSpace(l.TaxCode) ? $"PK-TAX-{l.TaxRatePercentage:0.##}" : l.TaxCode,
             l.TaxRatePercentage,
             l.TaxIsInclusive)).ToList();
 
-        var taxResult = TaxCalculator.Calculate(calcLines, orderDiscountTotal);
-        var totalDiscounts = orderDiscountTotal + taxResult.TotalLineDiscounts;
+        var taxResult = TaxCalculator.Calculate(calcLines, orderDiscountTotal, policy);
 
         // 4. Resolve service charges
         var serviceChargeTotal = serviceCharges.Sum(s =>
             ResolveAmount(s.ServiceChargeType == nameof(ServiceChargeType.Percentage), s.Value, subtotal));
 
         // 5. Compute Grand Total and Balance
+        var appliedDiscount = taxResult.TotalDiscounts;
         var grandTotal = MoneyRoundingPolicy.RoundMoney(
-            subtotal - totalDiscounts + serviceChargeTotal + taxResult.TotalExclusiveTax);
+            subtotal - appliedDiscount + serviceChargeTotal + taxResult.TotalExclusiveTax);
 
         var paidTotal = payments.Where(p => !p.IsVoided).Sum(p => MoneyRoundingPolicy.RoundMoney(p.Amount));
         var balance = MoneyRoundingPolicy.RoundMoney(grandTotal - paidTotal);
@@ -68,7 +77,7 @@ public static class OrderTotalsCalculator
         return new OrderTotals(
             subtotal,
             taxResult.TotalTax,
-            totalDiscounts,
+            appliedDiscount,
             serviceChargeTotal,
             grandTotal,
             paidTotal,
@@ -79,6 +88,20 @@ public static class OrderTotalsCalculator
             taxResult.LineSnapshots,
             taxResult.TaxSummary);
     }
+
+    /// <summary>Computes every figure in <see cref="OrderTotals"/> from an order's lines, discounts, service charges, and payments.</summary>
+    public static OrderTotals Calculate(
+        IReadOnlyCollection<OrderLineDto> lines,
+        IReadOnlyCollection<DiscountDto> discounts,
+        IReadOnlyCollection<ServiceChargeDto> serviceCharges,
+        IReadOnlyCollection<PaymentDto> payments,
+        bool discountAppliesBeforeTax = false) =>
+        Calculate(
+            lines,
+            discounts,
+            serviceCharges,
+            payments,
+            discountAppliesBeforeTax ? TaxCalculationPolicy.NetOfDiscount : TaxCalculationPolicy.GrossBase);
 
     private static decimal ResolveAmount(bool isPercentage, decimal value, decimal subtotal) =>
         isPercentage

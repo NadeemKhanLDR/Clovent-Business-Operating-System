@@ -96,15 +96,15 @@ public sealed class GetTaxSummaryReportQueryHandler(
 
                 if (string.Equals(line.TaxClassification, "ZeroRated", StringComparison.OrdinalIgnoreCase))
                 {
-                    zeroRatedSales += net;
+                    zeroRatedSales += lineBase;
                 }
                 else if (string.Equals(line.TaxClassification, "Exempt", StringComparison.OrdinalIgnoreCase))
                 {
-                    exemptSales += net;
+                    exemptSales += lineBase;
                 }
                 else if (string.Equals(line.TaxClassification, "OutOfScope", StringComparison.OrdinalIgnoreCase))
                 {
-                    outOfScopeSales += net;
+                    outOfScopeSales += lineBase;
                 }
                 else
                 {

@@ -15,13 +15,16 @@ namespace Clovent.Desktop.MasterData;
 /// </summary>
 public static class ComboBoxBinder
 {
-    private const string EmptyDisplay = "(none)";
-
     /// <summary>Populates <paramref name="combo"/> from <paramref name="items"/>, returning the display-to-id map <see cref="GetSelectedId"/> and <see cref="SelectById"/> need.</summary>
     /// <param name="combo">The combo box to populate.</param>
     /// <param name="items">The (id, display) pairs to populate it with.</param>
-    /// <param name="includeEmpty">Whether to add a leading "(none)" option mapping to <see langword="null"/> - for optional foreign keys.</param>
-    public static Dictionary<string, Guid?> Bind(ComboBoxEdit combo, IReadOnlyList<(Guid Id, string Display)> items, bool includeEmpty = false)
+    /// <param name="includeEmpty">Whether to add a leading empty option mapping to <see langword="null"/> - for optional foreign keys.</param>
+    /// <param name="emptyDisplay">The caption for the empty option, defaults to "(none)".</param>
+    public static Dictionary<string, Guid?> Bind(
+        ComboBoxEdit combo,
+        IReadOnlyList<(Guid Id, string Display)> items,
+        bool includeEmpty = false,
+        string emptyDisplay = "(none)")
     {
         combo.Properties.TextEditStyle = TextEditStyles.DisableTextEditor;
         combo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
@@ -35,8 +38,8 @@ public static class ComboBoxBinder
 
         if (includeEmpty)
         {
-            map[EmptyDisplay] = null;
-            combo.Properties.Items.Add(EmptyDisplay);
+            map[emptyDisplay] = null;
+            combo.Properties.Items.Add(emptyDisplay);
         }
 
         foreach (var (id, display) in items)

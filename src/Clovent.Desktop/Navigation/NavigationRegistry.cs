@@ -16,6 +16,7 @@ using Clovent.Desktop.Forms.Restaurant.ActivityLog;
 using Clovent.Desktop.Forms.Restaurant.Appearance;
 using Clovent.Desktop.Forms.Restaurant.MenuItems;
 using Clovent.Desktop.Forms.Restaurant.Setup;
+using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -33,6 +34,7 @@ using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.DiningAreas;
 using Clovent.Desktop.Restaurant.EndOfDay;
 using Clovent.Desktop.Restaurant.Orders;
+using Clovent.Desktop.Restaurant.Reports;
 using Clovent.Desktop.Restaurant.Shifts;
 using Clovent.Desktop.Restaurant.SmartPos;
 using Clovent.Desktop.Restaurant.Tables;
@@ -515,6 +517,28 @@ public static class NavigationRegistry
             IsPrimaryAction: false,
             Description: "Smart recommendation conversion rates and revenue uplift"),
 
+        new(
+            Key: "taxsummary",
+            Caption: "Tax Summary",
+            RibbonPage: NavigationPage.Reports,
+            RibbonGroup: "Taxation",
+            IconUri: "svgimages/business%20objects/bo_report.svg",
+            Permission: "menu.taxsummary",
+            Order: 825,
+            IsPrimaryAction: false,
+            Description: "Statutory sales tax summary and authority breakdown"),
+
+        new(
+            Key: "refundreports",
+            Caption: "Refund Audit",
+            RibbonPage: NavigationPage.Reports,
+            RibbonGroup: "Audit",
+            IconUri: "svgimages/business%20objects/bo_report.svg",
+            Permission: "menu.refundreports",
+            Order: 830,
+            IsPrimaryAction: false,
+            Description: "Auditable refund register, reasons, and settlement breakdown"),
+
         // ==========================================
         // 8. SETTINGS PAGE
         // ==========================================
@@ -552,6 +576,17 @@ public static class NavigationRegistry
             Description: "Operational currencies, exchange rates, and decimal formats"),
 
         new(
+            Key: "taxprofiles",
+            Caption: "Tax Profiles",
+            RibbonPage: NavigationPage.Settings,
+            RibbonGroup: "Financial",
+            IconUri: "svgimages/business%20objects/bo_sale.svg",
+            Permission: "menu.taxprofiles",
+            Order: 925,
+            IsPrimaryAction: false,
+            Description: "Statutory sales tax profiles, authorities, and rates"),
+
+        new(
             Key: "restaurantsetup",
             Caption: "POS Setup",
             RibbonPage: NavigationPage.Settings,
@@ -583,6 +618,17 @@ public static class NavigationRegistry
             Order: 950,
             IsPrimaryAction: false,
             Description: "POS terminal machines, printers, and hardware mapping"),
+
+        new(
+            Key: "printers",
+            Caption: "Printers",
+            RibbonPage: NavigationPage.Settings,
+            RibbonGroup: "Hardware",
+            IconUri: "svgimages/print/print.svg",
+            Permission: "menu.printers",
+            Order: 955,
+            IsPrimaryAction: false,
+            Description: "Logical printer profiles, roll widths, and hardware queues"),
 
         new(
             Key: "appearance",
@@ -683,5 +729,9 @@ public static class NavigationRegistry
         navigationService.Register("quickbooks", () => serviceProvider.GetRequiredService<Clovent.Desktop.QuickBooks.QuickBooksSyncLogView>());
         navigationService.Register("printerhealth", () => serviceProvider.GetRequiredService<Clovent.Desktop.Printing.PrinterHardwareHealthView>());
         navigationService.Register("auditanalytics", () => serviceProvider.GetRequiredService<Clovent.Desktop.Restaurant.Audit.CashierAuditAnalyticsControl>());
+        navigationService.Register("printers", () => serviceProvider.GetRequiredService<PrinterSettingsForm>());
+        navigationService.Register("taxprofiles", () => serviceProvider.GetRequiredService<TaxProfileManagementView>());
+        navigationService.Register("taxsummary", () => serviceProvider.GetRequiredService<TaxSummaryReportView>());
+        navigationService.Register("refundreports", () => serviceProvider.GetRequiredService<RefundAuditReportView>());
     }
 }

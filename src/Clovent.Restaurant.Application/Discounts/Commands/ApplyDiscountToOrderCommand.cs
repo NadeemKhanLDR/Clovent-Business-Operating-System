@@ -2,6 +2,7 @@ using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders;
 using Clovent.Restaurant.Discounts;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using MediatR;
@@ -85,8 +86,21 @@ public sealed class ApplyDiscountToOrderCommandHandler(
         var lines = await orderLineRepository.GetByOrderIdAsync(orderId, cancellationToken);
         var existing = await discountRepository.GetByOrderIdAsync(orderId, cancellationToken);
 
+        var activeLines = lines.Where(l => !l.IsVoided).ToList();
+        var subtotal = activeLines.Sum(l => MoneyRoundingPolicy.RoundMoney(l.Quantity * l.UnitPrice));
+
         var discountDtos = existing.Select(DiscountDto.FromDomain).ToList();
         discountDtos.Add(DiscountDto.FromDomain(proposed));
+
+        var requestedDiscountTotal = discountDtos.Sum(d =>
+            d.DiscountType == nameof(DiscountType.Percentage)
+                ? MoneyRoundingPolicy.RoundMoney(subtotal * d.Value / 100m)
+                : MoneyRoundingPolicy.RoundMoney(d.Value));
+
+        if (requestedDiscountTotal > subtotal + MoneyEpsilon)
+        {
+            throw RestaurantDomainException.DiscountExceedsOrderSubtotal(orderId, requestedDiscountTotal, subtotal);
+        }
 
         var totals = OrderTotalsCalculator.Calculate(
             lines.Select(OrderLineDto.FromDomain).ToList(),

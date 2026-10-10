@@ -28,6 +28,11 @@ public sealed class ReceiptPrintOutboxHandler(
         var payload = JsonSerializer.Deserialize<ReceiptPrintPayload>(message.Payload)
             ?? throw new InvalidOperationException($"Invalid payload for ReceiptPrint message {message.Id}.");
 
+        if (payload.OutboxMessageId == null)
+        {
+            payload = payload with { OutboxMessageId = message.Id.Value };
+        }
+
         var result = await _circuitBreaker.ExecuteAsync(async () =>
         {
             return await receiptPrintService.PrintReceiptAsync(payload, cancellationToken).ConfigureAwait(false);

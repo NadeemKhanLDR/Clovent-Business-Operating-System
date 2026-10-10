@@ -34,6 +34,17 @@ public sealed class WindowsPrinterConfigurationStore : IPrinterConfigurationStor
         var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var machinePath = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "Config", "printers.json");
 
+        // Requirement: For commissioned installations, configuration failures must not silently switch to LocalAppData.
+        if (Commissioning.Services.CommissioningStateService.MarkerExists())
+        {
+            var dir = Path.GetDirectoryName(machinePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            return machinePath;
+        }
+
         try
         {
             var dir = Path.GetDirectoryName(machinePath);
@@ -45,7 +56,7 @@ public sealed class WindowsPrinterConfigurationStore : IPrinterConfigurationStor
         }
         catch
         {
-            // Fallback to LocalAppData for non-elevated or restricted environments
+            // Fallback to LocalAppData ONLY for uncommissioned or restricted development environments
             var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             return Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "Config", "printers.json");
         }

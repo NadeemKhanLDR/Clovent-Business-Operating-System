@@ -97,6 +97,14 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
 
         // Enterprise QuickBooks accounting synchronization & reconciliation
         "quickbooks",
+
+        // Platform device & hardware configuration
+        "printers",
+        "printerhealth",
+        "audit.analytics",
+        "taxprofiles",
+        "taxsummary",
+        "refundreports"
     ];
 
     private static readonly (string Feature, string[] Operations)[] FeatureOperations =
@@ -109,6 +117,7 @@ public sealed class DevelopmentAuthorizationSeedStartupTask(
         ("departments", ["create", "edit", "activate", "deactivate"]),
         ("warehouses", ["create", "edit", "activate", "deactivate"]),
         ("terminals", ["create", "edit", "activate", "deactivate"]),
+        ("printers", ["manage", "test", "view"]),
         ("fiscalyears", ["create", "edit", "deactivate"]),
         ("currencies", ["create", "activate", "deactivate"]),
         ("businesssettings", ["edit"]),

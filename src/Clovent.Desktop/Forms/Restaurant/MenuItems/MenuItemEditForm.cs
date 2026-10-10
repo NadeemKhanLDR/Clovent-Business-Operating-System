@@ -60,6 +60,7 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
     private const int PhotoBoxSize = 120;
 
     private readonly Dictionary<string, Guid?> _categoriesByDisplay;
+    private readonly Dictionary<string, Guid?> _taxProfilesByDisplay;
     private readonly Func<string, Task<bool>>? _checkBarcodeExists;
     private Image? _pendingImage;
     private readonly BindingList<MenuItemVariantEditRow> _variantsList = [];
@@ -70,6 +71,7 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
     public MenuItemEditForm() : base("Edit Menu Item")
     {
         _categoriesByDisplay = null!;
+        _taxProfilesByDisplay = null!;
 
         InitializeComponent();
     }
@@ -98,12 +100,15 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
         Func<string, Task<bool>>? checkBarcodeExists = null,
         List<MenuItemVariantEditRow>? variants = null,
         string itemType = "Prepared",
-        decimal costPrice = 0m) : base(title)
+        decimal costPrice = 0m,
+        IReadOnlyList<(Guid Id, string Display)>? taxProfileOptions = null,
+        Guid? selectedTaxProfileId = null) : base(title)
     {
         InitializeComponent();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
         {
             _categoriesByDisplay = null!;
+            _taxProfilesByDisplay = null!;
             return;
         }
 
@@ -135,6 +140,9 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
 
         _categoriesByDisplay = ComboBoxBinder.Bind(_categoryCombo, categoryOptions, includeEmpty: true);
         ComboBoxBinder.SelectById(_categoryCombo, _categoriesByDisplay, categoryId);
+
+        _taxProfilesByDisplay = ComboBoxBinder.Bind(_taxProfileCombo, taxProfileOptions ?? [], includeEmpty: true, emptyDisplay: "(Inherit from Category)");
+        ComboBoxBinder.SelectById(_taxProfileCombo, _taxProfilesByDisplay, selectedTaxProfileId);
 
         _priceEdit.Properties.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         _priceEdit.Properties.Mask.EditMask = "F" + Clovent.Desktop.Forms.Base.CurrencyDisplay.DecimalPlaces;
@@ -232,6 +240,9 @@ public sealed partial class MenuItemEditForm : MasterDataEditFormBase
 
     /// <summary>The entered cost/purchase price.</summary>
     public decimal CostPrice => _costPriceEdit.Value;
+
+    /// <summary>The selected tax profile override, or <see langword="null"/> to inherit from category.</summary>
+    public Guid? SelectedTaxProfileId => ComboBoxBinder.GetSelectedId(_taxProfileCombo, _taxProfilesByDisplay);
 
     /// <summary>The selected item classification type (Prepared, PurchasedResale, Service).</summary>
     public string ItemTypeValue => _itemTypeCombo.SelectedItem?.ToString() switch

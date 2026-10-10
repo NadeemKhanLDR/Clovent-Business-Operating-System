@@ -1,6 +1,10 @@
+using System.Collections.Concurrent;
 using Clovent.Desktop.Notifications;
+using Clovent.Desktop.Sessions;
+using Clovent.Identity.Application.Authorization;
 using Clovent.Platform.CircuitBreakers;
 using Clovent.Platform.Printing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Clovent.Desktop.Printing;
@@ -10,6 +14,7 @@ namespace Clovent.Desktop.Printing;
 /// routing document roles, tracking job lifecycles, monitoring peripheral health,
 /// isolating communication faults via circuit breakers, executing authorized test prints,
 /// and automatically quarantining failed print jobs with instantaneous cashier fallback.
+/// Enforces permissions at the service boundary.
 /// </summary>
 public sealed class PrinterManagementService
 {
@@ -21,7 +26,11 @@ public sealed class PrinterManagementService
     private readonly IPrintJobQuarantineStore _quarantineStore;
     private readonly ICircuitBreakerRegistry _circuitBreakerRegistry;
     private readonly INotificationService? _notificationService;
+    private readonly IServiceScopeFactory? _scopeFactory;
+    private readonly IAuthorizationService? _authorizationService;
+    private readonly ICurrentSession? _currentSession;
     private readonly ILogger<PrinterManagementService>? _logger;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _dispatchLocks = new();
 
     /// <summary>
     /// Event raised instantaneously when a receipt print job is quarantined to notify the cashier,
@@ -29,7 +38,7 @@ public sealed class PrinterManagementService
     /// </summary>
     public event EventHandler<CashierReceiptFallbackNotification>? CashierFallbackNotified;
 
-    /// <summary>Constructs the printer management coordinator service.</summary>
+    /// <summary>Constructs the printer management coordinator service with peripheral resilience and optional authorization services.</summary>
     public PrinterManagementService(
         IWindowsPrinterQueueProvider queueProvider,
         IPrinterConfigurationStore configStore,
@@ -39,17 +48,93 @@ public sealed class PrinterManagementService
         IPrintJobQuarantineStore? quarantineStore = null,
         ICircuitBreakerRegistry? circuitBreakerRegistry = null,
         INotificationService? notificationService = null,
-        ILogger<PrinterManagementService>? logger = null)
+        IAuthorizationService? authorizationService = null,
+        ICurrentSession? currentSession = null,
+        ILogger<PrinterManagementService>? logger = null,
+        IServiceScopeFactory? scopeFactory = null)
     {
         _queueProvider = queueProvider ?? throw new ArgumentNullException(nameof(queueProvider));
         _configStore = configStore ?? throw new ArgumentNullException(nameof(configStore));
         _router = router ?? throw new ArgumentNullException(nameof(router));
         _jobTracker = jobTracker ?? throw new ArgumentNullException(nameof(jobTracker));
         _spoolerAdapter = spoolerAdapter ?? throw new ArgumentNullException(nameof(spoolerAdapter));
-        _quarantineStore = quarantineStore ?? new PrintJobQuarantineStore(null, null);
+        _quarantineStore = quarantineStore ?? new PrintJobQuarantineStore(
+            Path.Combine(Path.GetTempPath(), "cbos-ephemeral-quarantine", Guid.NewGuid().ToString("N")), null);
         _circuitBreakerRegistry = circuitBreakerRegistry ?? new CircuitBreakerRegistry();
         _notificationService = notificationService;
+        _authorizationService = authorizationService;
+        _currentSession = currentSession;
         _logger = logger;
+        _scopeFactory = scopeFactory;
+    }
+
+    /// <summary>Constructs the printer management coordinator service with authorization dependencies.</summary>
+    public PrinterManagementService(
+        IWindowsPrinterQueueProvider queueProvider,
+        IPrinterConfigurationStore configStore,
+        IPrinterRouter router,
+        IPrinterJobTracker jobTracker,
+        IPrinterAdapter spoolerAdapter,
+        IAuthorizationService? authorizationService,
+        ICurrentSession? currentSession = null,
+        ILogger<PrinterManagementService>? logger = null,
+        IServiceScopeFactory? scopeFactory = null)
+        : this(
+            queueProvider,
+            configStore,
+            router,
+            jobTracker,
+            spoolerAdapter,
+            quarantineStore: null,
+            circuitBreakerRegistry: null,
+            notificationService: null,
+            authorizationService: authorizationService,
+            currentSession: currentSession,
+            logger: logger,
+            scopeFactory: scopeFactory)
+    {
+    }
+
+    private async Task EnsurePermissionAsync(string permissionCode, string actionDescription)
+    {
+        if (_scopeFactory == null && _authorizationService == null)
+        {
+            return;
+        }
+
+        if (_currentSession == null || !_currentSession.IsAuthenticated || _currentSession.UserId is not { } userId)
+        {
+            throw new UnauthorizedAccessException($"Access Denied: You must be authenticated to {actionDescription}.");
+        }
+
+        if (_scopeFactory != null)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var authService = scope.ServiceProvider.GetRequiredService<IAuthorizationService>();
+            var hasPermission = await authService.HasPermissionAsync(userId, permissionCode).ConfigureAwait(false);
+            if (!hasPermission)
+            {
+                var isAdmin = await authService.HasRoleAsync(userId, "Administrator").ConfigureAwait(false);
+                if (!isAdmin)
+                {
+                    throw new UnauthorizedAccessException($"Access Denied: Missing permission '{permissionCode}' required to {actionDescription}.");
+                }
+            }
+            return;
+        }
+
+        if (_authorizationService != null)
+        {
+            var hasPermission = await _authorizationService.HasPermissionAsync(userId, permissionCode).ConfigureAwait(false);
+            if (!hasPermission)
+            {
+                var isAdmin = await _authorizationService.HasRoleAsync(userId, "Administrator").ConfigureAwait(false);
+                if (!isAdmin)
+                {
+                    throw new UnauthorizedAccessException($"Access Denied: Missing permission '{permissionCode}' required to {actionDescription}.");
+                }
+            }
+        }
     }
 
     /// <summary>Resolves or creates the circuit breaker protecting the specified printer queue.</summary>
@@ -83,8 +168,9 @@ public sealed class PrinterManagementService
     public async Task SaveProfileAsync(PrinterProfile profile)
     {
         ArgumentNullException.ThrowIfNull(profile);
+        await EnsurePermissionAsync("feature.printers.manage", "save printer profiles").ConfigureAwait(false);
 
-        var config = await _configStore.LoadAsync();
+        var config = await _configStore.LoadAsync().ConfigureAwait(false);
         var existing = config.FindProfile(profile.Id);
 
         if (existing != null)
@@ -101,14 +187,16 @@ public sealed class PrinterManagementService
             config.DefaultReceiptProfileId = profile.Id;
         }
 
-        await _configStore.SaveAsync(config);
+        await _configStore.SaveAsync(config).ConfigureAwait(false);
         _logger?.LogInformation("Saved printer profile {ProfileName} ({ProfileId})", profile.ProfileName, profile.Id);
     }
 
     /// <summary>Deletes a printer profile and any associated routing assignments.</summary>
     public async Task DeleteProfileAsync(Guid profileId)
     {
-        var config = await _configStore.LoadAsync();
+        await EnsurePermissionAsync("feature.printers.manage", "delete printer profiles").ConfigureAwait(false);
+
+        var config = await _configStore.LoadAsync().ConfigureAwait(false);
         config.Profiles.RemoveAll(p => p.Id == profileId);
         config.Assignments.RemoveAll(a => a.PrinterProfileId == profileId);
 
@@ -117,14 +205,16 @@ public sealed class PrinterManagementService
             config.DefaultReceiptProfileId = config.Profiles.FirstOrDefault()?.Id;
         }
 
-        await _configStore.SaveAsync(config);
+        await _configStore.SaveAsync(config).ConfigureAwait(false);
         _logger?.LogInformation("Deleted printer profile {ProfileId}", profileId);
     }
 
     /// <summary>Sets a profile as the global default receipt printer.</summary>
     public async Task SetDefaultReceiptPrinterAsync(Guid profileId)
     {
-        var config = await _configStore.LoadAsync();
+        await EnsurePermissionAsync("feature.printers.manage", "set default receipt printer").ConfigureAwait(false);
+
+        var config = await _configStore.LoadAsync().ConfigureAwait(false);
         var profile = config.FindProfile(profileId);
         if (profile == null)
         {
@@ -132,27 +222,30 @@ public sealed class PrinterManagementService
         }
 
         config.DefaultReceiptProfileId = profileId;
-        await _configStore.SaveAsync(config);
+        await _configStore.SaveAsync(config).ConfigureAwait(false);
     }
 
     /// <summary>Assigns a printer profile to a specific scope (organization, branch, terminal, role).</summary>
     public async Task AssignPrinterAsync(PrinterAssignment assignment)
     {
         ArgumentNullException.ThrowIfNull(assignment);
+        await EnsurePermissionAsync("feature.printers.manage", "assign printer scopes").ConfigureAwait(false);
 
-        var config = await _configStore.LoadAsync();
+        var config = await _configStore.LoadAsync().ConfigureAwait(false);
         config.Assignments.RemoveAll(a => a.Id == assignment.Id);
         config.Assignments.Add(assignment);
 
-        await _configStore.SaveAsync(config);
+        await _configStore.SaveAsync(config).ConfigureAwait(false);
     }
 
     /// <summary>Removes a scope assignment.</summary>
     public async Task RemoveAssignmentAsync(Guid assignmentId)
     {
-        var config = await _configStore.LoadAsync();
+        await EnsurePermissionAsync("feature.printers.manage", "remove printer assignments").ConfigureAwait(false);
+
+        var config = await _configStore.LoadAsync().ConfigureAwait(false);
         config.Assignments.RemoveAll(a => a.Id == assignmentId);
-        await _configStore.SaveAsync(config);
+        await _configStore.SaveAsync(config).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -215,40 +308,177 @@ public sealed class PrinterManagementService
         bool isReprint = false,
         int reprintCount = 1,
         string? reprintReason = null,
+        Guid? jobId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(data);
 
-        var profile = _router.ResolvePrinter(organizationId, branchId, terminalId, PrinterRole.Receipt);
-        if (profile == null)
+        var effectiveJobId = jobId ?? Guid.NewGuid();
+        var lockKey = $"receipt:{effectiveJobId}";
+        var sem = _dispatchLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var lockAcquired = await sem.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+        if (!lockAcquired)
         {
-            _logger?.LogWarning("No receipt printer profile resolved for scope Org:{Org} Branch:{Branch} Terminal:{Terminal}",
-                organizationId, branchId, terminalId);
-            return PrintDispatchResult.Failed(null, "No receipt printer configured or assigned for this terminal.");
+            _logger?.LogWarning("Concurrent dispatch already in progress for job {JobId} ({OrderNumber}); suppressing duplicate dispatch.", effectiveJobId, data.OrderNumber);
+            return PrintDispatchResult.Ambiguous(null, "Concurrent dispatch already in progress for this job; duplicate submission suppressed.");
         }
 
-        var renderOptions = new ReceiptRenderOptions(
-            PaperWidth: profile.PaperWidth,
-            CharactersPerLine: profile.CharactersPerLine,
-            IsReprint: isReprint,
-            ReprintCount: reprintCount,
-            ReprintReason: reprintReason);
+        try
+        {
+            var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
+            if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
+            {
+                _logger?.LogWarning("Receipt printer resolution failed ({Outcome}): {Message}", routingResult.Outcome, routingResult.Message);
+                return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+            }
 
-        var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
+            if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
+            {
+                _logger?.LogWarning("Target print queue '{Queue}' is not installed in Windows.", profile.SystemPrinterName);
+                return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
+            }
 
-        var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
-        var job = PrinterJob.Create(
-            docType,
-            profile.Id,
-            profile.SystemPrinterName,
-            formatted.FormattedText,
-            organizationId,
-            branchId,
-            terminalId,
-            isReprint,
-            reprintCount,
-            reprintReason);
+            // Idempotency check: A retry after spooler acceptance or in-flight dispatch cannot create a fresh duplicate job.
+            if (_jobTracker.GetJob(effectiveJobId) is { } existingJob)
+            {
+                if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
+                {
+                    _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", effectiveJobId, data.OrderNumber);
+                    return existingJob.Status == PrinterJobStatus.Confirmed
+                        ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
+                        : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
+                }
 
+                if (existingJob.Status is PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous)
+                {
+                    _logger?.LogWarning("Print job {JobId} for {Ref} is in {Status} state. Suppressing duplicate job.", effectiveJobId, data.OrderNumber, existingJob.Status);
+                    return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, $"Print job execution is in {existingJob.Status} state; automatic reprint suppressed.");
+                }
+            }
+
+            var renderOptions = new ReceiptRenderOptions(
+                PaperWidth: profile.PaperWidth,
+                CharactersPerLine: profile.CharactersPerLine,
+                IsReprint: isReprint,
+                ReprintCount: reprintCount,
+                ReprintReason: reprintReason);
+
+            var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
+
+            var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
+            var job = PrinterJob.Create(
+                docType,
+                profile.Id,
+                profile.SystemPrinterName,
+                formatted.FormattedText,
+                organizationId,
+                branchId,
+                terminalId,
+                isReprint,
+                reprintCount,
+                reprintReason,
+                documentReference: data.OrderNumber,
+                jobId: effectiveJobId,
+                documentId: data.OrderId);
+
+            return await ExecuteResilientDispatchAsync(profile, job, data.OrderNumber, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            sem.Release();
+            _dispatchLocks.TryRemove(lockKey, out _);
+        }
+    }
+
+    /// <summary>
+    /// Dispatches a pre-formatted plain-text print job to the appropriate printer profile
+    /// determined by the execution scope.
+    /// </summary>
+    public async Task<PrintDispatchResult> DispatchTextAsync(
+        string rawText,
+        string documentType = "CustomerReceipt",
+        string? documentReference = null,
+        Guid? organizationId = null,
+        Guid? branchId = null,
+        Guid? terminalId = null,
+        bool isReprint = false,
+        int reprintCount = 1,
+        string? reprintReason = null,
+        Guid? jobId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rawText);
+
+        var effectiveJobId = jobId ?? Guid.NewGuid();
+        var lockKey = $"text:{effectiveJobId}";
+        var sem = _dispatchLocks.GetOrAdd(lockKey, _ => new SemaphoreSlim(1, 1));
+        var lockAcquired = await sem.WaitAsync(0, cancellationToken).ConfigureAwait(false);
+        if (!lockAcquired)
+        {
+            _logger?.LogWarning("Concurrent dispatch already in progress for job {JobId} ({Ref}); suppressing duplicate dispatch.", effectiveJobId, documentReference);
+            return PrintDispatchResult.Ambiguous(null, "Concurrent dispatch already in progress for this job; duplicate submission suppressed.");
+        }
+
+        try
+        {
+            var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
+            if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
+            {
+                return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+            }
+
+            if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
+            {
+                return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
+            }
+
+            // Idempotency check: A retry after spooler acceptance or in-flight dispatch cannot create a fresh duplicate job.
+            if (_jobTracker.GetJob(effectiveJobId) is { } existingJob)
+            {
+                if (existingJob.Status is PrinterJobStatus.Submitted or PrinterJobStatus.Confirmed)
+                {
+                    _logger?.LogInformation("Print job {JobId} for {Ref} was already submitted to spooler. Suppressing duplicate job.", effectiveJobId, documentReference);
+                    return existingJob.Status == PrinterJobStatus.Confirmed
+                        ? PrintDispatchResult.Confirmed(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName)
+                        : PrintDispatchResult.SpoolerAccepted(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName);
+                }
+
+                if (existingJob.Status is PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous)
+                {
+                    _logger?.LogWarning("Print job {JobId} for {Ref} is in {Status} state. Suppressing duplicate job.", effectiveJobId, documentReference, existingJob.Status);
+                    return PrintDispatchResult.Ambiguous(existingJob.TargetSystemPrinterName ?? profile.SystemPrinterName, $"Print job execution is in {existingJob.Status} state; automatic reprint suppressed.");
+                }
+            }
+
+            var job = PrinterJob.Create(
+                documentType,
+                profile.Id,
+                profile.SystemPrinterName,
+                rawText,
+                organizationId,
+                branchId,
+                terminalId,
+                isReprint,
+                reprintCount,
+                reprintReason,
+                documentReference: documentReference,
+                jobId: effectiveJobId);
+
+            return await ExecuteResilientDispatchAsync(profile, job, documentReference ?? "Document", cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            sem.Release();
+            _dispatchLocks.TryRemove(lockKey, out _);
+        }
+    }
+
+    private async Task<PrintDispatchResult> ExecuteResilientDispatchAsync(
+        PrinterProfile profile,
+        PrinterJob job,
+        string referenceLabel,
+        CancellationToken cancellationToken)
+    {
         _jobTracker.RecordJob(job);
         _jobTracker.MarkQueued(job.JobId);
 
@@ -261,7 +491,7 @@ public sealed class PrinterManagementService
                              $"({circuitBreaker.LastExceptionMessage ?? "Device unreachable"}). Dispatch bypassed to prevent thread pool exhaustion.";
             _logger?.LogWarning(openReason);
 
-            return await QuarantineAndNotifyAsync(job, profile, openReason, data.OrderNumber, cancellationToken).ConfigureAwait(false);
+            return await QuarantineAndNotifyAsync(job, profile, openReason, referenceLabel, cancellationToken).ConfigureAwait(false);
         }
 
         // Proactive hardware polling before dispatch
@@ -272,8 +502,10 @@ public sealed class PrinterManagementService
             _logger?.LogWarning(faultReason);
 
             circuitBreaker.RecordFailure(new InvalidOperationException(faultReason));
-            return await QuarantineAndNotifyAsync(job, profile, faultReason, data.OrderNumber, cancellationToken).ConfigureAwait(false);
+            return await QuarantineAndNotifyAsync(job, profile, faultReason, referenceLabel, cancellationToken).ConfigureAwait(false);
         }
+
+        _jobTracker.MarkInFlight(job.JobId);
 
         try
         {
@@ -287,12 +519,27 @@ public sealed class PrinterManagementService
                 return result;
             }, cancellationToken).ConfigureAwait(false);
 
-            _jobTracker.MarkSubmitted(job.JobId);
+            try
+            {
+                _jobTracker.MarkSubmitted(job.JobId);
+            }
+            catch (Exception persistEx)
+            {
+                _logger?.LogError(persistEx, "Failed to persist submitted status for job {JobId}; marking as ambiguous", job.JobId);
+                try { _jobTracker.MarkAmbiguous(job.JobId, "Spooler accepted job but state persistence failed."); } catch { }
+                return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Print job accepted by spooler but status persistence failed.");
+            }
+
             return dispatchResult;
+        }
+        catch (OperationCanceledException)
+        {
+            _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
+            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
         }
         catch (Exception ex)
         {
-            return await QuarantineAndNotifyAsync(job, profile, ex.Message, data.OrderNumber, cancellationToken).ConfigureAwait(false);
+            return await QuarantineAndNotifyAsync(job, profile, ex.Message, referenceLabel, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -474,40 +721,57 @@ public sealed class PrinterManagementService
 
     /// <summary>
     /// Executes an explicit diagnostic test print to the specified profile.
-    /// Strictly requires explicit user authorization before actuating hardware.
+    /// Enforces authorization at the service boundary.
     /// </summary>
     public async Task<PrintDispatchResult> ExecuteTestPrintAsync(
         Guid profileId,
-        string operatorName,
-        bool authorizedExplicitly,
+        string? operatorName = null,
+        bool authorizedExplicitly = true,
         CancellationToken cancellationToken = default)
     {
         if (!authorizedExplicitly)
         {
-            throw new InvalidOperationException("Test print requires explicit operator confirmation before actuating hardware.");
+            throw new InvalidOperationException("Physical test print execution requires explicit operator authorization.");
         }
 
-        var config = await _configStore.LoadAsync();
+        await EnsurePermissionAsync("feature.printers.test", "execute hardware test prints").ConfigureAwait(false);
+
+        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
         var profile = config.FindProfile(profileId);
         if (profile == null)
         {
             return PrintDispatchResult.Failed(null, $"Printer profile {profileId} not found.");
         }
 
-        var testSlipText = ReceiptSnapshotFormatter.FormatTestPrintSlip(profile, operatorName);
+        if (!profile.IsEnabled)
+        {
+            return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Printer profile '{profile.ProfileName}' is disabled.");
+        }
+
+        if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
+        {
+            return PrintDispatchResult.Failed(profile.SystemPrinterName, $"Target Windows print queue '{profile.SystemPrinterName}' is not installed or unavailable.");
+        }
+
+        var effectiveOperator = !string.IsNullOrWhiteSpace(operatorName)
+            ? operatorName
+            : (_currentSession?.DisplayName ?? "Administrator");
+
+        var testSlipText = ReceiptSnapshotFormatter.FormatTestPrintSlip(profile, effectiveOperator);
 
         var job = PrinterJob.Create(
             "TestPrint",
             profile.Id,
             profile.SystemPrinterName,
-            testSlipText);
+            testSlipText,
+            documentReference: "DIAGNOSTIC-TEST");
 
         _jobTracker.RecordJob(job);
         _jobTracker.MarkQueued(job.JobId);
 
         try
         {
-            var result = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken);
+            var result = await _spoolerAdapter.DispatchAsync(profile, job, cancellationToken).ConfigureAwait(false);
             if (result.Success)
             {
                 _jobTracker.MarkSubmitted(job.JobId);
@@ -518,6 +782,11 @@ public sealed class PrinterManagementService
             }
 
             return result;
+        }
+        catch (OperationCanceledException)
+        {
+            _jobTracker.MarkAmbiguous(job.JobId, "Dispatch operation cancelled or timed out before spooler confirmation.");
+            return PrintDispatchResult.Ambiguous(profile.SystemPrinterName, "Dispatch timed out; spooler acceptance uncertain.");
         }
         catch (Exception ex)
         {

@@ -1,34 +1,49 @@
 namespace Clovent.Platform.Printing;
 
 /// <summary>
-/// Tracks in-flight and historical print jobs for observability and recovery.
+/// Tracks print job lifecycle transitions, reprint history, and failure diagnostics.
 /// </summary>
 public interface IPrinterJobTracker
 {
-    /// <summary>Registers a new print job in Requested status.</summary>
+    /// <summary>Records a newly created print job.</summary>
     void RecordJob(PrinterJob job);
 
-    /// <summary>Retrieves a job by its unique identifier.</summary>
+    /// <summary>Gets a tracked job by its identifier.</summary>
     PrinterJob? GetJob(Guid jobId);
 
-    /// <summary>Retrieves recently dispatched jobs ordered by creation timestamp descending.</summary>
+    /// <summary>Returns the most recent print jobs up to the specified limit.</summary>
     IReadOnlyList<PrinterJob> GetRecentJobs(int limit = 50);
 
-    /// <summary>Transitions job status to Queued.</summary>
+    /// <summary>Returns all unresolved print jobs (Requested, Queued, InFlight, or Ambiguous) that require attention or recovery.</summary>
+    IReadOnlyList<PrinterJob> GetUnresolvedJobs();
+
+    /// <summary>Marks a job as queued for dispatch.</summary>
     void MarkQueued(Guid jobId);
 
-    /// <summary>Transitions job status to Submitted (accepted by spooler).</summary>
+    /// <summary>Marks a job as actively in-flight immediately prior to OS spooler/adapter invocation.</summary>
+    void MarkInFlight(Guid jobId);
+
+    /// <summary>Marks a job as submitted to the print spooler or adapter.</summary>
     void MarkSubmitted(Guid jobId);
 
-    /// <summary>Transitions job status to Confirmed (hardware completed).</summary>
+    /// <summary>Marks a job as confirmed completed.</summary>
     void MarkConfirmed(Guid jobId);
 
-    /// <summary>Transitions job status to Failed with actionable error text.</summary>
+    /// <summary>Marks a job as failed with an actionable error message.</summary>
     void MarkFailed(Guid jobId, string errorMessage);
 
-    /// <summary>Transitions job status to Cancelled.</summary>
+    /// <summary>Marks a job as cancelled.</summary>
     void MarkCancelled(Guid jobId);
 
-    /// <summary>Transitions job status to Quarantined with actionable failure text.</summary>
-    void MarkQuarantined(Guid jobId, string reason);
+    /// <summary>Marks a job as ambiguous (e.g. interrupted across restart after spooler submission).</summary>
+    void MarkAmbiguous(Guid jobId, string reason);
+
+    /// <summary>Marks a job as quarantined to durable storage due to hardware fault or open circuit breaker.</summary>
+    void MarkQuarantined(Guid jobId, string errorMessage);
+
+    /// <summary>Gets the number of reprints recorded for a specific document reference, optionally scoped by organization.</summary>
+    int GetReprintCount(string documentReference, Guid? organizationId = null);
+
+    /// <summary>Gets the number of reprints recorded for an immutable document identifier, optionally scoped by organization.</summary>
+    int GetReprintCount(Guid documentId, Guid? organizationId = null);
 }

@@ -3,14 +3,16 @@ using System.Collections.Concurrent;
 namespace Clovent.Platform.Printing;
 
 /// <summary>
-/// Thread-safe in-memory circular buffer implementation of <see cref="IPrinterJobTracker"/>.
+/// Thread-safe in-memory implementation of <see cref="IPrinterJobTracker"/>.
+/// Maintains a bounded history of resolved print jobs for operational diagnostics and audit logging,
+/// while never evicting unresolved jobs.
 /// </summary>
 public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
 {
     private readonly ConcurrentDictionary<Guid, PrinterJob> _jobs = new();
     private readonly int _maxCapacity;
 
-    /// <summary>Creates an in-memory job tracker with the specified history buffer capacity.</summary>
+    /// <summary>Initializes the tracker with a maximum completed job retention capacity.</summary>
     public InMemoryPrinterJobTracker(int maxCapacity = 200)
     {
         _maxCapacity = maxCapacity;
@@ -22,13 +24,16 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
         ArgumentNullException.ThrowIfNull(job);
         _jobs[job.JobId] = job;
 
+        // Prune oldest resolved entries if capacity exceeded; never evict unresolved work
         if (_jobs.Count > _maxCapacity)
         {
-            var oldest = _jobs.Values
+            var oldestResolved = _jobs.Values
+                .Where(j => !j.IsUnresolved)
                 .OrderBy(j => j.CreatedAtUtc)
-                .Take(_jobs.Count - _maxCapacity);
+                .Take(_jobs.Count - _maxCapacity)
+                .ToList();
 
-            foreach (var old in oldest)
+            foreach (var old in oldestResolved)
             {
                 _jobs.TryRemove(old.JobId, out _);
             }
@@ -47,11 +52,27 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
             .ToList();
 
     /// <inheritdoc/>
+    public IReadOnlyList<PrinterJob> GetUnresolvedJobs() =>
+        _jobs.Values
+            .Where(j => j.IsUnresolved)
+            .OrderBy(j => j.CreatedAtUtc)
+            .ToList();
+
+    /// <inheritdoc/>
     public void MarkQueued(Guid jobId)
     {
         if (_jobs.TryGetValue(jobId, out var job))
         {
             job.Status = PrinterJobStatus.Queued;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void MarkInFlight(Guid jobId)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.InFlight;
         }
     }
 
@@ -62,6 +83,7 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
         {
             job.Status = PrinterJobStatus.Submitted;
             job.SubmittedAtUtc = DateTimeOffset.UtcNow;
+            job.AttemptCount++;
         }
     }
 
@@ -97,13 +119,44 @@ public sealed class InMemoryPrinterJobTracker : IPrinterJobTracker
     }
 
     /// <inheritdoc/>
-    public void MarkQuarantined(Guid jobId, string reason)
+    public void MarkAmbiguous(Guid jobId, string reason)
+    {
+        if (_jobs.TryGetValue(jobId, out var job))
+        {
+            job.Status = PrinterJobStatus.Ambiguous;
+            job.ErrorMessage = reason;
+            job.CompletedAtUtc = DateTimeOffset.UtcNow;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void MarkQuarantined(Guid jobId, string errorMessage)
     {
         if (_jobs.TryGetValue(jobId, out var job))
         {
             job.Status = PrinterJobStatus.Quarantined;
-            job.ErrorMessage = reason;
+            job.ErrorMessage = errorMessage;
             job.CompletedAtUtc = DateTimeOffset.UtcNow;
         }
+    }
+
+    /// <inheritdoc/>
+    public int GetReprintCount(string documentReference, Guid? organizationId = null)
+    {
+        if (string.IsNullOrWhiteSpace(documentReference)) return 0;
+        return _jobs.Values.Count(j =>
+            string.Equals(j.DocumentReference, documentReference, StringComparison.OrdinalIgnoreCase) &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
+    }
+
+    /// <inheritdoc/>
+    public int GetReprintCount(Guid documentId, Guid? organizationId = null)
+    {
+        if (documentId == Guid.Empty) return 0;
+        return _jobs.Values.Count(j =>
+            j.DocumentId == documentId &&
+            j.IsReprint &&
+            (!organizationId.HasValue || j.OrganizationId == organizationId.Value));
     }
 }

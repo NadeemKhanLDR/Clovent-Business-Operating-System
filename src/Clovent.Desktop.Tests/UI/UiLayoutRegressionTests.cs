@@ -5,10 +5,11 @@ using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Restaurant.Setup;
 using Clovent.Desktop.MasterData;
 using Clovent.Desktop.Notifications;
-using DevExpress.Utils;
-using DevExpress.XtraEditors;
 using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.Orders;
+using DevExpress.Utils;
+using DevExpress.XtraEditors;
+using MediatR;
 using Xunit;
 
 namespace Clovent.Desktop.Tests.UI;
@@ -125,10 +126,21 @@ public sealed class UiLayoutRegressionTests
         Assert.Equal(LabelAutoSizeMode.Default, heading.AutoSizeMode);
     }
 
+    private sealed class DummyMediator : IMediator
+    {
+        public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken ct = default) => Task.FromResult(default(TResponse)!);
+        public Task Send<TRequest>(TRequest request, CancellationToken ct = default) where TRequest : IRequest => Task.CompletedTask;
+        public Task<object?> Send(object request, CancellationToken ct = default) => Task.FromResult<object?>(null);
+        public Task Publish(object notification, CancellationToken ct = default) => Task.CompletedTask;
+        public Task Publish<TNotification>(TNotification notification, CancellationToken ct = default) where TNotification : INotification => Task.CompletedTask;
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken ct = default) => throw new NotSupportedException();
+        public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
     [Fact]
     public void OrganizationHierarchySelector_CombosAndLabels_AreVerticallyCentered_AndWidthIsScaled()
     {
-        using var selector = new OrganizationHierarchySelector(null!, showCompany: true, showBranch: true);
+        using var selector = new OrganizationHierarchySelector(new DummyMediator(), showCompany: true, showBranch: true);
         selector.CreateControl();
 
         var orgCombo = GetField<ComboBoxEdit>(selector, "_organizationCombo");

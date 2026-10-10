@@ -462,7 +462,7 @@ public sealed class PrinterHardwareHealthControl : XtraUserControl
         }
 
         _lblStatusMessage.Text = $"Executing test print to {focused.SystemPrinterName}...";
-        var result = await _printerService.ExecuteTestPrintAsync(focused.ProfileId, "Administrator", authorizedExplicitly: true);
+        var result = await _printerService.ExecuteTestPrintAsync(focused.ProfileId, operatorName: null, authorizedExplicitly: true);
 
         if (result.Success)
         {

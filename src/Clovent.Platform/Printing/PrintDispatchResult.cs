@@ -1,31 +1,33 @@
 namespace Clovent.Platform.Printing;
 
 /// <summary>
-/// Result of an adapter print dispatch operation.
+/// Represents the outcome of dispatching a print job to a printer adapter.
+/// Distinguishes between spooler acceptance, confirmed completion, and actionable failure.
 /// </summary>
 public sealed record PrintDispatchResult(
     bool Success,
     PrinterJobStatus Status,
     string? TargetQueueName,
-    string? ErrorMessage,
-    bool IsHardwareConfirmed = false)
+    string? ErrorMessage = null,
+    bool IsQuarantined = false)
 {
-    /// <summary>Creates a successful spooler submission result.</summary>
+    /// <summary>Creates a result indicating the job was accepted by the Windows print spooler.</summary>
     public static PrintDispatchResult SpoolerAccepted(string queueName) =>
-        new(true, PrinterJobStatus.Submitted, queueName, null, false);
+        new(true, PrinterJobStatus.Submitted, queueName);
 
-    /// <summary>Creates a confirmed physical print result.</summary>
+    /// <summary>Creates a result indicating the job was confirmed completed by the device/spooler.</summary>
     public static PrintDispatchResult Confirmed(string queueName) =>
-        new(true, PrinterJobStatus.Confirmed, queueName, null, true);
+        new(true, PrinterJobStatus.Confirmed, queueName);
 
-    /// <summary>Creates a failed print dispatch result with actionable error message.</summary>
+    /// <summary>Creates a result indicating the print dispatch failed.</summary>
     public static PrintDispatchResult Failed(string? queueName, string errorMessage) =>
-        new(false, PrinterJobStatus.Failed, queueName, errorMessage, false);
+        new(false, PrinterJobStatus.Failed, queueName, errorMessage);
 
-    /// <summary>Creates a quarantined print dispatch result indicating durable buffering pending device recovery.</summary>
+    /// <summary>Creates a result indicating the print dispatch is in an ambiguous or already-in-progress state and must not be duplicated.</summary>
+    public static PrintDispatchResult Ambiguous(string? queueName, string errorMessage) =>
+        new(false, PrinterJobStatus.Ambiguous, queueName, errorMessage);
+
+    /// <summary>Creates a result indicating the print job was intercepted and safely quarantined to durable disk storage.</summary>
     public static PrintDispatchResult Quarantined(string? queueName, string errorMessage) =>
-        new(false, PrinterJobStatus.Quarantined, queueName, errorMessage, false);
-
-    /// <summary>Whether the print job was automatically buffered in quarantined storage.</summary>
-    public bool IsQuarantined => Status == PrinterJobStatus.Quarantined;
+        new(false, PrinterJobStatus.Quarantined, queueName, errorMessage, IsQuarantined: true);
 }
