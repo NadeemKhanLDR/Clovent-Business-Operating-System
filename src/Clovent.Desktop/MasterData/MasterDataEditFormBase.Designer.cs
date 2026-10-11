@@ -122,6 +122,7 @@ partial class MasterDataEditFormBase
 
     #endregion
 
+    /// <summary>Two-column table layout panel hosting labeled editor fields.</summary>
     protected TableLayoutPanel _contentPanel;
     private DevExpress.XtraEditors.SimpleButton _okButton;
     private DevExpress.XtraEditors.SimpleButton _saveAndNewButton;

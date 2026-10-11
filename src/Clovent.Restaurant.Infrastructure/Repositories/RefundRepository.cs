@@ -1,6 +1,7 @@
 using Clovent.Restaurant.Infrastructure.Persistence;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Refunds;
+using Clovent.Restaurant.Shifts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Clovent.Restaurant.Infrastructure.Repositories;
@@ -25,6 +26,13 @@ public sealed class RefundRepository(RestaurantDbContext dbContext) : IRefundRep
         await dbContext.Refunds
             .Include(r => r.Lines)
             .Where(r => r.OrderId == orderId)
+            .ToListAsync(cancellationToken);
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<Refund>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default) =>
+        await dbContext.Refunds
+            .Include(r => r.Lines)
+            .Where(r => r.ShiftId == shiftId)
             .ToListAsync(cancellationToken);
 
     /// <inheritdoc/>

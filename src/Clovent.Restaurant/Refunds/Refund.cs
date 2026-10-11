@@ -1,8 +1,10 @@
 using Clovent.Domain;
 using Clovent.Identity.Branches;
+using Clovent.MasterData.Terminals;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Shifts;
 
 namespace Clovent.Restaurant.Refunds;
 
@@ -27,6 +29,12 @@ public sealed class Refund : AggregateRoot<RefundId>
 
     /// <summary>Warehouse stock origin where returns are processed.</summary>
     public WarehouseId WarehouseId { get; }
+
+    /// <summary>Disbursing shift session during which this refund was processed, if applicable.</summary>
+    public ShiftId? ShiftId { get; }
+
+    /// <summary>Disbursing POS terminal where this refund was processed, if applicable.</summary>
+    public TerminalId? TerminalId { get; }
 
     /// <summary>Instant the refund was posted.</summary>
     public DateTimeOffset RefundedAtUtc { get; }
@@ -86,6 +94,8 @@ public sealed class Refund : AggregateRoot<RefundId>
         OrderId orderId,
         BranchId branchId,
         WarehouseId warehouseId,
+        ShiftId? shiftId,
+        TerminalId? terminalId,
         DateTimeOffset refundedAtUtc,
         Guid cashierId,
         string cashierName,
@@ -108,6 +118,8 @@ public sealed class Refund : AggregateRoot<RefundId>
         OrderId = orderId;
         BranchId = branchId;
         WarehouseId = warehouseId;
+        ShiftId = shiftId;
+        TerminalId = terminalId;
         RefundedAtUtc = refundedAtUtc;
         CashierId = cashierId;
         CashierName = cashierName;
@@ -141,7 +153,9 @@ public sealed class Refund : AggregateRoot<RefundId>
         string? approvedByUserName = null,
         string? settlementReference = null,
         Guid? customerId = null,
-        DateTimeOffset? refundedAtUtc = null)
+        DateTimeOffset? refundedAtUtc = null,
+        ShiftId? shiftId = null,
+        TerminalId? terminalId = null)
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Refund reason is mandatory.", nameof(reason));
@@ -157,6 +171,8 @@ public sealed class Refund : AggregateRoot<RefundId>
             orderId,
             branchId,
             warehouseId,
+            shiftId,
+            terminalId,
             now,
             cashierId,
             cashierName.Trim(),

@@ -71,9 +71,14 @@ public static class SuggestedAddOnUiHelper
 /// <summary>Mutable grid row — checkbox state plus the display model.</summary>
 public sealed class SuggestedAddOnSelectionRow(SuggestedAddOnRow row)
 {
+    /// <summary>Gets the underlying suggested add-on row.</summary>
     public SuggestedAddOnRow Row { get; } = row;
+    /// <summary>Gets or sets a value indicating whether the add-on is selected.</summary>
     public bool Selected { get; set; }
+    /// <summary>Gets the item name.</summary>
     public string ItemName => Row.ItemName;
+    /// <summary>Gets the portion or variant name.</summary>
     public string PortionName => Row.PortionName;
+    /// <summary>Gets the formatted unit price text.</summary>
     public string PriceText => CurrencyDisplay.FormatPlain(Row.UnitPrice);
 }

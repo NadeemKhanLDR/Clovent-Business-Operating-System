@@ -50,6 +50,7 @@ public sealed class RestaurantPulseForm : XtraForm
         InitializeComponent();
     }
 
+    /// <summary>Initializes a new instance of <see cref="RestaurantPulseForm"/>.</summary>
     public RestaurantPulseForm(IMediator mediator, ILogger logger)
     {
         _mediator = mediator;

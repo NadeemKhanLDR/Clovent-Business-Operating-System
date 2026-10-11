@@ -38,17 +38,57 @@ public sealed class AddOrderLineCommandHandler(IOrderRepository orderRepository,
             .OrderByDescending(p => p.EffectiveFromUtc)
             .FirstOrDefault();
 
+        var taxRate = product.TaxRatePercentage;
+        var taxIsInclusive = product.TaxIsInclusive;
+        var taxClassification = product.TaxClassification;
+        var taxAuthority = product.TaxAuthority;
+        var taxCode = product.TaxCode;
+
+        if (product.TaxProfileId.HasValue && (string.IsNullOrWhiteSpace(taxAuthority) || string.IsNullOrWhiteSpace(taxCode)))
+        {
+            var profiles = await mediator.Send(new Clovent.Catalog.Application.TaxProfiles.Queries.ListTaxProfilesQuery(), cancellationToken);
+            var profile = profiles?.FirstOrDefault(p => p.TaxProfileId == product.TaxProfileId.Value && p.IsActive);
+            if (profile != null)
+            {
+                taxRate = profile.RatePercentage;
+                taxIsInclusive = profile.IsInclusive;
+                taxClassification = profile.TaxClassification;
+                taxAuthority = profile.Authority;
+                taxCode = profile.Code;
+            }
+        }
+        else if (!product.TaxProfileId.HasValue && taxRate == 0m && product.CategoryId.HasValue &&
+                 !string.Equals(taxClassification, "Exempt", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(taxClassification, "ZeroRated", StringComparison.OrdinalIgnoreCase))
+        {
+            var categories = await mediator.Send(new Clovent.Catalog.Application.Categories.Queries.ListProductCategoriesQuery(), cancellationToken);
+            var category = categories?.FirstOrDefault(c => c.ProductCategoryId == product.CategoryId.Value);
+            if (category?.DefaultTaxProfileId is { } catProfileId)
+            {
+                var profiles = await mediator.Send(new Clovent.Catalog.Application.TaxProfiles.Queries.ListTaxProfilesQuery(), cancellationToken);
+                var profile = profiles?.FirstOrDefault(p => p.TaxProfileId == catProfileId && p.IsActive);
+                if (profile != null)
+                {
+                    taxRate = profile.RatePercentage;
+                    taxIsInclusive = profile.IsInclusive;
+                    taxClassification = profile.TaxClassification;
+                    taxAuthority = profile.Authority;
+                    taxCode = profile.Code;
+                }
+            }
+        }
+
         var line = OrderLine.Create(
             orderId,
             new Clovent.Catalog.Variants.ProductVariantId(request.ProductVariantId),
             request.Quantity,
             sellingPrice?.Amount ?? 0m,
-            product.TaxRatePercentage,
-            product.TaxIsInclusive,
+            taxRate,
+            taxIsInclusive,
             request.Notes,
-            product.TaxClassification,
-            product.TaxAuthority ?? "PRA",
-            product.TaxCode ?? $"PK-TAX-{product.TaxRatePercentage:0.##}");
+            taxClassification,
+            taxAuthority ?? "PRA",
+            taxCode ?? (taxRate > 0m ? $"PK-TAX-{taxRate:0.##}" : "PK-EXEMPT"));
 
         order.AddOrderLine(line.Id);
         await orderLineRepository.AddAsync(line, cancellationToken);

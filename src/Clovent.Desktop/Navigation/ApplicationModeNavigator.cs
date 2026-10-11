@@ -30,6 +30,9 @@ public sealed class ApplicationModeNavigator : IApplicationModeNavigator
     private SynchronizationContext? _uiSyncContext;
     private readonly int _uiThreadId;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApplicationModeNavigator"/> class.
+    /// </summary>
     public ApplicationModeNavigator(
         IServiceProvider serviceProvider,
         CbosApplicationContext appContext,

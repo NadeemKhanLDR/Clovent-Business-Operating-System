@@ -6,7 +6,10 @@ namespace Clovent.Restaurant.Continuity;
 /// </summary>
 public sealed class ContinuityTamperException : InvalidOperationException
 {
+    /// <summary>Initializes a new instance of <see cref="ContinuityTamperException"/>.</summary>
     public ContinuityTamperException(string message) : base(message) { }
+
+    /// <summary>Initializes a new instance of <see cref="ContinuityTamperException"/> with an inner exception.</summary>
     public ContinuityTamperException(string message, Exception innerException) : base(message, innerException) { }
 }
 
@@ -16,6 +19,9 @@ public sealed class ContinuityTamperException : InvalidOperationException
 /// </summary>
 public sealed class ContinuitySecurityException : InvalidOperationException
 {
+    /// <summary>Initializes a new instance of <see cref="ContinuitySecurityException"/>.</summary>
     public ContinuitySecurityException(string message) : base(message) { }
+
+    /// <summary>Initializes a new instance of <see cref="ContinuitySecurityException"/> with an inner exception.</summary>
     public ContinuitySecurityException(string message, Exception innerException) : base(message, innerException) { }
 }

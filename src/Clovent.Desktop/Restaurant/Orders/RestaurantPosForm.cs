@@ -405,7 +405,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     }
 
     /// <summary>
-    /// Parents the two <see cref="EntityPicker"/>s and wires the table
+    /// Parents the two <see cref="Clovent.Desktop.MasterData.EntityPicker"/>s and wires the table
     /// selection handler. Called immediately after every
     /// <c>InitializeComponent()</c>, because the Designer cannot serialize
     /// these controls and so cannot do it itself - see the field
@@ -2537,6 +2537,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         _sidebarAnimationTimer.Start();
     }
 
+    /// <inheritdoc/>
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         if (keyData == (Keys.Control | Keys.Alt | Keys.B))
@@ -3579,6 +3580,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    /// <inheritdoc/>
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
@@ -3591,12 +3593,14 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    /// <inheritdoc/>
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
         _logger?.LogInformation("POS_FORM_HANDLE_CREATED: Thread={ThreadId}, Handle={Handle}", Environment.CurrentManagedThreadId, Handle);
     }
 
+    /// <inheritdoc/>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         base.OnFormClosing(e);
@@ -3632,6 +3636,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    /// <inheritdoc/>
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
@@ -6879,7 +6884,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         [
             "create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
             "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
-            "priceoverride",
+            "priceoverride", "refund",
             "smartinsights", "quickorders", "restaurantpulse", "rushmode",
         ];
 
@@ -6914,10 +6919,8 @@ public sealed partial class RestaurantPosForm : XtraForm
             _canAccessBackOffice = false;
         }
 
-        // Refund / Return:
-        // In CBOS currently, there is no end-to-end POS order refund domain workflow (only payment-level void exists in PaymentHistoryDialog).
-        // Per requirement 28: keep hidden until functional rather than displaying a dead command.
-        _canPerformRefund = false;
+        // Refund / Return is available to authenticated POS operators; execution enforces action-bound manager approval and backend pos.refund authorization.
+        _canPerformRefund = true;
 
         BuildOperationsMenu();
     }
@@ -6949,10 +6952,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _printLastReceiptMenuItem = new ToolStripMenuItem("Print Last Receipt", null, async (s, e) => await HandlePrintLastReceiptAsync());
         _operationsMenu.Items.Add(_printLastReceiptMenuItem);
 
-        // Optional Refund (future domain workflow)
+        // 4. Refund / Return
         if (_canPerformRefund)
         {
-            var refundItem = new ToolStripMenuItem("Refund / Return", null, (s, e) => { });
+            var refundItem = new ToolStripMenuItem("Refund / Return", null, async (s, e) => await HandleRefundReturnAsync());
             _operationsMenu.Items.Add(refundItem);
         }
 
@@ -7234,6 +7237,78 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _logger?.LogError(ex, "Failed to print last receipt for shift {ShiftId}", _activeShift.ShiftId);
             XtraMessageBox.Show(this, $"Failed to reprint receipt: {ex.Message}", "Reprint Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task HandleRefundReturnAsync()
+    {
+        if (_continuityCoordinator?.IsContinuityModeActive == true)
+        {
+            ContinuityBusinessRules.CanPerformRefund(out var continuityReason);
+            XtraMessageBox.Show(this, continuityReason, "Continuity Mode Restriction", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (_activeShift == null)
+        {
+            XtraMessageBox.Show(this, "An active shift is required on this terminal to process POS refunds.", "Refund / Return", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        try
+        {
+            var defaultOrderNumber = _currentOrder is { Status: "Completed" }
+                ? _currentOrder.OrderNumber
+                : (await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetLastCompletedOrderForShiftQuery(_activeShift.ShiftId)))?.OrderNumber ?? string.Empty;
+
+            using var prompt = new TextPromptForm("Refund / Return", "Enter completed Order Number to refund:", defaultOrderNumber, required: true);
+            if (prompt.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(prompt.Value))
+            {
+                return;
+            }
+
+            var targetOrderNumber = prompt.Value.Trim();
+            var allOrders = await _mediator.Send(new ListAllOrdersQuery());
+            var targetOrder = allOrders.FirstOrDefault(o => string.Equals(o.OrderNumber, targetOrderNumber, StringComparison.OrdinalIgnoreCase));
+            if (targetOrder == null)
+            {
+                XtraMessageBox.Show(this, $"Order '{targetOrderNumber}' was not found.", "Order Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (targetOrder.Status != "Completed")
+            {
+                XtraMessageBox.Show(this, $"Order '{targetOrder.OrderNumber}' has status '{targetOrder.Status}'. Only completed orders can be refunded.", "Refund Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var cashierId = _currentSession.UserId ?? _activeShift.CashierId;
+            var cashierName = _currentSession.DisplayName ?? _activeShift.CashierName;
+
+            using var dialog = new RefundOrderDialog(
+                _mediator,
+                _logger,
+                targetOrder.OrderId,
+                targetOrder.OrderNumber,
+                cashierId,
+                cashierName,
+                branchId: _activeShift.BranchId,
+                shiftId: _activeShift.ShiftId,
+                terminalId: _activeShift.TerminalId,
+                managerAuthService: _managerAuthorization,
+                currentUserName: _currentSession.UserName);
+
+            if (dialog.ShowDialog(this) == DialogResult.OK && dialog.ResultRefund is { } refund)
+            {
+                await LogActivityAsync(
+                    "Order Refund",
+                    $"Processed refund {refund.RefundNumber} ({refund.SettlementMethod}: {CurrencyDisplay.FormatPlain(refund.GrandTotalRefunded)}) for order {targetOrder.OrderNumber} on Shift #{_activeShift.ShiftNumber}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Failed to process POS refund workflow.");
+            XtraMessageBox.Show(this, $"Failed to open refund workflow: {ex.Message}", "Refund Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 

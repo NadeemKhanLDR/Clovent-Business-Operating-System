@@ -7,11 +7,16 @@ namespace Clovent.Desktop.Licensing;
 /// </summary>
 public static class LicenseKeys
 {
+    /// <summary>The identifier of the currently active production RSA-2048 signing key.</summary>
     public const string ActiveKeyId = "clovent-2026-v2";
+
+    /// <summary>The identifier of the retired and revoked v1 signing key.</summary>
     public const string RevokedKeyIdV1 = "clovent-2026-v1";
 
+    /// <summary>The RSA-2048 public key XML corresponding to <see cref="ActiveKeyId"/>.</summary>
     public const string V2PublicKeyXml = "<RSAKeyValue><Modulus>vv1zfdZvAKdbqArGlUeZ/1PkIXTtinSl1gsM8TyHq3tM7KmSR3YjmrsnS3HFpO31HkfiRyXq46Gc9XGeu0Duc+A8gCCeJKYRI8/1er5e2fjk6+66+xEElKFCKH060PicSkLGmpOX/ocUbq8eTDtCLSTx+2cjJwMMAWyNobPLthRtFdrVnKEKL5EXoZkcAXbZjxZZugH+8cQsy1BfRqTuHxR5mU7Wf0D5HVufQKS2+9tOkxHXed4neSFJdE5hMDO7Ru0rDBDeQLSFrE2j+UuC/Q/Bm8anVzg+m0svBOCIPK4sxh0izLTFca06NLItXLLpMdIplgOpAPa4UJJ123QfwQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
 
+    /// <summary>The RSA-2048 public key XML corresponding to <see cref="RevokedKeyIdV1"/>.</summary>
     public const string V1PublicKeyXml = "<RSAKeyValue><Modulus>lB6M5DppGtCvGMr8nl/3EJ1oJ+5l2XpksqDm0F2nKRYeOLyYJef6Xh8ukTihvF4W23pRkpcjXyWVfMeKJa69z0aO5A92hyi5TcbMnwT28kCho8eGabfCSW24le02WHqbDuUzqXq6qMFK5gfCsYHSRndborpI+guVmubCeS9ckvuSzco3EV28ePjXAB8d9Bj5Fg9LHpxDNCDlGPlPn9qTtVNaMcSMzfM4oWaoM8bao3rTGJYGSzIIsOU5vTYZGeBh60pKkhlsUs4vK7q52FNwWpoDRRi3A/qDyvkkU12UcUSykTkpqGakGZSmw5x8C/JWrG5Hfu9GYvOT+8dHOZlSsQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
 
     /// <summary>

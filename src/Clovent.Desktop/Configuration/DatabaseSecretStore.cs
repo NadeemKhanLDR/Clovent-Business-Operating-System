@@ -20,6 +20,9 @@ public static class DatabaseSecretStore
     private static string? _customUserConfigPath;
     private static string? _customMachineConfigPath;
 
+    /// <summary>
+    /// Overrides the configuration file paths for isolated automated test execution.
+    /// </summary>
     public static void SetTestingOverrides(string? customUserConfigPath = null, string? customMachineConfigPath = null)
     {
         lock (SyncLock)
@@ -29,6 +32,9 @@ public static class DatabaseSecretStore
         }
     }
 
+    /// <summary>
+    /// Resets any custom configuration file path overrides back to production defaults.
+    /// </summary>
     public static void ResetTestingOverrides()
     {
         lock (SyncLock)

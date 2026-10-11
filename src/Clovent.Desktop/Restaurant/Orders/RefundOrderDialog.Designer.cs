@@ -30,6 +30,8 @@ partial class RefundOrderDialog
     private readonly TextEdit _approverEdit = new();
 
     private readonly LabelControl _summaryLabel = new();
+    private readonly SimpleButton _refundRemainingButton = new();
+    private readonly SimpleButton _clearQuantitiesButton = new();
     private readonly SimpleButton _submitRefundButton = new();
     private readonly SimpleButton _cancelButton = new();
 
@@ -139,8 +141,8 @@ partial class RefundOrderDialog
             AutoSize = true,
             Margin = new Padding(0, 10, 0, 0)
         };
-        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60F));
-        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40F));
+        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58F));
+        bottomPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42F));
         bottomPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // Left fields panel
@@ -180,6 +182,8 @@ partial class RefundOrderDialog
         _approverLabel.Text = "Approved By:";
         _approverLabel.Padding = new Padding(0, 6, 8, 0);
         _approverEdit.Dock = DockStyle.Top;
+        _approverEdit.Properties.NullValuePrompt = "Verified via Manager Authorization on Submit";
+        _approverEdit.Properties.NullValuePromptShowForEmptyValue = true;
         fieldsPanel.Controls.Add(_approverLabel, 0, 3);
         fieldsPanel.Controls.Add(_approverEdit, 1, 3);
 
@@ -207,12 +211,30 @@ partial class RefundOrderDialog
         _summaryLabel.Dock = DockStyle.Top;
         actionsPanel.Controls.Add(_summaryLabel, 0, 0);
 
+        var quickSelectFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.RightToLeft,
+            AutoSize = true,
+            Margin = new Padding(0, 6, 0, 0)
+        };
+
+        _refundRemainingButton.Text = "Refund Full Remaining";
+        _refundRemainingButton.Size = new Size(155, 30);
+
+        _clearQuantitiesButton.Text = "Clear Quantities";
+        _clearQuantitiesButton.Size = new Size(120, 30);
+
+        quickSelectFlow.Controls.Add(_refundRemainingButton);
+        quickSelectFlow.Controls.Add(_clearQuantitiesButton);
+        actionsPanel.Controls.Add(quickSelectFlow, 0, 1);
+
         var buttonFlow = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
-            Margin = new Padding(0, 10, 0, 0)
+            Margin = new Padding(0, 8, 0, 0)
         };
 
         _submitRefundButton.Text = "Submit Refund";
@@ -226,7 +248,7 @@ partial class RefundOrderDialog
 
         buttonFlow.Controls.Add(_submitRefundButton);
         buttonFlow.Controls.Add(_cancelButton);
-        actionsPanel.Controls.Add(buttonFlow, 0, 1);
+        actionsPanel.Controls.Add(buttonFlow, 0, 2);
 
         bottomPanel.Controls.Add(actionsPanel, 1, 0);
         root.Controls.Add(bottomPanel, 0, 2);

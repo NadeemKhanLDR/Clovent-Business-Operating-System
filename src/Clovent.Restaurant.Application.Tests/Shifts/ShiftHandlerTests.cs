@@ -312,7 +312,9 @@ public class ShiftHandlerTests
             "Usman",
             "On-account credit return",
             "IDEMP-CREDIT-1",
-            Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit);
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit,
+            shiftId: shift1Id,
+            terminalId: new TerminalId(terminalId));
         creditRefund.FinalizeFinancials(2000m, 200m, 288m, 2088.00m, "{}");
         await refundRepo.AddAsync(creditRefund, CancellationToken.None);
 
@@ -325,19 +327,25 @@ public class ShiftHandlerTests
             "Usman",
             "Cash payout return in shift 1",
             "IDEMP-CASH-1",
-            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout);
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout,
+            shiftId: shift1Id,
+            terminalId: new TerminalId(terminalId));
         cashRefund1.FinalizeFinancials(600m, 60m, 86.40m, 626.40m, "{}");
         await refundRepo.AddAsync(cashRefund1, CancellationToken.None);
 
         var queryHandler = new GetShiftSummaryQueryHandler(_shiftRepository, _paymentRepository, _paymentMethodRepository, null, refundRepo);
         var openShift1Summary = await queryHandler.Handle(new GetShiftSummaryQuery(shift1Dto.ShiftId), CancellationToken.None);
         Assert.Equal(5973.60m, openShift1Summary.ExpectedCash);
+        Assert.Equal(626.40m, openShift1Summary.CashRefunds);
+        Assert.Equal(2088.00m, openShift1Summary.CustomerAccountCreditRefunds);
 
         var closeHandler = new CloseShiftCommandHandler(_shiftRepository, _paymentRepository, _paymentMethodRepository, _activityLogRepository, null, null, refundRepo);
         var closedShift1Summary = await closeHandler.Handle(new CloseShiftCommand(shift1Dto.ShiftId, 5973.60m), CancellationToken.None);
         Assert.Equal(5973.60m, closedShift1Summary.ExpectedCash);
         Assert.Equal(5973.60m, closedShift1Summary.CountedCash);
         Assert.Equal(0m, closedShift1Summary.Variance);
+        Assert.Equal(626.40m, closedShift1Summary.CashRefunds);
+        Assert.Equal(2088.00m, closedShift1Summary.CustomerAccountCreditRefunds);
 
         // Shift 2: Opened after Shift 1 closes; processes a CashPayout refund (180.00) for order1Id from Shift 1
         // Float 3000 + CashIn 150 - CashOut 50 - CashRefund 180.00 = 2920.00
@@ -358,7 +366,9 @@ public class ShiftHandlerTests
             "Usman",
             "Cross-shift cash return for Shift 1 sale",
             "IDEMP-CASH-2",
-            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout);
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout,
+            shiftId: shift2Id,
+            terminalId: new TerminalId(terminalId));
         cashRefund2.FinalizeFinancials(200m, 20m, 0m, 180.00m, "{}");
         await refundRepo.AddAsync(cashRefund2, CancellationToken.None);
 
@@ -368,16 +378,104 @@ public class ShiftHandlerTests
         Assert.Equal(5973.60m, shift1AfterShift2Refund.ExpectedCash);
         Assert.Equal(5973.60m, shift1AfterShift2Refund.CountedCash);
         Assert.Equal(0m, shift1AfterShift2Refund.Variance);
+        Assert.Equal(626.40m, shift1AfterShift2Refund.CashRefunds);
 
         // Current Shift 2 must deduct only 180.00 once -> ExpectedCash = 2920.00
         var openShift2Summary = await queryHandler.Handle(new GetShiftSummaryQuery(shift2Dto.ShiftId), CancellationToken.None);
         Assert.Equal("Open", openShift2Summary.Shift.Status);
         Assert.Equal(2920.00m, openShift2Summary.ExpectedCash);
+        Assert.Equal(180.00m, openShift2Summary.CashRefunds);
 
         var closedShift2Summary = await closeHandler.Handle(new CloseShiftCommand(shift2Dto.ShiftId, 2920.00m), CancellationToken.None);
         Assert.Equal(2920.00m, closedShift2Summary.ExpectedCash);
         Assert.Equal(2920.00m, closedShift2Summary.CountedCash);
         Assert.Equal(0m, closedShift2Summary.Variance);
+    }
+
+    [Fact]
+    public async Task CrossShiftCashRefund_WithDifferentApprovingManagerAndHistoricalNullShift_AttributesStrictlyToDisbursingShift()
+    {
+        var branchId = Guid.NewGuid();
+        var warehouseId = Guid.NewGuid();
+        var terminal1Id = Guid.NewGuid();
+        var terminal2Id = Guid.NewGuid();
+        var terminal3Id = Guid.NewGuid();
+        var cashierAId = Guid.NewGuid();
+        var cashierBId = Guid.NewGuid();
+        var managerMId = Guid.NewGuid();
+
+        var openHandler = new OpenShiftCommandHandler(_shiftRepository, _activityLogRepository);
+        var refundRepo = new InMemoryRefundRepository();
+
+        // Shift 1 (Cashier A on Terminal 1): original sale of 1000 Cash
+        var shift1Dto = await openHandler.Handle(new OpenShiftCommand(branchId, warehouseId, terminal1Id, cashierAId, "Cashier A", 2000m), CancellationToken.None);
+        var shift1Id = new ShiftId(shift1Dto.ShiftId);
+
+        // Shift 2 (Cashier B on Terminal 2): disbursing shift for cross-shift cash refund
+        var shift2Dto = await openHandler.Handle(new OpenShiftCommand(branchId, warehouseId, terminal2Id, cashierBId, "Cashier B", 3000m), CancellationToken.None);
+        var shift2Id = new ShiftId(shift2Dto.ShiftId);
+
+        // Shift 3 (Manager M on Terminal 3): approving manager's own open shift
+        var shift3Dto = await openHandler.Handle(new OpenShiftCommand(branchId, warehouseId, terminal3Id, managerMId, "Manager M", 4000m), CancellationToken.None);
+        var shift3Id = new ShiftId(shift3Dto.ShiftId);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        await _paymentMethodRepository.AddAsync(cashMethod, CancellationToken.None);
+
+        var orderId = OrderId.New();
+        await _paymentRepository.AddAsync(Payment.Create(orderId, cashMethod.Id, 1000m, shift1Id), CancellationToken.None);
+
+        // Cross-shift cash refund disbursed on Shift 2 (Cashier B), approved by Manager M
+        var crossShiftRefund = Clovent.Restaurant.Refunds.Refund.Create(
+            new Clovent.Restaurant.Refunds.RefundNumber("REF-20261010-0010"),
+            orderId,
+            new BranchId(branchId),
+            new WarehouseId(warehouseId),
+            cashierBId,
+            "Cashier B",
+            "Cross-shift refund approved by Manager M",
+            "IDEMP-CROSS-MGR",
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout,
+            approvedByUserId: managerMId,
+            approvedByUserName: "Manager M",
+            shiftId: shift2Id,
+            terminalId: new TerminalId(terminal2Id));
+        crossShiftRefund.FinalizeFinancials(400m, 0m, 0m, 400m, "{}");
+        await refundRepo.AddAsync(crossShiftRefund, CancellationToken.None);
+
+        // Historical legacy refund with ShiftId == null (must not fabricate attribution onto Shift 1, 2, or 3)
+        var legacyNullShiftRefund = Clovent.Restaurant.Refunds.Refund.Create(
+            new Clovent.Restaurant.Refunds.RefundNumber("REF-20261001-0001"),
+            orderId,
+            new BranchId(branchId),
+            new WarehouseId(warehouseId),
+            cashierAId,
+            "Cashier A",
+            "Historical pre-ShiftId refund",
+            "IDEMP-LEGACY-NULL",
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout,
+            shiftId: null,
+            terminalId: null);
+        legacyNullShiftRefund.FinalizeFinancials(250m, 0m, 0m, 250m, "{}");
+        await refundRepo.AddAsync(legacyNullShiftRefund, CancellationToken.None);
+
+        var queryHandler = new GetShiftSummaryQueryHandler(_shiftRepository, _paymentRepository, _paymentMethodRepository, null, refundRepo);
+
+        var shift1Summary = await queryHandler.Handle(new GetShiftSummaryQuery(shift1Dto.ShiftId), CancellationToken.None);
+        var shift2Summary = await queryHandler.Handle(new GetShiftSummaryQuery(shift2Dto.ShiftId), CancellationToken.None);
+        var shift3Summary = await queryHandler.Handle(new GetShiftSummaryQuery(shift3Dto.ShiftId), CancellationToken.None);
+
+        // Shift 1 (original sale): 2000 float + 1000 sale = 3000 (unaffected by Shift 2 refund or legacy null-ShiftId refund)
+        Assert.Equal(0m, shift1Summary.CashRefunds);
+        Assert.Equal(3000m, shift1Summary.ExpectedCash);
+
+        // Shift 2 (disbursing shift): 3000 float - 400 cash refund = 2600
+        Assert.Equal(400m, shift2Summary.CashRefunds);
+        Assert.Equal(2600m, shift2Summary.ExpectedCash);
+
+        // Shift 3 (approving manager's shift): 4000 float, 0 refunds = 4000
+        Assert.Equal(0m, shift3Summary.CashRefunds);
+        Assert.Equal(4000m, shift3Summary.ExpectedCash);
     }
 
     private sealed class InMemoryRefundRepository : Clovent.Restaurant.Refunds.IRefundRepository
@@ -392,6 +490,9 @@ public class ShiftHandlerTests
 
         public Task<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>> GetByOrderIdAsync(OrderId orderId, CancellationToken cancellationToken = default) =>
             Task.FromResult<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>>(_refunds.FindAll(r => r.OrderId == orderId));
+
+        public Task<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>>(_refunds.FindAll(r => r.ShiftId == shiftId));
 
         public Task<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>> GetByDateRangeAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken = default) =>
             Task.FromResult<System.Collections.Generic.IReadOnlyList<Clovent.Restaurant.Refunds.Refund>>(_refunds.FindAll(r => r.RefundedAtUtc >= fromUtc && r.RefundedAtUtc <= toUtc));

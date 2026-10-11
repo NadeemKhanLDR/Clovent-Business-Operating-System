@@ -36,6 +36,14 @@ internal sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
             .HasConversion(ValueConverters.WarehouseIdConverter)
             .IsRequired();
 
+        builder.Property(r => r.ShiftId)
+            .HasConversion(ValueConverters.NullableShiftIdConverter);
+        builder.HasIndex(r => r.ShiftId);
+
+        builder.Property(r => r.TerminalId)
+            .HasConversion(ValueConverters.NullableTerminalIdConverter);
+        builder.HasIndex(r => r.TerminalId);
+
         builder.Property(r => r.RefundedAtUtc).IsRequired();
         builder.HasIndex(r => r.RefundedAtUtc);
 

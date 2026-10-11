@@ -57,7 +57,10 @@ public sealed record OrderTaxCalculationResult(
 /// </summary>
 public static class TaxCalculator
 {
+    /// <summary>Policy version tag for gross-subtotal tax calculation.</summary>
     public const string PolicyVersionGrossBase = "CBOS-TaxPolicy-GrossBase-v1";
+
+    /// <summary>Policy version tag for net-of-discount tax calculation.</summary>
     public const string PolicyVersionNetOfDiscount = "CBOS-TaxPolicy-NetOfDiscount-v1";
 
     /// <summary>
@@ -80,7 +83,7 @@ public static class TaxCalculator
     public static OrderTaxCalculationResult Calculate(
         IReadOnlyList<TaxCalculationLineInput> lines,
         decimal orderDiscountAmount = 0m,
-        bool discountAppliesBeforeTax = false,
+        bool discountAppliesBeforeTax = true,
         string? policyVersion = null)
     {
         ArgumentNullException.ThrowIfNull(lines);

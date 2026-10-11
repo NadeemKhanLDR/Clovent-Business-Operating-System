@@ -34,9 +34,13 @@ public sealed class QuickOrderPreviewDialog : XtraForm
     private SimpleButton _addButton = null!;
     private SimpleButton _closeButton = null!;
 
+    /// <summary>Selected order initiation mode when applying the quick-order template.</summary>
     public StartOrderChoice StartMode { get; private set; } = StartOrderChoice.Cancel;
+
+    /// <summary>Selected dine-in table identifier when starting a dine-in order.</summary>
     public Guid? SelectedTableId { get; private set; }
 
+    /// <summary>Initializes a new instance of <see cref="QuickOrderPreviewDialog"/>.</summary>
     public QuickOrderPreviewDialog(
         QuickOrderTemplateDto template,
         Control? owner = null,

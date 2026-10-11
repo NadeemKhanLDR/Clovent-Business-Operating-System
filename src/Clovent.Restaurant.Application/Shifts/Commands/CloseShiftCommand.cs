@@ -92,16 +92,20 @@ public sealed class CloseShiftCommandHandler(
         }
 
         decimal cashRefunds = 0m;
+        decimal customerAccountCreditRefunds = 0m;
+        decimal otherRefunds = 0m;
         if (refundRepository is not null)
         {
-            var shiftRefunds = await refundRepository.GetByDateRangeAsync(
-                shift.OpenedAtUtc,
-                Shift.NextUtcNow(),
-                cancellationToken);
+            var shiftRefunds = await refundRepository.GetByShiftIdAsync(shiftId, cancellationToken);
             cashRefunds = shiftRefunds
-                .Where(r => r.BranchId == shift.BranchId &&
-                            r.CashierId == shift.CashierId.Value &&
-                            r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout)
+                .Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout)
+                .Sum(r => r.GrandTotalRefunded);
+            customerAccountCreditRefunds = shiftRefunds
+                .Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit)
+                .Sum(r => r.GrandTotalRefunded);
+            otherRefunds = shiftRefunds
+                .Where(r => r.SettlementMethod != Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout &&
+                            r.SettlementMethod != Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit)
                 .Sum(r => r.GrandTotalRefunded);
         }
 
@@ -136,7 +140,7 @@ public sealed class CloseShiftCommandHandler(
                 CountedCash: shift.CountedCash,
                 ExpectedCash: shift.ExpectedCash,
                 CashVariance: shift.CashVariance,
-                NetSales: cashSales + cardSales + otherSales,
+                NetSales: cashSales + cardSales + otherSales - (cashRefunds + customerAccountCreditRefunds + otherRefunds),
                 TotalOrdersCount: validPayments.Select(p => p.OrderId).Distinct().Count(),
                 TimestampUtc: DateTimeOffset.UtcNow);
 
@@ -165,6 +169,9 @@ public sealed class CloseShiftCommandHandler(
             shift.CashVariance,
             validPayments.Select(p => p.OrderId).Distinct().Count(),
             movementDtos,
-            cashCustomerPayments);
+            cashCustomerPayments,
+            cashRefunds,
+            customerAccountCreditRefunds,
+            otherRefunds);
     }
 }

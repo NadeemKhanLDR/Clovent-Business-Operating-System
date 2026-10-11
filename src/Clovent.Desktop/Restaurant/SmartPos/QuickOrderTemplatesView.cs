@@ -178,6 +178,7 @@ public sealed partial class QuickOrderTemplatesView : XtraUserControl
 
     private async void BtnEdit_Click(object? sender, EventArgs e) => await OpenSelectedTemplateForEditAsync();
 
+    /// <summary>Opens the currently focused quick-order template in the edit dialog.</summary>
     public async Task OpenSelectedTemplateForEditAsync()
     {
         if (GetFocusedTemplate() is { } template)
@@ -186,6 +187,7 @@ public sealed partial class QuickOrderTemplatesView : XtraUserControl
         }
     }
 
+    /// <summary>Opens the edit dialog to create a new quick-order template.</summary>
     public async Task CreateNewTemplateAsync()
     {
         await ShowEditDialogAsync(null);

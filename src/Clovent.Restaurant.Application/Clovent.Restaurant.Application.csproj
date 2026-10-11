@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Clovent.Platform\Clovent.Platform.csproj" />
     <ProjectReference Include="..\Clovent.Catalog.Application\Clovent.Catalog.Application.csproj" />
     <ProjectReference Include="..\Clovent.Inventory.Application\Clovent.Inventory.Application.csproj" />
+    <ProjectReference Include="..\Clovent.Identity.Application\Clovent.Identity.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

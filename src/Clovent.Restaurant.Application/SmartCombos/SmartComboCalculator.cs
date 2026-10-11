@@ -3,7 +3,10 @@ namespace Clovent.Restaurant.Application.SmartCombos;
 /// <summary>Order-presence basket mining. Triples use a two-item antecedent and one-item consequent.</summary>
 public static class SmartComboCalculator
 {
+    /// <summary>Builds a deterministic pipe-delimited signature from distinct sorted variant IDs.</summary>
     public static string Signature(IEnumerable<Guid> ids) => string.Join("|", ids.Distinct().Order().Select(x => x.ToString("N")));
+
+    /// <summary>Calculates a suggested combo deal price respecting discount rate, minimum margin floor, and currency precision.</summary>
     public static decimal? Price(decimal normal, decimal? cost, SmartComboOptions options, int decimals, decimal revenueFactor = 1m)
     {
         options.Validate();
@@ -13,6 +16,8 @@ public static class SmartComboCalculator
         var price = Math.Max(Math.Round(normal * (1 - options.DiscountRate), decimals, MidpointRounding.AwayFromZero), floor);
         return price > 0 && price <= normal ? price : null;
     }
+
+    /// <summary>Mines order baskets for high-support, high-lift item pairs and triples.</summary>
     public static IReadOnlyList<ComboOpportunity> Analyze(IReadOnlyList<ComboBasket> baskets,
         IReadOnlyDictionary<Guid, ComboItem> catalog, SmartComboOptions options, int decimals, ISet<string> suppressed,
         CancellationToken ct = default)
@@ -72,6 +77,8 @@ public static class SmartComboCalculator
         return results.OrderByDescending(x => x.Frequency).ThenByDescending(x => x.Lift)
             .ThenBy(x => x.Signature, StringComparer.Ordinal).Take(options.MaximumSuggestions).ToList();
     }
+
+    /// <summary>Allocates a total combo deal price proportionally across component template items.</summary>
     public static IReadOnlyList<QuickOrderTemplateItemInput> Allocate(ComboOpportunity opportunity, decimal price, int decimals)
     {
         var result = new List<QuickOrderTemplateItemInput>();

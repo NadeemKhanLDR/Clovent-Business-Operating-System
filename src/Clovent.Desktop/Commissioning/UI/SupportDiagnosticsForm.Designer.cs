@@ -4,6 +4,7 @@ partial class SupportDiagnosticsForm
 {
     private System.ComponentModel.IContainer components = null;
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing && (components != null))

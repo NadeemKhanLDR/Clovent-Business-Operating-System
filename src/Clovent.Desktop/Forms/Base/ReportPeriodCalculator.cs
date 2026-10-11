@@ -27,8 +27,10 @@ public static class ReportPeriodCalculator
         (ReportPeriod.Custom, "Custom")
     ];
 
+    /// <summary>Returns all predefined report period options paired with their user-facing display names.</summary>
     public static IReadOnlyList<(ReportPeriod Period, string DisplayName)> GetAllOptions() => Options;
 
+    /// <summary>Gets the user-facing display name for the specified <see cref="ReportPeriod"/>.</summary>
     public static string GetDisplayName(ReportPeriod period) => period switch
     {
         ReportPeriod.Today => "Today",
@@ -47,6 +49,7 @@ public static class ReportPeriodCalculator
         _ => period.ToString()
     };
 
+    /// <summary>Parses a user-facing display name back into its corresponding <see cref="ReportPeriod"/>, defaulting to <see cref="ReportPeriod.Custom"/>.</summary>
     public static ReportPeriod ParseDisplayName(string? displayName)
     {
         if (string.IsNullOrWhiteSpace(displayName))

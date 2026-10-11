@@ -35,8 +35,8 @@ partial class OrderHistoryView
             new MasterDataColumn("UpdatedAtUtc", "Closed", 160),
         ],
         [
-            new MasterDataListAction<ClosedOrderRow>("Process Refund", ShowRefundDialogAsync, FeatureOperation: "void"),
-            new MasterDataListAction<ClosedOrderRow>("Refund Receipts", ShowRefundReceiptsAsync, FeatureOperation: "void"),
+            new MasterDataListAction<ClosedOrderRow>("Process Refund", ShowRefundDialogAsync, row => row.Status == "Completed"),
+            new MasterDataListAction<ClosedOrderRow>("Refund Receipts", ShowRefundReceiptsAsync, row => row.Status == "Completed"),
             new MasterDataListAction<ClosedOrderRow>("Payment History", ShowPaymentHistoryAsync, FeatureOperation: "void"),
         ])
         {

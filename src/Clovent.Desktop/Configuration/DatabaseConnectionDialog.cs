@@ -14,8 +14,12 @@ public partial class DatabaseConnectionDialog : XtraForm
 {
     private DatabaseConnectionSettings _currentSettings;
 
+    /// <summary>Gets the configured database connection settings upon dialog completion.</summary>
     public DatabaseConnectionSettings ResultSettings => _currentSettings;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DatabaseConnectionDialog"/> class.
+    /// </summary>
     public DatabaseConnectionDialog()
     {
         InitializeComponent();

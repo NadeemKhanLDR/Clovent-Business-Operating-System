@@ -1092,6 +1092,7 @@ public partial class FirstRunWizardForm : XtraForm
         Location = new Point(Math.Max(workArea.Left, x), Math.Max(workArea.Top, y));
     }
 
+    /// <inheritdoc/>
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);

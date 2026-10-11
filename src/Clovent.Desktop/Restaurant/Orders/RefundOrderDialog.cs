@@ -2,8 +2,10 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Authorization;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
+using Clovent.Desktop.Restaurant.Shared;
 using Clovent.Restaurant.Application.OrderLines.Queries;
 using Clovent.Restaurant.Application.Refunds.Commands;
 using Clovent.Restaurant.Application.Refunds.Dtos;
@@ -55,7 +57,8 @@ public sealed class RefundLineItemRow
 /// <summary>
 /// WinForms dialog for executing full or partial refunds against a completed order.
 /// Calculates remaining eligibility, supports line-level restock/waste disposition,
-/// captures business reason and settlement method, and prompts for receipt printing.
+/// captures business reason and settlement method, enforces action-bound manager approval,
+/// attributes cash payouts to the disbursing shift/terminal, and prompts for receipt printing.
 /// </summary>
 [DesignerCategory("Code")]
 public sealed partial class RefundOrderDialog : XtraForm
@@ -67,11 +70,42 @@ public sealed partial class RefundOrderDialog : XtraForm
     private readonly Guid _cashierId;
     private readonly string _cashierName;
     private readonly Guid? _branchId;
+    private readonly Guid? _shiftId;
+    private readonly Guid? _terminalId;
+    private readonly IManagerAuthorizationService? _managerAuthService;
+    private readonly string? _currentUserName;
+    private readonly Func<string, string, string, Task<ManagerAuthorizationResult?>>? _authorizationPrompt;
 
     private readonly BindingList<RefundLineItemRow> _lineRows = [];
+    private string? _lastAttemptFingerprint;
+    private string? _currentAttemptIdempotencyKey;
 
     /// <summary>The resulting refund DTO if successfully processed.</summary>
     public RefundDto? ResultRefund { get; private set; }
+
+    /// <summary>Gets the loaded refund line item rows.</summary>
+    public IReadOnlyList<RefundLineItemRow> LineRows => _lineRows;
+
+    /// <summary>Gets the button that selects full remaining eligible quantities for all lines.</summary>
+    public SimpleButton RefundRemainingButton => _refundRemainingButton;
+
+    /// <summary>Gets the button that clears all selected refund quantities back to zero.</summary>
+    public SimpleButton ClearQuantitiesButton => _clearQuantitiesButton;
+
+    /// <summary>Gets the button that submits the refund request.</summary>
+    public SimpleButton SubmitRefundButton => _submitRefundButton;
+
+    /// <summary>Gets the business reason editor.</summary>
+    public MemoEdit ReasonEdit => _reasonEdit;
+
+    /// <summary>Gets the settlement method combo box.</summary>
+    public ComboBoxEdit SettlementMethodCombo => _settlementMethodCombo;
+
+    /// <summary>Gets the approver display text box.</summary>
+    public TextEdit ApproverEdit => _approverEdit;
+
+    /// <summary>Gets the current sticky idempotency key bound to the active refund selection.</summary>
+    public string? CurrentAttemptIdempotencyKey => _currentAttemptIdempotencyKey;
 
     /// <summary>Design-time-only constructor for Visual Studio Designer.</summary>
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -94,7 +128,12 @@ public sealed partial class RefundOrderDialog : XtraForm
         string orderNumber,
         Guid cashierId,
         string cashierName,
-        Guid? branchId = null) : base()
+        Guid? branchId = null,
+        Guid? shiftId = null,
+        Guid? terminalId = null,
+        IManagerAuthorizationService? managerAuthService = null,
+        string? currentUserName = null,
+        Func<string, string, string, Task<ManagerAuthorizationResult?>>? authorizationPrompt = null) : base()
     {
         InitializeComponent();
 
@@ -114,6 +153,16 @@ public sealed partial class RefundOrderDialog : XtraForm
         _cashierId = cashierId;
         _cashierName = cashierName;
         _branchId = branchId;
+        _shiftId = shiftId;
+        _terminalId = terminalId;
+        _managerAuthService = managerAuthService;
+        _currentUserName = currentUserName;
+        _authorizationPrompt = authorizationPrompt;
+
+        if (_managerAuthService != null || _authorizationPrompt != null)
+        {
+            _approverEdit.Properties.ReadOnly = true;
+        }
 
         _headerLabel.Text = $"Process Refund - {orderNumber}";
     }
@@ -230,8 +279,41 @@ public sealed partial class RefundOrderDialog : XtraForm
         _settlementMethodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
         _settlementMethodCombo.SelectedIndex = 0;
 
-        _submitRefundButton.Click += async (s, e) => await SubmitRefundAsync();
+        _refundRemainingButton.Click += (s, e) => SelectFullRemainingQuantities();
+        _clearQuantitiesButton.Click += (s, e) => ClearRefundQuantities();
+        _submitRefundButton.Click += async (s, e) => await SubmitRefundAsync(suppressInteractivePrompts: false);
     }
+
+    /// <summary>Loads order lines and existing refund history to compute remaining eligible quantities.</summary>
+    public Task ReloadOrderLinesAsync() => LoadOrderLinesAsync();
+
+    /// <summary>Populates all line items with their maximum remaining eligible refund quantities.</summary>
+    public void SelectFullRemainingQuantities()
+    {
+        foreach (var row in _lineRows)
+        {
+            row.RefundQuantity = row.RemainingQuantity;
+        }
+
+        _linesGridView.RefreshData();
+        UpdateSummary();
+    }
+
+    /// <summary>Resets all line item refund quantities to zero.</summary>
+    public void ClearRefundQuantities()
+    {
+        foreach (var row in _lineRows)
+        {
+            row.RefundQuantity = 0m;
+        }
+
+        _linesGridView.RefreshData();
+        UpdateSummary();
+    }
+
+    /// <summary>Executes the refund submission workflow (exposed for automated UI testing).</summary>
+    public Task ExecuteSubmitRefundAsync(bool suppressInteractivePrompts = true) =>
+        SubmitRefundAsync(suppressInteractivePrompts);
 
     private async Task LoadOrderLinesAsync()
     {
@@ -271,7 +353,10 @@ public sealed partial class RefundOrderDialog : XtraForm
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to load order lines for refund on order {OrderId}", _orderId);
-            XtraMessageBox.Show(this, $"Failed to load order details: {ex.Message}", "Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (Visible)
+            {
+                XtraMessageBox.Show(this, $"Failed to load order details: {ex.Message}", "Load Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 
@@ -279,16 +364,44 @@ public sealed partial class RefundOrderDialog : XtraForm
     {
         var total = _lineRows.Sum(r => r.EstimatedRefund);
         var count = _lineRows.Count(r => r.RefundQuantity > 0);
+        var hasEligible = _lineRows.Any(r => r.RemainingQuantity > 0);
         _summaryLabel.Text = $"Selected Items: {count}  |  Est. Net Refund: {CurrencyDisplay.FormatPlain(total)}";
         _submitRefundButton.Enabled = count > 0;
+        _refundRemainingButton.Enabled = hasEligible;
+        _clearQuantitiesButton.Enabled = count > 0;
     }
 
-    private async Task SubmitRefundAsync()
+    private string GetOrUpdateAttemptIdempotencyKey(
+        RefundSettlementMethod settlementMethod,
+        string reason,
+        IReadOnlyList<RefundItemRequest> requests)
+    {
+        var lineSpec = string.Join(
+            ";",
+            requests
+                .OrderBy(r => r.OrderLineId)
+                .Select(r => $"{r.OrderLineId:N}:{r.Quantity:0.####}:{(int)r.Disposition}"));
+        var fingerprint = $"{_orderId:N}|{(int)settlementMethod}|{reason}|{lineSpec}";
+
+        if (!string.Equals(_lastAttemptFingerprint, fingerprint, StringComparison.Ordinal) ||
+            string.IsNullOrWhiteSpace(_currentAttemptIdempotencyKey))
+        {
+            _lastAttemptFingerprint = fingerprint;
+            _currentAttemptIdempotencyKey = Guid.NewGuid().ToString("N");
+        }
+
+        return _currentAttemptIdempotencyKey;
+    }
+
+    private async Task SubmitRefundAsync(bool suppressInteractivePrompts)
     {
         var itemsToRefund = _lineRows.Where(r => r.RefundQuantity > 0).ToList();
         if (itemsToRefund.Count == 0)
         {
-            XtraMessageBox.Show(this, "Please enter a refund quantity greater than 0 for at least one item.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (!suppressInteractivePrompts)
+            {
+                XtraMessageBox.Show(this, "Please enter a refund quantity greater than 0 for at least one item.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
             return;
         }
 
@@ -296,7 +409,10 @@ public sealed partial class RefundOrderDialog : XtraForm
         {
             if (item.RefundQuantity > item.RemainingQuantity)
             {
-                XtraMessageBox.Show(this, $"Refund quantity for '{item.ItemName}' exceeds remaining eligible quantity ({item.RemainingQuantity}).", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                if (!suppressInteractivePrompts)
+                {
+                    XtraMessageBox.Show(this, $"Refund quantity for '{item.ItemName}' exceeds remaining eligible quantity ({item.RemainingQuantity}).", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
                 return;
             }
         }
@@ -304,8 +420,11 @@ public sealed partial class RefundOrderDialog : XtraForm
         var reason = _reasonEdit.Text.Trim();
         if (string.IsNullOrWhiteSpace(reason))
         {
-            XtraMessageBox.Show(this, "Please provide a reason for the refund.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            _reasonEdit.Focus();
+            if (!suppressInteractivePrompts)
+            {
+                XtraMessageBox.Show(this, "Please provide a reason for the refund.", "Validation", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _reasonEdit.Focus();
+            }
             return;
         }
 
@@ -322,17 +441,64 @@ public sealed partial class RefundOrderDialog : XtraForm
             r.RefundQuantity,
             r.Disposition)).ToList();
 
+        var idempotencyKey = GetOrUpdateAttemptIdempotencyKey(settlementMethod, reason, requests);
+
+        Guid? approvedByUserId = null;
+        string? approvingUserName = string.IsNullOrWhiteSpace(_approverEdit.Text) ? null : _approverEdit.Text.Trim();
+
+        if (_authorizationPrompt != null || _managerAuthService != null)
+        {
+            var lineSummary = string.Join(", ", itemsToRefund.Select(i => $"{i.ItemName} x{i.RefundQuantity:0.##}"));
+            var totalEst = itemsToRefund.Sum(i => i.EstimatedRefund);
+            var actionDetail =
+                $"Order: {_orderNumber}\n" +
+                $"Items: {lineSummary}\n" +
+                $"Est. Refund: {CurrencyDisplay.FormatPlain(totalEst)} ({_settlementMethodCombo.Text})\n" +
+                $"Reason: {reason}";
+
+            ManagerAuthorizationResult? authResult;
+            if (_authorizationPrompt != null)
+            {
+                authResult = await _authorizationPrompt("Manager Authorization - Order Refund", actionDetail, "pos.refund");
+            }
+            else
+            {
+                using var authDialog = new ManagerAuthorizationForm(
+                    "Manager Authorization - Order Refund",
+                    actionDetail,
+                    _managerAuthService,
+                    "pos.refund",
+                    _currentUserName);
+
+                authResult = authDialog.ShowDialog(this) == DialogResult.OK
+                    ? authDialog.AuthorizationResult
+                    : null;
+            }
+
+            if (authResult is not { Succeeded: true, ManagerUserId: { } managerId })
+            {
+                return;
+            }
+
+            approvedByUserId = managerId;
+            approvingUserName = authResult.ManagerDisplayName;
+            _approverEdit.Text = approvingUserName ?? string.Empty;
+        }
+
         var command = new ProcessRefundCommand(
             _orderId,
             requests,
             reason,
             settlementMethod,
-            Guid.NewGuid().ToString("N"),
+            idempotencyKey,
             _cashierId,
             _cashierName,
             BranchId: _branchId,
-            ApprovingUserName: string.IsNullOrWhiteSpace(_approverEdit.Text) ? null : _approverEdit.Text.Trim(),
-            SettlementReference: string.IsNullOrWhiteSpace(_settlementRefEdit.Text) ? null : _settlementRefEdit.Text.Trim());
+            ApprovingUserId: approvedByUserId,
+            ApprovingUserName: approvingUserName,
+            SettlementReference: string.IsNullOrWhiteSpace(_settlementRefEdit.Text) ? null : _settlementRefEdit.Text.Trim(),
+            ShiftId: _shiftId,
+            TerminalId: _terminalId);
 
         Cursor = Cursors.WaitCursor;
         _submitRefundButton.Enabled = false;
@@ -342,18 +508,21 @@ public sealed partial class RefundOrderDialog : XtraForm
             var result = await _mediator.Send(command);
             ResultRefund = result;
 
-            var printPrompt = XtraMessageBox.Show(
-                this,
-                $"Refund {result.RefundNumber} processed successfully.\n\nTotal Refunded: {CurrencyDisplay.FormatPlain(result.GrandTotalRefunded)}\n\nWould you like to preview/print the refund credit note?",
-                "Refund Complete",
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Information);
-
-            if (printPrompt == DialogResult.Yes)
+            if (!suppressInteractivePrompts)
             {
-                var creditNoteText = ReceiptFormatter.FormatRefundCreditNote(result, _orderNumber);
-                using var previewForm = new ReceiptPreviewForm(creditNoteText);
-                previewForm.ShowDialog(this);
+                var printPrompt = XtraMessageBox.Show(
+                    this,
+                    $"Refund {result.RefundNumber} processed successfully.\n\nTotal Refunded: {CurrencyDisplay.FormatPlain(result.GrandTotalRefunded)}\n\nWould you like to preview/print the refund credit note?",
+                    "Refund Complete",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Information);
+
+                if (printPrompt == DialogResult.Yes)
+                {
+                    var creditNoteText = ReceiptFormatter.FormatRefundCreditNote(result, _orderNumber);
+                    using var previewForm = new ReceiptPreviewForm(creditNoteText);
+                    previewForm.ShowDialog(this);
+                }
             }
 
             DialogResult = DialogResult.OK;
@@ -362,7 +531,14 @@ public sealed partial class RefundOrderDialog : XtraForm
         catch (Exception ex)
         {
             _logger?.LogError(ex, "Failed to process refund for order {OrderId}", _orderId);
-            XtraMessageBox.Show(this, $"Refund processing failed: {ex.Message}", "Refund Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (!suppressInteractivePrompts)
+            {
+                XtraMessageBox.Show(this, $"Refund processing failed: {ex.Message}", "Refund Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            else
+            {
+                throw;
+            }
         }
         finally
         {

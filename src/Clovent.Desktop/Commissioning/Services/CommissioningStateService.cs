@@ -105,17 +105,40 @@ public sealed class CommissioningSummary
 /// </summary>
 public sealed class CommissioningMarker
 {
+    /// <summary>Gets or sets the UTC timestamp when system commissioning completed.</summary>
     public DateTimeOffset CommissionedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>Gets or sets the product version at the time of commissioning.</summary>
     public string ProductVersion { get; set; } = "1.0.1";
+
+    /// <summary>Gets or sets the machine fingerprint identifier of the commissioned workstation.</summary>
     public string MachineId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the configured SQL Server instance name.</summary>
     public string DatabaseServer { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the configured SQL Server database name.</summary>
     public string DatabaseName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provisioned organization name.</summary>
     public string OrganizationName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provisioned company name.</summary>
     public string CompanyName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provisioned branch name.</summary>
     public string BranchName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provisioned terminal name.</summary>
     public string TerminalName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the provisioned initial administrator username.</summary>
     public string AdminUserName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets a value indicating whether commissioning completed in evaluation mode.</summary>
     public bool IsEvaluation { get; set; }
+
+    /// <summary>Gets or sets the HMAC tamper-detection signature of the marker payload.</summary>
     public string IntegritySignature { get; set; } = string.Empty;
 }
 
@@ -175,6 +198,9 @@ public sealed class CommissioningStateService(
     private static string? _customMarkerFilePath;
     private static string? _customFallbackMarkerFilePath;
 
+    /// <summary>
+    /// Overrides the marker file paths for isolated automated test execution.
+    /// </summary>
     public static void SetTestingOverrides(string? markerFilePath = null, string? fallbackMarkerFilePath = null)
     {
         lock (SyncLock)
@@ -184,6 +210,9 @@ public sealed class CommissioningStateService(
         }
     }
 
+    /// <summary>
+    /// Resets any custom marker file path overrides back to production defaults.
+    /// </summary>
     public static void ResetTestingOverrides()
     {
         lock (SyncLock)

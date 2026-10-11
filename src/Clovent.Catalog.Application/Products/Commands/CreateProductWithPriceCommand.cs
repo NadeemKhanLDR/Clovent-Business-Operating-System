@@ -39,7 +39,9 @@ public sealed record CreateProductWithPriceCommand(
 public sealed class CreateProductWithPriceCommandHandler(
     IProductRepository productRepository,
     IProductVariantRepository variantRepository,
-    IProductPriceRepository priceRepository) : IRequestHandler<CreateProductWithPriceCommand, ProductDto>
+    IProductPriceRepository priceRepository,
+    IProductCategoryRepository? categoryRepository = null,
+    Clovent.Catalog.TaxProfiles.ITaxProfileRepository? taxProfileRepository = null) : IRequestHandler<CreateProductWithPriceCommand, ProductDto>
 {
     /// <inheritdoc/>
     public async Task<ProductDto> Handle(CreateProductWithPriceCommand request, CancellationToken cancellationToken)
@@ -48,10 +50,25 @@ public sealed class CreateProductWithPriceCommandHandler(
         var sku = await GenerateUniqueSkuAsync(name.Value, cancellationToken);
         var categoryId = request.CategoryId is { } rawCategoryId ? new ProductCategoryId(rawCategoryId) : (ProductCategoryId?)null;
 
+        TaxConfiguration? initialTaxConfig = null;
+        if (categoryId is { } catId && categoryRepository is not null && taxProfileRepository is not null)
+        {
+            var category = await categoryRepository.GetByIdAsync(catId, cancellationToken);
+            if (category?.DefaultTaxProfileId is { } defaultTaxProfileId)
+            {
+                var profile = await taxProfileRepository.GetByIdAsync(defaultTaxProfileId, cancellationToken);
+                if (profile is { IsActive: true })
+                {
+                    initialTaxConfig = TaxConfiguration.FromProfile(profile);
+                }
+            }
+        }
+
         var product = Product.Create(
             name,
             sku,
             new UnitOfMeasureId(request.BaseUnitOfMeasureId),
+            taxConfiguration: initialTaxConfig,
             categoryId: categoryId,
             itemType: request.ItemType);
         await productRepository.AddAsync(product, cancellationToken);

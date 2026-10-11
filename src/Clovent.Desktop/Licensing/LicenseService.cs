@@ -13,10 +13,13 @@ public static class LicenseService
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     private static LicenseValidationResult? _cachedResult;
 
+    /// <summary>The canonical product name expected in valid CBOS license payloads.</summary>
     public const string ExpectedProductName = "Clovent Business Operating System";
 
+    /// <summary>Gets the cached license validation result, evaluating the current license if not yet cached.</summary>
     public static LicenseValidationResult CurrentResult => _cachedResult ??= ValidateCurrentLicense();
 
+    /// <summary>Forces a re-evaluation of the installed license or trial state and updates the cached result.</summary>
     public static LicenseValidationResult Refresh()
     {
         _cachedResult = ValidateCurrentLicense();

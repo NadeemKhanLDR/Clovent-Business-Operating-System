@@ -26,15 +26,34 @@ public sealed class TaxProfileEditDialog : MasterDataEditFormBase
     private readonly TextEdit _notesEdit = new();
     private readonly bool _isNew;
 
+    /// <summary>Gets the normalized uppercase statutory tax profile code.</summary>
     public string ProfileCode => _codeEdit.Text.Trim().ToUpperInvariant();
+
+    /// <summary>Gets the tax profile display name shown on customer invoices.</summary>
     public string InvoiceDisplayName => _displayNameEdit.Text.Trim();
+
+    /// <summary>Gets the statutory revenue authority code (e.g., PRA, SRB, FBR).</summary>
     public string Authority => _authorityCombo.Text.Trim().ToUpperInvariant();
+
+    /// <summary>Gets the provincial or federal tax jurisdiction.</summary>
     public string Jurisdiction => _jurisdictionCombo.Text.Trim();
+
+    /// <summary>Gets the selected statutory taxability classification.</summary>
     public TaxClassification TaxClassification => Enum.Parse<TaxClassification>(_taxClassificationCombo.Text);
+
+    /// <summary>Gets the selected item classification (Goods or Services).</summary>
     public ItemTaxClassification ItemClassification => Enum.Parse<ItemTaxClassification>(_itemClassificationCombo.Text);
+
+    /// <summary>Gets the statutory tax rate percentage.</summary>
     public decimal RatePercentage => _rateEdit.Value;
+
+    /// <summary>Gets the tax pricing mode (Exclusive or Inclusive).</summary>
     public TaxPricingMode PricingMode => Enum.Parse<TaxPricingMode>(_pricingModeCombo.Text);
+
+    /// <summary>Gets the optional statutory gazette or SRO reference document identifier.</summary>
     public string? ReferenceDocument => string.IsNullOrWhiteSpace(_refDocEdit.Text) ? null : _refDocEdit.Text.Trim();
+
+    /// <summary>Gets the optional internal audit notes for the tax profile.</summary>
     public string? Notes => string.IsNullOrWhiteSpace(_notesEdit.Text) ? null : _notesEdit.Text.Trim();
 
     /// <summary>Designer-only constructor.</summary>
@@ -43,6 +62,9 @@ public sealed class TaxProfileEditDialog : MasterDataEditFormBase
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="TaxProfileEditDialog"/> class for creating or editing a tax profile.
+    /// </summary>
     public TaxProfileEditDialog(
         bool isNew,
         string? code = null,
@@ -120,6 +142,7 @@ public sealed class TaxProfileEditDialog : MasterDataEditFormBase
         AddField("Audit Notes:", _notesEdit);
     }
 
+    /// <inheritdoc/>
     protected override bool ValidateFields(out string error)
     {
         if (string.IsNullOrWhiteSpace(_codeEdit.Text))

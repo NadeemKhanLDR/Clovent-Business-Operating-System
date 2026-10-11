@@ -10,6 +10,9 @@ public sealed class GridSpacer : Control
 {
     private const int LogicalHeight = 10;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GridSpacer"/> control.
+    /// </summary>
     public GridSpacer()
     {
         Dock = DockStyle.Top;
@@ -17,6 +20,7 @@ public sealed class GridSpacer : Control
         TabStop = false;
     }
 
+    /// <inheritdoc/>
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);

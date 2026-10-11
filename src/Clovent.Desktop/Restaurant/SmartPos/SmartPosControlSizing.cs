@@ -13,8 +13,11 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// </summary>
 public static class SmartPosControlSizing
 {
+    /// <summary>Standard base editor height at 96 DPI.</summary>
     public const int StandardEditorHeight = 34;
+    /// <summary>Standard action button height at 96 DPI.</summary>
     public const int StandardButtonHeight = 34;
+    /// <summary>Large primary action button height at 96 DPI.</summary>
     public const int LargeButtonHeight = 38;
 
     /// <summary>

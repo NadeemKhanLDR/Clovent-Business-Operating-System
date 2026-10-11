@@ -16,7 +16,9 @@ public sealed record ShiftDayCloseItemDto(
     decimal ExpectedCash,
     decimal CountedCash,
     decimal CashVariance,
-    string? VarianceReason);
+    string? VarianceReason,
+    decimal CashRefunds = 0m,
+    decimal CustomerAccountCreditRefunds = 0m);
 
 /// <summary>
 /// Comprehensive summary of a business day for manager review prior to or after closing.
@@ -41,4 +43,7 @@ public sealed record BusinessDaySummaryDto(
     decimal CashOut,
     decimal TotalShiftVariance,
     bool CanClose,
-    string? BlockingReason = null);
+    string? BlockingReason = null,
+    decimal CashRefunds = 0m,
+    decimal CustomerAccountCreditRefunds = 0m,
+    decimal OtherRefunds = 0m);

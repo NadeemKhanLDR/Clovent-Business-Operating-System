@@ -778,10 +778,19 @@ CloseButton Bounds: {_closeButton.Bounds}
     /// <summary>Tabular row model for line items in the Selected Order Details grid.</summary>
     public sealed class PreviewItemRow
     {
+        /// <summary>Product display name.</summary>
         public string Item { get; set; } = "";
+
+        /// <summary>Portion or variant display name.</summary>
         public string Variant { get; set; } = "";
+
+        /// <summary>Ordered quantity.</summary>
         public int Qty { get; set; }
+
+        /// <summary>Formatted unit price.</summary>
         public string Price { get; set; } = "";
+
+        /// <summary>Formatted line total amount.</summary>
         public string Amount { get; set; } = "";
     }
 }

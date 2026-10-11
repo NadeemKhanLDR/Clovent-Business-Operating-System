@@ -6,8 +6,10 @@ using Clovent.Restaurant.SmartCombos;
 using Microsoft.EntityFrameworkCore;
 namespace Clovent.Restaurant.Infrastructure.Repositories;
 
+/// <summary>EF Core implementation of <see cref="ISmartComboStore"/>.</summary>
 public sealed class SmartComboStore(RestaurantDbContext db) : ISmartComboStore
 {
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<ComboBasket>> ReadBasketsAsync(Guid warehouseId, DateTimeOffset from, DateTimeOffset to, int maximumOrders, CancellationToken ct, bool includeDevelopmentSamples = false)
     {
         var ordersQuery = db.Orders.AsNoTracking().Where(o => o.WarehouseId == new WarehouseId(warehouseId) &&
@@ -24,8 +26,12 @@ public sealed class SmartComboStore(RestaurantDbContext db) : ISmartComboStore
         return orders.Select(o => new ComboBasket(o.Id.Value, byOrder[o.Id].Where(l => o.OrderLineIds.Contains(l.Id))
             .Select(l => l.ProductVariantId.Value).Distinct().ToArray())).Where(x => x.Variants.Count > 0).ToList();
     }
+
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<ComboDecision>> DecisionsAsync(Guid warehouseId, CancellationToken ct) =>
         await db.Set<ComboDecision>().AsNoTracking().Where(x => x.WarehouseId == warehouseId).ToListAsync(ct);
+
+    /// <inheritdoc/>
     public async Task<ComboDecision> DecisionAsync(Guid warehouseId, string signature, CancellationToken ct)
     {
         var decision = await db.Set<ComboDecision>().FindAsync([warehouseId, signature], ct);

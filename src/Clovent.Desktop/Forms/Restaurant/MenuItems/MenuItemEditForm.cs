@@ -3,18 +3,36 @@ using Clovent.Desktop.MasterData;
 
 namespace Clovent.Desktop.Forms.Restaurant.MenuItems;
 
+/// <summary>
+/// Editable grid row model representing a menu item portion/variant and its pricing/barcodes.
+/// </summary>
 public sealed class MenuItemVariantEditRow
 {
+    /// <summary>Gets or sets the underlying catalog product variant identifier.</summary>
     public Guid ProductVariantId { get; set; }
+
+    /// <summary>Gets or sets the composite variant name (portion name and optional POS button label separated by '|').</summary>
     public string Name { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the selling price for this variant.</summary>
     public decimal Price { get; set; }
+
+    /// <summary>Gets or sets the primary barcode for this variant.</summary>
     public string? Barcode1 { get; set; }
+
+    /// <summary>Gets or sets the secondary barcode for this variant.</summary>
     public string? Barcode2 { get; set; }
+
+    /// <summary>Gets or sets the tertiary barcode for this variant.</summary>
     public string? Barcode3 { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether this variant row was newly added in the editor.</summary>
     public bool IsNew { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether this variant is active and available for sale.</summary>
     public bool IsActive { get; set; } = true;
 
-    // Helper properties for UI binding
+    /// <summary>Gets or sets the portion name segment before the '|' separator.</summary>
     public string PortionName
     {
         get
@@ -28,6 +46,7 @@ public sealed class MenuItemVariantEditRow
         }
     }
 
+    /// <summary>Gets or sets the POS button label segment after the '|' separator.</summary>
     public string PosLabel
     {
         get

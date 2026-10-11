@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Clovent.Restaurant.Infrastructure.Tests;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class OperationalCacheStoreTests : IDisposable
 {
     private readonly string _tempDir;

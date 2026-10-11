@@ -91,7 +91,9 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
     IOptions<DesktopOptions> options,
     IBusinessDateProvider? businessDateProvider = null) : IStartupTask
 {
+    /// <summary>Deterministic acceptance run identifier for seeded reporting datasets.</summary>
     public const string AcceptanceRunId = "RUN-20261001-DEV-ACCEPTANCE";
+    /// <summary>Tag prefix applied to seeded records for clean identification.</summary>
     public const string CleanSeedTag = $"[{AcceptanceRunId}]";
     private const string CheckOrderNumber = "ORD-RPT-S2-001";
 

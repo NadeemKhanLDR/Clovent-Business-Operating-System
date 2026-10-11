@@ -11,12 +11,25 @@ namespace Clovent.Desktop.Licensing;
 /// </summary>
 public enum TrialStateStatus
 {
+    /// <summary>Evaluation mode has not yet been initialized on this workstation.</summary>
     NotStarted,
+
+    /// <summary>Evaluation mode is currently active and within the permitted trial window.</summary>
     Active,
+
+    /// <summary>The evaluation period has elapsed.</summary>
     Expired,
+
+    /// <summary>System clock rollback was detected against the last verified timestamp.</summary>
     ClockRollback,
+
+    /// <summary>The persisted trial state belongs to a different machine fingerprint.</summary>
     MachineMismatch,
+
+    /// <summary>A commercial license has been installed, permanently superseding evaluation mode.</summary>
     CommercialSuperseded,
+
+    /// <summary>The persisted trial state or its cryptographic signature is corrupted or tampered with.</summary>
     Corrupted
 }
 
@@ -36,11 +49,22 @@ public sealed record TrialEvaluationResult(
 /// </summary>
 public sealed class TrialState
 {
+    /// <summary>Gets or sets the workstation hardware fingerprint bound to this trial state.</summary>
     public string MachineId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the UTC timestamp when the evaluation period originally started.</summary>
     public DateTimeOffset TrialStartedUtc { get; set; }
+
+    /// <summary>Gets or sets the total permitted evaluation duration in days.</summary>
     public int DurationDays { get; set; } = 30;
+
+    /// <summary>Gets or sets the most recent UTC timestamp at which the trial state was verified.</summary>
     public DateTimeOffset LastVerifiedUtc { get; set; }
+
+    /// <summary>Gets or sets a value indicating whether a commercial license has ever been installed on this workstation.</summary>
     public bool HasCommercialLicenseEverBeenInstalled { get; set; }
+
+    /// <summary>Gets or sets the HMAC-SHA256 integrity signature protecting the trial state record.</summary>
     public string HmacSignature { get; set; } = string.Empty;
 }
 
@@ -60,6 +84,7 @@ public static class TrialStateManager
     private static readonly byte[] Entropy = "Clovent-Trial-Entropy-2026"u8.ToArray();
     private static readonly object SyncLock = new();
 
+    /// <summary>The default evaluation duration in calendar days.</summary>
     public const int DefaultTrialDurationDays = 30;
 
     private static Func<DateTimeOffset>? _timeProvider;
@@ -67,7 +92,10 @@ public static class TrialStateManager
     private static string? _customMachineId;
     private static Func<CommissioningMarker?>? _markerProvider;
 
+    /// <summary>Gets the current UTC timestamp (using the testing time provider when configured).</summary>
     public static DateTimeOffset UtcNow => _timeProvider != null ? _timeProvider() : DateTimeOffset.UtcNow;
+
+    /// <summary>Gets the current workstation hardware fingerprint (using the testing override when configured).</summary>
     public static string CurrentMachineId => _customMachineId ?? MachineFingerprint.GetCurrentMachineId();
 
     internal static void SetTestingOverrides(

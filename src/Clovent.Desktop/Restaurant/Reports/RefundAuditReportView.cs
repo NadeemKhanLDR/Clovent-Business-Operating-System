@@ -268,7 +268,7 @@ public sealed partial class RefundAuditReportView : XtraUserControl
             _kpiTaxReversed.Text = $"Tax Reversed: {CurrencyDisplay.FormatPlain(report.TotalTaxReversed)}";
             _kpiNetRefunded.Text = $"Total Refunded: {CurrencyDisplay.FormatPlain(report.TotalNetRefunded)}";
             _kpiCashPayouts.Text = $"Cash Payouts: {CurrencyDisplay.FormatPlain(report.CashPayoutsTotal)}";
-            _kpiCardRefunds.Text = $"Card Refunds: {CurrencyDisplay.FormatPlain(report.CardRefundsTotal)}";
+            _kpiCardRefunds.Text = $"Acct Credits: {CurrencyDisplay.FormatPlain(report.CustomerCreditTotal)} | Card: {CurrencyDisplay.FormatPlain(report.CardRefundsTotal)}";
 
             _gridControl.DataSource = report.Refunds;
         }

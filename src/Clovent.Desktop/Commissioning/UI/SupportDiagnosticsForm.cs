@@ -17,6 +17,9 @@ namespace Clovent.Desktop.Commissioning.UI;
 /// </summary>
 public partial class SupportDiagnosticsForm : XtraForm
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SupportDiagnosticsForm"/> class.
+    /// </summary>
     public SupportDiagnosticsForm()
     {
         InitializeComponent();

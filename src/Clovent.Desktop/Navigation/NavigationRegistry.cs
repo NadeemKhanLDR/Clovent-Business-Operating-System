@@ -440,7 +440,7 @@ public static class NavigationRegistry
             RibbonPage: NavigationPage.ManagerPanel,
             RibbonGroup: "Operations / Controls",
             IconUri: "svgimages/dashboards/chart.svg",
-            Permission: "menu.audit.analytics",
+            Permission: "menu.auditanalytics",
             Order: 670,
             IsPrimaryAction: true,
             Description: "Cashier behavior anomaly detection, risk scoring, and predictive inventory burn rates"),

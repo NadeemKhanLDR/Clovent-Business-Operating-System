@@ -142,11 +142,22 @@ public sealed class InitialMasterDataProvisioningResult
 /// </summary>
 public sealed class TerminalHardwareMapping
 {
+    /// <summary>Gets or sets the unique identifier of the provisioned terminal.</summary>
     public Guid TerminalId { get; set; }
+
+    /// <summary>Gets or sets the display name of the terminal.</summary>
     public string TerminalName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the short code assigned to the terminal.</summary>
     public string TerminalCode { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the branch identifier to which the terminal belongs.</summary>
     public Guid BranchId { get; set; }
+
+    /// <summary>Gets or sets the workstation hardware fingerprint bound to this terminal.</summary>
     public string HardwareId { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the UTC timestamp when the terminal hardware binding was recorded.</summary>
     public DateTimeOffset AssociatedAtUtc { get; set; }
 }
 

@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Refunds;
+using Clovent.Restaurant.Shifts;
 
 namespace Clovent.Restaurant.Application.Tests.TestSupport;
 
@@ -20,6 +21,9 @@ public sealed class FakeRefundRepository : IRefundRepository
 
     public Task<IReadOnlyList<Refund>> GetByOrderIdAsync(OrderId orderId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Refund>>(_refunds.Where(r => r.OrderId == orderId).ToList());
+
+    public Task<IReadOnlyList<Refund>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Refund>>(_refunds.Where(r => r.ShiftId == shiftId).ToList());
 
     public Task<IReadOnlyList<Refund>> GetByDateRangeAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Refund>>(

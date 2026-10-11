@@ -97,7 +97,14 @@ public sealed class CompleteOrderCommandHandler(
         {
             if (lineSnapMap.TryGetValue(line.Id.Value, out var snap))
             {
-                line.SetTaxSnapshot(snap.TaxableBase, snap.TaxAmount, snap.AllocatedOrderDiscountAmount, snap.CalculationPolicyVersion);
+                line.SetTaxSnapshot(
+                    snap.TaxClassification,
+                    snap.Authority,
+                    snap.TaxCode,
+                    snap.TaxableBase,
+                    snap.AllocatedOrderDiscountAmount,
+                    snap.TaxAmount,
+                    snap.CalculationPolicyVersion);
             }
         }
 

@@ -344,6 +344,9 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
     }
 
+    /// <summary>
+    /// Refreshes the status bar attendance indicator and Punch In/Out button caption for the currently signed-in user.
+    /// </summary>
     public async Task RefreshAttendanceStatusAsync()
     {
         if (_currentSession.UserId is not { } userId)
@@ -793,18 +796,21 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
     }
 
+    /// <inheritdoc/>
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
         _logger?.LogInformation("MAINFORM_HANDLE_CREATED: Thread={ThreadId}, Handle={Handle}", Environment.CurrentManagedThreadId, Handle);
     }
 
+    /// <inheritdoc/>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         base.OnFormClosing(e);
         _logger?.LogInformation("MAINFORM_CLOSING: Thread={ThreadId}, Reason={Reason}", Environment.CurrentManagedThreadId, e.CloseReason);
     }
 
+    /// <inheritdoc/>
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);

@@ -95,66 +95,11 @@ public sealed class FirstAdminProvisioningService(ILogger<FirstAdminProvisioning
         "SuperAdmin"
     };
 
-    private static readonly string[] MenuKeys =
-    [
-        "dashboard", "users", "roles", "organizations", "companies", "branches", "departments",
-        "warehouses", "terminals", "fiscalyears", "currencies", "businesssettings",
-        "categories", "brands", "units", "products", "variants", "barcodes", "prices",
-        "warehousestocks", "stockadjustments", "stocktransfers", "inventorytransactions",
-        "diningareas", "tables", "pos", "runningorders", "holdorders", "kitchentickets",
-        "orderhistory", "endofday", "menuitems", "restaurantsetup", "paymentmethods",
-        "activitylog", "appearance", "customers", "customerreceivables", "shifts",
-        "attendance", "recommendationrules", "smartcombos", "quickordertemplates",
-        "upsellperformance", "printers"
-    ];
+    private static readonly IReadOnlyList<string> MenuKeys =
+        Clovent.Identity.Application.Authorization.SystemPermissionCatalog.MenuKeys;
 
-    private static readonly (string Feature, string[] Operations)[] FeatureOperations =
-    [
-        ("users", ["create", "edit", "activate", "deactivate", "resetpassword", "setpin", "unlock", "assignrole", "assigncompany", "assignbranch"]),
-        ("roles", ["create", "edit", "assignpermission"]),
-        ("organizations", ["create", "edit", "activate", "deactivate"]),
-        ("companies", ["create", "edit", "activate", "deactivate"]),
-        ("branches", ["create", "edit", "activate", "deactivate"]),
-        ("departments", ["create", "edit", "activate", "deactivate"]),
-        ("warehouses", ["create", "edit", "activate", "deactivate"]),
-        ("terminals", ["create", "edit", "activate", "deactivate"]),
-        ("printers", ["manage", "test", "view"]),
-        ("fiscalyears", ["create", "edit", "deactivate"]),
-        ("currencies", ["create", "activate", "deactivate"]),
-        ("businesssettings", ["edit"]),
-        ("categories", ["create", "edit", "activate", "deactivate"]),
-        ("brands", ["create", "edit", "activate", "deactivate"]),
-        ("units", ["create", "edit", "activate", "deactivate"]),
-        ("products", ["create", "edit", "activate", "deactivate"]),
-        ("variants", ["create", "edit", "activate", "deactivate"]),
-        ("barcodes", ["create", "activate", "deactivate", "markprimary"]),
-        ("prices", ["create", "edit", "activate", "deactivate"]),
-        ("warehousestocks", ["create", "edit", "receive", "issue", "reserve", "release"]),
-        ("stockadjustments", ["create", "apply", "cancel"]),
-        ("stocktransfers", ["create", "complete", "cancel"]),
-        ("inventorytransactions", ["view"]),
-        ("diningareas", ["create", "edit", "activate", "deactivate"]),
-        ("tables", ["create", "edit", "activate", "deactivate", "occupy", "vacate", "reserve", "outofservice", "returntoservice"]),
-        ("pos", ["create", "hold", "resume", "void", "cancel", "reopen", "sendtokitchen", "complete", "pay",
-            "transfertable", "mergetables", "splitbill", "notes", "discount", "servicecharge", "additem", "editline",
-            "priceoverride", "creditsale", "exceedcreditlimit",
-            "smartinsights", "quickorders", "restaurantpulse", "rushmode", "printlastreceipt"]),
-        ("kitchentickets", ["start", "markready", "serve", "cancel"]),
-        ("endofday", ["view", "close"]),
-        ("menuitems", ["create", "edit", "activate", "deactivate", "createcategory"]),
-        ("restaurantsetup", ["edit"]),
-        ("paymentmethods", ["create", "edit", "activate", "deactivate"]),
-        ("activitylog", ["view"]),
-        ("appearance", ["create", "edit", "delete"]),
-        ("customers", ["create", "edit", "activate", "deactivate", "viewledger", "payment"]),
-        ("customerreceivables", ["view", "export"]),
-        ("shifts", ["open", "close", "cashmovement", "history", "viewdetails", "overridevariance"]),
-        ("attendance", ["punchself", "viewself", "manage"]),
-        ("recommendationrules", ["create", "edit", "deactivate"]),
-        ("upsellperformance", ["view"]),
-        ("smartcombos", ["analyze", "create", "dismiss"]),
-        ("quickordertemplates", ["create", "edit", "deactivate"])
-    ];
+    private static readonly IReadOnlyList<(string Feature, string[] Operations)> FeatureOperations =
+        Clovent.Identity.Application.Authorization.SystemPermissionCatalog.FeatureOperations;
 
     /// <inheritdoc/>
     public async Task<bool> CanProvisionFirstAdminAsync(IdentityDbContext identityDbContext, CancellationToken ct = default)
@@ -320,6 +265,29 @@ public sealed class FirstAdminProvisioningService(ILogger<FirstAdminProvisioning
         if (isNewRole)
         {
             await identityDbContext.Roles.AddAsync(role, ct).ConfigureAwait(false);
+        }
+
+        // 6b. Ensure Manager Role & Operational Manager Permissions
+        var managerRoleName = RoleName.Create("Manager");
+        var managerRole = await identityDbContext.Roles.FirstOrDefaultAsync(r => r.Name == managerRoleName, ct).ConfigureAwait(false);
+        bool isNewManagerRole = false;
+        if (managerRole == null)
+        {
+            managerRole = Role.Create(managerRoleName);
+            isNewManagerRole = true;
+        }
+
+        foreach (var managerCode in Clovent.Identity.Application.Authorization.SystemPermissionCatalog.GetManagerPermissionCodes())
+        {
+            if (existingByCode.TryGetValue(managerCode, out var perm) && !managerRole.PermissionIds.Contains(perm.Id))
+            {
+                managerRole.AddPermission(perm.Id);
+            }
+        }
+
+        if (isNewManagerRole)
+        {
+            await identityDbContext.Roles.AddAsync(managerRole, ct).ConfigureAwait(false);
         }
 
         // 7. Create User aggregate in IdentityDbContext

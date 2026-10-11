@@ -246,4 +246,8 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>Manager authorization required for refund action.</summary>
     public static RestaurantDomainException ManagerAuthorizationRequired(string action) =>
         new($"Action '{action}' requires trusted manager authorization.");
+
+    /// <summary>Cash refund payout cannot be attributed to a closed shift.</summary>
+    public static RestaurantDomainException CashRefundRequiresOpenShift(Shifts.ShiftId shiftId) =>
+        new($"Cash refund payout cannot be attributed to closed shift '{shiftId}'. An open disbursing shift is required.");
 }

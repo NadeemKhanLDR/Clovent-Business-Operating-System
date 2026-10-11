@@ -69,7 +69,10 @@ public sealed record CachedTable(
     string Status,
     string? OccupancyStatus = null)
 {
+    /// <summary>Table code alias for <see cref="TableNumber"/>.</summary>
     public string Code => TableNumber;
+
+    /// <summary>Effective occupancy status resolved from <see cref="OccupancyStatus"/> or <see cref="Status"/>.</summary>
     public string EffectiveOccupancyStatus => OccupancyStatus ?? Status;
 }
 
@@ -110,6 +113,9 @@ public sealed record CachedCustomer(
     decimal OutstandingBalance = 0m,
     bool IsCreditAllowed = false)
 {
+    /// <summary>Customer code alias for <see cref="AccountNumber"/>.</summary>
     public string? Code => AccountNumber;
+
+    /// <summary>Mobile phone alias for <see cref="PhoneNumber"/>.</summary>
     public string? MobileNumber => PhoneNumber;
 }

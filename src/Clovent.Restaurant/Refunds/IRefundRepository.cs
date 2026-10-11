@@ -1,4 +1,5 @@
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Shifts;
 
 namespace Clovent.Restaurant.Refunds;
 
@@ -13,6 +14,9 @@ public interface IRefundRepository
 
     /// <summary>Retrieves all refunds posted against an original order.</summary>
     Task<IReadOnlyList<Refund>> GetByOrderIdAsync(OrderId orderId, CancellationToken cancellationToken = default);
+
+    /// <summary>Retrieves all refunds attributed to a specific disbursing shift session.</summary>
+    Task<IReadOnlyList<Refund>> GetByShiftIdAsync(ShiftId shiftId, CancellationToken cancellationToken = default);
 
     /// <summary>Retrieves all refunds within a date range.</summary>
     Task<IReadOnlyList<Refund>> GetByDateRangeAsync(DateTimeOffset fromUtc, DateTimeOffset toUtc, CancellationToken cancellationToken = default);

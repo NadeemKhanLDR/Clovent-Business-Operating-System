@@ -630,6 +630,16 @@ public sealed partial class EndOfDayReportView : XtraUserControl
         {
             sb.AppendLine($"On Account:          {CurrencyDisplay.Format(expanded.Kpis.OnAccountCreated)}");
         }
+        if (expanded != null && expanded.Kpis.TotalRefunds > 0)
+        {
+            sb.AppendLine($"Refunds (Total):     -{CurrencyDisplay.Format(expanded.Kpis.TotalRefunds)}");
+            sb.AppendLine($"  Cash Payouts (-):  -{CurrencyDisplay.Format(expanded.Kpis.CashRefunds)}");
+            sb.AppendLine($"  Account Credits:   -{CurrencyDisplay.Format(expanded.Kpis.CustomerAccountCreditRefunds)}");
+            if (expanded.Kpis.OtherRefunds > 0)
+            {
+                sb.AppendLine($"  Card/Other Refund: -{CurrencyDisplay.Format(expanded.Kpis.OtherRefunds)}");
+            }
+        }
         sb.AppendLine($"Voided Orders:       {expanded?.Kpis.VoidedOrdersCount ?? report.VoidedOrderCount}");
         sb.AppendLine($"Average Sale / Bill: {CurrencyDisplay.Format(expanded?.Kpis.AverageOrderValue ?? report.AverageSale)}");
         sb.AppendLine(new string('-', 40));
@@ -640,7 +650,10 @@ public sealed partial class EndOfDayReportView : XtraUserControl
             {
                 var countedStr = d.CountedCash.HasValue ? CurrencyDisplay.Format(d.CountedCash.Value) : "N/A";
                 var varianceStr = d.Variance.HasValue ? CurrencyDisplay.Format(d.Variance.Value) : "N/A";
-                sb.AppendLine($"  Shift #{d.ShiftNumber} ({d.CashierName}): Expected {CurrencyDisplay.Format(d.ExpectedCash)}, Counted {countedStr}, Variance {varianceStr} [{d.Status}]");
+                var refundInfo = (d.CashRefunds > 0 || d.CustomerAccountCreditRefunds > 0)
+                    ? $", Cash Refunds: -{CurrencyDisplay.Format(d.CashRefunds)}, Credit Refunds: {CurrencyDisplay.Format(d.CustomerAccountCreditRefunds)}"
+                    : string.Empty;
+                sb.AppendLine($"  Shift #{d.ShiftNumber} ({d.CashierName}): Expected {CurrencyDisplay.Format(d.ExpectedCash)}{refundInfo}, Counted {countedStr}, Variance {varianceStr} [{d.Status}]");
             }
         }
         else

@@ -278,4 +278,210 @@ public class ProcessRefundCommandHandlerTests
 
         Assert.Contains("conflicting refund parameters", ex.Message);
     }
+
+    [Fact]
+    public async Task ProcessRefund_CrossShiftWithDifferentApprovingManager_AttributesStrictlyToDisbursingShift()
+    {
+        var shiftRepo = new FakeShiftRepository();
+        var branchId = new BranchId(Guid.NewGuid());
+        var warehouseId = WarehouseId.New();
+        var terminal1Id = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var terminal2Id = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var terminal3Id = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var cashierAId = new Clovent.Identity.Users.UserId(Guid.NewGuid());
+        var cashierBId = new Clovent.Identity.Users.UserId(Guid.NewGuid());
+        var managerMId = new Clovent.Identity.Users.UserId(Guid.NewGuid());
+
+        // Shift 1 (Cashier A on Terminal 1): original sale shift, now closed
+        var shift1 = Clovent.Restaurant.Shifts.Shift.Open(1001, branchId, warehouseId, terminal1Id, cashierAId, "Cashier A", 2000m);
+        shift1.Close(3392m, 3392m, null);
+        await shiftRepo.AddAsync(shift1);
+
+        // Shift 2 (Cashier B on Terminal 2): active disbursing shift
+        var shift2 = Clovent.Restaurant.Shifts.Shift.Open(1002, branchId, warehouseId, terminal2Id, cashierBId, "Cashier B", 3000m);
+        await shiftRepo.AddAsync(shift2);
+
+        // Shift 3 (Manager M on Terminal 3): approving manager's own active shift
+        var shift3 = Clovent.Restaurant.Shifts.Shift.Open(1003, branchId, warehouseId, terminal3Id, managerMId, "Manager M", 4000m);
+        await shiftRepo.AddAsync(shift3);
+
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            shiftRepo);
+
+        var command = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Cross-shift cash payout approved by Manager M",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-CROSS-SHIFT-1",
+            cashierBId.Value,
+            "Cashier B",
+            BranchId: branchId.Value,
+            ApprovingUserId: managerMId.Value,
+            ApprovingUserName: "Manager M");
+
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(shift2.Id.Value, result.ShiftId);
+        Assert.Equal(terminal2Id.Value, result.TerminalId);
+        Assert.NotEqual(shift1.Id.Value, result.ShiftId);
+        Assert.NotEqual(shift3.Id.Value, result.ShiftId);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_CashPayoutAgainstClosedShift_ThrowsCashRefundRequiresOpenShift()
+    {
+        var shiftRepo = new FakeShiftRepository();
+        var branchId = new BranchId(Guid.NewGuid());
+        var warehouseId = WarehouseId.New();
+        var terminalId = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var cashierId = new Clovent.Identity.Users.UserId(Guid.NewGuid());
+
+        var closedShift = Clovent.Restaurant.Shifts.Shift.Open(1001, branchId, warehouseId, terminalId, cashierId, "Cashier A", 2000m);
+        closedShift.Close(2000m, 2000m, null);
+        await shiftRepo.AddAsync(closedShift);
+
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            shiftRepo);
+
+        var command = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Attempt cash refund against closed shift",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-CLOSED-SHIFT",
+            cashierId.Value,
+            "Cashier A",
+            ShiftId: closedShift.Id.Value);
+
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(command, CancellationToken.None));
+
+        Assert.Contains("Cash refund payout", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_BackendAuthorization_EnforcesPosRefundAndActionBoundManagerApproval()
+    {
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+        var cashierId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+
+        var policy = new StubFeatureAuthorizationPolicy(new HashSet<(Guid UserId, string Code)>
+        {
+            (managerId, "pos.refund")
+        });
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            featureAuthorizationPolicy: policy);
+
+        // 1. Cashier without pos.refund and without manager approval -> Denied
+        var unauthorizedCmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Unapproved cashier refund",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-UNAUTH-1",
+            cashierId,
+            "Cashier Bob");
+
+        var authEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(unauthorizedCmd, CancellationToken.None));
+        Assert.Contains("manager authorization", authEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        // 2. Cashier with ApprovingUserId of Manager who holds pos.refund -> Allowed
+        var approvedCmd = unauthorizedCmd with
+        {
+            IdempotencyKey = "IDEMP-AUTH-MGR-1",
+            ApprovingUserId = managerId,
+            ApprovingUserName = "Manager Alice"
+        };
+
+        var result = await handler.Handle(approvedCmd, CancellationToken.None);
+        Assert.Equal(522.00m, result.GrandTotalRefunded);
+        Assert.Equal("Manager Alice", result.ApprovedByUserName);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_ConcurrentOverRefundAttempts_SerializesPerOrderAndRejectsSecondAttempt()
+    {
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+        var handler = CreateHandler();
+        var cashierId = Guid.NewGuid();
+
+        // Line 1 has 2 units eligible. Two concurrent requests each try to refund 2 units with distinct idempotency keys.
+        var cmdA = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 2m)],
+            "Concurrent attempt A",
+            RefundSettlementMethod.CashPayout,
+            "CONCURRENT-KEY-A",
+            cashierId,
+            "Cashier");
+
+        var cmdB = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 2m)],
+            "Concurrent attempt B",
+            RefundSettlementMethod.CashPayout,
+            "CONCURRENT-KEY-B",
+            cashierId,
+            "Cashier");
+
+        var taskA = Task.Run(() => handler.Handle(cmdA, CancellationToken.None));
+        var taskB = Task.Run(() => handler.Handle(cmdB, CancellationToken.None));
+
+        var outcomes = await Task.WhenAll(
+            taskA.ContinueWith(t => (Succeeded: t.IsCompletedSuccessfully, Error: t.Exception?.InnerException)),
+            taskB.ContinueWith(t => (Succeeded: t.IsCompletedSuccessfully, Error: t.Exception?.InnerException)));
+
+        Assert.Equal(1, outcomes.Count(o => o.Succeeded));
+        var failed = Assert.Single(outcomes, o => !o.Succeeded);
+        Assert.IsType<RestaurantDomainException>(failed.Error);
+
+        var allRefunds = await _refundRepo.GetByOrderIdAsync(order.Id);
+        Assert.Single(allRefunds);
+        Assert.Equal(2m, allRefunds.SelectMany(r => r.Lines).Sum(l => l.Quantity));
+    }
+
+    private sealed class StubFeatureAuthorizationPolicy(HashSet<(Guid UserId, string Code)> grants)
+        : Clovent.Identity.Application.Authorization.IFeatureAuthorizationPolicy
+    {
+        public Task<bool> CanAccessMenuAsync(Guid userId, string menuCode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(grants.Contains((userId, menuCode)));
+
+        public Task<bool> CanUseFeatureAsync(Guid userId, string featureCode, CancellationToken cancellationToken = default) =>
+            Task.FromResult(grants.Contains((userId, featureCode)));
+    }
 }

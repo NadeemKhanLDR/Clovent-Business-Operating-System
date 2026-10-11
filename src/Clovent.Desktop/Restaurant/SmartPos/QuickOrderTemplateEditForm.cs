@@ -159,6 +159,7 @@ public sealed class QuickOrderTemplateEditForm : XtraForm
     public static string ComposeTotalText(decimal total) =>
         $"Total: {CurrencyDisplay.FormatPlain(total)}";
 
+    /// <inheritdoc/>
     protected override void OnLoad(EventArgs e)
     {
 #if DEBUG
@@ -1127,12 +1128,19 @@ public sealed class TemplateItemRow
         }
     }
 
+    /// <summary>Gets or sets the product identifier.</summary>
     public Guid ProductId { get; set; }
+    /// <summary>Gets or sets the product name.</summary>
     public string ProductName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the variant identifier.</summary>
     public Guid VariantId { get; set; }
+    /// <summary>Gets or sets the variant name.</summary>
     public string VariantName { get; set; } = string.Empty;
+    /// <summary>Gets or sets the quantity.</summary>
     public decimal Quantity { get; set; }
+    /// <summary>Gets or sets the overridden unit price.</summary>
     public decimal UnitPrice { get; set; }
+    /// <summary>Gets or sets the standard catalog unit price.</summary>
     public decimal CatalogPrice { get; set; }
 
     /// <summary>The row's effective unit price - the override when set, otherwise the variant's current catalog price.</summary>

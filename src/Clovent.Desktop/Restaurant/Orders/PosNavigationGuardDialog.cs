@@ -25,6 +25,7 @@ public sealed class PosNavigationGuardDialog : XtraForm
     private SimpleButton _holdAndOpenButton = null!;
     private SimpleButton _stayInPosButton = null!;
 
+    /// <summary>Initializes a new instance of <see cref="PosNavigationGuardDialog"/>.</summary>
     public PosNavigationGuardDialog()
     {
         InitializeComponent();

@@ -54,7 +54,9 @@ public static class OrderTotalsCalculator
             l.Quantity,
             l.UnitPrice,
             0m,
-            l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
+            !string.IsNullOrWhiteSpace(l.TaxClassification) && (l.TaxRatePercentage == 0m || string.Equals(l.TaxClassification, "Taxable", StringComparison.OrdinalIgnoreCase))
+                ? l.TaxClassification
+                : (l.TaxRatePercentage > 0m ? "Taxable" : "Exempt"),
             string.IsNullOrWhiteSpace(l.TaxAuthority) ? "PRA" : l.TaxAuthority,
             string.IsNullOrWhiteSpace(l.TaxCode) ? $"PK-TAX-{l.TaxRatePercentage:0.##}" : l.TaxCode,
             l.TaxRatePercentage,
@@ -95,7 +97,7 @@ public static class OrderTotalsCalculator
         IReadOnlyCollection<DiscountDto> discounts,
         IReadOnlyCollection<ServiceChargeDto> serviceCharges,
         IReadOnlyCollection<PaymentDto> payments,
-        bool discountAppliesBeforeTax = false) =>
+        bool discountAppliesBeforeTax = true) =>
         Calculate(
             lines,
             discounts,

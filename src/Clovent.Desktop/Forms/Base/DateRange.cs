@@ -8,9 +8,15 @@ namespace Clovent.Desktop.Forms.Base;
 /// </summary>
 public readonly record struct DateRange
 {
+    /// <summary>Gets the inclusive start date of the range.</summary>
     public DateOnly From { get; }
+
+    /// <summary>Gets the inclusive end date of the range.</summary>
     public DateOnly To { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DateRange"/> struct.
+    /// </summary>
     public DateRange(DateOnly from, DateOnly to)
     {
         From = from;
@@ -64,5 +70,6 @@ public readonly record struct DateRange
         to = To;
     }
 
+    /// <inheritdoc/>
     public override string ToString() => $"{From:yyyy-MM-dd} - {To:yyyy-MM-dd}";
 }

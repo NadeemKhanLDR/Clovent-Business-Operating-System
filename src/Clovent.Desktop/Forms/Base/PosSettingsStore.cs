@@ -108,12 +108,14 @@ public static class PosSettingsStore
         }
     }
 
+    /// <summary>Loads the persisted number of menu item tiles per row (clamped between 4 and 8).</summary>
     public static int LoadItemsPerRow()
     {
         var val = LoadData().ItemsPerRow;
         return val >= 4 && val <= 8 ? val : 4;
     }
 
+    /// <summary>Saves the preferred number of menu item tiles per row.</summary>
     public static void SaveItemsPerRow(int itemsPerRow)
     {
         var data = LoadData();
@@ -121,12 +123,14 @@ public static class PosSettingsStore
         SaveData(data);
     }
 
+    /// <summary>Loads the persisted POS item view mode ("Grid" or "List").</summary>
     public static string LoadViewMode()
     {
         var mode = LoadData().ViewMode;
         return string.Equals(mode, "List", StringComparison.OrdinalIgnoreCase) ? "List" : "Grid";
     }
 
+    /// <summary>Saves the preferred POS item view mode ("Grid" or "List").</summary>
     public static void SaveViewMode(string viewMode)
     {
         var data = LoadData();

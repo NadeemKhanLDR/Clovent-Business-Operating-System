@@ -31,10 +31,24 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
         public OperationalCachePayload Payload { get; set; } = null!;
     }
 
+    /// <summary>Initializes a new instance of <see cref="ProtectedOperationalCacheStore"/> using machine-level DPAPI protection.</summary>
+    public ProtectedOperationalCacheStore(ILogger<ProtectedOperationalCacheStore>? logger = null)
+        : this(null, logger)
+    {
+    }
+
+    /// <summary>Initializes a new instance of <see cref="ProtectedOperationalCacheStore"/> with a custom directory and machine-level DPAPI protection.</summary>
+    public ProtectedOperationalCacheStore(
+        string? customDirectory,
+        ILogger<ProtectedOperationalCacheStore>? logger = null)
+        : this(customDirectory, OperatingSystem.IsWindows() ? DataProtectionScope.LocalMachine : default, logger)
+    {
+    }
+
     /// <summary>Initializes a new instance of <see cref="ProtectedOperationalCacheStore"/>.</summary>
     public ProtectedOperationalCacheStore(
-        string? customDirectory = null,
-        DataProtectionScope protectionScope = DataProtectionScope.LocalMachine,
+        string? customDirectory,
+        DataProtectionScope protectionScope,
         ILogger<ProtectedOperationalCacheStore>? logger = null)
     {
         _logger = logger;
@@ -200,6 +214,11 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
 
     private string Encrypt(string plainText)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("DPAPI operational cache protection is only supported on Windows.");
+        }
+
         var bytes = Encoding.UTF8.GetBytes(plainText);
         try
         {
@@ -215,6 +234,11 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
 
     private string Decrypt(string cipherBase64)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("DPAPI operational cache protection is only supported on Windows.");
+        }
+
         try
         {
             var cipherBytes = Convert.FromBase64String(cipherBase64);

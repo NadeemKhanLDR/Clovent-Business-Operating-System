@@ -188,7 +188,39 @@ public sealed partial class OrderHistoryView : XtraUserControl
 
         var cashierId = _currentSession.UserId ?? Guid.Empty;
         var cashierName = _currentSession.DisplayName ?? "Cashier";
-        var branchId = (Guid?)null;
+        Guid? branchId = null;
+        Guid? terminalId = null;
+        Guid? shiftId = null;
+
+        try
+        {
+            var termResService = _scope.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+            if (termResService != null)
+            {
+                var termRes = await termResService.ResolveCurrentTerminalAsync();
+                if (termRes.IsConfigured)
+                {
+                    terminalId = termRes.TerminalId;
+                    branchId = termRes.BranchId;
+                }
+            }
+
+            var activeShift = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(
+                terminalId,
+                cashierId != Guid.Empty ? cashierId : null));
+            if (activeShift != null)
+            {
+                shiftId = activeShift.ShiftId;
+                terminalId ??= activeShift.TerminalId;
+                branchId ??= activeShift.BranchId;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to resolve active terminal/shift context for refund dialog.");
+        }
+
+        var managerAuthService = _scope.ServiceProvider.GetService<Clovent.Desktop.Authorization.IManagerAuthorizationService>();
 
         using var dialog = new RefundOrderDialog(
             _mediator,
@@ -197,7 +229,11 @@ public sealed partial class OrderHistoryView : XtraUserControl
             row.OrderNumber,
             cashierId,
             cashierName,
-            branchId);
+            branchId,
+            shiftId,
+            terminalId,
+            managerAuthService,
+            _currentSession.UserName);
 
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {

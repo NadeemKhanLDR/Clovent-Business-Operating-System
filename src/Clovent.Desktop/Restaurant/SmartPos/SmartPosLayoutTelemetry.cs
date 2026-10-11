@@ -16,6 +16,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 /// </summary>
 public static class SmartPosLayoutTelemetry
 {
+    /// <summary>Directory path where runtime layout telemetry logs are written.</summary>
     public static readonly string TelemetryDir = FindTelemetryDir();
 
     private static bool IsLiveDesktopProcess()
@@ -54,6 +55,7 @@ public static class SmartPosLayoutTelemetry
 
     private static readonly object FileLock = new();
 
+    /// <summary>Ensures that the telemetry output directory exists.</summary>
     public static void EnsureDirectory()
     {
         if (!Directory.Exists(TelemetryDir))
@@ -62,6 +64,7 @@ public static class SmartPosLayoutTelemetry
         }
     }
 
+    /// <summary>Logs application build identity and display environment diagnostics.</summary>
     public static void LogAppBuildIdentity()
     {
         try
@@ -107,6 +110,7 @@ public static class SmartPosLayoutTelemetry
         }
     }
 
+    /// <summary>Logs layout telemetry for a Smart Combo Builder lifecycle event.</summary>
     public static void LogSmartComboEvent(
         Control view,
         string eventName,
@@ -181,6 +185,7 @@ public static class SmartPosLayoutTelemetry
         }
     }
 
+    /// <summary>Logs layout telemetry for a Quick Order editor lifecycle event.</summary>
     public static void LogQuickOrderEvent(
         Form form,
         string eventName,

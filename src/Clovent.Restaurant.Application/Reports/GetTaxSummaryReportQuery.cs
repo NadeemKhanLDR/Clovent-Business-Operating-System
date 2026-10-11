@@ -124,10 +124,15 @@ public sealed class GetTaxSummaryReportQueryHandler(
         foreach (var r in refundsInRange)
         {
             totalTaxRefunded += r.TaxReversedTotal;
+            var origLines = await orderLineRepository.GetByOrderIdAsync(r.OrderId, cancellationToken);
             foreach (var rl in r.Lines)
             {
-                var key = ("PRA", rl.TaxCode, rl.TaxRatePercentage, rl.TaxClassification);
-                var current = taxMap.GetValueOrDefault(key);
+                var origLine = origLines.FirstOrDefault(l => l.Id == rl.OrderLineId);
+                string authority = !string.IsNullOrWhiteSpace(origLine?.TaxAuthority)
+                    ? origLine.TaxAuthority
+                    : ResolveAuthority(taxMap, rl.TaxCode, rl.TaxRatePercentage, rl.TaxClassification);
+                var key = (Authority: authority, Code: rl.TaxCode, Rate: rl.TaxRatePercentage, Classification: rl.TaxClassification);
+                var current = taxMap.TryGetValue(key, out var existing) ? existing : (Base: 0m, Charged: 0m, Refunded: 0m);
                 taxMap[key] = (current.Base, current.Charged, current.Refunded + rl.TaxReversed);
             }
         }
@@ -164,5 +169,35 @@ public sealed class GetTaxSummaryReportQueryHandler(
             netTaxPayable,
             netSales,
             breakdown);
+    }
+
+    private static string ResolveAuthority(
+        Dictionary<(string Authority, string Code, decimal Rate, string Classification), (decimal Base, decimal Charged, decimal Refunded)> taxMap,
+        string taxCode,
+        decimal rate,
+        string classification)
+    {
+        var existingMatch = taxMap.Keys.FirstOrDefault(k =>
+            string.Equals(k.Code, taxCode, StringComparison.OrdinalIgnoreCase) &&
+            k.Rate == rate &&
+            string.Equals(k.Classification, classification, StringComparison.OrdinalIgnoreCase));
+
+        if (!string.IsNullOrWhiteSpace(existingMatch.Authority))
+        {
+            return existingMatch.Authority;
+        }
+
+        if (!string.IsNullOrWhiteSpace(taxCode))
+        {
+            foreach (var known in new[] { "SRB", "KPRA", "BRA", "ICTRA", "FBR", "PRA" })
+            {
+                if (taxCode.Contains(known, StringComparison.OrdinalIgnoreCase))
+                {
+                    return known;
+                }
+            }
+        }
+
+        return "PRA";
     }
 }

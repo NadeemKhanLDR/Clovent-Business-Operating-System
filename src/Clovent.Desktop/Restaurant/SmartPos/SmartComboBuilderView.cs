@@ -26,6 +26,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed class SmartComboBuilderView : XtraUserControl
 {
+    /// <summary>Represents aselectable historical analysis period option.</summary>
     public sealed record PeriodOption(string Display, int Days);
 
     private readonly IServiceScopeFactory _scopes;
@@ -67,6 +68,7 @@ public sealed class SmartComboBuilderView : XtraUserControl
     private ComboAnalysis? _analysis;
     private bool _working;
 
+    /// <summary>Initializes a new instance of the <see cref="SmartComboBuilderView"/> class.</summary>
     public SmartComboBuilderView(IServiceScopeFactory scopes, SmartComboOptions options)
     {
         _scopes = scopes;
@@ -989,6 +991,7 @@ public sealed class SmartComboBuilderView : XtraUserControl
     }
 #endif
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)
@@ -999,19 +1002,31 @@ public sealed class SmartComboBuilderView : XtraUserControl
         base.Dispose(disposing);
     }
 
+    /// <summary>Represents a formatted combo opportunity row in the results grid.</summary>
     public sealed class ComboRow(ComboOpportunity opportunity)
     {
         internal string Signature => opportunity.Signature;
+        /// <summary>Gets the suggested combo name.</summary>
         public string Combo => opportunity.Name;
+        /// <summary>Gets the formatted list of items in the combo.</summary>
         public string Items => string.Join(" + ", opportunity.Items.Select(x => x.DisplayName));
+        /// <summary>Gets the co-occurrence frequency count.</summary>
         public int BoughtTogether => opportunity.Frequency;
+        /// <summary>Gets the formatted support percentage.</summary>
         public string Support => opportunity.Support.ToString("P2");
+        /// <summary>Gets the formatted attach rate percentage.</summary>
         public string AttachRate => opportunity.AttachRate.ToString("P2");
+        /// <summary>Gets the formatted lift ratio.</summary>
         public string Lift => opportunity.Lift.ToString("N2");
+        /// <summary>Gets the formatted combined regular price.</summary>
         public string NormalPrice => CurrencyDisplay.FormatPlain(opportunity.NormalPrice);
+        /// <summary>Gets the formatted suggested combo deal price.</summary>
         public string SuggestedPrice => CurrencyDisplay.FormatPlain(opportunity.SuggestedPrice);
+        /// <summary>Gets the formatted discount rate percentage.</summary>
         public string Discount => opportunity.DiscountRate.ToString("P2");
+        /// <summary>Gets the formatted estimated margin percentage or fallback notice.</summary>
         public string EstimatedMargin => opportunity.Margin?.ToString("P2") ?? "Cost unavailable";
+        /// <summary>Gets the opportunity status label.</summary>
         public string Status => "New";
     }
 }

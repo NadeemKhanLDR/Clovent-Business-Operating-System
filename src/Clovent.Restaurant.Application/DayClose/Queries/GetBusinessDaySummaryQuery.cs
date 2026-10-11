@@ -57,34 +57,45 @@ public sealed class GetBusinessDaySummaryQueryHandler(
         var openShiftsList = branchShifts.Where(s => s.Status == ShiftStatus.Open).ToList();
         var closedShiftsList = branchShifts.Where(s => s.Status == ShiftStatus.Closed).ToList();
 
-        // Map to ShiftDayCloseItemDto
-        var openShiftDtos = openShiftsList.Select(s => new ShiftDayCloseItemDto(
-            s.Id.Value,
-            s.ShiftNumber,
-            s.CashierName,
-            s.TerminalId.Value,
-            s.OpenedAtUtc,
-            s.ClosedAtUtc,
-            s.Status.ToString(),
-            s.StartingCash,
-            s.ExpectedCash,
-            s.CountedCash,
-            s.CashVariance,
-            s.VarianceReason)).ToList();
+        var shiftRefundsByShiftId = new Dictionary<Guid, IReadOnlyList<Refund>>();
+        if (refundRepository != null)
+        {
+            foreach (var s in branchShifts)
+            {
+                shiftRefundsByShiftId[s.Id.Value] = await refundRepository.GetByShiftIdAsync(s.Id, cancellationToken);
+            }
+        }
 
-        var closedShiftDtos = closedShiftsList.Select(s => new ShiftDayCloseItemDto(
-            s.Id.Value,
-            s.ShiftNumber,
-            s.CashierName,
-            s.TerminalId.Value,
-            s.OpenedAtUtc,
-            s.ClosedAtUtc,
-            s.Status.ToString(),
-            s.StartingCash,
-            s.ExpectedCash,
-            s.CountedCash,
-            s.CashVariance,
-            s.VarianceReason)).ToList();
+        ShiftDayCloseItemDto MapShiftItem(Shift s)
+        {
+            var sRefunds = shiftRefundsByShiftId.GetValueOrDefault(s.Id.Value) ?? [];
+            var sCashRefunds = sRefunds
+                .Where(r => r.SettlementMethod == RefundSettlementMethod.CashPayout)
+                .Sum(r => r.GrandTotalRefunded);
+            var sCreditRefunds = sRefunds
+                .Where(r => r.SettlementMethod == RefundSettlementMethod.CustomerAccountCredit)
+                .Sum(r => r.GrandTotalRefunded);
+
+            return new ShiftDayCloseItemDto(
+                s.Id.Value,
+                s.ShiftNumber,
+                s.CashierName,
+                s.TerminalId.Value,
+                s.OpenedAtUtc,
+                s.ClosedAtUtc,
+                s.Status.ToString(),
+                s.StartingCash,
+                s.ExpectedCash,
+                s.CountedCash,
+                s.CashVariance,
+                s.VarianceReason,
+                MoneyRoundingPolicy.RoundMoney(sCashRefunds),
+                MoneyRoundingPolicy.RoundMoney(sCreditRefunds));
+        }
+
+        // Map to ShiftDayCloseItemDto
+        var openShiftDtos = openShiftsList.Select(MapShiftItem).ToList();
+        var closedShiftDtos = closedShiftsList.Select(MapShiftItem).ToList();
 
         // Payment classification
         var allPaymentMethods = await paymentMethodRepository.GetAllAsync(cancellationToken);
@@ -175,11 +186,36 @@ public sealed class GetBusinessDaySummaryQueryHandler(
         }
 
         decimal totalRefunds = 0m;
+        decimal cashRefunds = 0m;
+        decimal customerAccountCreditRefunds = 0m;
+        decimal otherRefunds = 0m;
         if (refundRepository != null)
         {
             var dayRefunds = await refundRepository.GetByDateRangeAsync(startUtc, endUtc, cancellationToken);
-            var branchRefunds = dayRefunds.Where(r => r.BranchId == branchId).ToList();
+            var branchRefundsById = dayRefunds
+                .Where(r => r.BranchId == branchId)
+                .ToDictionary(r => r.Id);
+
+            foreach (var sRefunds in shiftRefundsByShiftId.Values)
+            {
+                foreach (var sr in sRefunds)
+                {
+                    branchRefundsById.TryAdd(sr.Id, sr);
+                }
+            }
+
+            var branchRefunds = branchRefundsById.Values.ToList();
             totalRefunds = branchRefunds.Sum(r => r.GrandTotalRefunded);
+            cashRefunds = branchRefunds
+                .Where(r => r.SettlementMethod == RefundSettlementMethod.CashPayout)
+                .Sum(r => r.GrandTotalRefunded);
+            customerAccountCreditRefunds = branchRefunds
+                .Where(r => r.SettlementMethod == RefundSettlementMethod.CustomerAccountCredit)
+                .Sum(r => r.GrandTotalRefunded);
+            otherRefunds = branchRefunds
+                .Where(r => r.SettlementMethod != RefundSettlementMethod.CashPayout &&
+                            r.SettlementMethod != RefundSettlementMethod.CustomerAccountCredit)
+                .Sum(r => r.GrandTotalRefunded);
         }
 
         bool isAlreadyClosed = existingClose != null;
@@ -215,6 +251,9 @@ public sealed class GetBusinessDaySummaryQueryHandler(
             MoneyRoundingPolicy.RoundMoney(totalCashOut),
             MoneyRoundingPolicy.RoundMoney(totalVariance),
             canClose,
-            blockingReason);
+            blockingReason,
+            MoneyRoundingPolicy.RoundMoney(cashRefunds),
+            MoneyRoundingPolicy.RoundMoney(customerAccountCreditRefunds),
+            MoneyRoundingPolicy.RoundMoney(otherRefunds));
     }
 }

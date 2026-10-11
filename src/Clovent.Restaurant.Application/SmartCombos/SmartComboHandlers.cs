@@ -7,10 +7,16 @@ using Clovent.Restaurant.QuickOrderTemplates;
 using MediatR;
 namespace Clovent.Restaurant.Application.SmartCombos;
 
+/// <summary>Query to analyze completed order baskets and discover Smart Combo opportunities.</summary>
+/// <param name="WarehouseId">Warehouse identifier to analyze.</param>
+/// <param name="PeriodDays">Lookback window in days.</param>
 public sealed record AnalyzeSmartCombosQuery(Guid WarehouseId, int PeriodDays = 30) : IRequest<ComboAnalysis>;
+
+/// <summary>Handles <see cref="AnalyzeSmartCombosQuery"/> requests.</summary>
 public sealed class AnalyzeSmartCombosQueryHandler(SmartComboService service, ISmartComboAccess access,
     IActivityLogEntryRepository audit) : IRequestHandler<AnalyzeSmartCombosQuery, ComboAnalysis>
 {
+    /// <inheritdoc/>
     public async Task<ComboAnalysis> Handle(AnalyzeSmartCombosQuery request, CancellationToken ct)
     {
         var user = await access.RequireAsync("analyze", request.WarehouseId, ct);
@@ -19,9 +25,12 @@ public sealed class AnalyzeSmartCombosQueryHandler(SmartComboService service, IS
         return result;
     }
 }
+
+/// <summary>Application service that coordinates catalog lookup, suppression filtering, and basket mining for Smart Combos.</summary>
 public sealed class SmartComboService(ISmartComboStore store, IQuickOrderTemplateRepository templates,
     IMediator mediator, ISmartComboAccess access, SmartComboOptions options)
 {
+    /// <summary>Executes Smart Combo basket analysis for the specified warehouse and period.</summary>
     public async Task<ComboAnalysis> AnalyzeAsync(Guid warehouseId, int days, CancellationToken ct)
     {
         options.Validate();
@@ -53,11 +62,21 @@ public sealed class SmartComboService(ISmartComboStore store, IQuickOrderTemplat
             decisions.Count(x => x.TemplateId != null), opportunities);
     }
 }
+
+/// <summary>Command to convert a discovered Smart Combo opportunity into an active quick-order template.</summary>
+/// <param name="WarehouseId">Target warehouse identifier.</param>
+/// <param name="PeriodDays">Lookback period in days used to verify the opportunity.</param>
+/// <param name="Signature">Canonical combo signature.</param>
+/// <param name="Name">Name for the created quick-order template.</param>
+/// <param name="Price">Deal price for the combo.</param>
 public sealed record ConvertSmartComboCommand(Guid WarehouseId, int PeriodDays, string Signature, string Name, decimal Price) : IRequest<Guid>;
+
+/// <summary>Handles <see cref="ConvertSmartComboCommand"/> requests.</summary>
 public sealed class ConvertSmartComboCommandHandler(SmartComboService service, ISmartComboAccess access,
     ISmartComboStore store, IQuickOrderTemplateRepository templates, IActivityLogEntryRepository audit,
     SmartComboOptions options) : IRequestHandler<ConvertSmartComboCommand, Guid>
 {
+    /// <inheritdoc/>
     public async Task<Guid> Handle(ConvertSmartComboCommand request, CancellationToken ct)
     {
         var user = await access.RequireAsync("create", request.WarehouseId, ct);
@@ -82,10 +101,19 @@ public sealed class ConvertSmartComboCommandHandler(SmartComboService service, I
         return id;
     }
 }
+
+/// <summary>Command to dismiss a discovered Smart Combo opportunity for the configured suppression window.</summary>
+/// <param name="WarehouseId">Target warehouse identifier.</param>
+/// <param name="PeriodDays">Lookback period in days.</param>
+/// <param name="Signature">Canonical combo signature.</param>
+/// <param name="Reason">Optional dismissal reason.</param>
 public sealed record DismissSmartComboCommand(Guid WarehouseId, int PeriodDays, string Signature, string? Reason) : IRequest;
+
+/// <summary>Handles <see cref="DismissSmartComboCommand"/> requests.</summary>
 public sealed class DismissSmartComboCommandHandler(SmartComboService service, ISmartComboAccess access,
     ISmartComboStore store, IActivityLogEntryRepository audit, SmartComboOptions options) : IRequestHandler<DismissSmartComboCommand>
 {
+    /// <inheritdoc/>
     public async Task Handle(DismissSmartComboCommand request, CancellationToken ct)
     {
         var user = await access.RequireAsync("dismiss", request.WarehouseId, ct);

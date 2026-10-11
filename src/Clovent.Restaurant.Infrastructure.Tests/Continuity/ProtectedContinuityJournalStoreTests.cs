@@ -5,6 +5,7 @@ using Xunit;
 
 namespace Clovent.Restaurant.Infrastructure.Tests.Continuity;
 
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class ProtectedContinuityJournalStoreTests : IDisposable
 {
     private readonly string _tempDir;

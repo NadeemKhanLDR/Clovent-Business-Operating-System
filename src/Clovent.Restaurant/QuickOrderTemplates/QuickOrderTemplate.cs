@@ -16,6 +16,8 @@ public sealed class QuickOrderTemplate : AggregateRoot<QuickOrderTemplateId>
     private readonly List<QuickOrderTemplateItem> _items;
     /// <summary>Optional warehouse scope; null preserves legacy globally available templates.</summary>
     public Guid? WarehouseId { get; private set; }
+
+    /// <summary>Assigns an optional warehouse scope to this quick-order template.</summary>
     public void ScopeToWarehouse(Guid? warehouseId) => WarehouseId = warehouseId;
 
     /// <summary>The template's display name (e.g. "Breakfast Combo").</summary>

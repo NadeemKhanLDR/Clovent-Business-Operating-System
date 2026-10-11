@@ -42,7 +42,9 @@ public sealed record RefundDto(
     string? SettlementReference,
     Guid? CustomerId,
     string? ReceiptSnapshotJson,
-    IReadOnlyList<RefundLineDto> Lines)
+    IReadOnlyList<RefundLineDto> Lines,
+    Guid? ShiftId = null,
+    Guid? TerminalId = null)
 {
     /// <summary>Projects domain Refund to DTO.</summary>
     public static RefundDto FromDomain(Refund refund) => new(
@@ -81,5 +83,7 @@ public sealed record RefundDto(
             l.TaxCode,
             l.TaxRatePercentage,
             l.TaxIsInclusive,
-            l.InventoryDisposition.ToString())).ToList());
+            l.InventoryDisposition.ToString())).ToList(),
+        refund.ShiftId?.Value,
+        refund.TerminalId?.Value);
 }

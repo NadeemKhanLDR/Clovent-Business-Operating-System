@@ -152,4 +152,73 @@ public class TaxSummaryAndRefundReportTests
         Assert.Equal(150.00m, report.CustomerCreditTotal);
         Assert.Equal(0.00m, report.MerchandiseCreditTotal);
     }
+
+    [Fact]
+    public async Task GetTaxSummaryReportQuery_PreservesSelectedNonPraTaxAuthoritySnapshots_OnSalesAndRefunds()
+    {
+        var warehouseId = WarehouseId.New();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var order = Order.Create(OrderType.TakeAway, warehouseId);
+        await _orderRepo.AddAsync(order);
+
+        var srbLine = OrderLine.Create(
+            order.Id,
+            ProductVariantId.New(),
+            2m,
+            1000m,
+            13m,
+            false,
+            taxClassification: "Taxable",
+            taxAuthority: "SRB",
+            taxCode: "PK-SRB-13");
+        srbLine.SetTaxSnapshot("Taxable", "SRB", "PK-SRB-13", 2000m, 0m, 260m, "1.3.0-AwayFromZero-v1");
+        order.AddOrderLine(srbLine.Id);
+        await _orderLineRepo.AddAsync(srbLine);
+
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var refund = Refund.Create(
+            RefundNumber.Generate(DateTimeOffset.UtcNow),
+            order.Id,
+            BranchId.New(),
+            warehouseId,
+            Guid.NewGuid(),
+            "Cashier",
+            "Partial SRB Return",
+            "IDEM-SRB-1",
+            RefundSettlementMethod.CashPayout);
+        var refLine = RefundLine.Create(
+            refund.Id,
+            srbLine.Id,
+            srbLine.ProductVariantId,
+            "SKU-SRB",
+            "Karachi Platter",
+            1m,
+            1000m,
+            0m,
+            130m,
+            1130m,
+            "Taxable",
+            "PK-SRB-13",
+            13m,
+            false,
+            InventoryDisposition.Restock);
+        refund.AddLine(refLine);
+        refund.FinalizeFinancials(1000m, 0m, 130m, 1130m, "{}");
+        await _refundRepo.AddAsync(refund);
+
+        var queryHandler = new GetTaxSummaryReportQueryHandler(_orderRepo, _orderLineRepo, _refundRepo);
+        var report = await queryHandler.Handle(
+            new GetTaxSummaryReportQuery(warehouseId.Value, today.AddDays(-1), today.AddDays(1)),
+            CancellationToken.None);
+
+        var srbItem = Assert.Single(report.TaxBreakdown);
+        Assert.Equal("SRB", srbItem.Authority);
+        Assert.Equal("PK-SRB-13", srbItem.TaxCode);
+        Assert.Equal(260.00m, srbItem.TaxCharged);
+        Assert.Equal(130.00m, srbItem.TaxRefunded);
+        Assert.Equal(130.00m, srbItem.NetTax);
+    }
 }

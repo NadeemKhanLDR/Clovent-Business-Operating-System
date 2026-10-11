@@ -22,6 +22,7 @@ namespace Clovent.Restaurant.Infrastructure.Tests.Continuity;
 /// Validates DPAPI encryption, HMAC-SHA256 signature enforcement, batch replay accuracy,
 /// zero duplicate transactions, zero ledger drift, and concurrent replay recovery.
 /// </summary>
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBase
 {
     private readonly string _tempDir;

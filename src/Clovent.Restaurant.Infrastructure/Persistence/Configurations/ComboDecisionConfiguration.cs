@@ -2,8 +2,10 @@ using Clovent.Restaurant.SmartCombos;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace Clovent.Restaurant.Infrastructure.Persistence.Configurations;
+/// <summary>EF Core entity configuration for <see cref="ComboDecision"/>.</summary>
 public sealed class ComboDecisionConfiguration : IEntityTypeConfiguration<ComboDecision>
 {
+    /// <inheritdoc/>
     public void Configure(EntityTypeBuilder<ComboDecision> builder)
     {
         builder.ToTable("ComboDecisions", "Restaurant");

@@ -25,11 +25,29 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
     private readonly SemaphoreSlim _gate = new(1, 1);
 
     /// <summary>
-    /// Initializes a new instance of <see cref="ProtectedContinuityJournalStore"/>.
+    /// Initializes a new instance of <see cref="ProtectedContinuityJournalStore"/> using machine-level DPAPI protection.
+    /// </summary>
+    public ProtectedContinuityJournalStore(ILogger<ProtectedContinuityJournalStore>? logger = null)
+        : this(null, logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="ProtectedContinuityJournalStore"/> with a custom path and machine-level DPAPI protection.
     /// </summary>
     public ProtectedContinuityJournalStore(
-        string? customJournalPath = null,
-        DataProtectionScope protectionScope = DataProtectionScope.LocalMachine,
+        string? customJournalPath,
+        ILogger<ProtectedContinuityJournalStore>? logger = null)
+        : this(customJournalPath, OperatingSystem.IsWindows() ? DataProtectionScope.LocalMachine : default, logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="ProtectedContinuityJournalStore"/> with an explicit DPAPI protection scope.
+    /// </summary>
+    public ProtectedContinuityJournalStore(
+        string? customJournalPath,
+        DataProtectionScope protectionScope,
         ILogger<ProtectedContinuityJournalStore>? logger = null)
     {
         _logger = logger;
@@ -311,6 +329,11 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
 
     private string EncryptLine(string plainText)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("DPAPI continuity journal protection is only supported on Windows.");
+        }
+
         var bytes = Encoding.UTF8.GetBytes(plainText);
         try
         {
@@ -335,6 +358,11 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
 
     private string DecryptLine(string cipherBase64)
     {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException("DPAPI continuity journal protection is only supported on Windows.");
+        }
+
         try
         {
             var cipherBytes = Convert.FromBase64String(cipherBase64);

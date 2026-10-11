@@ -42,7 +42,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     IShiftRepository shiftRepository,
     ITableRepository tableRepository,
     IMediator mediator,
-    Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider? businessDateProvider = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
+    Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider? businessDateProvider = null,
+    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
 {
     private const string CashMethodName = "Cash";
     private const string CardFragment = "card";
@@ -430,24 +431,43 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
                 if (pe.Credit > 0m)
                 {
-                    totalCustomerPayments += pe.Credit;
-                    var pmName = !string.IsNullOrWhiteSpace(pe.PaymentMethod) ? pe.PaymentMethod : "Cash";
-                    var cur = customerPaymentsByMethod.GetValueOrDefault(pmName);
-                    customerPaymentsByMethod[pmName] = (cur.Count + 1, cur.Total + pe.Credit);
-                    periodCustomerPaymentsCollected += pe.Credit;
-
-                    if (running > 0m)
+                    bool isRefundCredit = string.Equals(pe.PaymentMethod, "Refund Credit", StringComparison.OrdinalIgnoreCase) ||
+                                          pe.Description.StartsWith("Refund credit note", StringComparison.OrdinalIgnoreCase);
+                    if (isRefundCredit)
                     {
-                        decimal applied = Math.Min(pe.Credit, running);
-                        decimal excess = pe.Credit - applied;
-                        collectionsAppliedToAR += applied;
-                        advanceCreated += excess;
+                        if (running > 0m)
+                        {
+                            decimal applied = Math.Min(pe.Credit, running);
+                            decimal excess = pe.Credit - applied;
+                            advanceCreated += excess;
+                        }
+                        else
+                        {
+                            advanceCreated += pe.Credit;
+                        }
+                        running -= pe.Credit;
                     }
                     else
                     {
-                        advanceCreated += pe.Credit;
+                        totalCustomerPayments += pe.Credit;
+                        var pmName = !string.IsNullOrWhiteSpace(pe.PaymentMethod) ? pe.PaymentMethod : "Cash";
+                        var cur = customerPaymentsByMethod.GetValueOrDefault(pmName);
+                        customerPaymentsByMethod[pmName] = (cur.Count + 1, cur.Total + pe.Credit);
+                        periodCustomerPaymentsCollected += pe.Credit;
+
+                        if (running > 0m)
+                        {
+                            decimal applied = Math.Min(pe.Credit, running);
+                            decimal excess = pe.Credit - applied;
+                            collectionsAppliedToAR += applied;
+                            advanceCreated += excess;
+                        }
+                        else
+                        {
+                            advanceCreated += pe.Credit;
+                        }
+                        running -= pe.Credit;
                     }
-                    running -= pe.Credit;
                 }
             }
 
@@ -531,9 +551,22 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             decimal shiftCashIn = s.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);
             decimal shiftCashOut = s.CashMovements.Where(m => m.Type == CashMovementType.CashOut).Sum(m => m.Amount);
 
+            decimal shiftCashRefunds = 0m;
+            decimal shiftCreditRefunds = 0m;
+            if (refundRepository != null)
+            {
+                var shiftRefunds = await refundRepository.GetByShiftIdAsync(s.Id, cancellationToken);
+                shiftCashRefunds = shiftRefunds
+                    .Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout)
+                    .Sum(r => r.GrandTotalRefunded);
+                shiftCreditRefunds = shiftRefunds
+                    .Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit)
+                    .Sum(r => r.GrandTotalRefunded);
+            }
+
             decimal shiftExpected = s.Status == ShiftStatus.Closed
                 ? s.ExpectedCash
-                : (s.StartingCash + shiftCashIn + shiftCashSales + shiftCashCollections - shiftCashOut);
+                : (s.StartingCash + shiftCashIn + shiftCashSales + shiftCashCollections - shiftCashRefunds - shiftCashOut);
 
             decimal? shiftCounted = s.Status == ShiftStatus.Closed ? s.CountedCash : null;
             decimal? shiftVariance = s.Status == ShiftStatus.Closed ? s.CashVariance : null;
@@ -550,7 +583,41 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 shiftExpected,
                 shiftCounted,
                 shiftVariance,
-                s.Status.ToString()));
+                s.Status.ToString(),
+                shiftCashRefunds,
+                shiftCreditRefunds));
+        }
+
+        // Period Refunds breakdown
+        decimal totalRefunds = 0m;
+        decimal cashRefunds = 0m;
+        decimal customerAccountCreditRefunds = 0m;
+        decimal otherRefunds = 0m;
+        int cashRefundsCount = 0;
+        int creditRefundsCount = 0;
+        int otherRefundsCount = 0;
+
+        if (refundRepository != null)
+        {
+            var rawRefunds = await refundRepository.GetByDateRangeAsync(fromUtc, toUtc, cancellationToken);
+            var warehouseRefunds = rawRefunds
+                .Where(r => r.WarehouseId == warehouseId || r.BranchId.Value == request.WarehouseId)
+                .ToList();
+
+            totalRefunds = warehouseRefunds.Sum(r => r.GrandTotalRefunded);
+            var cashRefundList = warehouseRefunds.Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout).ToList();
+            var creditRefundList = warehouseRefunds.Where(r => r.SettlementMethod == Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit).ToList();
+            var otherRefundList = warehouseRefunds.Where(r =>
+                r.SettlementMethod != Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout &&
+                r.SettlementMethod != Clovent.Restaurant.Refunds.RefundSettlementMethod.CustomerAccountCredit).ToList();
+
+            cashRefunds = cashRefundList.Sum(r => r.GrandTotalRefunded);
+            customerAccountCreditRefunds = creditRefundList.Sum(r => r.GrandTotalRefunded);
+            otherRefunds = otherRefundList.Sum(r => r.GrandTotalRefunded);
+
+            cashRefundsCount = cashRefundList.Count;
+            creditRefundsCount = creditRefundList.Count;
+            otherRefundsCount = otherRefundList.Count;
         }
 
         decimal itemSales = grossSales;
@@ -583,7 +650,11 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             shiftCount,
             totalShiftVariance,
             itemSales,
-            totalBillSales);
+            totalBillSales,
+            totalRefunds,
+            cashRefunds,
+            customerAccountCreditRefunds,
+            otherRefunds);
 
         // Build Items rows (Detailed Items tab)
         var itemRows = new List<ExpandedItemRowDto>();
@@ -655,7 +726,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 Math.Round(percentOfTotal, 1)));
         }
 
-        // Build Payments rows: clearly distinguish Order Settlements, On Account, and Customer Collections
+        // Build Payments rows: clearly distinguish Order Settlements, On Account, Customer Collections, and Refunds
         var paymentRows = new List<ExpandedPaymentRowDto>();
         foreach (var (methodName, pData) in paymentMethodTotals)
         {
@@ -680,6 +751,39 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 cData.Total,
                 Math.Round(pct, 1),
                 "Customer Collection (A/R)"));
+        }
+
+        if (cashRefundsCount > 0)
+        {
+            var pct = totalRefunds > 0 ? (cashRefunds / totalRefunds) * 100m : 0m;
+            paymentRows.Add(new ExpandedPaymentRowDto(
+                "Cash Refund Payout",
+                cashRefundsCount,
+                -cashRefunds,
+                Math.Round(pct, 1),
+                "Refunds & Credits"));
+        }
+
+        if (creditRefundsCount > 0)
+        {
+            var pct = totalRefunds > 0 ? (customerAccountCreditRefunds / totalRefunds) * 100m : 0m;
+            paymentRows.Add(new ExpandedPaymentRowDto(
+                "Customer Account Credit Refund",
+                creditRefundsCount,
+                -customerAccountCreditRefunds,
+                Math.Round(pct, 1),
+                "Refunds & Credits"));
+        }
+
+        if (otherRefundsCount > 0)
+        {
+            var pct = totalRefunds > 0 ? (otherRefunds / totalRefunds) * 100m : 0m;
+            paymentRows.Add(new ExpandedPaymentRowDto(
+                "Card / Other Refund",
+                otherRefundsCount,
+                -otherRefunds,
+                Math.Round(pct, 1),
+                "Refunds & Credits"));
         }
 
         // Order Types Breakdown (Phase 8)

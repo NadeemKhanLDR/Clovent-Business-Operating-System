@@ -32,6 +32,8 @@ public sealed class ShiftDetailDialog : XtraForm
     private LabelControl _lblCashSalesVal = null!;
     private LabelControl _lblCashCollectionsVal = null!;
     private LabelControl _lblCardSalesVal = null!;
+    private LabelControl _lblCashRefundsVal = null!;
+    private LabelControl _lblCreditRefundsVal = null!;
     private LabelControl _lblExpectedVal = null!;
     private LabelControl _lblCountedVal = null!;
     private LabelControl _lblVarianceVal = null!;
@@ -62,7 +64,7 @@ public sealed class ShiftDetailDialog : XtraForm
     {
         Text = "Shift Session Details";
         AutoScaleMode = AutoScaleMode.None;
-        DesktopDialogSizing.Apply(this, 760, 660, 680, 560, null, true);
+        DesktopDialogSizing.Apply(this, 760, 680, 680, 580, null, true);
 
         var mainPanel = new TableLayoutPanel
         {
@@ -73,7 +75,7 @@ public sealed class ShiftDetailDialog : XtraForm
         };
 
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(35, this)));
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(240, this)));
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(265, this)));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(48, this)));
 
@@ -90,7 +92,7 @@ public sealed class ShiftDetailDialog : XtraForm
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(10),
-            RowCount = 6,
+            RowCount = 7,
             ColumnCount = 4
         };
 
@@ -98,7 +100,7 @@ public sealed class ShiftDetailDialog : XtraForm
         infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
         infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 22f));
         infoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28f));
-        for (int r = 0; r < 6; r++) infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66f));
+        for (int r = 0; r < 7; r++) infoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 14.28f));
 
         infoGrid.Controls.Add(new LabelControl { Text = "Status:" }, 0, 0);
         _lblStatusVal = new LabelControl { Text = "---", Appearance = { Font = new Font(Font.FontFamily, 9f, FontStyle.Bold) } };
@@ -132,17 +134,25 @@ public sealed class ShiftDetailDialog : XtraForm
         _lblCardSalesVal = new LabelControl { Text = "0.00" };
         infoGrid.Controls.Add(_lblCardSalesVal, 3, 3);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Expected Cash:" }, 0, 4);
+        infoGrid.Controls.Add(new LabelControl { Text = "Cash Refunds (-):" }, 0, 4);
+        _lblCashRefundsVal = new LabelControl { Text = "0.00", Appearance = { ForeColor = Color.FromArgb(220, 38, 38) } };
+        infoGrid.Controls.Add(_lblCashRefundsVal, 1, 4);
+
+        infoGrid.Controls.Add(new LabelControl { Text = "Account Credit Refunds:" }, 2, 4);
+        _lblCreditRefundsVal = new LabelControl { Text = "0.00" };
+        infoGrid.Controls.Add(_lblCreditRefundsVal, 3, 4);
+
+        infoGrid.Controls.Add(new LabelControl { Text = "Expected Cash:" }, 0, 5);
         _lblExpectedVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold), ForeColor = Color.FromArgb(13, 148, 136) } };
-        infoGrid.Controls.Add(_lblExpectedVal, 1, 4);
+        infoGrid.Controls.Add(_lblExpectedVal, 1, 5);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Counted Cash:" }, 2, 4);
+        infoGrid.Controls.Add(new LabelControl { Text = "Counted Cash:" }, 2, 5);
         _lblCountedVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) } };
-        infoGrid.Controls.Add(_lblCountedVal, 3, 4);
+        infoGrid.Controls.Add(_lblCountedVal, 3, 5);
 
-        infoGrid.Controls.Add(new LabelControl { Text = "Cash Variance:" }, 0, 5);
+        infoGrid.Controls.Add(new LabelControl { Text = "Cash Variance:" }, 0, 6);
         _lblVarianceVal = new LabelControl { Text = "0.00", Appearance = { Font = new Font(Font.FontFamily, 9.5f, FontStyle.Bold) } };
-        infoGrid.Controls.Add(_lblVarianceVal, 1, 5);
+        infoGrid.Controls.Add(_lblVarianceVal, 1, 6);
 
         grpInfo.Controls.Add(infoGrid);
 
@@ -199,6 +209,8 @@ public sealed class ShiftDetailDialog : XtraForm
                 _lblCashSalesVal.Text = CurrencyDisplay.Format(summary.CashSales);
                 _lblCashCollectionsVal.Text = CurrencyDisplay.Format(summary.CashCollections);
                 _lblCardSalesVal.Text = CurrencyDisplay.Format(summary.CardSales + summary.OtherSales);
+                _lblCashRefundsVal.Text = CurrencyDisplay.Format(summary.CashRefunds);
+                _lblCreditRefundsVal.Text = CurrencyDisplay.Format(summary.CustomerAccountCreditRefunds);
 
                 _lblExpectedVal.Text = CurrencyDisplay.Format(summary.ExpectedCash);
                 _lblCountedVal.Text = summary.Shift.Status == "Closed"

@@ -21,6 +21,7 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed class SmartComboPreviewDialog : XtraForm
 {
+    /// <summary>Represents a combo line item row in the preview grid.</summary>
     public sealed record PreviewItemRow(string ProductName, string VariantName, int Quantity, decimal Price, string PriceText);
 
     private readonly TextEdit _name = new();
@@ -42,10 +43,14 @@ public sealed class SmartComboPreviewDialog : XtraForm
     private bool _isUpdatingPriceFromDiscount;
     private bool _isUpdatingDiscountFromPrice;
 
+    /// <summary>Gets the configured combo name.</summary>
     public string ComboName => _name.Text.Trim();
+    /// <summary>Gets the configured deal price.</summary>
     public decimal DealPrice => _price.Value;
+    /// <summary>Gets the optional dismissal reason.</summary>
     public string? Reason => string.IsNullOrWhiteSpace(_reason.Text) ? null : _reason.Text.Trim();
 
+    /// <summary>Initializes a new instance of the <see cref="SmartComboPreviewDialog"/> class.</summary>
     public SmartComboPreviewDialog(ComboOpportunity opportunity, ComboAnalysis analysis, bool canCreate, bool canDismiss)
     {
         _opportunity = opportunity ?? throw new ArgumentNullException(nameof(opportunity));

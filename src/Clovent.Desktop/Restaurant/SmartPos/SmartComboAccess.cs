@@ -22,6 +22,7 @@ public sealed class SmartComboAccess(ICurrentSession session, IUserRepository us
             throw new UnauthorizedAccessException("An active user with an assigned company is required. Assign company/branch in User Administration.");
         return user;
     }
+    /// <inheritdoc/>
     public async Task<IReadOnlyList<ComboLocation>> LocationsAsync(CancellationToken ct)
     {
         var user = await UserAsync(ct);
@@ -30,6 +31,8 @@ public sealed class SmartComboAccess(ICurrentSession session, IUserRepository us
         return (await warehouses.GetAllAsync(ct)).Where(w => w.Status.ToString() == "Active" && allowed.Contains(w.BranchId))
             .OrderBy(w => w.Name.Value).Select(w => new ComboLocation(w.Id.Value, w.Name.Value)).ToList();
     }
+
+    /// <inheritdoc/>
     public async Task<Guid> RequireAsync(string operation, Guid warehouseId, CancellationToken ct)
     {
         var user = await UserAsync(ct);
@@ -39,6 +42,8 @@ public sealed class SmartComboAccess(ICurrentSession session, IUserRepository us
             throw new UnauthorizedAccessException("This action or location is not permitted.");
         return user.Id.Value;
     }
+
+    /// <inheritdoc/>
     public async Task<ComboCurrency> CurrencyAsync(Guid warehouseId, CancellationToken ct)
     {
         if (!(await LocationsAsync(ct)).Any(x => x.Id == warehouseId)) throw new UnauthorizedAccessException("Location is not permitted.");

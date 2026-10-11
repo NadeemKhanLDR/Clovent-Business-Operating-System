@@ -68,7 +68,7 @@ public class PrinterManagementServiceTests : IDisposable
         public Guid? UserId { get; set; } = Guid.NewGuid();
         public Guid? SessionId { get; set; } = Guid.NewGuid();
         public string? DisplayName { get; set; } = "Test Operator";
-        public event EventHandler? Changed;
+        public event EventHandler? Changed { add { } remove { } }
         public void SignIn(Guid userId, Guid sessionId, string displayName) { }
         public void SignOut() { }
     }

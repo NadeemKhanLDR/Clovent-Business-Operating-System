@@ -25,16 +25,6 @@
     <Nullable>enable</Nullable>
     <GenerateDocumentationFile Condition="'$(Configuration)' == 'Debug'">true</GenerateDocumentationFile>
     <ApplicationIcon>Resources\cbos.ico</ApplicationIcon>
-    <!--
-      DX1000: this machine's DevExpress license is a trial/evaluation
-      license (see C:\Users\<user>\AppData\Roaming\DevExpress\DevExpress_License.txt).
-      The compiler emits DX1000 for every DevExpress.Win control used under
-      an evaluation license - expected in this environment, not a code
-      defect. A production build requires a registered DevExpress license;
-      this suppression should be removed once one is installed so a future
-      unlicensed build is caught rather than silently allowed.
-    -->
-    <NoWarn>$(NoWarn);DX1000</NoWarn>
     <Version>1.3.0</Version>
     <AssemblyVersion>1.3.0.0</AssemblyVersion>
     <FileVersion>1.3.0.0</FileVersion>

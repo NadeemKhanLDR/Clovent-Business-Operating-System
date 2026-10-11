@@ -18,6 +18,9 @@ public sealed class BusinessDateTimeService : IBusinessDateTimeService
     /// <summary>Process-wide default instance.</summary>
     public static BusinessDateTimeService Instance { get; } = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BusinessDateTimeService"/> class.
+    /// </summary>
     public BusinessDateTimeService(TimeZoneInfo? timeZone = null, string? dateTimeFormat = null)
     {
         _businessTimeZone = timeZone ?? TimeZoneInfo.Utc;

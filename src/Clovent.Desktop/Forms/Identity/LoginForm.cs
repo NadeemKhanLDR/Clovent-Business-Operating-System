@@ -338,6 +338,7 @@ public sealed partial class LoginForm : XtraForm
         }
     }
 
+    /// <inheritdoc/>
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         if (keyData == Keys.Enter)

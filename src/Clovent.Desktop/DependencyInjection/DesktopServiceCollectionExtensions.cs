@@ -130,6 +130,7 @@ public static class DesktopServiceCollectionExtensions
 
         services.AddSingleton<IStartupTask, ThemeInitializationStartupTask>();
         services.AddSingleton<IStartupTask, LanguageInitializationStartupTask>();
+        services.AddScoped<IStartupTask, Clovent.Desktop.Security.ProductionPermissionCatalogSynchronizationStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentUserSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentAuthorizationSeedStartupTask>();
         services.AddScoped<IStartupTask, DevelopmentMasterDataSeedStartupTask>();

@@ -28,7 +28,11 @@ public sealed record SalesSummaryKpiDto(
     int ShiftCount,
     decimal TotalShiftVariance,
     decimal ItemSales = 0m,
-    decimal TotalBillSales = 0m)
+    decimal TotalBillSales = 0m,
+    decimal TotalRefunds = 0m,
+    decimal CashRefunds = 0m,
+    decimal CustomerAccountCreditRefunds = 0m,
+    decimal OtherRefunds = 0m)
 {
     /// <summary>Compatibility alias for DeliveryFees.</summary>
     public decimal TotalDeliveryFees => DeliveryFees;
@@ -185,7 +189,9 @@ public sealed record ShiftDrawerCashSummaryDto(
     decimal ExpectedCash,
     decimal? CountedCash,
     decimal? Variance,
-    string Status);
+    string Status,
+    decimal CashRefunds = 0m,
+    decimal CustomerAccountCreditRefunds = 0m);
 
 /// <summary>Root aggregated response of the Expanded Sales Summary query.</summary>
 public sealed record ExpandedSalesSummaryDto(

@@ -41,6 +41,8 @@ public sealed class EndOfDayCloseDialog : XtraForm
     private LabelControl _lblCashSales = null!;
     private LabelControl _lblCardSales = null!;
     private LabelControl _lblVariance = null!;
+    private LabelControl _lblCashRefunds = null!;
+    private LabelControl _lblCreditRefunds = null!;
 
     private GridControl _gridShifts = null!;
     private GridView _viewShifts = null!;
@@ -65,6 +67,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
         BuildUi();
     }
 
+    /// <summary>Initializes a new instance of <see cref="EndOfDayCloseDialog"/> for the specified branch and business date.</summary>
     public EndOfDayCloseDialog(
         IMediator mediator,
         ICurrentSession currentSession,
@@ -86,7 +89,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
     {
         Text = $"End of Day (Day Close) - {DateTimeDisplay.FormatDate(_businessDate)}";
         AutoScaleMode = AutoScaleMode.None;
-        DesktopDialogSizing.Apply(this, 760, 620, 650, 520, null, false);
+        DesktopDialogSizing.Apply(this, 820, 640, 700, 540, null, false);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -139,27 +142,30 @@ public sealed class EndOfDayCloseDialog : XtraForm
         _bannerPanel.Controls.Add(_lblBanner);
         mainPanel.Controls.Add(_bannerPanel, 0, 1);
 
-        // 3. Metrics Summary Cards (2 rows x 3 cols)
+        // 3. Metrics Summary Cards (2 rows x 4 cols)
         var tlpMetrics = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 3,
+            ColumnCount = 4,
             RowCount = 2,
             Margin = new Padding(0, 4, 0, 4)
         };
-        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+        tlpMetrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
         tlpMetrics.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
         tlpMetrics.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
         _lblTotalShifts = CreateMetricCard("Total Shifts", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 0);
         _lblOpenShifts = CreateMetricCard("Open Shifts", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 1, 0);
         _lblTotalSales = CreateMetricCard("Total Net Sales", "-", Color.FromArgb(13, 148, 136), tlpMetrics, 2, 0);
+        _lblCashRefunds = CreateMetricCard("Cash Refunds (-)", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 3, 0);
 
         _lblCashSales = CreateMetricCard("Cash Sales", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 1);
         _lblCardSales = CreateMetricCard("Card/Other Sales", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 1, 1);
         _lblVariance = CreateMetricCard("Shift Cash Variance", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 2, 1);
+        _lblCreditRefunds = CreateMetricCard("Account Credit Refunds", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 3, 1);
 
         mainPanel.Controls.Add(tlpMetrics, 0, 2);
 
@@ -261,7 +267,9 @@ public sealed class EndOfDayCloseDialog : XtraForm
             _lblTotalSales.Text = CurrencyDisplay.Format(_summary.TotalSales);
             _lblCashSales.Text = CurrencyDisplay.Format(_summary.CashSales);
             _lblCardSales.Text = CurrencyDisplay.Format(_summary.CardSales + _summary.OtherSales);
-            
+            _lblCashRefunds.Text = CurrencyDisplay.Format(_summary.CashRefunds);
+            _lblCreditRefunds.Text = CurrencyDisplay.Format(_summary.CustomerAccountCreditRefunds);
+
             var varText = CurrencyDisplay.Format(_summary.TotalShiftVariance);
             _lblVariance.Text = varText;
             _lblVariance.Appearance.ForeColor = _summary.TotalShiftVariance < 0
@@ -285,6 +293,10 @@ public sealed class EndOfDayCloseDialog : XtraForm
                 if (_viewShifts.Columns["CountedCash"] != null) _viewShifts.Columns["CountedCash"].DisplayFormat.FormatString = "n2";
                 if (_viewShifts.Columns["CashVariance"] != null) _viewShifts.Columns["CashVariance"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
                 if (_viewShifts.Columns["CashVariance"] != null) _viewShifts.Columns["CashVariance"].DisplayFormat.FormatString = "n2";
+                if (_viewShifts.Columns["CashRefunds"] != null) _viewShifts.Columns["CashRefunds"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                if (_viewShifts.Columns["CashRefunds"] != null) _viewShifts.Columns["CashRefunds"].DisplayFormat.FormatString = "n2";
+                if (_viewShifts.Columns["CustomerAccountCreditRefunds"] != null) _viewShifts.Columns["CustomerAccountCreditRefunds"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
+                if (_viewShifts.Columns["CustomerAccountCreditRefunds"] != null) _viewShifts.Columns["CustomerAccountCreditRefunds"].DisplayFormat.FormatString = "n2";
             }
 
             // Set Banner State & Close button readiness
@@ -331,6 +343,8 @@ public sealed class EndOfDayCloseDialog : XtraForm
             $"Are you sure you want to close Business Day {DateTimeDisplay.FormatDate(_businessDate)} for {_branchName}?\n\n" +
             $"Total Shifts: {_summary.TotalShifts}\n" +
             $"Total Net Sales: {CurrencyDisplay.Format(_summary.TotalSales)}\n" +
+            $"Cash Refunds (-): {CurrencyDisplay.Format(_summary.CashRefunds)}\n" +
+            $"Account Credit Refunds: {CurrencyDisplay.Format(_summary.CustomerAccountCreditRefunds)}\n" +
             $"Shift Cash Variance: {CurrencyDisplay.Format(_summary.TotalShiftVariance)}\n\n" +
             "This action finalizes and locks the business day.",
             "Confirm Business Day Close",

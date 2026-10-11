@@ -4,9 +4,21 @@ namespace Clovent.Identity.Application.Authorization;
 public sealed class MenuAuthorizationPolicy(IAuthorizationService authorizationService) : IMenuAuthorizationPolicy
 {
     /// <inheritdoc/>
-    public Task<bool> CanViewMenuItemAsync(Guid userId, string menuItemCode, CancellationToken cancellationToken = default)
+    public async Task<bool> CanViewMenuItemAsync(Guid userId, string menuItemCode, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(menuItemCode);
-        return authorizationService.HasPermissionAsync(userId, $"menu.{menuItemCode.ToLowerInvariant()}", cancellationToken);
+        var normalized = menuItemCode.ToLowerInvariant();
+        if (await authorizationService.HasPermissionAsync(userId, $"menu.{normalized}", cancellationToken).ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        if (normalized is "auditanalytics" or "audit.analytics")
+        {
+            var alternate = normalized == "auditanalytics" ? "menu.audit.analytics" : "menu.auditanalytics";
+            return await authorizationService.HasPermissionAsync(userId, alternate, cancellationToken).ConfigureAwait(false);
+        }
+
+        return false;
     }
 }

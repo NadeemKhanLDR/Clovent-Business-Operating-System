@@ -157,6 +157,7 @@ public sealed partial class ManagerAuthorizationForm : XtraForm
         _passwordEdit.TextChanged += (s, e) => ClearInlineError();
     }
 
+    /// <inheritdoc/>
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
@@ -208,6 +209,7 @@ public sealed partial class ManagerAuthorizationForm : XtraForm
         _btnCancel.Size = new Size(DesktopDpi.Scale(90, dpi), DesktopDpi.Scale(36, dpi));
     }
 
+    /// <inheritdoc/>
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);

@@ -18,4 +18,11 @@ public sealed record ShiftSummaryDto(
     decimal Variance,
     int TotalTransactions,
     IReadOnlyList<CashMovementDto> CashMovements,
-    decimal CashCollections = 0m);
+    decimal CashCollections = 0m,
+    decimal CashRefunds = 0m,
+    decimal CustomerAccountCreditRefunds = 0m,
+    decimal OtherRefunds = 0m)
+{
+    /// <summary>Total refunds recorded during this shift session across all settlement methods.</summary>
+    public decimal TotalRefunds => CashRefunds + CustomerAccountCreditRefunds + OtherRefunds;
+}

@@ -43,6 +43,10 @@ public partial class MasterDataEditFormBase : XtraForm
         InitializeComponent();
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MasterDataEditFormBase"/> class with the specified dialog title.
+    /// </summary>
+    /// <param name="title">The caption displayed in the dialog title bar.</param>
     protected MasterDataEditFormBase(string title)
     {
         InitializeComponent();

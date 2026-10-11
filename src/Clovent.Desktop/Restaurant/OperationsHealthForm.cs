@@ -19,14 +19,31 @@ namespace Clovent.Desktop.Restaurant;
 /// </summary>
 public sealed class OutboxMessageDisplayItem
 {
+    /// <summary>Outbox message identifier.</summary>
     public Guid Id { get; set; }
+
+    /// <summary>Outbox message type name.</summary>
     public string MessageType { get; set; } = string.Empty;
+
+    /// <summary>Current processing status.</summary>
     public string Status { get; set; } = string.Empty;
+
+    /// <summary>Number of dispatch attempts performed.</summary>
     public int AttemptCount { get; set; }
+
+    /// <summary>Formatted creation timestamp.</summary>
     public string CreatedAt { get; set; } = string.Empty;
+
+    /// <summary>Formatted timestamp of the last delivery attempt.</summary>
     public string LastAttemptAt { get; set; } = string.Empty;
+
+    /// <summary>Formatted timestamp of the next scheduled retry.</summary>
     public string NextRetryAt { get; set; } = string.Empty;
+
+    /// <summary>Last error message recorded on failure.</summary>
     public string LastError { get; set; } = string.Empty;
+
+    /// <summary>Serialized JSON payload.</summary>
     public string Payload { get; set; } = string.Empty;
 }
 

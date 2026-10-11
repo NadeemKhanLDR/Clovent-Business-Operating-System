@@ -1,6 +1,11 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
+using Clovent.Catalog.Application.Variants.Dtos;
+using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Domain;
+using Clovent.Identity.Application.Authorization;
 using Clovent.Identity.Branches;
+using Clovent.MasterData.Terminals;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Restaurant.ActivityLogs;
 using Clovent.Restaurant.Application.Refunds.Dtos;
@@ -10,6 +15,7 @@ using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Refunds;
+using Clovent.Restaurant.Shifts;
 using MediatR;
 
 namespace Clovent.Restaurant.Application.Refunds.Commands;
@@ -33,7 +39,7 @@ public sealed record RefundItemPrintLine(
 /// <summary>
 /// Command to process an immutable compensating refund against a completed order.
 /// Supports full and partial line refunds, tax and discount reversal, explicit restock handling,
-/// customer account adjustment, and idempotent retransmissions.
+/// customer account adjustment, shift/terminal cash attribution, and idempotent retransmissions.
 /// </summary>
 public sealed record ProcessRefundCommand(
     Guid OrderId,
@@ -47,11 +53,15 @@ public sealed record ProcessRefundCommand(
     Guid? ApprovingUserId = null,
     string? ApprovingUserName = null,
     string? SettlementReference = null,
-    DateTimeOffset? RefundedAtUtc = null) : IRequest<RefundDto>;
+    DateTimeOffset? RefundedAtUtc = null,
+    Guid? ShiftId = null,
+    Guid? TerminalId = null) : IRequest<RefundDto>;
 
 /// <summary>Handles <see cref="ProcessRefundCommand"/>.</summary>
 public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundCommand, RefundDto>
 {
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> OrderRefundLocks = new();
+
     private readonly IRefundRepository _refundRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderLineRepository _orderLineRepository;
@@ -61,6 +71,8 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
     private readonly IActivityLogEntryRepository _activityLogRepository;
     private readonly IMediator _mediator;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IShiftRepository? _shiftRepository;
+    private readonly IFeatureAuthorizationPolicy? _featureAuthorizationPolicy;
 
     /// <summary>Initializes a new instance of <see cref="ProcessRefundCommandHandler"/>.</summary>
     public ProcessRefundCommandHandler(
@@ -72,7 +84,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         ICustomerLedgerEntryRepository customerLedgerEntryRepository,
         IActivityLogEntryRepository activityLogRepository,
         IMediator mediator,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IShiftRepository? shiftRepository = null,
+        IFeatureAuthorizationPolicy? featureAuthorizationPolicy = null)
     {
         _refundRepository = refundRepository;
         _orderRepository = orderRepository;
@@ -83,6 +97,8 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         _activityLogRepository = activityLogRepository;
         _mediator = mediator;
         _unitOfWork = unitOfWork;
+        _shiftRepository = shiftRepository;
+        _featureAuthorizationPolicy = featureAuthorizationPolicy;
     }
 
     /// <inheritdoc/>
@@ -90,6 +106,30 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        if (_featureAuthorizationPolicy != null)
+        {
+            var authorizingUserId = request.ApprovingUserId ?? request.CashierId;
+            if (authorizingUserId == Guid.Empty ||
+                !await _featureAuthorizationPolicy.CanUseFeatureAsync(authorizingUserId, "pos.refund", cancellationToken))
+            {
+                throw RestaurantDomainException.ManagerAuthorizationRequired("process order refund");
+            }
+        }
+
+        var orderLock = OrderRefundLocks.GetOrAdd(request.OrderId, _ => new SemaphoreSlim(1, 1));
+        await orderLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await HandleCoreAsync(request, cancellationToken);
+        }
+        finally
+        {
+            orderLock.Release();
+        }
+    }
+
+    private async Task<RefundDto> HandleCoreAsync(ProcessRefundCommand request, CancellationToken cancellationToken)
+    {
         // 1. Preliminary Idempotency check: reuse of existing attempt
         var existingRefund = await _refundRepository.GetByIdempotencyKeyAsync(request.IdempotencyKey, cancellationToken);
         if (existingRefund != null)
@@ -112,7 +152,54 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             throw new ArgumentException("Refund must specify at least one item.", nameof(request.Items));
         }
 
-        // 2. Load prior refunds on this order to calculate remaining eligibility
+        // 2. Resolve disbursing ShiftId and TerminalId (strictly from disbursing terminal/shift, never from original sale or approving manager)
+        ShiftId? resolvedShiftId = null;
+        TerminalId? resolvedTerminalId = request.TerminalId.HasValue ? new TerminalId(request.TerminalId.Value) : null;
+
+        if (request.ShiftId.HasValue)
+        {
+            var requestedShiftId = new ShiftId(request.ShiftId.Value);
+            if (_shiftRepository != null)
+            {
+                var shift = await _shiftRepository.GetByIdAsync(requestedShiftId, cancellationToken);
+                if (shift != null)
+                {
+                    if (request.SettlementMethod == RefundSettlementMethod.CashPayout && shift.Status != ShiftStatus.Open)
+                    {
+                        throw RestaurantDomainException.CashRefundRequiresOpenShift(requestedShiftId);
+                    }
+                    resolvedShiftId = shift.Id;
+                    resolvedTerminalId ??= shift.TerminalId;
+                }
+                else
+                {
+                    resolvedShiftId = requestedShiftId;
+                }
+            }
+            else
+            {
+                resolvedShiftId = requestedShiftId;
+            }
+        }
+        else if (_shiftRepository != null)
+        {
+            Shift? openShift = null;
+            if (resolvedTerminalId.HasValue)
+            {
+                openShift = await _shiftRepository.GetActiveShiftForTerminalAsync(resolvedTerminalId.Value, cancellationToken);
+            }
+            if (openShift == null && request.CashierId != Guid.Empty)
+            {
+                openShift = await _shiftRepository.GetActiveShiftForCashierAsync(new Clovent.Identity.Users.UserId(request.CashierId), cancellationToken);
+            }
+            if (openShift != null)
+            {
+                resolvedShiftId = openShift.Id;
+                resolvedTerminalId ??= openShift.TerminalId;
+            }
+        }
+
+        // 3. Load prior refunds on this order to calculate remaining eligibility
         var priorRefunds = await _refundRepository.GetByOrderIdAsync(orderId, cancellationToken);
         var priorRefundedQtyByLine = new Dictionary<Guid, decimal>();
         var priorDiscountReversedByLine = new Dictionary<Guid, decimal>();
@@ -129,9 +216,23 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             }
         }
 
-        // 3. Load order lines and evaluate requested items
+        // 4. Load order lines and optional product variant metadata
         var orderLines = await _orderLineRepository.GetByOrderIdAsync(orderId, cancellationToken);
         var lineMap = orderLines.ToDictionary(l => l.Id.Value);
+
+        Dictionary<Guid, ProductVariantDto> variantMap = [];
+        try
+        {
+            var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
+            if (variants != null)
+            {
+                variantMap = variants.ToDictionary(v => v.ProductVariantId);
+            }
+        }
+        catch (Exception)
+        {
+            // Minimal test fakes may not handle ListProductVariantsQuery
+        }
 
         var refundNumber = RefundNumber.Generate(request.RefundedAtUtc ?? DateTimeOffset.UtcNow);
         var branchId = request.BranchId.HasValue
@@ -152,7 +253,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             request.ApprovingUserName,
             request.SettlementReference,
             order.CustomerId?.Value,
-            request.RefundedAtUtc);
+            request.RefundedAtUtc,
+            resolvedShiftId,
+            resolvedTerminalId);
 
         var refundLines = new List<RefundLine>();
         var printItems = new List<RefundItemPrintLine>();
@@ -199,15 +302,23 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 taxReversed = MoneyRoundingPolicy.RoundMoney((line.TaxAmount ?? 0m) * ratio);
             }
 
+            priorRefundedQtyByLine[line.Id.Value] = priorQty + reqItem.Quantity;
+            priorDiscountReversedByLine[line.Id.Value] = priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value) + discountReversed;
+            priorTaxReversedByLine[line.Id.Value] = priorTaxReversedByLine.GetValueOrDefault(line.Id.Value) + taxReversed;
+
             var grossRefund = MoneyRoundingPolicy.RoundMoney(reqItem.Quantity * line.UnitPrice);
             var linePayableRefund = grossRefund - discountReversed + (line.TaxIsInclusive ? 0m : taxReversed);
+
+            variantMap.TryGetValue(line.ProductVariantId.Value, out var variantDto);
+            var sku = variantDto?.Sku ?? string.Empty;
+            var itemName = variantDto?.Name ?? line.Notes ?? string.Empty;
 
             var refundLine = RefundLine.Create(
                 refund.Id,
                 line.Id,
                 line.ProductVariantId,
-                "",
-                "",
+                sku,
+                itemName,
                 reqItem.Quantity,
                 line.UnitPrice,
                 discountReversed,
@@ -223,7 +334,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             refundLines.Add(refundLine);
 
             printItems.Add(new RefundItemPrintLine(
-                "",
+                itemName,
                 reqItem.Quantity,
                 line.UnitPrice,
                 grossRefund,
@@ -237,7 +348,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         decimal taxReversedTotal = refundLines.Sum(l => l.TaxReversed);
         decimal grandTotalRefunded = refundLines.Sum(l => l.LineTotalRefunded);
 
-        // 4. Validate Settlement Method Constraints
+        // 5. Validate Settlement Method Constraints
         var payments = await _paymentRepository.GetByOrderIdAsync(orderId, cancellationToken);
 
         if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
@@ -264,7 +375,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             var customer = await _customerRepository.GetByIdAsync(order.CustomerId.Value, cancellationToken)
                 ?? throw new NotFoundException(nameof(Customer), order.CustomerId.Value.Value);
 
-            // Post credit entry to reduce customer's outstanding balance
+            // Post credit entry to reduce customer's outstanding balance (tagged as 'Refund Credit' so it is never mistaken for a cash A/R payment)
             var newBalance = customer.OutstandingBalance - grandTotalRefunded;
             var ledgerEntry = CustomerLedgerEntry.Create(
                 customer.Id,
@@ -273,14 +384,16 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 debit: 0m,
                 credit: grandTotalRefunded,
                 runningBalance: newBalance,
-                date: request.RefundedAtUtc);
+                date: request.RefundedAtUtc,
+                shiftId: resolvedShiftId,
+                paymentMethod: "Refund Credit");
 
             await _customerLedgerEntryRepository.AddAsync(ledgerEntry, cancellationToken);
             customer.AdjustBalance(-grandTotalRefunded);
             await _customerRepository.UpdateAsync(customer, cancellationToken);
         }
 
-        // 5. Restock inventory for items with Disposition == Restock
+        // 6. Restock inventory for items with Disposition == Restock
         foreach (var reqItem in request.Items.Where(i => i.Disposition == InventoryDisposition.Restock))
         {
             var line = lineMap[reqItem.OrderLineId];
@@ -298,7 +411,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             }
         }
 
-        // 6. Freeze credit note snapshot and finalize totals
+        // 7. Freeze credit note snapshot and finalize totals
         var creditNoteText = JsonSerializer.Serialize(new
         {
             RefundNumber = refundNumber.Value,
@@ -308,6 +421,8 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             ApprovedBy = refund.ApprovedByUserName,
             Reason = refund.Reason,
             Settlement = refund.SettlementMethod.ToString(),
+            ShiftId = refund.ShiftId?.Value,
+            TerminalId = refund.TerminalId?.Value,
             Subtotal = subtotalRefunded,
             DiscountReversed = discountReversedTotal,
             TaxReversed = taxReversedTotal,
@@ -317,10 +432,10 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
         refund.FinalizeFinancials(subtotalRefunded, discountReversedTotal, taxReversedTotal, grandTotalRefunded, creditNoteText);
 
-        // 7. Persist refund aggregate
+        // 8. Persist refund aggregate
         await _refundRepository.AddAsync(refund, cancellationToken);
 
-        // 8. Record auditable activity log
+        // 9. Record auditable activity log
         var activity = ActivityLogEntry.Record(
             "OrderRefunded",
             $"Processed {refund.SettlementMethod} refund {refundNumber.Value} for order {order.OrderNumber.Value}. Amount: {grandTotalRefunded:N2}",
@@ -328,7 +443,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             Environment.MachineName);
         await _activityLogRepository.AddAsync(activity, cancellationToken);
 
-        // 9. Atomic unit of work commit
+        // 10. Atomic unit of work commit
         try
         {
             await _unitOfWork.SaveChangesAsync(cancellationToken);

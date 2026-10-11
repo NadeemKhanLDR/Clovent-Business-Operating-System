@@ -208,6 +208,8 @@ partial class EndOfDayReportView
             ("CashCollections", "Collections", 95),
             ("CashIn", "Cash In", 80),
             ("CashOut", "Cash Out", 80),
+            ("CashRefunds", "Cash Refunds (-)", 95),
+            ("CustomerAccountCreditRefunds", "Credit Refunds", 95),
             ("ExpectedCash", "Expected Cash", 105),
             ("CountedCash", "Counted Cash", 105),
             ("Variance", "Variance", 85),
@@ -494,6 +496,7 @@ partial class EndOfDayReportView
         "OpeningAdvance", "AdvanceReceived", "AdvanceUsed", "ClosingAdvance", "DeliveryFees",
         "AverageOrderValue", "LineTotal", "ServiceCharge", "Fees", "Subtotal",
         "OpeningFloat", "StartingCash", "CashSales", "CashCollections", "CashIn", "CashOut",
+        "CashRefunds", "CustomerAccountCreditRefunds",
         "ExpectedCash", "CountedCash", "Variance", "CashVariance",
         "CreditLimit", "Receivable", "Advance", "CurrentBalance", "AvailableCredit"
     ];
@@ -994,6 +997,7 @@ partial class EndOfDayReportView
         }
     }
 
+    /// <summary>Applies High-DPI runtime scaling to filter bar editors and action buttons.</summary>
     public void ScaleLayoutAtRuntime()
     {
         if (DesignModeHelper.IsInDesignMode) return;

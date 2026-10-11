@@ -410,6 +410,7 @@ partial class CustomerReceivablesReportView
         }
     }
 
+    /// <summary>Applies High-DPI runtime scaling to filter controls and layout columns.</summary>
     public void ScaleLayoutAtRuntime()
     {
         if (DesignModeHelper.IsInDesignMode) return;

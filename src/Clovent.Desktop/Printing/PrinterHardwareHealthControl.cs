@@ -19,15 +19,34 @@ namespace Clovent.Desktop.Printing;
 /// </summary>
 public sealed class PrinterHealthDisplayItem
 {
+    /// <summary>Printer profile identifier.</summary>
     public Guid ProfileId { get; set; }
+
+    /// <summary>Logical printer profile name.</summary>
     public string ProfileName { get; set; } = string.Empty;
+
+    /// <summary>Bound Windows system printer queue name.</summary>
     public string SystemPrinterName { get; set; } = string.Empty;
+
+    /// <summary>Assigned printer role (Receipt, Kitchen, Invoice).</summary>
     public string Role { get; set; } = string.Empty;
+
+    /// <summary>Detected hardware fault or readiness condition.</summary>
     public string HardwareCondition { get; set; } = "Ready";
+
+    /// <summary>Whether the printer hardware is ready to accept jobs.</summary>
     public bool IsReady { get; set; } = true;
+
+    /// <summary>Current Windows spooler queue depth.</summary>
     public int SpoolerQueueDepth { get; set; }
+
+    /// <summary>Peripheral circuit breaker state.</summary>
     public string CircuitBreakerState { get; set; } = "Closed";
+
+    /// <summary>Consecutive dispatch failure count.</summary>
     public int FailureCount { get; set; }
+
+    /// <summary>Formatted timestamp of the last hardware health probe.</summary>
     public string LastChecked { get; set; } = string.Empty;
 }
 
@@ -36,12 +55,25 @@ public sealed class PrinterHealthDisplayItem
 /// </summary>
 public sealed class QuarantinedJobDisplayItem
 {
+    /// <summary>Quarantined print job identifier.</summary>
     public Guid JobId { get; set; }
+
+    /// <summary>Document type (Receipt, KitchenTicket, etc.).</summary>
     public string DocumentType { get; set; } = string.Empty;
+
+    /// <summary>Target printer profile or system queue name.</summary>
     public string TargetPrinter { get; set; } = string.Empty;
+
+    /// <summary>Formatted UTC/local timestamp when the job was quarantined.</summary>
     public string QuarantinedAt { get; set; } = string.Empty;
+
+    /// <summary>Initial hardware or spooler failure reason.</summary>
     public string FailureReason { get; set; } = string.Empty;
+
+    /// <summary>Number of replay attempts executed.</summary>
     public int RetryCount { get; set; }
+
+    /// <summary>Most recent retry failure message, if any.</summary>
     public string LastRetryError { get; set; } = string.Empty;
 }
 

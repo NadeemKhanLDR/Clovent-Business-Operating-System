@@ -30,6 +30,8 @@ public sealed class CloseShiftDialog : XtraForm
     private LabelControl _lblTotalSalesVal = null!;
     private LabelControl _lblCashInVal = null!;
     private LabelControl _lblCashOutVal = null!;
+    private LabelControl _lblCashRefundsVal = null!;
+    private LabelControl _lblCreditRefundsVal = null!;
     private LabelControl _lblExpectedCashVal = null!;
 
     private LabelControl _lblCountedCashLabel = null!;
@@ -67,7 +69,7 @@ public sealed class CloseShiftDialog : XtraForm
     {
         Text = "Close Cash Register Shift & Register Balancing";
         AutoScaleMode = AutoScaleMode.None;
-        DesktopDialogSizing.Apply(this, 680, 560, 600, 500, null, true);
+        DesktopDialogSizing.Apply(this, 700, 600, 620, 520, null, true);
 
         var mainLayout = new TableLayoutPanel
         {
@@ -78,7 +80,7 @@ public sealed class CloseShiftDialog : XtraForm
         };
 
         mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(40, this))); // Header
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(195, this))); // Summary Group
+        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(220, this))); // Summary Group
         mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f)); // Reconciliation Group
         mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(50, this))); // Buttons
 
@@ -95,18 +97,18 @@ public sealed class CloseShiftDialog : XtraForm
         {
             Dock = DockStyle.Fill,
             Padding = new Padding(10),
-            RowCount = 5,
+            RowCount = 6,
             ColumnCount = 4
         };
 
-        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(125, this)));
+        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(135, this)));
         summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
-        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(125, this)));
+        summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, DesktopDpi.Scale(145, this)));
         summaryGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
 
-        for (int r = 0; r < 5; r++)
+        for (int r = 0; r < 6; r++)
         {
-            summaryGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 20f));
+            summaryGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 16.66f));
         }
 
         summaryGrid.Controls.Add(new LabelControl { Text = "Starting Cash:", Anchor = AnchorStyles.Left }, 0, 0);
@@ -137,9 +139,17 @@ public sealed class CloseShiftDialog : XtraForm
         _lblCashOutVal = new LabelControl { Text = "0.00", Anchor = AnchorStyles.Left };
         summaryGrid.Controls.Add(_lblCashOutVal, 1, 3);
 
-        summaryGrid.Controls.Add(new LabelControl { Text = "Expected Cash:", Anchor = AnchorStyles.Left }, 0, 4);
+        summaryGrid.Controls.Add(new LabelControl { Text = "Cash Refunds (-):", Anchor = AnchorStyles.Left }, 0, 4);
+        _lblCashRefundsVal = new LabelControl { Text = "0.00", Anchor = AnchorStyles.Left, Appearance = { ForeColor = Color.FromArgb(220, 38, 38) } };
+        summaryGrid.Controls.Add(_lblCashRefundsVal, 1, 4);
+
+        summaryGrid.Controls.Add(new LabelControl { Text = "Account Credit Refunds:", Anchor = AnchorStyles.Left }, 2, 4);
+        _lblCreditRefundsVal = new LabelControl { Text = "0.00", Anchor = AnchorStyles.Left };
+        summaryGrid.Controls.Add(_lblCreditRefundsVal, 3, 4);
+
+        summaryGrid.Controls.Add(new LabelControl { Text = "Expected Cash:", Anchor = AnchorStyles.Left }, 0, 5);
         _lblExpectedCashVal = new LabelControl { Text = "0.00", Anchor = AnchorStyles.Left, Appearance = { Font = new Font(Font.FontFamily, 10f, FontStyle.Bold), ForeColor = Color.FromArgb(13, 148, 136) } };
-        summaryGrid.Controls.Add(_lblExpectedCashVal, 1, 4);
+        summaryGrid.Controls.Add(_lblExpectedCashVal, 1, 5);
 
         grpSummary.Controls.Add(summaryGrid);
 
@@ -286,6 +296,8 @@ public sealed class CloseShiftDialog : XtraForm
                 _lblTotalSalesVal.Text = CurrencyDisplay.Format(_summary.TotalSales);
                 _lblCashInVal.Text = CurrencyDisplay.Format(_summary.CashIn);
                 _lblCashOutVal.Text = CurrencyDisplay.Format(_summary.CashOut);
+                _lblCashRefundsVal.Text = CurrencyDisplay.Format(_summary.CashRefunds);
+                _lblCreditRefundsVal.Text = CurrencyDisplay.Format(_summary.CustomerAccountCreditRefunds);
                 _lblExpectedCashVal.Text = CurrencyDisplay.Format(_summary.ExpectedCash);
 
                 _spnCountedCash.Value = _summary.ExpectedCash;

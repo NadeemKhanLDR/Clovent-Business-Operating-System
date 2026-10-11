@@ -8,15 +8,22 @@ namespace Clovent.Desktop.Configuration;
 /// </summary>
 public sealed class DatabaseConnectionSettings
 {
+    /// <summary>The canonical physical SQL Server database name for CBOS.</summary>
     public const string DefaultDatabaseName = "Clovent_BusinessOperatingSystem";
+
+    /// <summary>The default local SQL Server instance name.</summary>
     public const string DefaultServer = ".";
 
+    /// <summary>Gets or sets the SQL Server host or instance name.</summary>
     public string Server { get; set; } = DefaultServer;
 
+    /// <summary>Gets or sets the target database name.</summary>
     public string Database { get; set; } = DefaultDatabaseName;
 
+    /// <summary>Gets or sets a value indicating whether Windows Authentication (Integrated Security) is used.</summary>
     public bool UseWindowsAuthentication { get; set; } = true;
 
+    /// <summary>Gets or sets the SQL Server login user ID when SQL Server Authentication is used.</summary>
     public string? UserId { get; set; }
 
     /// <summary>
@@ -24,10 +31,13 @@ public sealed class DatabaseConnectionSettings
     /// </summary>
     public string? EncryptedPassword { get; set; }
 
+    /// <summary>Gets or sets a value indicating whether the SQL Server TLS certificate should be trusted automatically.</summary>
     public bool TrustServerCertificate { get; set; } = true;
 
+    /// <summary>Gets or sets the connection timeout in seconds.</summary>
     public int ConnectionTimeout { get; set; } = 15;
 
+    /// <summary>Gets or sets the transient in-memory plaintext password prior to DPAPI encryption.</summary>
     [JsonIgnore]
     public string? PlainTextPassword { get; set; }
 

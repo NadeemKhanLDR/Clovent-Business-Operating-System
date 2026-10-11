@@ -50,6 +50,7 @@ public sealed class CustomerReorderDialog : XtraForm
         InitializeComponent();
     }
 
+    /// <summary>Initializes a new instance of <see cref="CustomerReorderDialog"/> for the specified customer.</summary>
     public CustomerReorderDialog(IMediator mediator, ILogger logger, Guid customerId)
     {
         _mediator = mediator;
@@ -244,6 +245,7 @@ public sealed class CustomerInsightsDialog : XtraForm
         InitializeComponent();
     }
 
+    /// <summary>Initializes a new instance of <see cref="CustomerInsightsDialog"/> for the specified customer.</summary>
     public CustomerInsightsDialog(IMediator mediator, ILogger logger, Guid customerId)
     {
         _mediator = mediator;
