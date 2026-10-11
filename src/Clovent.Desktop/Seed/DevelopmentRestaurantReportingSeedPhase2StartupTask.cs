@@ -109,12 +109,14 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         // ── 1. Resolve Warehouse ──────────────────────────────────────────────
         var warehouses = await warehouseRepository.GetAllAsync(cancellationToken);
         if (warehouses.Count == 0) return;
-        var warehouse = warehouses.First();
+        var warehouse = warehouses.FirstOrDefault(w => w.Code.Value == "WH-01")
+            ?? warehouses.FirstOrDefault(w => w.Code.Value != "WH-02")
+            ?? warehouses.First();
         var warehouseId = warehouse.Id;
 
         // Resolve or create secondary warehouse WH-02 for inventory transfer testing
-        Warehouse? wh02 = warehouses.FirstOrDefault(w => w.Code.Value == "WH-02");
-        if (wh02 is null)
+        Warehouse? wh02 = warehouses.FirstOrDefault(w => w.Code.Value == "WH-02" && w.Id != warehouseId);
+        if (wh02 is null && !string.Equals(warehouse.Code.Value, "WH-02", StringComparison.OrdinalIgnoreCase))
         {
             wh02 = Warehouse.Create(warehouse.BranchId, WarehouseName.Create("Kitchen Backup Warehouse"), EntityCode.Create("WH-02"));
             await warehouseRepository.AddAsync(wh02, cancellationToken);
@@ -372,8 +374,17 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
         await transactionRepository.AddAsync(negAdjTx, cancellationToken);
 
         // Internal warehouse transfer (-10 Naan from WH-01 to WH-02)
-        if (wh02 != null)
+        if (wh02 != null && wh02.Id != warehouseId)
         {
+            var transferTimestamp = DateTimeOffset.UtcNow;
+            var stockTransfer = Clovent.Inventory.Transfers.StockTransfer.Create(
+                warehouseId,
+                wh02.Id,
+                vNaanId.Value,
+                10m);
+            stockTransfer.Complete();
+            inventoryDbContext.StockTransfers.Add(stockTransfer);
+
             naanStock.Issue(10m);
             var trfOutTx = InventoryTransaction.Create(
                 warehouseId,
@@ -381,9 +392,9 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
                 InventoryTransactionType.TransferOut,
                 10m,
                 referenceType: "StockTransfer",
-                referenceId: wh02.Id.Value,
+                referenceId: stockTransfer.Id.Value,
                 notes: $"Internal transfer to Kitchen Backup (-10 Naan) {CleanSeedTag}",
-                occurredAtUtc: DateTimeOffset.UtcNow);
+                occurredAtUtc: transferTimestamp);
             await transactionRepository.AddAsync(trfOutTx, cancellationToken);
 
             var wh02Stock = await warehouseStockRepository.GetByWarehouseAndVariantAsync(wh02.Id, vNaanId.Value, cancellationToken);
@@ -399,9 +410,9 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
                 InventoryTransactionType.TransferIn,
                 10m,
                 referenceType: "StockTransfer",
-                referenceId: warehouseId.Value,
+                referenceId: stockTransfer.Id.Value,
                 notes: $"Internal transfer received from Main Warehouse (+10 Naan) {CleanSeedTag}",
-                occurredAtUtc: DateTimeOffset.UtcNow);
+                occurredAtUtc: transferTimestamp);
             await transactionRepository.AddAsync(trfInTx, cancellationToken);
         }
 
@@ -975,13 +986,29 @@ public sealed class DevelopmentRestaurantReportingSeedPhase2StartupTask(
 
         await restaurantDbContext.SaveChangesAsync(cancellationToken);
 
-        // 9. Remove Phase 2 inventory transactions
+        // 9. Remove Phase 2 inventory transactions and stock transfers
         var s2Txs = inventoryDbContext.InventoryTransactions
             .Where(t => (t.ReferenceType != null && t.ReferenceType.StartsWith("ORD-RPT-S2-")) ||
                         (t.Notes != null && (t.Notes.Contains("Phase 2 seed") || t.Notes.Contains("GRN-2026-") || t.Notes.Contains("RUN-20261001-DEV-ACCEPTANCE"))))
             .ToList();
         if (s2Txs.Count > 0)
         {
+            var s2TransferIds = s2Txs
+                .Where(t => t.ReferenceType == "StockTransfer" && t.ReferenceId.HasValue)
+                .Select(t => new Clovent.Inventory.Transfers.StockTransferId(t.ReferenceId!.Value))
+                .Distinct()
+                .ToList();
+            if (s2TransferIds.Count > 0)
+            {
+                var s2Transfers = inventoryDbContext.StockTransfers
+                    .Where(t => s2TransferIds.Contains(t.Id))
+                    .ToList();
+                if (s2Transfers.Count > 0)
+                {
+                    inventoryDbContext.StockTransfers.RemoveRange(s2Transfers);
+                }
+            }
+
             inventoryDbContext.InventoryTransactions.RemoveRange(s2Txs);
         }
 

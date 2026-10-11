@@ -409,7 +409,10 @@ public static class Program
             // 7. Persist Machine-Level Connection Configuration (DPAPI encrypted)
             Log("Persisting machine-level database configuration in %ProgramData%...");
             DatabaseSecretStore.Save(settings, machineLevel: true);
-            Log("Database configuration saved successfully to %ProgramData%\\Clovent\\BusinessOperatingSystem\\Config\\database.config.json.");
+            var effectiveConfigPath = File.Exists(DatabaseSecretStore.GetMachineConfigFilePath())
+                ? DatabaseSecretStore.GetMachineConfigFilePath()
+                : DatabaseSecretStore.GetUserConfigFilePath();
+            Log($"Database configuration saved successfully to {effectiveConfigPath}.");
 
             // 8. Validate Schema Compatibility Final Gate
             Log("Executing final database compatibility validation...");

@@ -178,7 +178,164 @@ public sealed class DatabaseSchemaCompatibilityValidator(ILogger<DatabaseSchemaC
                 unknownByContext);
         }
 
-        logger?.LogInformation("Database schema compatibility verification passed. All migrations match.");
+        // 4. Verify live physical SQL Server catalog against compiled EF Core models
+        try
+        {
+            var existingTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var existingIndexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var catalogBuilder = new SqlConnectionStringBuilder(connectionString)
+            {
+                ConnectTimeout = 10
+            };
+
+            await using (var conn = new SqlConnection(catalogBuilder.ConnectionString))
+            {
+                await conn.OpenAsync(ct).ConfigureAwait(false);
+
+                await using (var tableCmd = conn.CreateCommand())
+                {
+                    tableCmd.CommandText = """
+                        SELECT s.name AS SchemaName, t.name AS TableName
+                        FROM sys.tables t
+                        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id;
+                        """;
+                    tableCmd.CommandTimeout = 15;
+                    await using var reader = await tableCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                    while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                    {
+                        existingTables.Add($"{reader.GetString(0)}.{reader.GetString(1)}");
+                    }
+                }
+
+                await using (var colCmd = conn.CreateCommand())
+                {
+                    colCmd.CommandText = """
+                        SELECT s.name AS SchemaName, t.name AS TableName, c.name AS ColumnName
+                        FROM sys.columns c
+                        INNER JOIN sys.tables t ON c.object_id = t.object_id
+                        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id;
+                        """;
+                    colCmd.CommandTimeout = 15;
+                    await using var reader = await colCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                    while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                    {
+                        existingColumns.Add($"{reader.GetString(0)}.{reader.GetString(1)}.{reader.GetString(2)}");
+                    }
+                }
+
+                await using (var idxCmd = conn.CreateCommand())
+                {
+                    idxCmd.CommandText = """
+                        SELECT s.name AS SchemaName, t.name AS TableName, i.name AS IndexName
+                        FROM sys.indexes i
+                        INNER JOIN sys.tables t ON i.object_id = t.object_id
+                        INNER JOIN sys.schemas s ON t.schema_id = s.schema_id
+                        WHERE i.name IS NOT NULL;
+                        """;
+                    idxCmd.CommandTimeout = 15;
+                    await using var reader = await idxCmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                    while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                    {
+                        existingIndexes.Add($"{reader.GetString(0)}.{reader.GetString(1)}.{reader.GetString(2)}");
+                    }
+                }
+            }
+
+            var allMissingObjects = new List<string>();
+            var missingByContext = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var (name, factory) in contexts)
+            {
+                await using var dbContext = factory();
+                var contextMissing = new List<string>();
+
+                foreach (var entityType in dbContext.Model.GetEntityTypes())
+                {
+                    var tableName = entityType.GetTableName();
+                    if (string.IsNullOrWhiteSpace(tableName))
+                    {
+                        continue;
+                    }
+
+                    var schemaName = entityType.GetSchema() ?? dbContext.Model.GetDefaultSchema() ?? "dbo";
+                    var storeObject = Microsoft.EntityFrameworkCore.Metadata.StoreObjectIdentifier.Table(tableName, schemaName);
+                    var qualifiedTable = $"{schemaName}.{tableName}";
+
+                    if (!existingTables.Contains(qualifiedTable))
+                    {
+                        contextMissing.Add($"MissingTable:{qualifiedTable}");
+                        continue;
+                    }
+
+                    foreach (var property in entityType.GetProperties())
+                    {
+                        var columnName = property.GetColumnName(storeObject);
+                        if (string.IsNullOrWhiteSpace(columnName))
+                        {
+                            continue;
+                        }
+
+                        var qualifiedColumn = $"{qualifiedTable}.{columnName}";
+                        if (!existingColumns.Contains(qualifiedColumn))
+                        {
+                            contextMissing.Add($"MissingColumn:{qualifiedColumn}");
+                        }
+                    }
+
+                    foreach (var index in entityType.GetIndexes())
+                    {
+                        var indexName = index.GetDatabaseName(storeObject) ?? index.GetDatabaseName();
+                        if (string.IsNullOrWhiteSpace(indexName))
+                        {
+                            continue;
+                        }
+
+                        var qualifiedIndex = $"{qualifiedTable}.{indexName}";
+                        if (!existingIndexes.Contains(qualifiedIndex))
+                        {
+                            contextMissing.Add($"MissingIndex:{qualifiedIndex}");
+                        }
+                    }
+                }
+
+                if (contextMissing.Count > 0)
+                {
+                    var distinctMissing = contextMissing.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                    allMissingObjects.AddRange(distinctMissing);
+                    missingByContext[name] = distinctMissing;
+                }
+            }
+
+            if (allMissingObjects.Count > 0)
+            {
+                logger?.LogWarning(
+                    "Database migration history is current, but {Count} mapped schema objects are missing: {MissingObjects}",
+                    allMissingObjects.Count,
+                    string.Join(", ", allMissingObjects));
+
+                return new SchemaCompatibilityResult(
+                    SchemaCompatibilityStatus.DatabaseTooOld,
+                    "The database schema is missing required tables, columns, or indexes. Required updates must be applied before normal application startup.",
+                    $"Missing schema objects: {string.Join(", ", allMissingObjects)}",
+                    allMissingObjects,
+                    allUnknown,
+                    missingByContext,
+                    unknownByContext);
+            }
+        }
+        catch (Exception ex)
+        {
+            var masked = DatabaseErrorMasker.Mask(ex.Message, connectionString);
+            logger?.LogError(ex, "Failed verifying physical database catalog against EF Core models: {Error}", masked);
+            return new SchemaCompatibilityResult(
+                SchemaCompatibilityStatus.ConnectionFailed,
+                "Failed to verify physical database schema objects.",
+                masked);
+        }
+
+        logger?.LogInformation("Database schema compatibility verification passed. All migrations and physical schema objects match.");
         return new SchemaCompatibilityResult(
             SchemaCompatibilityStatus.Compatible,
             "The database schema is up-to-date and fully compatible.",

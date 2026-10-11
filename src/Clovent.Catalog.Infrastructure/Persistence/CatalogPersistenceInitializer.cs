@@ -35,6 +35,18 @@ public sealed class CatalogPersistenceInitializer(CatalogDbContext dbContext) : 
                     ALTER TABLE [Catalog].[ProductVariants] ADD [IsAvailable] bit NOT NULL CONSTRAINT [DF_ProductVariants_IsAvailable] DEFAULT 1;
                 END
             END
+
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Catalog].[ProductCategories]'))
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[Catalog].[ProductCategories]') 
+                    AND name = 'DefaultTaxProfileId'
+                )
+                BEGIN
+                    ALTER TABLE [Catalog].[ProductCategories] ADD [DefaultTaxProfileId] uniqueidentifier NULL;
+                END
+            END
             """;
         await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
     }

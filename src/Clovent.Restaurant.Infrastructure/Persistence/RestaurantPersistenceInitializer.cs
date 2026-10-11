@@ -241,6 +241,170 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                     CREATE INDEX [IX_Refunds_TerminalId] ON [Restaurant].[Refunds] ([TerminalId]);
                 END
             END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[QuickBooksSyncMaps]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[QuickBooksSyncMaps] (
+                    [Id] uniqueidentifier NOT NULL,
+                    [LocalEntityId] uniqueidentifier NOT NULL,
+                    [EntityType] nvarchar(50) NOT NULL,
+                    [QuickBooksTxnId] nvarchar(100) NULL,
+                    [QuickBooksDocNumber] nvarchar(50) NULL,
+                    [QuickBooksEditSequence] nvarchar(50) NULL,
+                    [Amount] decimal(18,2) NOT NULL,
+                    [Currency] nvarchar(10) NOT NULL,
+                    [Status] nvarchar(30) NOT NULL,
+                    [LastError] nvarchar(2000) NULL,
+                    [RetryCount] int NOT NULL,
+                    [CreatedAtUtc] datetimeoffset NOT NULL,
+                    [SyncedAtUtc] datetimeoffset NULL,
+                    [RequestPayloadJson] nvarchar(max) NULL,
+                    [ResponsePayloadJson] nvarchar(max) NULL,
+                    [BranchId] uniqueidentifier NULL,
+                    [TerminalId] uniqueidentifier NULL,
+                    [ManagerOverrideNotes] nvarchar(1000) NULL,
+                    [ManagerOverrideUserId] uniqueidentifier NULL,
+                    [ManagerOverrideAtUtc] datetimeoffset NULL,
+                    CONSTRAINT [PK_QuickBooksSyncMaps] PRIMARY KEY ([Id])
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_QuickBooksSyncMaps_EntityType_LocalEntityId' AND object_id = OBJECT_ID(N'[Restaurant].[QuickBooksSyncMaps]'))
+                CREATE UNIQUE INDEX [IX_QuickBooksSyncMaps_EntityType_LocalEntityId] ON [Restaurant].[QuickBooksSyncMaps] ([EntityType], [LocalEntityId]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_QuickBooksSyncMaps_QuickBooksTxnId' AND object_id = OBJECT_ID(N'[Restaurant].[QuickBooksSyncMaps]'))
+                CREATE INDEX [IX_QuickBooksSyncMaps_QuickBooksTxnId] ON [Restaurant].[QuickBooksSyncMaps] ([QuickBooksTxnId]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_QuickBooksSyncMaps_Status' AND object_id = OBJECT_ID(N'[Restaurant].[QuickBooksSyncMaps]'))
+                CREATE INDEX [IX_QuickBooksSyncMaps_Status] ON [Restaurant].[QuickBooksSyncMaps] ([Status]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_QuickBooksSyncMaps_CreatedAtUtc' AND object_id = OBJECT_ID(N'[Restaurant].[QuickBooksSyncMaps]'))
+                CREATE INDEX [IX_QuickBooksSyncMaps_CreatedAtUtc] ON [Restaurant].[QuickBooksSyncMaps] ([CreatedAtUtc]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[SyncInboxRecords]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[SyncInboxRecords] (
+                    [IdempotencyKey] nvarchar(200) NOT NULL,
+                    [PacketId] uniqueidentifier NOT NULL,
+                    [OrganizationId] uniqueidentifier NOT NULL,
+                    [BranchId] uniqueidentifier NOT NULL,
+                    [SourceTerminalId] uniqueidentifier NOT NULL,
+                    [EntityKind] nvarchar(100) NOT NULL,
+                    [EntityId] nvarchar(200) NOT NULL,
+                    [SchemaVersion] int NOT NULL,
+                    [PayloadHash] nvarchar(128) NOT NULL,
+                    [PayloadJson] nvarchar(max) NOT NULL,
+                    [Status] nvarchar(50) NOT NULL,
+                    [ReceivedAtUtc] datetimeoffset NOT NULL,
+                    [ProcessedAtUtc] datetimeoffset NULL,
+                    [FailureReason] nvarchar(2000) NULL,
+                    [StagedConflictId] uniqueidentifier NULL,
+                    [ConcurrencyToken] nvarchar(200) NULL,
+                    CONSTRAINT [PK_SyncInboxRecords] PRIMARY KEY ([IdempotencyKey])
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SyncInboxRecords_PacketId' AND object_id = OBJECT_ID(N'[Restaurant].[SyncInboxRecords]'))
+                CREATE INDEX [IX_SyncInboxRecords_PacketId] ON [Restaurant].[SyncInboxRecords] ([PacketId]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SyncInboxRecords_Status' AND object_id = OBJECT_ID(N'[Restaurant].[SyncInboxRecords]'))
+                CREATE INDEX [IX_SyncInboxRecords_Status] ON [Restaurant].[SyncInboxRecords] ([Status]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SyncInboxRecords_EntityKind_EntityId' AND object_id = OBJECT_ID(N'[Restaurant].[SyncInboxRecords]'))
+                CREATE INDEX [IX_SyncInboxRecords_EntityKind_EntityId] ON [Restaurant].[SyncInboxRecords] ([EntityKind], [EntityId]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[SyncConflicts]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[SyncConflicts] (
+                    [ConflictId] uniqueidentifier NOT NULL,
+                    [PacketId] uniqueidentifier NOT NULL,
+                    [OriginalPacketJson] nvarchar(max) NOT NULL,
+                    [EntityKind] nvarchar(100) NOT NULL,
+                    [EntityId] nvarchar(200) NOT NULL,
+                    [SourceBranchId] uniqueidentifier NOT NULL,
+                    [SourceTerminalId] uniqueidentifier NOT NULL,
+                    [IncomingValue] nvarchar(500) NOT NULL,
+                    [CurrentValue] nvarchar(500) NOT NULL,
+                    [IncomingConcurrencyToken] nvarchar(200) NULL,
+                    [CurrentConcurrencyToken] nvarchar(200) NULL,
+                    [ConflictType] nvarchar(50) NOT NULL,
+                    [Status] nvarchar(50) NOT NULL,
+                    [ConflictReason] nvarchar(1000) NOT NULL,
+                    [DetectedAtUtc] datetimeoffset NOT NULL,
+                    [ReviewedAtUtc] datetimeoffset NULL,
+                    [ReviewedByUserId] uniqueidentifier NULL,
+                    [ResolutionNotes] nvarchar(2000) NULL,
+                    [ResultingEffect] nvarchar(1000) NULL,
+                    CONSTRAINT [PK_SyncConflicts] PRIMARY KEY ([ConflictId])
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SyncConflicts_Status' AND object_id = OBJECT_ID(N'[Restaurant].[SyncConflicts]'))
+                CREATE INDEX [IX_SyncConflicts_Status] ON [Restaurant].[SyncConflicts] ([Status]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_SyncConflicts_EntityKind_EntityId' AND object_id = OBJECT_ID(N'[Restaurant].[SyncConflicts]'))
+                CREATE INDEX [IX_SyncConflicts_EntityKind_EntityId] ON [Restaurant].[SyncConflicts] ([EntityKind], [EntityId]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[TerminalShiftSyncSummaries]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[TerminalShiftSyncSummaries] (
+                    [Id] uniqueidentifier NOT NULL,
+                    [BranchId] uniqueidentifier NOT NULL,
+                    [TerminalId] uniqueidentifier NOT NULL,
+                    [ShiftNumber] int NOT NULL,
+                    [CashierId] uniqueidentifier NOT NULL,
+                    [CashierName] nvarchar(200) NOT NULL,
+                    [OpenedAtUtc] datetimeoffset NOT NULL,
+                    [ClosedAtUtc] datetimeoffset NULL,
+                    [StartingCash] decimal(18,4) NOT NULL,
+                    [CountedCash] decimal(18,4) NOT NULL,
+                    [ExpectedCash] decimal(18,4) NOT NULL,
+                    [CashVariance] decimal(18,4) NOT NULL,
+                    [NetSales] decimal(18,4) NOT NULL,
+                    [TotalOrdersCount] int NOT NULL,
+                    [TimestampUtc] datetimeoffset NOT NULL,
+                    [ReplicatedAtUtc] datetimeoffset NOT NULL,
+                    CONSTRAINT [PK_TerminalShiftSyncSummaries] PRIMARY KEY ([Id])
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_TerminalShiftSyncSummaries_Branch_Terminal_Shift' AND object_id = OBJECT_ID(N'[Restaurant].[TerminalShiftSyncSummaries]'))
+                CREATE UNIQUE INDEX [IX_TerminalShiftSyncSummaries_Branch_Terminal_Shift] ON [Restaurant].[TerminalShiftSyncSummaries] ([BranchId], [TerminalId], [ShiftNumber]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[CashierAuditAlerts]'))
+            BEGIN
+                CREATE TABLE [Restaurant].[CashierAuditAlerts] (
+                    [Id] uniqueidentifier NOT NULL,
+                    [ShiftId] uniqueidentifier NULL,
+                    [OrderId] uniqueidentifier NULL,
+                    [CashierId] uniqueidentifier NULL,
+                    [CashierName] nvarchar(200) NOT NULL,
+                    [AnomalyType] nvarchar(60) NOT NULL,
+                    [Severity] nvarchar(30) NOT NULL,
+                    [RiskScore] decimal(5,2) NOT NULL,
+                    [Description] nvarchar(1000) NOT NULL,
+                    [SuspectDetailsJson] nvarchar(max) NULL,
+                    [DetectedAtUtc] datetimeoffset NOT NULL,
+                    [Status] nvarchar(30) NOT NULL,
+                    [ReviewedBy] nvarchar(200) NULL,
+                    [ReviewedAtUtc] datetimeoffset NULL,
+                    [ResolutionNotes] nvarchar(1000) NULL,
+                    [CreatedAtUtc] datetimeoffset NOT NULL,
+                    CONSTRAINT [PK_CashierAuditAlerts] PRIMARY KEY ([Id])
+                );
+            END
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CashierAuditAlerts_DetectedAtUtc' AND object_id = OBJECT_ID(N'[Restaurant].[CashierAuditAlerts]'))
+                CREATE INDEX [IX_CashierAuditAlerts_DetectedAtUtc] ON [Restaurant].[CashierAuditAlerts] ([DetectedAtUtc]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CashierAuditAlerts_CashierName' AND object_id = OBJECT_ID(N'[Restaurant].[CashierAuditAlerts]'))
+                CREATE INDEX [IX_CashierAuditAlerts_CashierName] ON [Restaurant].[CashierAuditAlerts] ([CashierName]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CashierAuditAlerts_Status' AND object_id = OBJECT_ID(N'[Restaurant].[CashierAuditAlerts]'))
+                CREATE INDEX [IX_CashierAuditAlerts_Status] ON [Restaurant].[CashierAuditAlerts] ([Status]);
+
+            IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_CashierAuditAlerts_AnomalyType' AND object_id = OBJECT_ID(N'[Restaurant].[CashierAuditAlerts]'))
+                CREATE INDEX [IX_CashierAuditAlerts_AnomalyType] ON [Restaurant].[CashierAuditAlerts] ([AnomalyType]);
             """;
         await dbContext.Database.ExecuteSqlRawAsync(schemaSql, cancellationToken);
 

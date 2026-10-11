@@ -11,6 +11,7 @@ using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.PaymentMethods.ValueObjects;
 using Clovent.Restaurant.Payments;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Clovent.Restaurant.Infrastructure.Tests.Outbox;
@@ -211,5 +212,202 @@ public sealed class OutboxAtomicityIntegrationTests : SqliteTestBase
         {
             await context.SaveChangesAsync();
         });
+    }
+
+    [Fact]
+    public async Task G_OutboxProcessor_ConcurrentBatchWithQuickBooksSyncMaps_CompletesWithoutDbContextThreadCollision()
+    {
+        var dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"cbos-outbox-conc-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={dbPath}";
+
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(Microsoft.Extensions.Logging.Abstractions.NullLogger<>));
+            services.AddDbContext<RestaurantDbContext>(opts => opts.UseSqlite(connectionString));
+            services.AddScoped<IOutboxRepository, OutboxRepository>();
+            services.AddScoped<Clovent.Restaurant.QuickBooks.IQuickBooksSyncMapRepository, QuickBooksSyncMapRepository>();
+            services.AddSingleton<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry, Clovent.Platform.CircuitBreakers.CircuitBreakerRegistry>();
+            services.AddSingleton<Clovent.Restaurant.Application.QuickBooks.IQuickBooksGateway>(new Clovent.Restaurant.Application.QuickBooks.DefaultQuickBooksGateway());
+            services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksSyncOutboxHandler>();
+
+            await using var provider = services.BuildServiceProvider();
+
+            using (var initScope = provider.CreateScope())
+            {
+                var initDb = initScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+                await initDb.Database.EnsureCreatedAsync();
+
+                for (int i = 0; i < 6; i++)
+                {
+                    var orderId = Guid.NewGuid();
+                    var payload = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        OrderId = orderId,
+                        OrderNumber = $"ORD-QB-{i + 1:000}",
+                        TotalAmount = 150m + (i * 25m),
+                        TaxAmount = 15m,
+                        DiscountAmount = 0m,
+                        CompletedAtUtc = DateTimeOffset.UtcNow
+                    });
+
+                    var msg = OutboxMessage.Create(
+                        OutboxMessageType.QuickBooksSync,
+                        "Order",
+                        orderId.ToString(),
+                        orderId.ToString(),
+                        payload,
+                        $"qb-conc-{orderId}");
+                    initDb.OutboxMessages.Add(msg);
+                }
+
+                await initDb.SaveChangesAsync();
+            }
+
+            using var processor = new Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor>>());
+
+            var processed = await processor.ProcessBatchAsync();
+            Assert.Equal(6, processed);
+
+            using var verifyScope = provider.CreateScope();
+            var verifyDb = verifyScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            var allMessages = await verifyDb.OutboxMessages.ToListAsync();
+            var allSyncMaps = await verifyDb.QuickBooksSyncMaps.ToListAsync();
+
+            Assert.Equal(6, allMessages.Count);
+            Assert.All(allMessages, m =>
+            {
+                Assert.Equal(OutboxMessageStatus.Completed, m.Status);
+                Assert.Null(m.LastError);
+            });
+
+            Assert.Equal(6, allSyncMaps.Count);
+            Assert.All(allSyncMaps, map =>
+            {
+                Assert.Equal(Clovent.Restaurant.QuickBooks.QuickBooksSyncStatus.Synchronized, map.Status);
+                Assert.NotNull(map.QuickBooksTxnId);
+            });
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (System.IO.File.Exists(dbPath))
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task H_OutboxProcessor_RetainsRetryIdempotencyAndGracefulShutdownUnderScopeIsolation()
+    {
+        var dbPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"cbos-outbox-retry-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={dbPath}";
+
+        try
+        {
+            var gateway = new Clovent.Restaurant.Application.QuickBooks.DefaultQuickBooksGateway();
+            var services = new ServiceCollection();
+            services.AddSingleton(typeof(Microsoft.Extensions.Logging.ILogger<>), typeof(Microsoft.Extensions.Logging.Abstractions.NullLogger<>));
+            services.AddDbContext<RestaurantDbContext>(opts => opts.UseSqlite(connectionString));
+            services.AddScoped<IOutboxRepository, OutboxRepository>();
+            services.AddScoped<Clovent.Restaurant.QuickBooks.IQuickBooksSyncMapRepository, QuickBooksSyncMapRepository>();
+            services.AddSingleton<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry, Clovent.Platform.CircuitBreakers.CircuitBreakerRegistry>();
+            services.AddSingleton<Clovent.Restaurant.Application.QuickBooks.IQuickBooksGateway>(gateway);
+            services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.QuickBooksSyncOutboxHandler>();
+
+            await using var provider = services.BuildServiceProvider();
+            var orderId = Guid.NewGuid();
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                OrderId = orderId,
+                OrderNumber = "ORD-QB-RETRY-001",
+                TotalAmount = 250m,
+                TaxAmount = 25m,
+                DiscountAmount = 0m,
+                CompletedAtUtc = DateTimeOffset.UtcNow
+            });
+
+            using (var initScope = provider.CreateScope())
+            {
+                var initDb = initScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+                await initDb.Database.EnsureCreatedAsync();
+
+                initDb.OutboxMessages.Add(OutboxMessage.Create(
+                    OutboxMessageType.QuickBooksSync,
+                    "Order",
+                    orderId.ToString(),
+                    orderId.ToString(),
+                    payload,
+                    $"qb-retry-1-{orderId}"));
+                await initDb.SaveChangesAsync();
+            }
+
+            using var processor = new Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor(
+                provider.GetRequiredService<IServiceScopeFactory>(),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<Clovent.Restaurant.Infrastructure.Outbox.OutboxProcessor>>());
+
+            // 1. Simulate QuickBooks outage -> message must NOT be marked Completed; must transition to RetryScheduled
+            gateway.SetSimulatedOutage(true);
+            var firstBatch = await processor.ProcessBatchAsync();
+            Assert.Equal(1, firstBatch);
+
+            using (var checkScope = provider.CreateScope())
+            {
+                var checkDb = checkScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+                var failedMsg = await checkDb.OutboxMessages.SingleAsync();
+                Assert.Equal(OutboxMessageStatus.RetryScheduled, failedMsg.Status);
+                Assert.Equal(1, failedMsg.AttemptCount);
+                Assert.NotNull(failedMsg.LastError);
+
+                var failedMap = await checkDb.QuickBooksSyncMaps.SingleAsync();
+                Assert.Equal(Clovent.Restaurant.QuickBooks.QuickBooksSyncStatus.Failed, failedMap.Status);
+
+                // Make message immediately eligible for retry and enqueue a second message for the same OrderId to test idempotency
+                failedMsg.RetryNow();
+                checkDb.OutboxMessages.Add(OutboxMessage.Create(
+                    OutboxMessageType.QuickBooksSync,
+                    "Order",
+                    orderId.ToString(),
+                    orderId.ToString(),
+                    payload,
+                    $"qb-retry-2-{orderId}"));
+                await checkDb.SaveChangesAsync();
+            }
+
+            // 2. Restore gateway connectivity and process retry + duplicate concurrently
+            gateway.SetSimulatedOutage(false);
+            var secondBatch = await processor.ProcessBatchAsync();
+            Assert.Equal(2, secondBatch);
+
+            using (var verifyScope = provider.CreateScope())
+            {
+                var verifyDb = verifyScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+                var allMessages = await verifyDb.OutboxMessages.ToListAsync();
+                var allMaps = await verifyDb.QuickBooksSyncMaps.ToListAsync();
+
+                Assert.Equal(2, allMessages.Count);
+                Assert.All(allMessages, m => Assert.Equal(OutboxMessageStatus.Completed, m.Status));
+                // Idempotent effect: only one QuickBooksSyncMap record exists for the order and is Synchronized
+                Assert.Single(allMaps);
+                Assert.Equal(Clovent.Restaurant.QuickBooks.QuickBooksSyncStatus.Synchronized, allMaps[0].Status);
+            }
+
+            // 3. Verify graceful background start and stop lifecycle
+            await processor.StartAsync(CancellationToken.None);
+            Assert.True(processor.IsRunning);
+            await processor.StopAsync(CancellationToken.None);
+            Assert.False(processor.IsRunning);
+        }
+        finally
+        {
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+            if (System.IO.File.Exists(dbPath))
+            {
+                try { System.IO.File.Delete(dbPath); } catch { }
+            }
+        }
     }
 }

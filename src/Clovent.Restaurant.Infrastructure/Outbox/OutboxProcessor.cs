@@ -121,17 +121,19 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     /// <inheritdoc/>
     public async Task<int> ProcessBatchAsync(CancellationToken cancellationToken = default)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
-        var handlers = scope.ServiceProvider.GetServices<IOutboxMessageHandler>().ToDictionary(h => h.MessageType, h => h, StringComparer.OrdinalIgnoreCase);
+        IReadOnlyList<OutboxMessage> messages;
+        using (var claimScope = _scopeFactory.CreateScope())
+        {
+            var claimRepository = claimScope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+            messages = await claimRepository.ClaimMessagesAsync(_batchSize, cancellationToken).ConfigureAwait(false);
+        }
 
-        var messages = await repository.ClaimMessagesAsync(_batchSize, cancellationToken).ConfigureAwait(false);
         if (messages.Count == 0) return 0;
 
         using var concurrencyLimiter = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
         var tasks = new List<Task>();
 
-        foreach (var message in messages)
+        foreach (var claimedMessage in messages)
         {
             await concurrencyLimiter.WaitAsync(cancellationToken).ConfigureAwait(false);
 
@@ -139,6 +141,13 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
             {
                 try
                 {
+                    using var messageScope = _scopeFactory.CreateScope();
+                    var repository = messageScope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+                    var message = await repository.GetByIdAsync(claimedMessage.Id, cancellationToken).ConfigureAwait(false) ?? claimedMessage;
+                    var handlers = messageScope.ServiceProvider
+                        .GetServices<IOutboxMessageHandler>()
+                        .ToDictionary(h => h.MessageType, h => h, StringComparer.OrdinalIgnoreCase);
+
                     await ProcessSingleMessageAsync(message, handlers, repository, cancellationToken).ConfigureAwait(false);
                 }
                 finally
