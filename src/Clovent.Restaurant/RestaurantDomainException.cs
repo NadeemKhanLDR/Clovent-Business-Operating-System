@@ -254,4 +254,8 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>Cash refund payout shift/terminal context mismatch (e.g., cross-branch or mismatched terminal).</summary>
     public static RestaurantDomainException CashRefundShiftContextMismatch(string details) =>
         new($"Cash refund payout shift/terminal validation failed: {details}");
+
+    /// <summary>Cash refund payout validation failed closed because payment-method metadata is unavailable.</summary>
+    public static RestaurantDomainException CashRefundPaymentMethodValidationUnavailable(string details) =>
+        new($"Cash refund payout validation failed closed: {details}");
 }

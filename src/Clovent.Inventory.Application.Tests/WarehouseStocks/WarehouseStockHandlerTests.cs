@@ -131,4 +131,32 @@ public class WarehouseStockHandlerTests
 
         Assert.Single(result);
     }
+
+    [Fact]
+    public async Task OpenOrReceiveStockCommandHandler_DuplicateReferencedMovement_AppliesOnceAndSkipsDuplicate()
+    {
+        var stockRepository = new FakeWarehouseStockRepository();
+        var transactionRepository = new FakeInventoryTransactionRepository();
+        var stock = WarehouseStock.Create(WarehouseId.New(), ProductVariantId.New());
+        stock.Receive(10);
+        stockRepository.Add(stock);
+        var handler = new OpenOrReceiveStockCommandHandler(stockRepository, transactionRepository);
+
+        var refundId = Guid.NewGuid();
+        var command = new OpenOrReceiveStockCommand(
+            stock.WarehouseId.Value,
+            stock.ProductVariantId.Value,
+            3m,
+            "Restock from Refund RF-0001",
+            "Refund",
+            refundId);
+
+        var first = await handler.Handle(command, CancellationToken.None);
+        var second = await handler.Handle(command, CancellationToken.None);
+
+        Assert.Equal(13m, first.QuantityOnHand);
+        Assert.Equal(13m, second.QuantityOnHand);
+        var recorded = await transactionRepository.GetByReferenceAsync("Refund", refundId);
+        Assert.Single(recorded);
+    }
 }

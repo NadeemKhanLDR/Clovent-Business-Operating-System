@@ -33,6 +33,13 @@ public class ProcessRefundCommandHandlerTests
     private readonly FakeActivityLogEntryRepository _activityLogRepo = new();
     private readonly FakeMediator _mediator = new();
     private readonly FakeUnitOfWork _unitOfWork = new();
+    private readonly PaymentMethod _cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+    private readonly StubPaymentMethodRepository _paymentMethodRepo;
+
+    public ProcessRefundCommandHandlerTests()
+    {
+        _paymentMethodRepo = new StubPaymentMethodRepository([_cashMethod]);
+    }
 
     private ProcessRefundCommandHandler CreateHandler() =>
         new(
@@ -44,7 +51,8 @@ public class ProcessRefundCommandHandlerTests
             _customerLedgerRepo,
             _activityLogRepo,
             _mediator,
-            _unitOfWork);
+            _unitOfWork,
+            paymentMethodRepository: _paymentMethodRepo);
 
     private async Task<(Order order, OrderLine line1, OrderLine line2, Payment payment)> CreateCompletedOrderWithLinesAsync()
     {
@@ -64,7 +72,7 @@ public class ProcessRefundCommandHandlerTests
         await _orderLineRepo.AddAsync(line2);
 
         // Total order payable = 1044 + 348 = 1392
-        var payment = Payment.Create(order.Id, PaymentMethodId.New(), 1392m, null);
+        var payment = Payment.Create(order.Id, _cashMethod.Id, 1392m, null);
         order.RecordPayment(payment.Id);
         await _paymentRepo.AddAsync(payment);
 
@@ -142,7 +150,7 @@ public class ProcessRefundCommandHandlerTests
         order.AddOrderLine(line.Id);
         await _orderLineRepo.AddAsync(line);
 
-        var payment = Payment.Create(order.Id, PaymentMethodId.New(), 104.39m, null);
+        var payment = Payment.Create(order.Id, _cashMethod.Id, 104.39m, null);
         order.RecordPayment(payment.Id);
         await _paymentRepo.AddAsync(payment);
         order.AssignDailySalesNumber(1);
@@ -317,7 +325,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             _mediator,
             _unitOfWork,
-            shiftRepo);
+            shiftRepo,
+            paymentMethodRepository: _paymentMethodRepo);
 
         var command = new ProcessRefundCommand(
             order.Id.Value,
@@ -364,7 +373,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             _mediator,
             _unitOfWork,
-            shiftRepo);
+            shiftRepo,
+            paymentMethodRepository: _paymentMethodRepo);
 
         var command = new ProcessRefundCommand(
             order.Id.Value,
@@ -404,7 +414,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             _mediator,
             _unitOfWork,
-            featureAuthorizationPolicy: policy);
+            featureAuthorizationPolicy: policy,
+            paymentMethodRepository: _paymentMethodRepo);
 
         // 1. Cashier without pos.refund and without manager approval -> Denied
         var unauthorizedCmd = new ProcessRefundCommand(
@@ -509,7 +520,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             mediator,
             failingUnitOfWork,
-            outboxRepository: outboxRepo);
+            outboxRepository: outboxRepo,
+            paymentMethodRepository: _paymentMethodRepo);
 
         var cmd = new ProcessRefundCommand(
             order.Id.Value,
@@ -591,7 +603,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             mediator,
             _unitOfWork,
-            outboxRepository: outboxRepo);
+            outboxRepository: outboxRepo,
+            paymentMethodRepository: _paymentMethodRepo);
 
         var cmd = new ProcessRefundCommand(
             order.Id.Value,
@@ -646,7 +659,7 @@ public class ProcessRefundCommandHandlerTests
         line1.SetTaxSnapshot("Taxable", "PRA", "PK-PRA-16", 500m, 0m, 80m, "CBOS-TaxPolicy-NetOfDiscount-v1");
         order.AddOrderLine(line1.Id);
         await _orderLineRepo.AddAsync(line1);
-        var payment = Payment.Create(order.Id, PaymentMethodId.New(), 580m, null);
+        var payment = Payment.Create(order.Id, _cashMethod.Id, 580m, null);
         order.RecordPayment(payment.Id);
         await _paymentRepo.AddAsync(payment);
         order.AssignDailySalesNumber(1);
@@ -662,7 +675,8 @@ public class ProcessRefundCommandHandlerTests
             _activityLogRepo,
             _mediator,
             _unitOfWork,
-            shiftRepo);
+            shiftRepo,
+            paymentMethodRepository: _paymentMethodRepo);
 
         // Attempt to redirect cash payout to foreign branch's shift
         var crossBranchCmd = new ProcessRefundCommand(
@@ -750,6 +764,74 @@ public class ProcessRefundCommandHandlerTests
                 "Cashier"), CancellationToken.None));
 
         Assert.Contains("exceeds remaining eligible cash paid", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_CashPayoutWithMissingOrUnconfiguredPaymentMethodDependency_FailsClosedAndCannotBypassCashCap()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 1000m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 1000m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("On Account"));
+        var creditPay = Payment.Create(order.Id, creditMethod.Id, 1000m, null);
+        order.RecordPayment(creditPay.Id);
+        await _paymentRepo.AddAsync(creditPay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        // 1. Missing IPaymentMethodRepository dependency (null) -> must fail closed, never treat credit payment as cash
+        var handlerWithNullRepo = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: null);
+
+        var nullRepoEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handlerWithNullRepo.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m)],
+                "Attempt cash refund with null paymentMethodRepository",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-FAIL-CLOSED-NULL-PM-REPO",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("failed closed", nullRepoEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        // 2. IPaymentMethodRepository with no 'Cash' method configured -> must fail closed
+        var handlerWithoutCashMethod = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: new StubPaymentMethodRepository([creditMethod]));
+
+        var noCashMethodEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handlerWithoutCashMethod.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m)],
+                "Attempt cash refund without Cash payment method configured",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-FAIL-CLOSED-NO-CASH-PM",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("failed closed", noCashMethodEx.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(await _refundRepo.GetAllAsync());
     }
 
     private sealed class StubFeatureAuthorizationPolicy(HashSet<(Guid UserId, string Code)> grants)

@@ -36,6 +36,11 @@ internal sealed class InventoryTransactionConfiguration : IEntityTypeConfigurati
         builder.Property(t => t.ReferenceId);
         builder.Property(t => t.Notes).HasMaxLength(500);
 
+        builder.HasIndex(t => new { t.ReferenceType, t.ReferenceId, t.WarehouseId, t.ProductVariantId })
+            .HasDatabaseName("IX_InventoryTransactions_Reference_Deduplication")
+            .IsUnique()
+            .HasFilter("[ReferenceType] IS NOT NULL AND [ReferenceId] IS NOT NULL");
+
         builder.Property(t => t.OccurredAtUtc)
             .HasConversion(ValueConverters.DateTimeOffsetToUtcTicksConverter)
             .IsRequired();

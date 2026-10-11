@@ -87,4 +87,66 @@ public class InventoryTransactionRepositoryTests : SqliteTestBase
 
         Assert.Null(result);
     }
+
+    [Fact]
+    public async Task ExecuteStockMovementAtomicallyAsync_DuplicateReference_RollsBackStockMutationAndRecovers()
+    {
+        var warehouseId = WarehouseId.New();
+        var variantId = ProductVariantId.New();
+        var refundId = Guid.NewGuid();
+
+        await using (var seedContext = CreateContext())
+        {
+            var stockRepo = new WarehouseStockRepository(seedContext);
+            var txRepo = new InventoryTransactionRepository(seedContext);
+            var stock = Clovent.Inventory.WarehouseStocks.WarehouseStock.Create(warehouseId, variantId);
+            stock.Receive(20m);
+            await stockRepo.AddAsync(stock);
+            await txRepo.AddAsync(InventoryTransaction.Create(
+                warehouseId,
+                variantId,
+                InventoryTransactionType.Receipt,
+                2m,
+                referenceType: "Refund",
+                referenceId: refundId,
+                notes: "Initial refund restock"));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var raceContext = CreateContext();
+        var uow = new Clovent.Inventory.Infrastructure.Persistence.UnitOfWork(raceContext);
+        var raceStockRepo = new WarehouseStockRepository(raceContext);
+        var raceTxRepo = new InventoryTransactionRepository(raceContext);
+
+        var recovered = await uow.ExecuteStockMovementAtomicallyAsync(
+            warehouseId.Value,
+            variantId.Value,
+            async ct =>
+            {
+                var stock = await raceStockRepo.GetByWarehouseAndVariantAsync(warehouseId, variantId, ct);
+                stock!.Receive(10m); // Would push QuantityOnHand from 20 -> 30 if not rolled back
+                await raceTxRepo.AddAsync(InventoryTransaction.Create(
+                    warehouseId,
+                    variantId,
+                    InventoryTransactionType.Receipt,
+                    10m,
+                    referenceType: "Refund",
+                    referenceId: refundId,
+                    notes: "Duplicate refund restock attempt"), ct);
+                return stock.QuantityOnHand;
+            },
+            async ct =>
+            {
+                var committed = await raceStockRepo.GetByWarehouseAndVariantAsync(warehouseId, variantId, ct);
+                return committed!.QuantityOnHand;
+            });
+
+        Assert.Equal(20m, recovered);
+
+        await using var verifyContext = CreateContext();
+        var finalStock = await new WarehouseStockRepository(verifyContext).GetByWarehouseAndVariantAsync(warehouseId, variantId);
+        var txns = await new InventoryTransactionRepository(verifyContext).GetByReferenceAsync("Refund", refundId);
+        Assert.Equal(20m, finalStock!.QuantityOnHand);
+        Assert.Single(txns);
+    }
 }

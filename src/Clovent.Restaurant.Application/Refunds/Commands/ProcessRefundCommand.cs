@@ -419,22 +419,28 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
         if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
         {
-            // Cash payout cannot exceed remaining cash tender received on original sale
-            HashSet<Guid>? cashMethodIds = null;
-            if (_paymentMethodRepository != null)
+            // Cash payout cannot exceed remaining cash tender received on original sale.
+            // Required financial validation must fail closed if payment-method metadata is missing.
+            if (_paymentMethodRepository == null)
             {
-                var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
-                if (methods.Count > 0)
-                {
-                    cashMethodIds = methods
-                        .Where(m => string.Equals(m.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
-                        .Select(m => m.Id.Value)
-                        .ToHashSet();
-                }
+                throw RestaurantDomainException.CashRefundPaymentMethodValidationUnavailable(
+                    "Payment method repository is unavailable; cannot verify original cash tender cap.");
+            }
+
+            var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
+            var cashMethodIds = methods
+                .Where(m => string.Equals(m.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Id.Value)
+                .ToHashSet();
+
+            if (cashMethodIds.Count == 0)
+            {
+                throw RestaurantDomainException.CashRefundPaymentMethodValidationUnavailable(
+                    "No 'Cash' payment method is configured; cannot verify original cash tender cap.");
             }
 
             var totalCashPaid = payments
-                .Where(p => !p.IsVoided && (cashMethodIds == null || cashMethodIds.Contains(p.PaymentMethodId.Value)))
+                .Where(p => !p.IsVoided && cashMethodIds.Contains(p.PaymentMethodId.Value))
                 .Sum(p => p.Amount);
             var priorCashPayouts = priorRefunds
                 .Where(r => r.SettlementMethod == RefundSettlementMethod.CashPayout)

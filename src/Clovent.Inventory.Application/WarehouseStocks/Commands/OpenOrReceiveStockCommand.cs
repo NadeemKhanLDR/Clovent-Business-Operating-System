@@ -29,7 +29,10 @@ public sealed record OpenOrReceiveStockCommand(
     Guid? ReferenceId = null) : IRequest<WarehouseStockDto>;
 
 /// <summary>Handles <see cref="OpenOrReceiveStockCommand"/>.</summary>
-public sealed class OpenOrReceiveStockCommandHandler(IWarehouseStockRepository stockRepository, IInventoryTransactionRepository transactionRepository)
+public sealed class OpenOrReceiveStockCommandHandler(
+    IWarehouseStockRepository stockRepository,
+    IInventoryTransactionRepository transactionRepository,
+    IUnitOfWork? unitOfWork = null)
     : IRequestHandler<OpenOrReceiveStockCommand, WarehouseStockDto>
 {
     /// <inheritdoc/>
@@ -37,6 +40,50 @@ public sealed class OpenOrReceiveStockCommandHandler(IWarehouseStockRepository s
     {
         var warehouseId = new WarehouseId(request.WarehouseId);
         var variantId = new ProductVariantId(request.ProductVariantId);
+
+        if (!string.IsNullOrWhiteSpace(request.ReferenceType) && request.ReferenceId.HasValue && unitOfWork is not null)
+        {
+            return await unitOfWork.ExecuteStockMovementAtomicallyAsync(
+                request.WarehouseId,
+                request.ProductVariantId,
+                ct => ApplyStockReceiptCoreAsync(warehouseId, variantId, request, ct),
+                async ct =>
+                {
+                    var committedStock = await stockRepository.GetByWarehouseAndVariantAsync(warehouseId, variantId, ct)
+                        ?? throw new InvalidOperationException($"WarehouseStock not found after duplicate reference recovery for warehouse '{warehouseId}' and variant '{variantId}'.");
+                    return WarehouseStockDto.FromDomain(committedStock);
+                },
+                cancellationToken);
+        }
+
+        return await ApplyStockReceiptCoreAsync(warehouseId, variantId, request, cancellationToken);
+    }
+
+    private async Task<WarehouseStockDto> ApplyStockReceiptCoreAsync(
+        WarehouseId warehouseId,
+        ProductVariantId variantId,
+        OpenOrReceiveStockCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.ReferenceType) && request.ReferenceId.HasValue)
+        {
+            var existingTransactions = await transactionRepository.GetByReferenceAsync(
+                request.ReferenceType,
+                request.ReferenceId.Value,
+                cancellationToken);
+
+            var alreadyApplied = existingTransactions.Any(t =>
+                t.WarehouseId == warehouseId &&
+                t.ProductVariantId == variantId &&
+                t.TransactionType is InventoryTransactionType.Receipt or InventoryTransactionType.OpeningBalance);
+
+            if (alreadyApplied)
+            {
+                var currentStock = await stockRepository.GetByWarehouseAndVariantAsync(warehouseId, variantId, cancellationToken)
+                    ?? WarehouseStock.Create(warehouseId, variantId);
+                return WarehouseStockDto.FromDomain(currentStock);
+            }
+        }
 
         var existingStock = await stockRepository.GetByWarehouseAndVariantAsync(warehouseId, variantId, cancellationToken);
         var isNew = existingStock is null;

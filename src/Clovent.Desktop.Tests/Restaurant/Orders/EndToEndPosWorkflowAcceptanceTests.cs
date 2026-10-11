@@ -1380,4 +1380,388 @@ public sealed class EndToEndPosWorkflowAcceptanceTests : IDisposable
             await dropCmd.ExecuteNonQueryAsync();
         }
     }
+
+    [Fact]
+    public async Task DisposableSqlServer_ConcurrentRefundRestockAndPartialMultiLineRetry_AtomicDeduplicationAcrossSeparateScopesAndConnections()
+    {
+        var dbName = $"Clovent_DisposableConcurrentRestock_{Guid.NewGuid():N}";
+        var masterCs = "Server=.;Database=master;Integrated Security=True;TrustServerCertificate=True;";
+        var connectionString = $"Server=.;Database={dbName};Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;";
+
+        try
+        {
+            await using (var masterConn = new Microsoft.Data.SqlClient.SqlConnection(masterCs))
+            {
+                await masterConn.OpenAsync();
+                await using var createCmd = masterConn.CreateCommand();
+                createCmd.CommandText = $"CREATE DATABASE [{dbName}];";
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            var provisioningService = new Clovent.Desktop.Commissioning.Database.DatabaseProvisioningService();
+            var (migrated, migrateMsg) = await provisioningService.ApplyMigrationsAsync(connectionString);
+            Assert.True(migrated, migrateMsg);
+
+            // 1. Verify database-enforced unique filtered index IX_InventoryTransactions_Reference_Deduplication exists on SQL Server
+            await using (var verifyConn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+            {
+                await verifyConn.OpenAsync();
+                await using var checkIndexCmd = verifyConn.CreateCommand();
+                checkIndexCmd.CommandText = @"
+                    SELECT COUNT(*) FROM sys.indexes
+                    WHERE name = N'IX_InventoryTransactions_Reference_Deduplication'
+                      AND object_id = OBJECT_ID(N'[Inventory].[InventoryTransactions]')
+                      AND is_unique = 1
+                      AND has_filter = 1;";
+                var indexExists = (int)(await checkIndexCmd.ExecuteScalarAsync())!;
+                Assert.Equal(1, indexExists);
+            }
+
+            // 2. Seed catalog, initial stock (100 Biryani, 100 Naan), shift, and a 2-line completed order on primary setup connection
+            var warehouseId = Guid.NewGuid();
+            var branchId = Guid.NewGuid();
+            var terminalId = Guid.NewGuid();
+            var cashierId = Guid.NewGuid();
+            Guid biryaniVarId;
+            Guid naanVarId;
+            Guid orderId;
+            Guid biryaniLineId;
+            Guid naanLineId;
+            Guid shiftId;
+
+            await using (var setupRestaurantDb = new RestaurantDbContext(new DbContextOptionsBuilder<RestaurantDbContext>().UseSqlServer(connectionString).Options))
+            await using (var setupCatalogDb = new CatalogDbContext(new DbContextOptionsBuilder<CatalogDbContext>().UseSqlServer(connectionString).Options))
+            await using (var setupInventoryDb = new InventoryDbContext(new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options))
+            {
+                (biryaniVarId, _, _, naanVarId) = await SeedPakistaniCatalogIntoAsync(setupCatalogDb, setupInventoryDb, warehouseId);
+
+                var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+                await setupRestaurantDb.PaymentMethods.AddAsync(cashMethod);
+                await setupRestaurantDb.SaveChangesAsync();
+
+                var setupSp = BuildWorkflowServiceProvider(setupRestaurantDb, setupCatalogDb, setupInventoryDb);
+                var setupMediator = setupSp.GetRequiredService<IMediator>();
+
+                var shiftDto = await setupMediator.Send(new OpenShiftCommand(branchId, warehouseId, terminalId, cashierId, "Concurrent SQL Cashier", 5_000.00m));
+                shiftId = shiftDto.ShiftId;
+
+                var orderDto = await setupMediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId));
+                orderId = orderDto.OrderId;
+
+                var line1Dto = await setupMediator.Send(new AddOrderLineCommand(orderId, biryaniVarId, 2m));
+                var line2Dto = await setupMediator.Send(new AddOrderLineCommand(orderId, naanVarId, 5m));
+                biryaniLineId = line1Dto.OrderLineId;
+                naanLineId = line2Dto.OrderLineId;
+
+                var summary = await setupMediator.Send(new GetOrderSummaryQuery(orderId));
+                await setupMediator.Send(new RecordPaymentCommand(orderId, cashMethod.Id.Value, summary.GrandTotal, false, shiftId));
+                await setupMediator.Send(new CompleteOrderCommand(orderId));
+
+                // Verify post-sale stock: Biryani = 98 (100 - 2), Naan = 95 (100 - 5)
+                var biryaniAfterSale = await setupInventoryDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(biryaniVarId));
+                var naanAfterSale = await setupInventoryDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(naanVarId));
+                Assert.Equal(98m, biryaniAfterSale.QuantityOnHand);
+                Assert.Equal(95m, naanAfterSale.QuantityOnHand);
+
+                // Verify fail-closed validation on SQL Server when paymentMethodRepository is omitted
+                var handlerMissingPaymentMethodRepo = new ProcessRefundCommandHandler(
+                    new RefundRepository(setupRestaurantDb),
+                    new OrderRepository(setupRestaurantDb),
+                    new OrderLineRepository(setupRestaurantDb),
+                    new PaymentRepository(setupRestaurantDb),
+                    new CustomerRepository(setupRestaurantDb),
+                    new CustomerLedgerEntryRepository(setupRestaurantDb),
+                    new ActivityLogEntryRepository(setupRestaurantDb),
+                    setupMediator,
+                    new Clovent.Restaurant.Infrastructure.Persistence.UnitOfWork(setupRestaurantDb),
+                    new ShiftRepository(setupRestaurantDb),
+                    paymentMethodRepository: null);
+
+                await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+                    handlerMissingPaymentMethodRepo.Handle(new ProcessRefundCommand(
+                        orderId,
+                        [new RefundItemRequest(biryaniLineId, 1m, InventoryDisposition.Restock)],
+                        "Fail-closed payment method check on SQL Server",
+                        RefundSettlementMethod.CashPayout,
+                        "IDEMP-SQL-FAIL-CLOSED-PM",
+                        cashierId,
+                        "Concurrent SQL Cashier",
+                        BranchId: branchId,
+                        ShiftId: shiftId,
+                        TerminalId: terminalId), CancellationToken.None));
+            }
+
+            // 3. Commit a 2-line Refund + Pending OutboxMessage where Line 1 (1x Biryani) succeeded and Line 2 (2x Naan) failed mid-loop
+            var refundCmd = new ProcessRefundCommand(
+                orderId,
+                [
+                    new RefundItemRequest(biryaniLineId, 1m, InventoryDisposition.Restock),
+                    new RefundItemRequest(naanLineId, 2m, InventoryDisposition.Restock)
+                ],
+                "Multi-line refund with partial restock interruption and concurrent retry",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-SQL-CONCURRENT-MULTILINE-001",
+                cashierId,
+                "Concurrent SQL Cashier",
+                BranchId: branchId,
+                ShiftId: shiftId,
+                TerminalId: terminalId);
+
+            Guid refundId;
+            string refundNumber;
+
+            await using (var partialRestDb = new RestaurantDbContext(new DbContextOptionsBuilder<RestaurantDbContext>().UseSqlServer(connectionString).Options))
+            await using (var partialCatDb = new CatalogDbContext(new DbContextOptionsBuilder<CatalogDbContext>().UseSqlServer(connectionString).Options))
+            await using (var partialInvDb = new InventoryDbContext(new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options))
+            {
+                var realInnerSp = BuildWorkflowServiceProvider(partialRestDb, partialCatDb, partialInvDb);
+                var realInnerMediator = realInnerSp.GetRequiredService<IMediator>();
+
+                // Mediator wrapper that lets Line 1 (Biryani) OpenOrReceiveStockCommand commit to SQL Server,
+                // then throws a simulated transient failure on Line 2 (Naan) OpenOrReceiveStockCommand
+                var partialFailureMediator = new DelegatingInterceptionMediator(realInnerMediator, req =>
+                {
+                    if (req is OpenOrReceiveStockCommand cmd && cmd.ProductVariantId == naanVarId)
+                    {
+                        throw new InvalidOperationException("Simulated mid-batch failure after Line 1 restock committed");
+                    }
+                });
+
+                var partialRefundHandler = new ProcessRefundCommandHandler(
+                    new RefundRepository(partialRestDb),
+                    new OrderRepository(partialRestDb),
+                    new OrderLineRepository(partialRestDb),
+                    new PaymentRepository(partialRestDb),
+                    new CustomerRepository(partialRestDb),
+                    new CustomerLedgerEntryRepository(partialRestDb),
+                    new ActivityLogEntryRepository(partialRestDb),
+                    partialFailureMediator,
+                    new Clovent.Restaurant.Infrastructure.Persistence.UnitOfWork(partialRestDb),
+                    new ShiftRepository(partialRestDb),
+                    outboxRepository: new OutboxRepository(partialRestDb),
+                    paymentMethodRepository: new PaymentMethodRepository(partialRestDb));
+
+                var initialRefundDto = await partialRefundHandler.Handle(refundCmd, CancellationToken.None);
+                refundId = initialRefundDto.RefundId;
+                refundNumber = initialRefundDto.RefundNumber;
+
+                // Verify partial multi-line state in SQL Server:
+                // - Biryani was restocked (+1 -> 99) and its InventoryTransaction is committed
+                // - Naan was NOT restocked yet (still 95)
+                // - OutboxMessage is still Pending in [Restaurant].[OutboxMessages]
+                var biryaniAfterPartial = await partialInvDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(biryaniVarId));
+                var naanAfterPartial = await partialInvDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(naanVarId));
+                Assert.Equal(99m, biryaniAfterPartial.QuantityOnHand);
+                Assert.Equal(95m, naanAfterPartial.QuantityOnHand);
+
+                var pendingOutbox = await new OutboxRepository(partialRestDb).GetByIdempotencyKeyAsync($"RESTOCK-{refundId:N}");
+                Assert.NotNull(pendingOutbox);
+                Assert.Equal(Clovent.Restaurant.Outbox.OutboxMessageStatus.Pending, pendingOutbox!.Status);
+            }
+
+            // 4. Launch 6 simultaneous attempts across 6 completely separate DI scopes & separate SQL Server connections:
+            //    - 2 concurrent inline ProcessRefundCommand retries (EnsureRestockAppliedIdempotentlyAsync)
+            //    - 2 concurrent background InventoryPostingOutboxHandler.HandleAsync executions
+            //    - 2 concurrent direct OpenOrReceiveStockCommand dispatches (bypassing any pre-query check!)
+            var startGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async Task RunConcurrentScopeAttemptAsync(int workerIndex)
+            {
+                await using var scopeRestDb = new RestaurantDbContext(new DbContextOptionsBuilder<RestaurantDbContext>().UseSqlServer(connectionString).Options);
+                await using var scopeCatDb = new CatalogDbContext(new DbContextOptionsBuilder<CatalogDbContext>().UseSqlServer(connectionString).Options);
+                await using var scopeInvDb = new InventoryDbContext(new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options);
+                var scopeSp = BuildWorkflowServiceProvider(scopeRestDb, scopeCatDb, scopeInvDb);
+                var scopeMediator = scopeSp.GetRequiredService<IMediator>();
+
+                await startGate.Task;
+
+                if (workerIndex is 0 or 1)
+                {
+                    // Inline post-commit retry path on its own scope/connection
+                    var handler = new ProcessRefundCommandHandler(
+                        new RefundRepository(scopeRestDb),
+                        new OrderRepository(scopeRestDb),
+                        new OrderLineRepository(scopeRestDb),
+                        new PaymentRepository(scopeRestDb),
+                        new CustomerRepository(scopeRestDb),
+                        new CustomerLedgerEntryRepository(scopeRestDb),
+                        new ActivityLogEntryRepository(scopeRestDb),
+                        scopeMediator,
+                        new Clovent.Restaurant.Infrastructure.Persistence.UnitOfWork(scopeRestDb),
+                        new ShiftRepository(scopeRestDb),
+                        outboxRepository: new OutboxRepository(scopeRestDb),
+                        paymentMethodRepository: new PaymentMethodRepository(scopeRestDb));
+
+                    await handler.Handle(refundCmd, CancellationToken.None);
+                }
+                else if (workerIndex is 2 or 3)
+                {
+                    // Background outbox handler path on its own scope/connection
+                    var outboxMsg = await new OutboxRepository(scopeRestDb).GetByIdempotencyKeyAsync($"RESTOCK-{refundId:N}");
+                    var outboxHandler = new Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler(
+                        scopeMediator,
+                        Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
+                    await outboxHandler.HandleAsync(outboxMsg!, CancellationToken.None);
+                }
+                else
+                {
+                    // Direct OpenOrReceiveStockCommand dispatch (no pre-check) on its own scope/connection
+                    await scopeMediator.Send(new OpenOrReceiveStockCommand(
+                        warehouseId,
+                        biryaniVarId,
+                        1m,
+                        $"Direct concurrent restock {refundNumber}",
+                        "Refund",
+                        refundId));
+                    await scopeMediator.Send(new OpenOrReceiveStockCommand(
+                        warehouseId,
+                        naanVarId,
+                        2m,
+                        $"Direct concurrent restock {refundNumber}",
+                        "Refund",
+                        refundId));
+                }
+            }
+
+            var tasks = Enumerable.Range(0, 6).Select(i => Task.Run(() => RunConcurrentScopeAttemptAsync(i))).ToArray();
+            startGate.SetResult();
+            await Task.WhenAll(tasks);
+
+            // 5. Verify final stock and ledger rows on a fresh verification connection:
+            //    - Biryani: 98 + 1 = 99 (strictly 1 restock movement)
+            //    - Naan: 95 + 2 = 97 (strictly 1 restock movement)
+            //    - Total Refund InventoryTransactions for refundId = strictly 2 rows (1 per variant)
+            await using (var assertInvDb = new InventoryDbContext(new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options))
+            {
+                var finalBiryani = await assertInvDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(biryaniVarId));
+                var finalNaan = await assertInvDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(naanVarId));
+
+                Assert.Equal(99m, finalBiryani.QuantityOnHand);
+                Assert.Equal(97m, finalNaan.QuantityOnHand);
+
+                var refundMovements = await assertInvDb.InventoryTransactions.AsNoTracking()
+                    .Where(t => t.ReferenceType == "Refund" && t.ReferenceId == refundId)
+                    .ToListAsync();
+
+                Assert.Equal(2, refundMovements.Count);
+                Assert.Single(refundMovements, t => t.ProductVariantId == new ProductVariantId(biryaniVarId) && t.Quantity == 1m);
+                Assert.Single(refundMovements, t => t.ProductVariantId == new ProductVariantId(naanVarId) && t.Quantity == 2m);
+            }
+
+            // 6. Prove database-enforced unique index rejects a raw duplicate INSERT with SQL Error 2601
+            await using (var dupConn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+            {
+                await dupConn.OpenAsync();
+                await using var dupCmd = dupConn.CreateCommand();
+                dupCmd.CommandText = @"
+                    INSERT INTO [Inventory].[InventoryTransactions] (
+                        [Id], [WarehouseId], [ProductVariantId], [TransactionType],
+                        [Quantity], [ReferenceType], [ReferenceId], [Notes], [OccurredAtUtc]
+                    ) VALUES (
+                        NEWID(), @warehouseId, @variantId, N'Receipt',
+                        1.0000, N'Refund', @refundId, N'Raw duplicate attempt', 638000000000000000
+                    );";
+                dupCmd.Parameters.AddWithValue("@warehouseId", warehouseId);
+                dupCmd.Parameters.AddWithValue("@variantId", biryaniVarId);
+                dupCmd.Parameters.AddWithValue("@refundId", refundId);
+
+                var sqlEx = await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(() => dupCmd.ExecuteNonQueryAsync());
+                Assert.Equal(2601, sqlEx.Number);
+                Assert.Contains("IX_InventoryTransactions_Reference_Deduplication", sqlEx.Message, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // 7. Prove UnitOfWork.ExecuteStockMovementAtomicallyAsync atomically rolls back WarehouseStock update
+            //    if SaveChangesAsync hits IX_InventoryTransactions_Reference_Deduplication (SQL Error 2601)
+            await using (var rollbackInvDb = new InventoryDbContext(new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options))
+            {
+                var invUow = new Clovent.Inventory.Infrastructure.Persistence.UnitOfWork(rollbackInvDb);
+                var stockRepo = new WarehouseStockRepository(rollbackInvDb);
+                var txRepo = new InventoryTransactionRepository(rollbackInvDb);
+
+                var recoveredDto = await invUow.ExecuteStockMovementAtomicallyAsync(
+                    warehouseId,
+                    biryaniVarId,
+                    async ct =>
+                    {
+                        var stock = await stockRepo.GetByWarehouseAndVariantAsync(new WarehouseId(warehouseId), new ProductVariantId(biryaniVarId), ct);
+                        stock!.Receive(50m); // Mutates QuantityOnHand from 99 -> 149 inside the transaction
+                        await txRepo.AddAsync(InventoryTransaction.Create(
+                            new WarehouseId(warehouseId),
+                            new ProductVariantId(biryaniVarId),
+                            InventoryTransactionType.Receipt,
+                            50m,
+                            referenceType: "Refund",
+                            referenceId: refundId,
+                            notes: "Forced duplicate transaction to test atomic stock rollback"), ct);
+                        return Clovent.Inventory.Application.WarehouseStocks.Dtos.WarehouseStockDto.FromDomain(stock);
+                    },
+                    async ct =>
+                    {
+                        var committed = await stockRepo.GetByWarehouseAndVariantAsync(new WarehouseId(warehouseId), new ProductVariantId(biryaniVarId), ct);
+                        return Clovent.Inventory.Application.WarehouseStocks.Dtos.WarehouseStockDto.FromDomain(committed!);
+                    });
+
+                // The +50m stock mutation was rolled back when the duplicate InventoryTransaction insert hit SQL Error 2601
+                Assert.Equal(99m, recoveredDto.QuantityOnHand);
+
+                var verifiedStock = await rollbackInvDb.WarehouseStocks.AsNoTracking()
+                    .SingleAsync(s => s.ProductVariantId == new ProductVariantId(biryaniVarId));
+                Assert.Equal(99m, verifiedStock.QuantityOnHand);
+            }
+        }
+        finally
+        {
+            await using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(masterCs);
+            await masterConn.OpenAsync();
+            await using var dropCmd = masterConn.CreateCommand();
+            dropCmd.CommandText = $@"
+                IF DB_ID(N'{dbName}') IS NOT NULL
+                BEGIN
+                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                    DROP DATABASE [{dbName}];
+                END";
+            await dropCmd.ExecuteNonQueryAsync();
+        }
+    }
+
+    private sealed class DelegatingInterceptionMediator(IMediator inner, Action<object> beforeSend) : IMediator
+    {
+        public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
+        {
+            beforeSend(request);
+            return inner.Send(request, cancellationToken);
+        }
+
+        public Task Send<TRequest>(TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IRequest
+        {
+            beforeSend(request);
+            return inner.Send(request, cancellationToken);
+        }
+
+        public Task<object?> Send(object request, CancellationToken cancellationToken = default)
+        {
+            beforeSend(request);
+            return inner.Send(request, cancellationToken);
+        }
+
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default) =>
+            inner.CreateStream(request, cancellationToken);
+
+        public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) =>
+            inner.CreateStream(request, cancellationToken);
+
+        public Task Publish(object notification, CancellationToken cancellationToken = default) =>
+            inner.Publish(notification, cancellationToken);
+
+        public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
+            where TNotification : INotification =>
+            inner.Publish(notification, cancellationToken);
+    }
 }
