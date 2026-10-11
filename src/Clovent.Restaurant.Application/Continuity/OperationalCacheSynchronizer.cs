@@ -97,6 +97,57 @@ public sealed class OperationalCacheSynchronizer : IOperationalCacheSynchronizer
             .GroupBy(p => p.ProductVariantId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(p => p.EffectiveFromUtc).First().Amount);
         var productMap = products.ToDictionary(p => p.ProductId, p => p);
+        var categoryMap = categories.ToDictionary(c => c.ProductCategoryId, c => c);
+
+        Dictionary<Guid, Clovent.Catalog.Application.TaxProfiles.Dtos.TaxProfileDto> taxProfileMap = [];
+        try
+        {
+            var taxProfiles = await _mediator.Send(new Clovent.Catalog.Application.TaxProfiles.Queries.ListTaxProfilesQuery(), cancellationToken).ConfigureAwait(false);
+            if (taxProfiles != null)
+            {
+                taxProfileMap = taxProfiles.Where(tp => tp.IsActive).ToDictionary(tp => tp.TaxProfileId, tp => tp);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to load tax profiles for cache; using product-level tax configuration");
+        }
+
+        (decimal Rate, bool IsInclusive) ResolveEffectiveTax(Clovent.Catalog.Application.Products.Dtos.ProductDto? prod, Guid? overrideCategoryId = null)
+        {
+            if (prod == null)
+            {
+                return (0m, false);
+            }
+
+            if (string.Equals(prod.TaxClassification, "Exempt", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(prod.TaxClassification, "ZeroRated", StringComparison.OrdinalIgnoreCase) ||
+                (string.Equals(prod.TaxClassification, "OutOfScope", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(prod.TaxCode)))
+            {
+                return (0m, false);
+            }
+
+            if (prod.TaxProfileId.HasValue && taxProfileMap.TryGetValue(prod.TaxProfileId.Value, out var explicitProfile))
+            {
+                return (explicitProfile.RatePercentage, explicitProfile.IsInclusive);
+            }
+
+            if (prod.TaxRatePercentage > 0m)
+            {
+                return (prod.TaxRatePercentage, prod.TaxIsInclusive);
+            }
+
+            var effectiveCatId = overrideCategoryId ?? prod.CategoryId;
+            if (effectiveCatId.HasValue &&
+                categoryMap.TryGetValue(effectiveCatId.Value, out var cat) &&
+                cat.DefaultTaxProfileId.HasValue &&
+                taxProfileMap.TryGetValue(cat.DefaultTaxProfileId.Value, out var inheritedProfile))
+            {
+                return (inheritedProfile.RatePercentage, inheritedProfile.IsInclusive);
+            }
+
+            return (prod.TaxRatePercentage, prod.TaxIsInclusive);
+        }
 
         // 3. Map into immutable cached records
         var cachedCategories = categories.Select(c => new CachedCategory(
@@ -107,21 +158,26 @@ public sealed class OperationalCacheSynchronizer : IOperationalCacheSynchronizer
             c.SortOrder,
             c.Status)).ToList();
 
-        var cachedProducts = products.Select(p => new CachedProduct(
-            p.ProductId,
-            p.Name,
-            p.Sku,
-            p.CategoryId,
-            p.ItemType,
-            p.TaxRatePercentage,
-            p.TaxIsInclusive,
-            p.Status)).ToList();
+        var cachedProducts = products.Select(p =>
+        {
+            var (effRate, effInclusive) = ResolveEffectiveTax(p);
+            return new CachedProduct(
+                p.ProductId,
+                p.Name,
+                p.Sku,
+                p.CategoryId,
+                p.ItemType,
+                effRate,
+                effInclusive,
+                p.Status);
+        }).ToList();
 
         var cachedVariants = variants.Select(v =>
         {
             productMap.TryGetValue(v.ProductId, out var prod);
             var price = newestSellingPriceByVariantId.GetValueOrDefault(v.ProductVariantId, 0m);
             var stock = stockByVariantId.TryGetValue(v.ProductVariantId, out var s) ? (decimal?)s : null;
+            var (effRate, effInclusive) = ResolveEffectiveTax(prod, v.ProductCategoryId);
             return new CachedVariant(
                 v.ProductVariantId,
                 v.ProductId,
@@ -136,8 +192,8 @@ public sealed class OperationalCacheSynchronizer : IOperationalCacheSynchronizer
                 v.ItemType ?? prod?.ItemType ?? "Prepared",
                 stock,
                 prod?.Name,
-                prod?.TaxRatePercentage ?? 0m,
-                prod?.TaxIsInclusive ?? false);
+                effRate,
+                effInclusive);
         }).ToList();
 
         var cachedTemplates = templates.Select(t => new CachedQuickOrderTemplate(

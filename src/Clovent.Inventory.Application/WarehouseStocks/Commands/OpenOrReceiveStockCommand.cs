@@ -20,7 +20,13 @@ namespace Clovent.Inventory.Application.WarehouseStocks.Commands;
 /// <see cref="InventoryTransactionType.Receipt"/>, marking this quantity as
 /// the pairing's very first stock rather than a routine restock.
 /// </summary>
-public sealed record OpenOrReceiveStockCommand(Guid WarehouseId, Guid ProductVariantId, decimal Quantity, string? Notes = null) : IRequest<WarehouseStockDto>;
+public sealed record OpenOrReceiveStockCommand(
+    Guid WarehouseId,
+    Guid ProductVariantId,
+    decimal Quantity,
+    string? Notes = null,
+    string? ReferenceType = null,
+    Guid? ReferenceId = null) : IRequest<WarehouseStockDto>;
 
 /// <summary>Handles <see cref="OpenOrReceiveStockCommand"/>.</summary>
 public sealed class OpenOrReceiveStockCommandHandler(IWarehouseStockRepository stockRepository, IInventoryTransactionRepository transactionRepository)
@@ -47,6 +53,8 @@ public sealed class OpenOrReceiveStockCommandHandler(IWarehouseStockRepository s
             variantId,
             isNew ? InventoryTransactionType.OpeningBalance : InventoryTransactionType.Receipt,
             request.Quantity,
+            referenceType: request.ReferenceType,
+            referenceId: request.ReferenceId,
             notes: request.Notes);
         await transactionRepository.AddAsync(transaction, cancellationToken);
 

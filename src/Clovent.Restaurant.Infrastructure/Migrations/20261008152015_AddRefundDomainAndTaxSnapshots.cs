@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -98,8 +98,6 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                     SettlementMethod = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
                     SettlementReference = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     CustomerId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    ShiftId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
-                    TerminalId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     ReceiptSnapshotJson = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAtUtc = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false)
                 },
@@ -185,18 +183,6 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                 table: "Refunds",
                 column: "RefundNumber",
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Refunds_ShiftId",
-                schema: "Restaurant",
-                table: "Refunds",
-                column: "ShiftId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Refunds_TerminalId",
-                schema: "Restaurant",
-                table: "Refunds",
-                column: "TerminalId");
         }
 
         /// <inheritdoc />

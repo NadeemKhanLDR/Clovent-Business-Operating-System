@@ -3997,7 +3997,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             var unitPrice = expectedUnitPrice
                 ?? _sellingPricesByVariantId.GetValueOrDefault(variantId, cachedVariant?.SellingPrice ?? 0m);
             var taxRate = cachedVariant?.TaxRatePercentage ?? 0m;
-            var taxIsInc = cachedVariant?.TaxIsInclusive ?? true;
+            var taxIsInc = cachedVariant?.TaxIsInclusive ?? false;
 
             OrderLineDto lineDto;
             if (existingLine is not null)
@@ -4006,7 +4006,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                 lineDto = existingLine with
                 {
                     Quantity = newQty,
-                    LineTotal = Math.Round(newQty * unitPrice, 2)
+                    LineTotal = Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(newQty * unitPrice)
                 };
                 var idx = _offlineOrderLines.IndexOf(existingLine);
                 _offlineOrderLines[idx] = lineDto;
@@ -4028,7 +4028,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                     taxIsInc,
                     null,
                     false,
-                    Math.Round(quantity * unitPrice, 2),
+                    Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(quantity * unitPrice),
                     DateTimeOffset.UtcNow);
                 _offlineOrderLines.Add(lineDto);
             }
@@ -6263,7 +6263,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             if (line != null)
             {
                 var idx = _offlineOrderLines.IndexOf(line);
-                _offlineOrderLines[idx] = line with { Quantity = newQuantity, LineTotal = Math.Round(newQuantity * line.UnitPrice, 2) };
+                _offlineOrderLines[idx] = line with { Quantity = newQuantity, LineTotal = Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(newQuantity * line.UnitPrice) };
             }
             await RefreshOrderAsync();
             return;
@@ -6292,7 +6292,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                 if (line != null)
                 {
                     var idx = _offlineOrderLines.IndexOf(line);
-                    _offlineOrderLines[idx] = line with { Quantity = form.Quantity, LineTotal = Math.Round(form.Quantity * line.UnitPrice, 2) };
+                    _offlineOrderLines[idx] = line with { Quantity = form.Quantity, LineTotal = Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(form.Quantity * line.UnitPrice) };
                 }
                 await RefreshOrderAsync();
                 return;
@@ -6362,7 +6362,7 @@ public sealed partial class RestaurantPosForm : XtraForm
                     _offlineOrderLines[idx] = line with
                     {
                         UnitPrice = form.NewPrice,
-                        LineTotal = Math.Round(line.Quantity * form.NewPrice, 2),
+                        LineTotal = Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(line.Quantity * form.NewPrice),
                         IsPriceOverridden = true,
                         PriceOverrideReason = form.Reason,
                         PriceOverriddenBy = _currentSession.DisplayName ?? "Manager",
@@ -6474,28 +6474,21 @@ public sealed partial class RestaurantPosForm : XtraForm
                 l.IsVoided,
                 l.IsPriceOverridden)).ToList();
 
-            decimal subtotal = lines.Sum(l => l.LineTotal);
-            decimal taxTotal = 0m;
-            decimal exclusiveTax = 0m;
-            foreach (var l in lines)
-            {
-                if (l.TaxRatePercentage > 0)
-                {
-                    if (l.TaxIsInclusive)
-                    {
-                        var preTax = l.LineTotal / (1m + (l.TaxRatePercentage / 100m));
-                        taxTotal += (l.LineTotal - preTax);
-                    }
-                    else
-                    {
-                        var ext = l.LineTotal * (l.TaxRatePercentage / 100m);
-                        taxTotal += ext;
-                        exclusiveTax += ext;
-                    }
-                }
-            }
-            decimal grandTotal = Math.Round(subtotal + exclusiveTax, 2);
-            var totals = new OrderTotals(subtotal, Math.Round(taxTotal, 2), 0m, 0m, grandTotal, 0m, grandTotal);
+            var taxInputs = lines.Select(l => new Clovent.Restaurant.DomainServices.TaxCalculationLineInput(
+                l.OrderLineId,
+                l.Quantity,
+                l.UnitPrice,
+                0m,
+                l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
+                l.TaxRatePercentage > 0m ? "PRA" : "FBR",
+                $"PK-TAX-{l.TaxRatePercentage:0.##}",
+                l.TaxRatePercentage,
+                l.TaxIsInclusive)).ToList();
+            var taxSummary = Clovent.Restaurant.DomainServices.TaxCalculator.Calculate(taxInputs);
+            decimal subtotal = taxSummary.SubtotalGross;
+            decimal taxTotal = taxSummary.TotalTax;
+            decimal grandTotal = taxSummary.TotalLinesPayable;
+            var totals = new OrderTotals(subtotal, taxTotal, 0m, 0m, grandTotal, 0m, grandTotal);
             _currentTotals = totals;
             _balance = grandTotal;
 
@@ -8151,27 +8144,126 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        var remaining = _balance;
-        foreach (var (paymentMethodId, methodName, amount) in dialog.Allocations)
+        if (!await EnsureShiftActiveOrPromptAsync())
         {
-            var applied = Math.Min(amount, Math.Max(remaining, 0m));
-            if (applied <= 0)
-            {
-                continue;
-            }
+            return;
+        }
 
-            if (!await EnsureShiftActiveOrPromptAsync())
+        static bool IsCreditMethod(string name) =>
+            string.Equals(name, "Credit", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "On Account", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(name, "Customer Account", StringComparison.OrdinalIgnoreCase);
+
+        var totalCreditRequested = dialog.Allocations
+            .Where(a => a.Amount > 0m && IsCreditMethod(a.Name))
+            .Sum(a => a.Amount);
+
+        bool exceedCreditLimitApproved = false;
+        if (totalCreditRequested > 0m)
+        {
+            var order = await _mediator.Send(new GetOrderByIdQuery(orderId));
+            if (order?.CustomerId is null)
             {
+                XtraMessageBox.Show(this, "A customer must be selected for On Account / Credit sales.", "No Customer Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, false, _activeShift?.ShiftId));
-            remaining -= applied;
-            await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName} (split)");
+            var customer = await _mediator.Send(new GetCustomerByIdQuery(order.CustomerId.Value));
+            if (customer is null)
+            {
+                XtraMessageBox.Show(this, "The customer associated with this order could not be found.", "Customer Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (customer.Code == "C000" || customer.IsDefault)
+            {
+                XtraMessageBox.Show(this, "Walk-in guest cannot purchase on account / credit. Please select a registered customer.", "Walk-in Guest", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!customer.IsCreditAllowed)
+            {
+                XtraMessageBox.Show(this, $"Customer '{customer.Name}' is not allowed to purchase on credit.", "Credit Not Allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (!customer.IsActive)
+            {
+                XtraMessageBox.Show(this, $"The customer '{customer.Name}' is inactive.", "Customer Inactive", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (_currentSession.UserId is { } userId)
+            {
+                var hasCreditPermission = await _featurePolicy.CanUseFeatureAsync(userId, "pos.creditsale");
+                if (!hasCreditPermission)
+                {
+                    XtraMessageBox.Show(this, "You do not have permission to perform a Credit Sale.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                if (customer.OutstandingBalance + totalCreditRequested > customer.CreditLimit)
+                {
+                    var situation = $"Credit limit exceeded.\n\n" +
+                                    $"This customer currently owes {CurrencyDisplay.FormatPlain(customer.OutstandingBalance)}.\n" +
+                                    $"The new split credit portion would increase the balance to {CurrencyDisplay.FormatPlain(customer.OutstandingBalance + totalCreditRequested)}, " +
+                                    $"but the credit limit is {CurrencyDisplay.FormatPlain(customer.CreditLimit)}.";
+
+                    var creditContext = new CreditLimitOverrideContext(
+                        customer.Name,
+                        customer.OutstandingBalance,
+                        customer.CreditLimit,
+                        totalCreditRequested);
+
+                    var authorization = await RequestManagerAuthorizationAsync(
+                        "Manager Authorization - Credit Limit Override",
+                        $"{situation}\n\nA manager must authorize this credit sale.",
+                        "pos.exceedcreditlimit",
+                        creditContext);
+
+                    if (authorization is null)
+                    {
+                        return;
+                    }
+
+                    exceedCreditLimitApproved = true;
+                }
+            }
         }
 
-        await RefreshOrderAsync();
-        UpdateChangeDisplay();
+        var remaining = _balance;
+        var splitAttemptId = Guid.NewGuid().ToString("N");
+        var legIndex = 0;
+
+        try
+        {
+            foreach (var (paymentMethodId, methodName, amount) in dialog.Allocations)
+            {
+                var applied = Math.Min(amount, Math.Max(remaining, 0m));
+                if (applied <= 0)
+                {
+                    continue;
+                }
+
+                legIndex++;
+                var legIdempotencyKey = $"split:{orderId}:{legIndex}:{paymentMethodId}:{applied:F2}:{splitAttemptId}";
+                await _mediator.Send(new RecordPaymentCommand(
+                    orderId,
+                    paymentMethodId,
+                    applied,
+                    exceedCreditLimitApproved && IsCreditMethod(methodName),
+                    _activeShift?.ShiftId,
+                    legIdempotencyKey));
+                remaining -= applied;
+                await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName} (split)");
+            }
+        }
+        finally
+        {
+            await RefreshOrderAsync();
+            UpdateChangeDisplay();
+        }
 
         if (_currentOrder is not null && PosPaymentRules.ShouldAutoComplete(_currentOrder.Status, _balance, paymentRecorded: true))
         {
@@ -8487,7 +8579,21 @@ public sealed partial class RestaurantPosForm : XtraForm
         var warehouseId = _warehousePicker.SelectedId ?? Guid.Empty;
         var selectedTableId = _currentOrder.TableId ?? _tablePicker.SelectedId;
 
-        var snapshotLines = _currentOrderLines.Where(l => !l.IsVoided).Select(l =>
+        var activeOfflineLines = _currentOrderLines.Where(l => !l.IsVoided).ToList();
+        var taxInputs = activeOfflineLines.Select(l => new Clovent.Restaurant.DomainServices.TaxCalculationLineInput(
+            l.OrderLineId,
+            l.Quantity,
+            l.UnitPrice,
+            0m,
+            l.TaxRatePercentage > 0m ? "Taxable" : "Exempt",
+            l.TaxRatePercentage > 0m ? "PRA" : "FBR",
+            $"PK-TAX-{l.TaxRatePercentage:0.##}",
+            l.TaxRatePercentage,
+            l.TaxIsInclusive)).ToList();
+        var taxSummary = Clovent.Restaurant.DomainServices.TaxCalculator.Calculate(taxInputs);
+        var taxByLineId = taxSummary.LineSnapshots.ToDictionary(tl => tl.OrderLineId, tl => tl);
+
+        var snapshotLines = activeOfflineLines.Select(l =>
         {
             var itemType = _continuityCoordinator?.ActiveCache?.GetVariant(l.ProductVariantId)?.ItemType
                 ?? _variantsById.GetValueOrDefault(l.ProductVariantId)?.ItemType
@@ -8495,13 +8601,12 @@ public sealed partial class RestaurantPosForm : XtraForm
             var taxRate = l.TaxRatePercentage;
             var taxIsInc = l.TaxIsInclusive;
             var lineTot = l.LineTotal;
-            var taxAmt = 0m;
-            if (taxRate > 0)
-            {
-                taxAmt = taxIsInc 
-                    ? lineTot - (lineTot / (1m + (taxRate / 100m))) 
-                    : lineTot * (taxRate / 100m);
-            }
+            var taxAmt = taxByLineId.TryGetValue(l.OrderLineId, out var tl)
+                ? tl.TaxAmount
+                : Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(
+                    taxRate <= 0m
+                        ? 0m
+                        : (taxIsInc ? lineTot - (lineTot / (1m + (taxRate / 100m))) : lineTot * (taxRate / 100m)));
             return new EmergencyTransactionLine(
                 l.ProductVariantId,
                 ResolveVariantSku(l.ProductVariantId),
@@ -8511,17 +8616,17 @@ public sealed partial class RestaurantPosForm : XtraForm
                 lineTot,
                 l.Notes,
                 taxRate,
-                Math.Round(taxAmt, 2),
+                taxAmt,
                 taxIsInc,
                 0m,
                 itemType);
         }).ToList();
 
-        var subtotal = _currentTotals?.Subtotal ?? snapshotLines.Sum(l => l.LineTotal);
-        var taxTotal = _currentTotals?.TaxTotal ?? 0m;
+        var subtotal = _currentTotals?.Subtotal ?? taxSummary.SubtotalGross;
+        var taxTotal = _currentTotals?.TaxTotal ?? taxSummary.TotalTax;
         var discountTotal = _currentTotals?.DiscountTotal ?? 0m;
         var serviceTotal = _currentTotals?.ServiceChargeTotal ?? 0m;
-        var grandTotal = _currentTotals?.GrandTotal ?? (subtotal + taxTotal + serviceTotal - discountTotal);
+        var grandTotal = _currentTotals?.GrandTotal ?? taxSummary.TotalLinesPayable;
 
         var cacheVersion = _continuityCoordinator?.ActiveCache?.Metadata.CacheVersion.ToString() ?? "1";
         var localReceiptNo = _continuityCoordinator?.GetNextLocalReceiptNumber() ?? LocalReceiptNumber.Generate("T01", nextSeq);

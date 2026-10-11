@@ -401,13 +401,13 @@ public sealed class Order : AggregateRoot<OrderId>
         AddDomainEvent(new OrderResumed(Id, DateTimeOffset.UtcNow));
     }
 
-    /// <summary>Voids the order - allowed from <see cref="OrderStatus.Open"/>, <see cref="OrderStatus.Held"/>, or <see cref="OrderStatus.Completed"/>.</summary>
+    /// <summary>Voids the order - allowed from <see cref="OrderStatus.Open"/> or <see cref="OrderStatus.Held"/>. Completed orders are immutable and must use the compensating refund workflow.</summary>
     /// <exception cref="ArgumentException"><paramref name="reason"/> is empty.</exception>
-    /// <exception cref="RestaurantDomainException">The order is already <see cref="OrderStatus.Voided"/> or <see cref="OrderStatus.Cancelled"/>.</exception>
+    /// <exception cref="RestaurantDomainException">The order is <see cref="OrderStatus.Completed"/>, <see cref="OrderStatus.Voided"/>, or <see cref="OrderStatus.Cancelled"/>.</exception>
     public void Void(string reason)
     {
         reason = RequireReason(reason);
-        if (Status is OrderStatus.Voided or OrderStatus.Cancelled)
+        if (Status is OrderStatus.Completed or OrderStatus.Voided or OrderStatus.Cancelled)
             throw RestaurantDomainException.OrderCannotBeVoided(Id, Status);
 
         Status = OrderStatus.Voided;

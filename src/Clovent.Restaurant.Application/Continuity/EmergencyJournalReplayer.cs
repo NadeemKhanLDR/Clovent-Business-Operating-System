@@ -139,6 +139,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
 
                 foreach (var lineSnapshot in tx.OrderSnapshot.Lines)
                 {
+                    var lineClass = lineSnapshot.TaxRatePercentage > 0m ? "Taxable" : "Exempt";
+                    var lineCode = lineSnapshot.TaxRatePercentage > 0m ? $"PK-TAX-{lineSnapshot.TaxRatePercentage:0.##}" : "PK-EXEMPT";
+                    var lineTaxableBase = lineSnapshot.TaxIsInclusive
+                        ? Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(lineSnapshot.LineTotal - lineSnapshot.DiscountAmount - lineSnapshot.TaxAmount)
+                        : Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(lineSnapshot.LineTotal - lineSnapshot.DiscountAmount);
+
                     var orderLine = OrderLine.Create(
                         order.Id,
                         new ProductVariantId(lineSnapshot.ProductVariantId),
@@ -146,7 +152,19 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                         lineSnapshot.UnitPrice,
                         lineSnapshot.TaxRatePercentage,
                         lineSnapshot.TaxIsInclusive,
-                        lineSnapshot.Notes);
+                        lineSnapshot.Notes,
+                        lineClass,
+                        "PRA",
+                        lineCode);
+
+                    orderLine.SetTaxSnapshot(
+                        lineClass,
+                        "PRA",
+                        lineCode,
+                        lineTaxableBase,
+                        lineSnapshot.DiscountAmount,
+                        lineSnapshot.TaxAmount,
+                        "CBOS-TaxPolicy-NetOfDiscount-v1");
 
                     await _orderLineRepository.AddAsync(orderLine, cancellationToken).ConfigureAwait(false);
                     order.AddOrderLine(orderLine.Id);
@@ -179,7 +197,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                         $"PK-TAX-{l.TaxRatePercentage:0.##}",
                         l.TaxRatePercentage,
                         l.TaxIsInclusive,
-                        l.TaxIsInclusive ? l.LineTotal - l.TaxAmount : l.LineTotal,
+                        l.TaxIsInclusive ? l.LineTotal - l.DiscountAmount - l.TaxAmount : l.LineTotal - l.DiscountAmount,
                         l.TaxAmount,
                         l.DiscountAmount)).ToList();
 
@@ -206,7 +224,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     tx.TerminalId,
                     tx.OrderSnapshot.CustomerNotes,
                     null,
-                    "1.3.0-AwayFromZero-v1",
+                    "CBOS-TaxPolicy-NetOfDiscount-v1",
                     tx.OrderSnapshot.Subtotal,
                     tx.OrderSnapshot.Lines.Where(l => !l.TaxIsInclusive).Sum(l => l.TaxAmount),
                     tx.OrderSnapshot.Lines.Where(l => l.TaxIsInclusive).Sum(l => l.TaxAmount));
@@ -217,12 +235,15 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 // Step 6: Enqueue Outbox messages atomically
                 if (_outboxRepository != null)
                 {
-                    var invPayload = JsonSerializer.Serialize(new
-                    {
-                        OrderId = order.Id.Value,
-                        WarehouseId = tx.WarehouseId,
-                        Lines = tx.OrderSnapshot.Lines.Select(l => new { l.ProductVariantId, l.Quantity }).ToList()
-                    });
+                    var invPayload = JsonSerializer.Serialize(new Clovent.Restaurant.Application.Outbox.Dtos.InventoryPostingPayload(
+                        order.Id.Value,
+                        order.OrderNumber.Value,
+                        tx.WarehouseId,
+                        tx.OrderSnapshot.Lines.Select(l => new Clovent.Restaurant.Application.Outbox.Dtos.InventoryPostingLineItem(
+                            l.ProductVariantId,
+                            l.Sku,
+                            l.Name,
+                            l.Quantity)).ToList()));
                     await _outboxRepository.AddAsync(OutboxMessage.Create(
                         OutboxMessageType.InventoryPosting,
                         "Order",

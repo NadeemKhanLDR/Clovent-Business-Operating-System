@@ -475,6 +475,283 @@ public class ProcessRefundCommandHandlerTests
         Assert.Equal(2m, allRefunds.SelectMany(r => r.Lines).Sum(l => l.Quantity));
     }
 
+    [Fact]
+    public async Task ProcessRefund_FailureBeforeSaveChanges_DoesNotPostInventoryOrLeaveOrphanStock()
+    {
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+        var outboxRepo = new StubOutboxRepository();
+        var stockReceiveCalls = 0;
+
+        var mediator = new FakeMediator(req =>
+        {
+            if (req is Clovent.Inventory.Application.Transactions.Queries.ListInventoryTransactionsByReferenceQuery)
+            {
+                return Task.FromResult<object?>(Array.Empty<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>());
+            }
+
+            if (req is Clovent.Inventory.Application.WarehouseStocks.Commands.OpenOrReceiveStockCommand)
+            {
+                stockReceiveCalls++;
+                return Task.FromResult<object?>(null);
+            }
+
+            return Task.FromResult<object?>(null);
+        });
+
+        var failingUnitOfWork = new ThrowingUnitOfWork(new InvalidOperationException("Simulated SQL commit failure"));
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            mediator,
+            failingUnitOfWork,
+            outboxRepository: outboxRepo);
+
+        var cmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m, InventoryDisposition.Restock)],
+            "Return before commit failure",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-FAIL-BEFORE-COMMIT",
+            Guid.NewGuid(),
+            "Cashier");
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(cmd, CancellationToken.None));
+
+        // Prove failure-before-commit never dispatches OpenOrReceiveStockCommand
+        Assert.Equal(0, stockReceiveCalls);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_PostCommitInventoryFailure_CommitsDurableOutboxAndRecoversIdempotentlyWithoutDuplicateStock()
+    {
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+        var outboxRepo = new StubOutboxRepository();
+        var recordedInventoryTx = new List<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>();
+        var failNextInventoryPost = true;
+        var stockReceiveCalls = 0;
+
+        var mediator = new FakeMediator(req =>
+        {
+            if (req is Clovent.Inventory.Application.Transactions.Queries.ListInventoryTransactionsByReferenceQuery query)
+            {
+                var matches = recordedInventoryTx
+                    .Where(t => t.ReferenceType == query.ReferenceType && t.ReferenceId == query.ReferenceId)
+                    .ToList();
+                return Task.FromResult<object?>((IReadOnlyCollection<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>)matches);
+            }
+
+            if (req is Clovent.Inventory.Application.WarehouseStocks.Commands.OpenOrReceiveStockCommand receiveCmd)
+            {
+                if (failNextInventoryPost)
+                {
+                    throw new InvalidOperationException("Simulated crash/transient failure after refund SaveChanges");
+                }
+
+                stockReceiveCalls++;
+                recordedInventoryTx.Add(new Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto(
+                    Guid.NewGuid(),
+                    receiveCmd.WarehouseId,
+                    receiveCmd.ProductVariantId,
+                    nameof(Clovent.Inventory.Transactions.InventoryTransactionType.Receipt),
+                    receiveCmd.Quantity,
+                    receiveCmd.ReferenceType,
+                    receiveCmd.ReferenceId,
+                    receiveCmd.Notes,
+                    DateTimeOffset.UtcNow));
+
+                return Task.FromResult<object?>(new Clovent.Inventory.Application.WarehouseStocks.Dtos.WarehouseStockDto(
+                    Guid.NewGuid(),
+                    receiveCmd.WarehouseId,
+                    receiveCmd.ProductVariantId,
+                    receiveCmd.Quantity,
+                    0m,
+                    receiveCmd.Quantity,
+                    0m,
+                    0m,
+                    false,
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow));
+            }
+
+            return Task.FromResult<object?>(null);
+        });
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            mediator,
+            _unitOfWork,
+            outboxRepository: outboxRepo);
+
+        var cmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m, InventoryDisposition.Restock)],
+            "Return with post-commit inventory crash",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-POST-COMMIT-CRASH",
+            Guid.NewGuid(),
+            "Cashier");
+
+        // 1. Initial call: Refund + OutboxMessage commit atomically, post-commit inventory dispatch fails, outbox stays Pending
+        var firstResult = await handler.Handle(cmd, CancellationToken.None);
+        Assert.NotNull(firstResult);
+        Assert.Equal(0, stockReceiveCalls);
+        var outboxMsg = Assert.Single(outboxRepo.Messages);
+        Assert.Equal(Clovent.Restaurant.Outbox.OutboxMessageStatus.Pending, outboxMsg.Status);
+
+        // 2. Recovery via InventoryPostingOutboxHandler: applies restock once
+        failNextInventoryPost = false;
+        var outboxHandler = new Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler(
+            mediator,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
+        await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
+        Assert.Equal(1, stockReceiveCalls);
+
+        // 3. Duplicate delivery to InventoryPostingOutboxHandler AND idempotent retry of ProcessRefundCommand: zero duplicate stock movements
+        await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
+        var retryResult = await handler.Handle(cmd, CancellationToken.None);
+        Assert.Equal(firstResult.RefundId, retryResult.RefundId);
+        Assert.Equal(1, stockReceiveCalls);
+        Assert.Equal(Clovent.Restaurant.Outbox.OutboxMessageStatus.Completed, outboxMsg.Status);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_CashPayoutShiftContextMismatch_RejectsCrossBranchAndMismatchedTerminal()
+    {
+        var shiftRepo = new FakeShiftRepository();
+        var branch1 = new BranchId(Guid.NewGuid());
+        var branch2 = new BranchId(Guid.NewGuid());
+        var warehouseId = WarehouseId.New();
+        var terminal1 = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var terminal2 = new Clovent.MasterData.Terminals.TerminalId(Guid.NewGuid());
+        var cashierId = new Clovent.Identity.Users.UserId(Guid.NewGuid());
+
+        // Open shift in branch2 on terminal2
+        var foreignShift = Clovent.Restaurant.Shifts.Shift.Open(2001, branch2, warehouseId, terminal2, cashierId, "Cashier", 2000m);
+        await shiftRepo.AddAsync(foreignShift);
+
+        var order = Order.Create(OrderType.TakeAway, warehouseId);
+        await _orderRepo.AddAsync(order);
+        var line1 = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 500m, 16m, false);
+        line1.SetTaxSnapshot("Taxable", "PRA", "PK-PRA-16", 500m, 0m, 80m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line1.Id);
+        await _orderLineRepo.AddAsync(line1);
+        var payment = Payment.Create(order.Id, PaymentMethodId.New(), 580m, null);
+        order.RecordPayment(payment.Id);
+        await _paymentRepo.AddAsync(payment);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            shiftRepo);
+
+        // Attempt to redirect cash payout to foreign branch's shift
+        var crossBranchCmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Cross-branch redirect attempt",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-CROSS-BRANCH",
+            cashierId.Value,
+            "Cashier",
+            BranchId: branch1.Value,
+            ShiftId: foreignShift.Id.Value);
+
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(crossBranchCmd, CancellationToken.None));
+        Assert.Contains("branch", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        // Open shift in branch1 on terminal2, but request specifies terminal1
+        var sameBranchOtherTerminalShift = Clovent.Restaurant.Shifts.Shift.Open(2002, branch1, warehouseId, terminal2, cashierId, "Cashier", 2000m);
+        await shiftRepo.AddAsync(sameBranchOtherTerminalShift);
+
+        var mismatchedTerminalCmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Mismatched terminal attempt",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-MISMATCH-TERMINAL",
+            cashierId.Value,
+            "Cashier",
+            BranchId: branch1.Value,
+            ShiftId: sameBranchOtherTerminalShift.Id.Value,
+            TerminalId: terminal1.Value);
+
+        var termEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(mismatchedTerminalCmd, CancellationToken.None));
+        Assert.Contains("terminal", termEx.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_CashPayoutOnSplitOrder_EnforcesCashOnlyCapViaPaymentMethodRepository()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 2m, 1000m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 2000m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var creditMethod = PaymentMethod.Create(PaymentMethodName.Create("On Account"));
+        var paymentMethodRepo = new StubPaymentMethodRepository([cashMethod, creditMethod]);
+
+        // Split payment: 500 Cash + 1500 On Account = 2000 total
+        var cashPay = Payment.Create(order.Id, cashMethod.Id, 500m, null);
+        var creditPay = Payment.Create(order.Id, creditMethod.Id, 1500m, null);
+        order.RecordPayment(cashPay.Id);
+        order.RecordPayment(creditPay.Id);
+        await _paymentRepo.AddAsync(cashPay);
+        await _paymentRepo.AddAsync(creditPay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: paymentMethodRepo);
+
+        // Attempting to refund 1 unit (1000 PKR) as CashPayout must fail because only 500 PKR was paid in Cash
+        var ex = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m)],
+                "Exceeds cash tender",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-SPLIT-CASH-CAP",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+
+        Assert.Contains("exceeds remaining eligible cash paid", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class StubFeatureAuthorizationPolicy(HashSet<(Guid UserId, string Code)> grants)
         : Clovent.Identity.Application.Authorization.IFeatureAuthorizationPolicy
     {
@@ -483,5 +760,69 @@ public class ProcessRefundCommandHandlerTests
 
         public Task<bool> CanUseFeatureAsync(Guid userId, string featureCode, CancellationToken cancellationToken = default) =>
             Task.FromResult(grants.Contains((userId, featureCode)));
+    }
+
+    private sealed class ThrowingUnitOfWork(Exception exception) : Clovent.Restaurant.Application.IUnitOfWork
+    {
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromException(exception);
+    }
+
+    private sealed class StubPaymentMethodRepository(IEnumerable<PaymentMethod> methods) : IPaymentMethodRepository
+    {
+        private readonly List<PaymentMethod> _methods = methods.ToList();
+
+        public Task<PaymentMethod?> GetByIdAsync(PaymentMethodId id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_methods.FirstOrDefault(m => m.Id == id));
+
+        public Task<IReadOnlyCollection<PaymentMethod>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<PaymentMethod>>(_methods);
+
+        public Task AddAsync(PaymentMethod paymentMethod, CancellationToken cancellationToken = default)
+        {
+            _methods.Add(paymentMethod);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class StubOutboxRepository : Clovent.Restaurant.Outbox.IOutboxRepository
+    {
+        public List<Clovent.Restaurant.Outbox.OutboxMessage> Messages { get; } = [];
+
+        public Task AddAsync(Clovent.Restaurant.Outbox.OutboxMessage message, CancellationToken cancellationToken = default)
+        {
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task AddRangeAsync(IEnumerable<Clovent.Restaurant.Outbox.OutboxMessage> messages, CancellationToken cancellationToken = default)
+        {
+            Messages.AddRange(messages);
+            return Task.CompletedTask;
+        }
+
+        public Task<Clovent.Restaurant.Outbox.OutboxMessage?> GetByIdAsync(Clovent.Restaurant.Outbox.OutboxMessageId id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Messages.FirstOrDefault(m => m.Id == id));
+
+        public Task<Clovent.Restaurant.Outbox.OutboxMessage?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Messages.FirstOrDefault(m => m.IdempotencyKey == idempotencyKey));
+
+        public Task<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>> ClaimMessagesAsync(int batchSize, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>>([]);
+
+        public Task UpdateAsync(Clovent.Restaurant.Outbox.OutboxMessage message, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>> GetStaleProcessingMessagesAsync(TimeSpan staleThreshold, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>>([]);
+
+        public Task<Clovent.Restaurant.Outbox.OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new Clovent.Restaurant.Outbox.OutboxStatistics(0, 0, 0, 0, 0, 0, null, new Dictionary<string, int>()));
+
+        public Task<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>> GetDeadLetterAndFailedMessagesAsync(int maxCount = 50, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>>([]);
+
+        public Task<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>> GetUncompletedMessagesByTypeAsync(string messageType, int maxCount = 100, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>>(Messages.Where(m => m.MessageType == messageType && m.Status != Clovent.Restaurant.Outbox.OutboxMessageStatus.Completed).ToList());
     }
 }

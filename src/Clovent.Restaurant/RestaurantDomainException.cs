@@ -250,4 +250,8 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>Cash refund payout cannot be attributed to a closed shift.</summary>
     public static RestaurantDomainException CashRefundRequiresOpenShift(Shifts.ShiftId shiftId) =>
         new($"Cash refund payout cannot be attributed to closed shift '{shiftId}'. An open disbursing shift is required.");
+
+    /// <summary>Cash refund payout shift/terminal context mismatch (e.g., cross-branch or mismatched terminal).</summary>
+    public static RestaurantDomainException CashRefundShiftContextMismatch(string details) =>
+        new($"Cash refund payout shift/terminal validation failed: {details}");
 }

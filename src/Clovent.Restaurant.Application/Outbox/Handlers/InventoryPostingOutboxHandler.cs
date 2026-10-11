@@ -12,13 +12,14 @@ namespace Clovent.Restaurant.Application.Outbox.Handlers;
 
 /// <summary>
 /// Idempotent outbox handler that issues warehouse stock for completed orders
-/// without stalling the cashier UI thread.
+/// or restocks returned items for completed refunds without stalling the cashier UI thread.
 /// </summary>
 public sealed class InventoryPostingOutboxHandler(
     IMediator mediator,
     ILogger<InventoryPostingOutboxHandler> logger) : IOutboxMessageHandler
 {
-    private const string StockReferenceType = "Order";
+    private const string OrderStockReferenceType = "Order";
+    private const string RefundStockReferenceType = "Refund";
 
     /// <inheritdoc/>
     public string MessageType => OutboxMessageType.InventoryPosting;
@@ -34,9 +35,52 @@ public sealed class InventoryPostingOutboxHandler(
             return;
         }
 
+        if (payload.IsRestock)
+        {
+            var referenceType = string.IsNullOrWhiteSpace(payload.ReferenceType)
+                ? RefundStockReferenceType
+                : payload.ReferenceType;
+
+            var alreadyRestocked = await mediator.Send(
+                new ListInventoryTransactionsByReferenceQuery(referenceType, payload.OrderId), cancellationToken);
+
+            var alreadyRestockedVariantIds = alreadyRestocked
+                .Where(t => t.TransactionType is nameof(InventoryTransactionType.Receipt) or nameof(InventoryTransactionType.OpeningBalance))
+                .Select(t => t.ProductVariantId)
+                .ToHashSet();
+
+            var pendingRestockItems = payload.Items
+                .GroupBy(i => i.ProductVariantId)
+                .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(i => i.Quantity) })
+                .Where(i => !alreadyRestockedVariantIds.Contains(i.ProductVariantId))
+                .ToList();
+
+            if (pendingRestockItems.Count == 0)
+            {
+                logger.LogInformation("All inventory restock items for {ReferenceType} {DocumentNumber} already received. Skipping.", referenceType, payload.OrderNumber);
+                return;
+            }
+
+            foreach (var item in pendingRestockItems)
+            {
+                await mediator.Send(
+                    new OpenOrReceiveStockCommand(
+                        payload.WarehouseId,
+                        item.ProductVariantId,
+                        item.Quantity,
+                        $"Restock from {referenceType} {payload.OrderNumber}",
+                        referenceType,
+                        payload.OrderId),
+                    cancellationToken);
+            }
+
+            logger.LogInformation("Successfully posted inventory restock for {ReferenceType} {DocumentNumber}.", referenceType, payload.OrderNumber);
+            return;
+        }
+
         // Idempotency check: see what has already been issued for this order
         var alreadyIssued = await mediator.Send(
-            new ListInventoryTransactionsByReferenceQuery(StockReferenceType, payload.OrderId), cancellationToken);
+            new ListInventoryTransactionsByReferenceQuery(OrderStockReferenceType, payload.OrderId), cancellationToken);
 
         var alreadyIssuedVariantIds = alreadyIssued
             .Where(t => t.TransactionType == nameof(InventoryTransactionType.Issue))
@@ -71,7 +115,7 @@ public sealed class InventoryPostingOutboxHandler(
                     stock.WarehouseStockId,
                     item.Quantity,
                     $"Order {payload.OrderNumber}",
-                    StockReferenceType,
+                    OrderStockReferenceType,
                     payload.OrderId),
                 cancellationToken);
         }

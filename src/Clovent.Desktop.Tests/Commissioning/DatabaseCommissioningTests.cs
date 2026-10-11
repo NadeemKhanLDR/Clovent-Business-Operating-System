@@ -162,4 +162,43 @@ public sealed class DatabaseCommissioningTests
         await Assert.ThrowsAsync<ArgumentException>(() => service.ApplyMigrationsAsync(string.Empty));
         await Assert.ThrowsAsync<ArgumentException>(() => service.ApplyMigrationsAsync("   "));
     }
+
+    [Theory]
+    [InlineData("--unknown-flag")]
+    [InlineData("--server")]
+    [InlineData("--database")]
+    [InlineData("--auth", "bogus")]
+    [InlineData("--auth", "sql")]
+    [InlineData("--auth", "sql", "--user", "sa")]
+    [InlineData("--auth", "windows", "--password", "Secret123!")]
+    [InlineData("--provision", "--verify-only")]
+    public async Task ProvisionerCli_InvalidArguments_FailsBeforeSideEffectsWithExitCode64(params string[] invalidArgs)
+    {
+        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var debugDll = Path.Combine(repoRoot, "tools", "Clovent.Installer.Provisioner", "bin", "Debug", "net10.0-windows", "win-x64", "Clovent.Installer.Provisioner.dll");
+        var releaseDll = Path.Combine(repoRoot, "tools", "Clovent.Installer.Provisioner", "bin", "Release", "net10.0-windows", "win-x64", "Clovent.Installer.Provisioner.dll");
+        var targetDll = File.Exists(debugDll) ? debugDll : releaseDll;
+        Assert.True(File.Exists(targetDll), $"Expected compiled provisioner assembly at '{debugDll}' or '{releaseDll}'.");
+
+        var tempLogPath = Path.Combine(Path.GetTempPath(), $"cbos-prov-should-not-exist-{Guid.NewGuid():N}.log");
+        var argsWithLog = invalidArgs.Concat(["--log-file", tempLogPath]).ToArray();
+
+        try
+        {
+            var asm = System.Reflection.Assembly.LoadFrom(targetDll);
+            var programType = asm.GetType("Clovent.Installer.Provisioner.Program", throwOnError: true)!;
+            var mainMethod = programType.GetMethod("Main", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)!;
+
+            var exitCode = await (Task<int>)mainMethod.Invoke(null, [argsWithLog])!;
+            Assert.Equal(64, exitCode);
+            Assert.False(File.Exists(tempLogPath), "Provisioner must fail before creating log files or touching disk when arguments are invalid.");
+        }
+        finally
+        {
+            if (File.Exists(tempLogPath))
+            {
+                File.Delete(tempLogPath);
+            }
+        }
+    }
 }

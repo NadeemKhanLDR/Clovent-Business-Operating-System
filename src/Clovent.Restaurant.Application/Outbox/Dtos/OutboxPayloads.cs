@@ -8,7 +8,9 @@ public sealed record InventoryPostingPayload(
     Guid OrderId,
     string OrderNumber,
     Guid WarehouseId,
-    IReadOnlyList<InventoryPostingLineItem> Items);
+    IReadOnlyList<InventoryPostingLineItem> Items,
+    bool IsRestock = false,
+    string? ReferenceType = null);
 
 /// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.QuickBooksSync"/>.</summary>
 public sealed record QuickBooksSyncPayload(

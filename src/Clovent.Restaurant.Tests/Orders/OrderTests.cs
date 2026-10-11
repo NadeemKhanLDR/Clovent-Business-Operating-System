@@ -232,15 +232,14 @@ public class OrderTests
     }
 
     [Fact]
-    public void Void_FromCompleted_Succeeds()
+    public void Void_FromCompleted_Throws()
     {
         var order = CreateTakeAwayOrder();
         order.Complete();
         order.ClearDomainEvents();
 
-        order.Void("Managerial override");
-
-        Assert.Equal(OrderStatus.Voided, order.Status);
+        Assert.Throws<RestaurantDomainException>(() => order.Void("Managerial override"));
+        Assert.Equal(OrderStatus.Completed, order.Status);
     }
 
     [Fact]

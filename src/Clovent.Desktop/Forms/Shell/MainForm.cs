@@ -481,11 +481,18 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     {
         var outgoingUserDisplayName = _currentSession.DisplayName ?? "Unknown";
 
+        var outgoingSessionId = _currentSession.SessionId;
+
         using (var logScope = _scopeFactory.CreateScope())
         {
             try
             {
                 var mediator = logScope.ServiceProvider.GetRequiredService<IMediator>();
+                if (outgoingSessionId is { } activeSessionId)
+                {
+                    await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
+                }
+
                 await mediator.Send(new RecordActivityCommand("Logout", null, outgoingUserDisplayName, Environment.MachineName));
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)

@@ -20,11 +20,43 @@ namespace Clovent.Installer.Provisioner;
 /// </summary>
 public static class Program
 {
-    public static async Task<int> Main(string[] args)
+    public const int ExitCodeInvalidArguments = 64;
+
+    public sealed record ProvisionerArguments(
+        string Server,
+        string Database,
+        bool UseWindowsAuth,
+        string? UserId,
+        string? Password,
+        string? LogFilePath,
+        bool VerifyOnly,
+        bool Provision);
+
+    public static bool TryParseArguments(
+        string[]? args,
+        out ProvisionerArguments parsed,
+        out string? errorMessage)
     {
+        parsed = new ProvisionerArguments(
+            ".",
+            DatabaseConnectionSettings.DefaultDatabaseName,
+            true,
+            null,
+            null,
+            null,
+            false,
+            true);
+        errorMessage = null;
+
+        if (args is null)
+        {
+            return true;
+        }
+
         string server = ".";
         string database = DatabaseConnectionSettings.DefaultDatabaseName;
         bool useWindowsAuth = true;
+        bool explicitAuthSpecified = false;
         string? userId = null;
         string? password = null;
         string? logFilePath = null;
@@ -34,31 +66,87 @@ public static class Program
         for (int i = 0; i < args.Length; i++)
         {
             var arg = args[i];
-            if (string.Equals(arg, "--server", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            if (string.IsNullOrWhiteSpace(arg))
             {
+                errorMessage = $"Empty argument at index {i}.";
+                return false;
+            }
+
+            if (string.Equals(arg, "--server", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --server.";
+                    return false;
+                }
                 server = args[++i];
             }
-            else if (string.Equals(arg, "--database", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            else if (string.Equals(arg, "--database", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --database.";
+                    return false;
+                }
                 database = args[++i];
             }
-            else if (string.Equals(arg, "--auth", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            else if (string.Equals(arg, "--auth", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --auth (expected 'windows' or 'sql').";
+                    return false;
+                }
                 var val = args[++i];
-                useWindowsAuth = string.Equals(val, "windows", StringComparison.OrdinalIgnoreCase);
+                if (string.Equals(val, "windows", StringComparison.OrdinalIgnoreCase))
+                {
+                    useWindowsAuth = true;
+                    explicitAuthSpecified = true;
+                }
+                else if (string.Equals(val, "sql", StringComparison.OrdinalIgnoreCase))
+                {
+                    useWindowsAuth = false;
+                    explicitAuthSpecified = true;
+                }
+                else
+                {
+                    errorMessage = $"Invalid --auth mode '{val}'. Expected 'windows' or 'sql'.";
+                    return false;
+                }
             }
-            else if (string.Equals(arg, "--user", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            else if (string.Equals(arg, "--user", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --user.";
+                    return false;
+                }
                 userId = args[++i];
-                useWindowsAuth = false;
+                if (!explicitAuthSpecified)
+                {
+                    useWindowsAuth = false;
+                }
             }
-            else if (string.Equals(arg, "--password", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            else if (string.Equals(arg, "--password", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --password.";
+                    return false;
+                }
                 password = args[++i];
-                useWindowsAuth = false;
+                if (!explicitAuthSpecified)
+                {
+                    useWindowsAuth = false;
+                }
             }
-            else if (string.Equals(arg, "--log-file", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length)
+            else if (string.Equals(arg, "--log-file", StringComparison.OrdinalIgnoreCase))
             {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --log-file.";
+                    return false;
+                }
                 logFilePath = args[++i];
             }
             else if (string.Equals(arg, "--verify-only", StringComparison.OrdinalIgnoreCase))
@@ -69,13 +157,64 @@ public static class Program
             {
                 provision = true;
             }
+            else
+            {
+                errorMessage = $"Unrecognized command-line argument '{arg}'.";
+                return false;
+            }
+        }
+
+        if (provision && verifyOnly)
+        {
+            errorMessage = "Cannot specify both --provision and --verify-only.";
+            return false;
+        }
+
+        if (!useWindowsAuth && (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(password)))
+        {
+            errorMessage = "SQL Server authentication (--auth sql) requires both --user and --password.";
+            return false;
+        }
+
+        if (useWindowsAuth && (!string.IsNullOrWhiteSpace(userId) || !string.IsNullOrWhiteSpace(password)))
+        {
+            errorMessage = "Windows authentication (--auth windows) cannot be combined with --user or --password.";
+            return false;
         }
 
         if (!provision && !verifyOnly)
         {
-            // Default to provision if neither specified
             provision = true;
         }
+
+        parsed = new ProvisionerArguments(
+            server,
+            database,
+            useWindowsAuth,
+            userId,
+            password,
+            logFilePath,
+            verifyOnly,
+            provision);
+        return true;
+    }
+
+    public static async Task<int> Main(string[] args)
+    {
+        if (!TryParseArguments(args, out var parsedArgs, out var argError))
+        {
+            Console.Error.WriteLine($"[ERROR] Invalid provisioner arguments: {argError}");
+            return ExitCodeInvalidArguments;
+        }
+
+        string server = parsedArgs.Server;
+        string database = parsedArgs.Database;
+        bool useWindowsAuth = parsedArgs.UseWindowsAuth;
+        string? userId = parsedArgs.UserId;
+        string? password = parsedArgs.Password;
+        string? logFilePath = parsedArgs.LogFilePath;
+        bool verifyOnly = parsedArgs.VerifyOnly;
+        bool provision = parsedArgs.Provision;
 
         // Initialize logging
         if (string.IsNullOrWhiteSpace(logFilePath))

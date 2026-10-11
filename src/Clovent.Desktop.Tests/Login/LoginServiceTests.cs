@@ -23,6 +23,7 @@ public class LoginServiceTests
         public required FakeUserRepository Users { get; init; }
         public required FakeUserCredentialsRepository Credentials { get; init; }
         public required FakeLoginAttemptRepository LoginAttempts { get; init; }
+        public required FakeSessionRepository Sessions { get; init; }
         public required FakeRefreshSessionRepository RefreshSessions { get; init; }
         public required FakeIdentityUserService IdentityUserService { get; init; }
         public required CurrentSession CurrentSession { get; init; }
@@ -34,6 +35,7 @@ public class LoginServiceTests
         var users = new FakeUserRepository();
         var credentials = new FakeUserCredentialsRepository();
         var loginAttempts = new FakeLoginAttemptRepository();
+        var sessions = new FakeSessionRepository();
         var refreshSessions = new FakeRefreshSessionRepository();
         var identityUserService = new FakeIdentityUserService(users);
         var currentSession = new CurrentSession();
@@ -41,11 +43,12 @@ public class LoginServiceTests
         var services = new ServiceCollection();
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(
             typeof(Clovent.Authentication.Application.DependencyInjection.ApplicationServiceCollectionExtensions).Assembly));
+        services.AddScoped<Clovent.Authentication.Application.Sessions.SessionTerminationCascade>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IUserRepository>(users);
         services.AddSingleton<IUserCredentialsRepository>(credentials);
         services.AddSingleton<ILoginAttemptRepository>(loginAttempts);
-        services.AddSingleton<ISessionRepository, FakeSessionRepository>();
+        services.AddSingleton<ISessionRepository>(sessions);
         services.AddSingleton<IRefreshSessionRepository>(refreshSessions);
         services.AddSingleton<IIdentityUserService>(identityUserService);
         services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
@@ -60,6 +63,7 @@ public class LoginServiceTests
             Users = users,
             Credentials = credentials,
             LoginAttempts = loginAttempts,
+            Sessions = sessions,
             RefreshSessions = refreshSessions,
             IdentityUserService = identityUserService,
             CurrentSession = currentSession,
@@ -253,6 +257,35 @@ public class LoginServiceTests
 
         var carol = await fixture.Users.GetByUserNameAsync(UserName.Create("carol"));
         Assert.Equal(carol!.Id.Value, fixture.CurrentSession.UserId);
+    }
+
+    [Fact]
+    public async Task SignOutAsync_AfterLoginWithRememberMe_LogsOutPersistedSessionAndInvalidatesRefreshSession()
+    {
+        var fixture = BuildFixture();
+        var (user, _) = CreateActiveUserWithPassword(fixture, "Correct123!");
+
+        var loginResult = await fixture.LoginService.LoginAsync(new LoginRequest("alice", "Correct123!", null, RememberMe: true));
+        Assert.True(loginResult.Succeeded);
+        Assert.True(fixture.CurrentSession.IsAuthenticated);
+
+        var sessionId = Assert.NotNull(fixture.CurrentSession.SessionId);
+        var activeBefore = await fixture.Sessions.GetActiveByUserIdAsync(user.Id);
+        Assert.Single(activeBefore);
+        var refreshSession = Assert.Single(fixture.RefreshSessions.All);
+        Assert.Equal(RefreshSessionStatus.Active, refreshSession.Status);
+
+        // Simulate module denial or explicit sign-out calling SignOutAsync
+        await fixture.LoginService.SignOutAsync();
+
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+        Assert.Null(fixture.CurrentSession.SessionId);
+
+        var persistedSession = await fixture.Sessions.GetByIdAsync(new SessionId(sessionId));
+        Assert.NotNull(persistedSession);
+        Assert.Equal(SessionStatus.LoggedOut, persistedSession!.Status);
+        Assert.Empty(await fixture.Sessions.GetActiveByUserIdAsync(user.Id));
+        Assert.Equal(RefreshSessionStatus.Revoked, refreshSession.Status);
     }
 
     private static async Task<(User user, UserCredentials credentials)> CreateActiveUserWithPinAsync(

@@ -5,14 +5,20 @@ using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Domain;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Identity.Branches;
-using Clovent.MasterData.Terminals;
+using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
+using Clovent.Inventory.Transactions;
+using Clovent.MasterData.Terminals;
 using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Application.Outbox;
+using Clovent.Restaurant.Application.Outbox.Dtos;
 using Clovent.Restaurant.Application.Refunds.Dtos;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Outbox;
+using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Refunds;
 using Clovent.Restaurant.Shifts;
@@ -60,6 +66,7 @@ public sealed record ProcessRefundCommand(
 /// <summary>Handles <see cref="ProcessRefundCommand"/>.</summary>
 public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundCommand, RefundDto>
 {
+    private const string RefundStockReferenceType = "Refund";
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> OrderRefundLocks = new();
 
     private readonly IRefundRepository _refundRepository;
@@ -73,6 +80,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
     private readonly IUnitOfWork _unitOfWork;
     private readonly IShiftRepository? _shiftRepository;
     private readonly IFeatureAuthorizationPolicy? _featureAuthorizationPolicy;
+    private readonly IOutboxRepository? _outboxRepository;
+    private readonly IOutboxProcessor? _outboxProcessor;
+    private readonly IPaymentMethodRepository? _paymentMethodRepository;
 
     /// <summary>Initializes a new instance of <see cref="ProcessRefundCommandHandler"/>.</summary>
     public ProcessRefundCommandHandler(
@@ -86,7 +96,10 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         IMediator mediator,
         IUnitOfWork unitOfWork,
         IShiftRepository? shiftRepository = null,
-        IFeatureAuthorizationPolicy? featureAuthorizationPolicy = null)
+        IFeatureAuthorizationPolicy? featureAuthorizationPolicy = null,
+        IOutboxRepository? outboxRepository = null,
+        IOutboxProcessor? outboxProcessor = null,
+        IPaymentMethodRepository? paymentMethodRepository = null)
     {
         _refundRepository = refundRepository;
         _orderRepository = orderRepository;
@@ -99,6 +112,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         _unitOfWork = unitOfWork;
         _shiftRepository = shiftRepository;
         _featureAuthorizationPolicy = featureAuthorizationPolicy;
+        _outboxRepository = outboxRepository;
+        _outboxProcessor = outboxProcessor;
+        _paymentMethodRepository = paymentMethodRepository;
     }
 
     /// <inheritdoc/>
@@ -135,6 +151,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         if (existingRefund != null)
         {
             ValidateIdempotencyDetails(existingRefund, request);
+            await EnsureRestockAppliedIdempotentlyAsync(existingRefund, null, cancellationToken);
             return RefundDto.FromDomain(existingRefund);
         }
 
@@ -164,12 +181,32 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 var shift = await _shiftRepository.GetByIdAsync(requestedShiftId, cancellationToken);
                 if (shift != null)
                 {
-                    if (request.SettlementMethod == RefundSettlementMethod.CashPayout && shift.Status != ShiftStatus.Open)
+                    if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
                     {
-                        throw RestaurantDomainException.CashRefundRequiresOpenShift(requestedShiftId);
+                        if (shift.Status != ShiftStatus.Open)
+                        {
+                            throw RestaurantDomainException.CashRefundRequiresOpenShift(requestedShiftId);
+                        }
+
+                        if (request.BranchId.HasValue && shift.BranchId.Value != request.BranchId.Value)
+                        {
+                            throw RestaurantDomainException.CashRefundShiftContextMismatch(
+                                $"Disbursing shift '{shift.Id}' belongs to branch '{shift.BranchId}', not authorized branch '{request.BranchId.Value}'.");
+                        }
+
+                        if (request.TerminalId.HasValue && shift.TerminalId.Value != request.TerminalId.Value)
+                        {
+                            throw RestaurantDomainException.CashRefundShiftContextMismatch(
+                                $"Disbursing shift '{shift.Id}' belongs to terminal '{shift.TerminalId}', not supplied terminal '{request.TerminalId.Value}'.");
+                        }
                     }
+
                     resolvedShiftId = shift.Id;
                     resolvedTerminalId ??= shift.TerminalId;
+                }
+                else if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
+                {
+                    throw RestaurantDomainException.CashRefundRequiresOpenShift(requestedShiftId);
                 }
                 else
                 {
@@ -194,8 +231,27 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             }
             if (openShift != null)
             {
+                if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
+                {
+                    if (request.BranchId.HasValue && openShift.BranchId.Value != request.BranchId.Value)
+                    {
+                        throw RestaurantDomainException.CashRefundShiftContextMismatch(
+                            $"Active shift '{openShift.Id}' belongs to branch '{openShift.BranchId}', not authorized branch '{request.BranchId.Value}'.");
+                    }
+
+                    if (resolvedTerminalId.HasValue && openShift.TerminalId != resolvedTerminalId.Value)
+                    {
+                        throw RestaurantDomainException.CashRefundShiftContextMismatch(
+                            $"Active shift '{openShift.Id}' belongs to terminal '{openShift.TerminalId}', not supplied terminal '{resolvedTerminalId.Value}'.");
+                    }
+                }
+
                 resolvedShiftId = openShift.Id;
                 resolvedTerminalId ??= openShift.TerminalId;
+            }
+            else if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
+            {
+                throw RestaurantDomainException.CashRefundRequiresOpenShift(new ShiftId(Guid.Empty));
             }
         }
 
@@ -259,6 +315,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
         var refundLines = new List<RefundLine>();
         var printItems = new List<RefundItemPrintLine>();
+        var restockItems = new List<InventoryPostingLineItem>();
 
         foreach (var reqItem in request.Items)
         {
@@ -333,6 +390,15 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             refund.AddLine(refundLine);
             refundLines.Add(refundLine);
 
+            if (reqItem.Disposition == InventoryDisposition.Restock)
+            {
+                restockItems.Add(new InventoryPostingLineItem(
+                    line.ProductVariantId.Value,
+                    sku,
+                    itemName,
+                    reqItem.Quantity));
+            }
+
             printItems.Add(new RefundItemPrintLine(
                 itemName,
                 reqItem.Quantity,
@@ -354,7 +420,22 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         if (request.SettlementMethod == RefundSettlementMethod.CashPayout)
         {
             // Cash payout cannot exceed remaining cash tender received on original sale
-            var totalCashPaid = payments.Where(p => !p.IsVoided).Sum(p => p.Amount);
+            HashSet<Guid>? cashMethodIds = null;
+            if (_paymentMethodRepository != null)
+            {
+                var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
+                if (methods.Count > 0)
+                {
+                    cashMethodIds = methods
+                        .Where(m => string.Equals(m.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
+                        .Select(m => m.Id.Value)
+                        .ToHashSet();
+                }
+            }
+
+            var totalCashPaid = payments
+                .Where(p => !p.IsVoided && (cashMethodIds == null || cashMethodIds.Contains(p.PaymentMethodId.Value)))
+                .Sum(p => p.Amount);
             var priorCashPayouts = priorRefunds
                 .Where(r => r.SettlementMethod == RefundSettlementMethod.CashPayout)
                 .Sum(r => r.GrandTotalRefunded);
@@ -393,22 +474,27 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             await _customerRepository.UpdateAsync(customer, cancellationToken);
         }
 
-        // 6. Restock inventory for items with Disposition == Restock
-        foreach (var reqItem in request.Items.Where(i => i.Disposition == InventoryDisposition.Restock))
+        // 6. Enqueue durable inventory-posting outbox intent so refund + restock intent commit atomically
+        OutboxMessage? restockOutboxMessage = null;
+        if (restockItems.Count > 0 && _outboxRepository != null)
         {
-            var line = lineMap[reqItem.OrderLineId];
-            try
-            {
-                await _mediator.Send(new OpenOrReceiveStockCommand(
-                    order.WarehouseId.Value,
-                    line.ProductVariantId.Value,
-                    reqItem.Quantity,
-                    $"Restock from Refund {refundNumber.Value}"), cancellationToken);
-            }
-            catch (Exception)
-            {
-                // Fallback for minimal test fakes where inventory handlers are unmocked
-            }
+            var restockPayload = new InventoryPostingPayload(
+                refund.Id.Value,
+                refundNumber.Value,
+                order.WarehouseId.Value,
+                restockItems,
+                IsRestock: true,
+                ReferenceType: RefundStockReferenceType);
+
+            restockOutboxMessage = OutboxMessage.Create(
+                OutboxMessageType.InventoryPosting,
+                "Refund",
+                refund.Id.Value.ToString(),
+                refundNumber.Value,
+                JsonSerializer.Serialize(restockPayload),
+                $"RESTOCK-{refund.Id.Value:N}");
+
+            await _outboxRepository.AddAsync(restockOutboxMessage, cancellationToken);
         }
 
         // 7. Freeze credit note snapshot and finalize totals
@@ -443,7 +529,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             Environment.MachineName);
         await _activityLogRepository.AddAsync(activity, cancellationToken);
 
-        // 10. Atomic unit of work commit
+        // 10. Atomic unit of work commit (Refund + RefundLines + Ledger + ActivityLog + Durable Outbox Restock Intent)
         try
         {
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -455,12 +541,73 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             if (existing != null)
             {
                 ValidateIdempotencyDetails(existing, request);
+                await EnsureRestockAppliedIdempotentlyAsync(existing, null, cancellationToken);
                 return RefundDto.FromDomain(existing);
             }
             throw;
         }
 
+        // 11. Post-commit idempotent inventory restock application (recoverable via durable OutboxMessage on crash/failure)
+        await EnsureRestockAppliedIdempotentlyAsync(refund, restockOutboxMessage, cancellationToken);
+        _outboxProcessor?.TriggerImmediate();
+
         return RefundDto.FromDomain(refund);
+    }
+
+    private async Task EnsureRestockAppliedIdempotentlyAsync(
+        Refund refund,
+        OutboxMessage? outboxMessage,
+        CancellationToken cancellationToken)
+    {
+        var groupedRestock = refund.Lines
+            .Where(l => l.InventoryDisposition == InventoryDisposition.Restock)
+            .GroupBy(l => l.ProductVariantId.Value)
+            .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(l => l.Quantity) })
+            .ToList();
+
+        if (groupedRestock.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            var alreadyRestocked = await _mediator.Send(
+                new ListInventoryTransactionsByReferenceQuery(RefundStockReferenceType, refund.Id.Value),
+                cancellationToken);
+
+            var alreadyRestockedVariantIds = (alreadyRestocked ?? [])
+                .Where(t => t.TransactionType is nameof(InventoryTransactionType.Receipt) or nameof(InventoryTransactionType.OpeningBalance))
+                .Select(t => t.ProductVariantId)
+                .ToHashSet();
+
+            foreach (var item in groupedRestock.Where(i => !alreadyRestockedVariantIds.Contains(i.ProductVariantId)))
+            {
+                await _mediator.Send(
+                    new OpenOrReceiveStockCommand(
+                        refund.WarehouseId.Value,
+                        item.ProductVariantId,
+                        item.Quantity,
+                        $"Restock from Refund {refund.RefundNumber.Value}",
+                        RefundStockReferenceType,
+                        refund.Id.Value),
+                    cancellationToken);
+            }
+
+            outboxMessage ??= _outboxRepository != null
+                ? await _outboxRepository.GetByIdempotencyKeyAsync($"RESTOCK-{refund.Id.Value:N}", cancellationToken)
+                : null;
+            if (outboxMessage != null && outboxMessage.Status != OutboxMessageStatus.Completed)
+            {
+                outboxMessage.MarkCompleted(DateTimeOffset.UtcNow);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+        }
+        catch (Exception)
+        {
+            // If inline post-commit inventory restock fails (or in minimal unit tests without inventory handlers),
+            // the durable OutboxMessage remains unprocessed in [Restaurant].[OutboxMessages] for guaranteed retry.
+        }
     }
 
     private static void ValidateIdempotencyDetails(Refund existing, ProcessRefundCommand request)

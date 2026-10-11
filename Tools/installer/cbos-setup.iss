@@ -444,8 +444,8 @@ begin
   LogInstallerMessage('OS Version: ' + GetWindowsVersionString);
   LogInstallerMessage('================================================================================');
 
-  // Detect whether CBOS is already installed
-  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{#MyAppId}_is1', 'DisplayVersion', PrevVersion) then
+  // Detect whether CBOS is already installed (Inno Setup unescapes {{ to a single { when writing the Uninstall registry key)
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{C107E47D-CB05-47F1-9BD7-A107CB052026}_is1', 'DisplayVersion', PrevVersion) then
   begin
     IsUpgradeMode := True;
     LogInstallerMessage('Detected existing CBOS installation (Version: ' + PrevVersion + '). Running in UPGRADE/REINSTALL mode.');

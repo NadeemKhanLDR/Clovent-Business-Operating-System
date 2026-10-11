@@ -144,6 +144,29 @@ public sealed class LoginService(
         return LoginResult.Success();
     }
 
+    /// <inheritdoc/>
+    public async Task SignOutAsync(CancellationToken cancellationToken = default)
+    {
+        var sessionId = currentSession.SessionId;
+        currentSession.SignOut();
+
+        if (sessionId is not { } activeSessionId)
+        {
+            return;
+        }
+
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            await mediator.Send(new LogOutSessionCommand(activeSessionId), cancellationToken);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            // In-memory session is already cleared above; best-effort persistence termination.
+        }
+    }
+
     /// <summary>
     /// Resolves the submitted identifier as a username first, then as an
     /// email address - either value object's <c>Create</c> factory throws

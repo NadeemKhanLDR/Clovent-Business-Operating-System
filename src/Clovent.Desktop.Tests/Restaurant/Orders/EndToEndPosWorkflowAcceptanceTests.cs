@@ -164,10 +164,13 @@ public sealed class EndToEndPosWorkflowAcceptanceTests : IDisposable
         services.AddScoped<IBusinessDayCloseRepository>(_ => new BusinessDayCloseRepository(restaurantDb));
         services.AddScoped<IActivityLogEntryRepository>(_ => new ActivityLogEntryRepository(restaurantDb));
 
-        // Catalog Repositories
+        // Catalog Repositories & Domain Services
         services.AddScoped<IProductRepository>(_ => new ProductRepository(catalogDb));
         services.AddScoped<IProductVariantRepository>(_ => new ProductVariantRepository(catalogDb));
         services.AddScoped<IProductPriceRepository>(_ => new ProductPriceRepository(catalogDb));
+        services.AddScoped<Clovent.Catalog.Categories.IProductCategoryRepository>(_ => new ProductCategoryRepository(catalogDb));
+        services.AddScoped<ITaxProfileRepository>(_ => new TaxProfileRepository(catalogDb));
+        services.AddScoped<Clovent.Catalog.Application.TaxProfiles.Services.ITaxProfileResolver, Clovent.Catalog.Application.TaxProfiles.Services.TaxProfileResolver>();
 
         // Inventory Repositories
         services.AddScoped<IWarehouseStockRepository>(_ => new WarehouseStockRepository(inventoryDb));
@@ -996,5 +999,385 @@ public sealed class EndToEndPosWorkflowAcceptanceTests : IDisposable
         await inventoryDb.SaveChangesAsync();
 
         return (v1.Id.Value, v2.Id.Value, v3.Id.Value, v4.Id.Value);
+    }
+
+    [Fact]
+    public async Task CategoryInheritedTaxProfile_OrderLineAndExpandedSalesReport_PreservesInheritedAndExemptSnapshots()
+    {
+        var warehouseId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var terminalId = Guid.NewGuid();
+        var cashierId = Guid.NewGuid();
+        var uom = UnitOfMeasureId.New();
+        var pkrCurrencyId = new CurrencyId(Guid.NewGuid());
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        await _restaurantDb.PaymentMethods.AddAsync(cashMethod);
+        await _restaurantDb.SaveChangesAsync();
+
+        // 1. Seed a PRA 16% exclusive tax profile and assign it as the default profile on a Category
+        var praProfile = TaxProfile.Create(
+            "PK-PRA-CAT-16",
+            "Punjab Restaurant Sales Tax 16%",
+            "PRA",
+            "Punjab",
+            TaxClassification.Taxable,
+            ItemTaxClassification.Services,
+            16.00m,
+            TaxPricingMode.Exclusive,
+            DateTimeOffset.UtcNow.AddDays(-10));
+        await _catalogDb.TaxProfiles.AddAsync(praProfile);
+
+        var category = Clovent.Catalog.Categories.ProductCategory.Create(
+            Clovent.Catalog.Categories.ValueObjects.ProductCategoryName.Create("BBQ Platters"),
+            defaultTaxProfileId: praProfile.Id);
+        await _catalogDb.ProductCategories.AddAsync(category);
+
+        // 2. Product A: no explicit product tax profile (TaxConfiguration.None) -> must inherit 16% from Category
+        var inheritedProduct = Product.Create(
+            ProductName.Create("Seekh Kabab Platter"),
+            Sku.Create("PAK-KABAB"),
+            uom,
+            TaxConfiguration.None,
+            categoryId: category.Id);
+        var inheritedVariant = ProductVariant.Create(inheritedProduct.Id, VariantName.Create("Full"), Sku.Create("PAK-KABAB-FULL"), uom);
+        var inheritedPrice = ProductPrice.Create(inheritedVariant.Id, PriceType.Selling, 1_000.00m, pkrCurrencyId);
+
+        // 3. Product B: in the same Category, but explicitly marked Exempt -> must preserve 0% Exempt and NOT inherit 16%
+        var exemptProduct = Product.Create(
+            ProductName.Create("Plain Roti"),
+            Sku.Create("PAK-ROTI"),
+            uom,
+            TaxConfiguration.Create(0.00m, isInclusive: false, TaxClassification.Exempt, "PK-EXEMPT", "FBR"),
+            categoryId: category.Id);
+        var exemptVariant = ProductVariant.Create(exemptProduct.Id, VariantName.Create("Single"), Sku.Create("PAK-ROTI-SGL"), uom);
+        var exemptPrice = ProductPrice.Create(exemptVariant.Id, PriceType.Selling, 50.00m, pkrCurrencyId);
+
+        await _catalogDb.Products.AddRangeAsync(inheritedProduct, exemptProduct);
+        await _catalogDb.ProductVariants.AddRangeAsync(inheritedVariant, exemptVariant);
+        await _catalogDb.ProductPrices.AddRangeAsync(inheritedPrice, exemptPrice);
+        await _catalogDb.SaveChangesAsync();
+
+        var stockA = WarehouseStock.Create(new WarehouseId(warehouseId), inheritedVariant.Id);
+        var stockB = WarehouseStock.Create(new WarehouseId(warehouseId), exemptVariant.Id);
+        stockA.Receive(50m);
+        stockB.Receive(50m);
+        await _inventoryDb.WarehouseStocks.AddRangeAsync(stockA, stockB);
+        await _inventoryDb.SaveChangesAsync();
+
+        var shift = await _mediator.Send(new OpenShiftCommand(branchId, warehouseId, terminalId, cashierId, "Bilal", 1_000.00m));
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId));
+
+        var lineInherited = await _mediator.Send(new AddOrderLineCommand(order.OrderId, inheritedVariant.Id.Value, 1m));
+        var lineExempt = await _mediator.Send(new AddOrderLineCommand(order.OrderId, exemptVariant.Id.Value, 2m));
+
+        // Verify Category inheritance reached lineInherited (16% PK-PRA-CAT-16) and explicit exemption preserved on lineExempt (0% Exempt)
+        Assert.Equal(16.00m, lineInherited.TaxRatePercentage);
+        Assert.Equal("PK-PRA-CAT-16", lineInherited.TaxCode);
+        Assert.Equal("PRA", lineInherited.TaxAuthority);
+        Assert.Equal(0.00m, lineExempt.TaxRatePercentage);
+        Assert.Equal("Exempt", lineExempt.TaxClassification);
+
+        // Apply 10% order discount: Gross = 1,000 + 100 = 1,100. Discount = 110 (100 on Kabab, 10 on Roti).
+        // NetOfDiscount tax on Kabab: (1,000 - 100) * 16% = 144.00. Total Payable = 900 + 144 + 90 = 1,134.00.
+        await _mediator.Send(new ApplyDiscountToOrderCommand(order.OrderId, DiscountType.Percentage, 10m, "Promo 10%"));
+        var summary = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(144.00m, summary.TaxTotal);
+        Assert.Equal(1_134.00m, summary.GrandTotal);
+
+        await _mediator.Send(new RecordPaymentCommand(order.OrderId, cashMethod.Id.Value, summary.GrandTotal, false, shift.ShiftId));
+        await _mediator.Send(new CompleteOrderCommand(order.OrderId));
+
+        // Verify GetExpandedSalesSummaryQuery uses the frozen snapshot totals (144.00 tax, 110.00 discount, 1,134.00 sales)
+        var today = DateOnly.FromDateTime(DateTimeOffset.UtcNow.UtcDateTime);
+        var report = await _mediator.Send(new Clovent.Restaurant.Application.EndOfDay.Queries.GetExpandedSalesSummaryQuery(
+            warehouseId,
+            today.AddDays(-1),
+            today.AddDays(1)));
+
+        Assert.Equal(1_100.00m, report.Kpis.GrossSales);
+        Assert.Equal(110.00m, report.Kpis.Discounts);
+        Assert.Equal(990.00m, report.Kpis.NetSales);
+        Assert.Equal(144.00m, report.Kpis.Tax);
+        Assert.Equal(1_134.00m, report.Kpis.TotalCollected);
+    }
+
+    [Fact]
+    public async Task SplitPayment_PartialFailureRetryAndCustomerCredit_PreservesCommittedLegAndBlocksCompletedOrderVoid()
+    {
+        var warehouseId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        var terminalId = Guid.NewGuid();
+        var cashierId = Guid.NewGuid();
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var customerCreditMethod = PaymentMethod.Create(PaymentMethodName.Create("Customer Credit"));
+        await _restaurantDb.PaymentMethods.AddRangeAsync(cashMethod, customerCreditMethod);
+
+        var customer = Customer.Create(
+            EntityCode.Create("CUST-RETRY-01"),
+            "Lahore Logistics",
+            "+923001112233",
+            "Gulberg III, Lahore",
+            "accounts@lahorelogistics.example.pk",
+            openingBalance: 0.00m,
+            creditLimit: 3_000.00m,
+            notes: null,
+            isDefault: false,
+            isCreditAllowed: true);
+        await _restaurantDb.Customers.AddAsync(customer);
+        await _restaurantDb.SaveChangesAsync();
+
+        var (biryaniVarId, _, _, _) = await SeedPakistaniCatalogAsync(warehouseId);
+        var shift = await _mediator.Send(new OpenShiftCommand(branchId, warehouseId, terminalId, cashierId, "Hamza", 2_000.00m));
+
+        // Order: 5x Biryani @ 600 = 3,000 + 16% tax (480) = 3,480.00
+        var order = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId, CustomerId: customer.Id.Value));
+        await _mediator.Send(new AddOrderLineCommand(order.OrderId, biryaniVarId, Quantity: 5m));
+
+        // 1. Leg 1 succeeds: 1,000.00 PKR Cash with idempotency key
+        var leg1Key = $"SPLIT-{order.OrderId:N}-LEG1";
+        var leg1Payment = await _mediator.Send(new RecordPaymentCommand(order.OrderId, cashMethod.Id.Value, 1_000.00m, false, shift.ShiftId, IdempotencyKey: leg1Key));
+        Assert.Equal(1_000.00m, leg1Payment.Amount);
+        Assert.Equal(shift.ShiftId, leg1Payment.ShiftId);
+
+        // 2. Leg 2 fails (attempts 3,200.00 PKR Customer Credit which exceeds customer's 3,000.00 credit limit / remaining balance)
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _mediator.Send(new RecordPaymentCommand(order.OrderId, customerCreditMethod.Id.Value, 3_200.00m, false, shift.ShiftId, IdempotencyKey: $"SPLIT-{order.OrderId:N}-LEG2-FAIL")));
+
+        // 3. Verify Leg 1 remains durably committed and visible, and order remains Open
+        var orderAfterFailure = await _mediator.Send(new GetOrderByIdQuery(order.OrderId));
+        var summaryAfterFailure = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(OrderStatus.Open.ToString(), orderAfterFailure!.Status);
+        Assert.Equal(1_000.00m, summaryAfterFailure.PaidTotal);
+        Assert.Equal(2_480.00m, summaryAfterFailure.Balance);
+
+        // 4. Retrying Leg 1 with the same idempotency key does NOT double-post or charge twice
+        var leg1Retry = await _mediator.Send(new RecordPaymentCommand(order.OrderId, cashMethod.Id.Value, 1_000.00m, false, shift.ShiftId, IdempotencyKey: leg1Key));
+        Assert.Equal(leg1Payment.PaymentId, leg1Retry.PaymentId);
+        var summaryAfterRetry = await _mediator.Send(new GetOrderSummaryQuery(order.OrderId));
+        Assert.Equal(1_000.00m, summaryAfterRetry.PaidTotal);
+
+        // 5. Cashier resumes and records valid Leg 2 (2,480.00 PKR via "Customer Credit") and completes order
+        var leg2Key = $"SPLIT-{order.OrderId:N}-LEG2";
+        var leg2Payment = await _mediator.Send(new RecordPaymentCommand(order.OrderId, customerCreditMethod.Id.Value, 2_480.00m, false, shift.ShiftId, IdempotencyKey: leg2Key));
+        Assert.Equal(2_480.00m, leg2Payment.Amount);
+        Assert.Equal(shift.ShiftId, leg2Payment.ShiftId);
+
+        await _mediator.Send(new CompleteOrderCommand(order.OrderId));
+
+        // Verify "Customer Credit" updated customer receivable balance and created ledger entry with ShiftId
+        var customerAfter = await _restaurantDb.Customers.SingleAsync(c => c.Id == customer.Id);
+        Assert.Equal(2_480.00m, customerAfter.OutstandingBalance);
+        var ledgerEntry = await _restaurantDb.CustomerLedgerEntries.SingleAsync(e => e.CustomerId == customer.Id);
+        Assert.Equal(2_480.00m, ledgerEntry.Debit);
+        Assert.Equal(new ShiftId(shift.ShiftId), ledgerEntry.ShiftId);
+
+        // 6. Verify completed order cannot be voided directly (must use compensating refund workflow)
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            _mediator.Send(new VoidOrderCommand(order.OrderId, "Attempt to void completed order")));
+    }
+
+    [Fact]
+    public async Task DisposableSqlServer_MigrationUpgradeFrom56aed8dSchema_PreservesRefundsAndSnapshotsAndAppliesAdditiveColumns()
+    {
+        var dbName = $"Clovent_DisposableUpgrade_{Guid.NewGuid():N}";
+        var masterCs = "Server=.;Database=master;Integrated Security=True;TrustServerCertificate=True;";
+        var connectionString = $"Server=.;Database={dbName};Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;";
+
+        try
+        {
+            await using (var masterConn = new Microsoft.Data.SqlClient.SqlConnection(masterCs))
+            {
+                await masterConn.OpenAsync();
+                await using var createCmd = masterConn.CreateCommand();
+                createCmd.CommandText = $"CREATE DATABASE [{dbName}];";
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            // 1. Provision full current schema first, then simulate an earlier 56aed8d database state by:
+            //    - Removing migration '20261011050000_AddRefundShiftAndTerminalAttribution' from [Restaurant].[__EFMigrationsHistory]
+            //    - Dropping IX_Refunds_ShiftId, IX_Refunds_TerminalId, ShiftId, and TerminalId from [Restaurant].[Refunds]
+            //    - Inserting a pre-upgrade Refund row and verifying pre-upgrade data exists
+            var provisioningService = new Clovent.Desktop.Commissioning.Database.DatabaseProvisioningService();
+            await provisioningService.ApplyMigrationsAsync(connectionString);
+
+            var preUpgradeRefundId = Guid.NewGuid();
+            var preUpgradeOrderId = Guid.NewGuid();
+            var preUpgradeBranchId = Guid.NewGuid();
+            var preUpgradeWarehouseId = Guid.NewGuid();
+
+            await using (var sqlConn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+            {
+                await sqlConn.OpenAsync();
+                await using var downgradeCmd = sqlConn.CreateCommand();
+                downgradeCmd.CommandText = @"
+                    DELETE FROM [Restaurant].[__EFMigrationsHistory]
+                    WHERE [MigrationId] = N'20261011050000_AddRefundShiftAndTerminalAttribution';
+
+                    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Refunds_ShiftId' AND object_id = OBJECT_ID('[Restaurant].[Refunds]'))
+                        DROP INDEX [IX_Refunds_ShiftId] ON [Restaurant].[Refunds];
+
+                    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Refunds_TerminalId' AND object_id = OBJECT_ID('[Restaurant].[Refunds]'))
+                        DROP INDEX [IX_Refunds_TerminalId] ON [Restaurant].[Refunds];
+
+                    IF COL_LENGTH('[Restaurant].[Refunds]', 'ShiftId') IS NOT NULL
+                        ALTER TABLE [Restaurant].[Refunds] DROP COLUMN [ShiftId];
+
+                    IF COL_LENGTH('[Restaurant].[Refunds]', 'TerminalId') IS NOT NULL
+                        ALTER TABLE [Restaurant].[Refunds] DROP COLUMN [TerminalId];
+
+                    INSERT INTO [Restaurant].[Refunds] (
+                        [Id], [RefundNumber], [OrderId], [BranchId], [WarehouseId],
+                        [RefundedAtUtc], [CashierId], [CashierName], [Reason],
+                        [ApprovedByUserId], [ApprovedByUserName], [IdempotencyKey],
+                        [SubtotalRefunded], [DiscountReversedTotal], [TaxReversedTotal], [GrandTotalRefunded],
+                        [SettlementMethod], [SettlementReference], [CustomerId],
+                        [ReceiptSnapshotJson], [CreatedAtUtc]
+                    ) VALUES (
+                        @refundId, N'RF-PRE-UPGRADE-001', @orderId, @branchId, @warehouseId,
+                        SYSDATETIMEOFFSET(), @userId, N'Cashier PreUpgrade', N'Historical refund before upgrade',
+                        NULL, NULL, N'IDEMP-PRE-UPGRADE-001',
+                        1000.00, 100.00, 144.00, 1044.00,
+                        N'CashPayout', NULL, NULL,
+                        N'{""Policy"":""CBOS-TaxPolicy-NetOfDiscount-v1""}', SYSDATETIMEOFFSET()
+                    );";
+                downgradeCmd.Parameters.AddWithValue("@refundId", preUpgradeRefundId);
+                downgradeCmd.Parameters.AddWithValue("@orderId", preUpgradeOrderId);
+                downgradeCmd.Parameters.AddWithValue("@branchId", preUpgradeBranchId);
+                downgradeCmd.Parameters.AddWithValue("@warehouseId", preUpgradeWarehouseId);
+                downgradeCmd.Parameters.AddWithValue("@userId", Guid.NewGuid());
+                await downgradeCmd.ExecuteNonQueryAsync();
+            }
+
+            // 2. Run ApplyMigrationsAsync on the 56aed8d-shaped database to exercise the additive upgrade path
+            await provisioningService.ApplyMigrationsAsync(connectionString);
+
+            // 3. Verify migration history, restored columns/indexes, and preservation of the historical refund row
+            await using (var verifyConn = new Microsoft.Data.SqlClient.SqlConnection(connectionString))
+            {
+                await verifyConn.OpenAsync();
+
+                await using var checkHistoryCmd = verifyConn.CreateCommand();
+                checkHistoryCmd.CommandText = @"
+                    SELECT COUNT(*) FROM [Restaurant].[__EFMigrationsHistory]
+                    WHERE [MigrationId] IN (
+                        N'20261008152015_AddRefundDomainAndTaxSnapshots',
+                        N'20261011050000_AddRefundShiftAndTerminalAttribution'
+                    );";
+                var historyCount = (int)(await checkHistoryCmd.ExecuteScalarAsync())!;
+                Assert.Equal(2, historyCount);
+
+                await using var checkColsCmd = verifyConn.CreateCommand();
+                checkColsCmd.CommandText = @"
+                    SELECT CASE WHEN COL_LENGTH('[Restaurant].[Refunds]', 'ShiftId') IS NOT NULL
+                                 AND COL_LENGTH('[Restaurant].[Refunds]', 'TerminalId') IS NOT NULL
+                           THEN 1 ELSE 0 END;";
+                var colsExist = (int)(await checkColsCmd.ExecuteScalarAsync())!;
+                Assert.Equal(1, colsExist);
+            }
+
+            await using var upgradedRestaurantDb = new RestaurantDbContext(
+                new DbContextOptionsBuilder<RestaurantDbContext>().UseSqlServer(connectionString).Options);
+            var refundRepo = new RefundRepository(upgradedRestaurantDb);
+
+            var preservedRefund = await refundRepo.GetByIdempotencyKeyAsync("IDEMP-PRE-UPGRADE-001");
+            Assert.NotNull(preservedRefund);
+            Assert.Equal(preUpgradeRefundId, preservedRefund!.Id.Value);
+            Assert.Equal(1_044.00m, preservedRefund.GrandTotalRefunded);
+            Assert.Null(preservedRefund.ShiftId);
+            Assert.Null(preservedRefund.TerminalId);
+            Assert.Contains("CBOS-TaxPolicy-NetOfDiscount-v1", preservedRefund.ReceiptSnapshotJson);
+
+            // 4. Verify atomic Refund + durable Outbox restock intent and idempotent retry on the upgraded SQL Server database
+            await using var upgradedCatalogDb = new CatalogDbContext(
+                new DbContextOptionsBuilder<CatalogDbContext>().UseSqlServer(connectionString).Options);
+            await using var upgradedInventoryDb = new InventoryDbContext(
+                new DbContextOptionsBuilder<InventoryDbContext>().UseSqlServer(connectionString).Options);
+
+            var sqlSp = BuildWorkflowServiceProvider(upgradedRestaurantDb, upgradedCatalogDb, upgradedInventoryDb);
+            var sqlMediator = sqlSp.GetRequiredService<IMediator>();
+            var outboxRepo = new OutboxRepository(upgradedRestaurantDb);
+
+            var sqlWarehouseId = Guid.NewGuid();
+            var sqlBranchId = Guid.NewGuid();
+            var sqlTerminalId = Guid.NewGuid();
+            var sqlCashierId = Guid.NewGuid();
+            var (sqlBiryaniVarId, _, _, _) = await SeedPakistaniCatalogIntoAsync(upgradedCatalogDb, upgradedInventoryDb, sqlWarehouseId);
+
+            var sqlCashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+            await upgradedRestaurantDb.PaymentMethods.AddAsync(sqlCashMethod);
+            await upgradedRestaurantDb.SaveChangesAsync();
+
+            var sqlShift = await sqlMediator.Send(new OpenShiftCommand(sqlBranchId, sqlWarehouseId, sqlTerminalId, sqlCashierId, "SQL Cashier", 2_000.00m));
+            var sqlOrder = await sqlMediator.Send(new CreateOrderCommand(OrderType.TakeAway, sqlWarehouseId));
+            var sqlLine = await sqlMediator.Send(new AddOrderLineCommand(sqlOrder.OrderId, sqlBiryaniVarId, 2m));
+            var sqlSummary = await sqlMediator.Send(new GetOrderSummaryQuery(sqlOrder.OrderId));
+            await sqlMediator.Send(new RecordPaymentCommand(sqlOrder.OrderId, sqlCashMethod.Id.Value, sqlSummary.GrandTotal, false, sqlShift.ShiftId));
+            await sqlMediator.Send(new CompleteOrderCommand(sqlOrder.OrderId));
+
+            var stockAfterSale = await upgradedInventoryDb.WarehouseStocks.AsNoTracking()
+                .SingleAsync(s => s.ProductVariantId == new ProductVariantId(sqlBiryaniVarId));
+            Assert.Equal(98m, stockAfterSale.QuantityOnHand);
+
+            var refundHandlerWithOutbox = new ProcessRefundCommandHandler(
+                new RefundRepository(upgradedRestaurantDb),
+                new OrderRepository(upgradedRestaurantDb),
+                new OrderLineRepository(upgradedRestaurantDb),
+                new PaymentRepository(upgradedRestaurantDb),
+                new CustomerRepository(upgradedRestaurantDb),
+                new CustomerLedgerEntryRepository(upgradedRestaurantDb),
+                new ActivityLogEntryRepository(upgradedRestaurantDb),
+                sqlMediator,
+                new Clovent.Restaurant.Infrastructure.Persistence.UnitOfWork(upgradedRestaurantDb),
+                new ShiftRepository(upgradedRestaurantDb),
+                outboxRepository: outboxRepo,
+                paymentMethodRepository: new PaymentMethodRepository(upgradedRestaurantDb));
+
+            var sqlRefundCmd = new ProcessRefundCommand(
+                sqlOrder.OrderId,
+                [new RefundItemRequest(sqlLine.OrderLineId, 1m, InventoryDisposition.Restock)],
+                "SQL Server atomic outbox restock test",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-SQL-UPGRADED-RESTOCK-001",
+                sqlCashierId,
+                "SQL Cashier",
+                BranchId: sqlBranchId,
+                ShiftId: sqlShift.ShiftId,
+                TerminalId: sqlTerminalId);
+
+            var sqlRefundDto = await refundHandlerWithOutbox.Handle(sqlRefundCmd, CancellationToken.None);
+            Assert.Equal(sqlShift.ShiftId, sqlRefundDto.ShiftId);
+            Assert.Equal(sqlTerminalId, sqlRefundDto.TerminalId);
+
+            var outboxMsg = await outboxRepo.GetByIdempotencyKeyAsync($"RESTOCK-{sqlRefundDto.RefundId:N}");
+            Assert.NotNull(outboxMsg);
+            Assert.Equal(Clovent.Restaurant.Outbox.OutboxMessageStatus.Completed, outboxMsg!.Status);
+
+            // Re-delivering the outbox message and retrying ProcessRefundCommand with the same idempotency key must not double-restock
+            var outboxHandler = new Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler(
+                sqlMediator,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
+            await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
+            var sqlRefundRetry = await refundHandlerWithOutbox.Handle(sqlRefundCmd, CancellationToken.None);
+            Assert.Equal(sqlRefundDto.RefundId, sqlRefundRetry.RefundId);
+
+            var stockAfterRestockAndRetries = await upgradedInventoryDb.WarehouseStocks.AsNoTracking()
+                .SingleAsync(s => s.ProductVariantId == new ProductVariantId(sqlBiryaniVarId));
+            Assert.Equal(99m, stockAfterRestockAndRetries.QuantityOnHand);
+        }
+        finally
+        {
+            await using var masterConn = new Microsoft.Data.SqlClient.SqlConnection(masterCs);
+            await masterConn.OpenAsync();
+            await using var dropCmd = masterConn.CreateCommand();
+            dropCmd.CommandText = $@"
+                IF DB_ID(N'{dbName}') IS NOT NULL
+                BEGIN
+                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+                    DROP DATABASE [{dbName}];
+                END";
+            await dropCmd.ExecuteNonQueryAsync();
+        }
     }
 }

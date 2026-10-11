@@ -217,6 +217,30 @@ public sealed class RestaurantPersistenceInitializer(RestaurantDbContext dbConte
                     ALTER TABLE [Restaurant].[Orders] ADD [RiderPhone] nvarchar(50) NULL;
                 END
             END
+
+            -- Ensure ShiftId and TerminalId columns exist on Refunds
+            IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID(N'[Restaurant].[Refunds]'))
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Refunds]') AND name = 'ShiftId')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Refunds] ADD [ShiftId] uniqueidentifier NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID(N'[Restaurant].[Refunds]') AND name = 'TerminalId')
+                BEGIN
+                    ALTER TABLE [Restaurant].[Refunds] ADD [TerminalId] uniqueidentifier NULL;
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Refunds_ShiftId' AND object_id = OBJECT_ID(N'[Restaurant].[Refunds]'))
+                BEGIN
+                    CREATE INDEX [IX_Refunds_ShiftId] ON [Restaurant].[Refunds] ([ShiftId]);
+                END
+
+                IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Refunds_TerminalId' AND object_id = OBJECT_ID(N'[Restaurant].[Refunds]'))
+                BEGIN
+                    CREATE INDEX [IX_Refunds_TerminalId] ON [Restaurant].[Refunds] ([TerminalId]);
+                END
+            END
             """;
         await dbContext.Database.ExecuteSqlRawAsync(schemaSql, cancellationToken);
 

@@ -16,6 +16,9 @@ public interface ILoginService
 {
     /// <summary>Attempts to log in with the given credentials.</summary>
     Task<LoginResult> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Terminates the current persisted session (and any active refresh session) and clears the in-memory session.</summary>
+    Task SignOutAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 /// <summary>

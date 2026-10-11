@@ -156,16 +156,57 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             var payments = await paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
             var activePayments = payments.Where(p => !p.IsVoided).ToList();
 
-            decimal orderSubtotal = activeLines.Sum(l => l.LineTotal);
-            decimal orderDiscount = discounts.Sum(d => d.DiscountType == DiscountType.Percentage ? orderSubtotal * d.Value / 100m : d.Value);
+            decimal orderSubtotal;
+            decimal orderDiscount;
             decimal orderDeliveryFee = order.DeliveryFee;
-            decimal orderOtherServiceCharges = serviceCharges
-                .Where(sc => !string.Equals(sc.Reason, "Delivery Fee", StringComparison.OrdinalIgnoreCase))
-                .Sum(sc => sc.ServiceChargeType == ServiceChargeType.Percentage ? orderSubtotal * sc.Value / 100m : sc.Value);
-            decimal orderServiceAndDelivery = orderDeliveryFee + orderOtherServiceCharges;
-            decimal orderTax = activeLines.Sum(l => l.TaxRatePercentage <= 0 ? 0m : (l.TaxIsInclusive ? l.LineTotal - l.LineTotal / (1 + l.TaxRatePercentage / 100m) : l.LineTotal * l.TaxRatePercentage / 100m));
-            decimal orderExclusiveTax = activeLines.Where(l => !l.TaxIsInclusive).Sum(l => l.TaxRatePercentage <= 0 ? 0m : l.LineTotal * l.TaxRatePercentage / 100m);
-            decimal orderBillTotal = Math.Max(0m, orderSubtotal - orderDiscount + orderServiceAndDelivery + orderExclusiveTax);
+            decimal orderOtherServiceCharges;
+            decimal orderServiceAndDelivery;
+            decimal orderTax;
+            decimal orderExclusiveTax;
+            decimal orderBillTotal;
+
+            Clovent.Restaurant.Orders.ReceiptSnapshot? snapshot = null;
+            if (!string.IsNullOrWhiteSpace(order.ReceiptSnapshotJson))
+            {
+                try
+                {
+                    snapshot = System.Text.Json.JsonSerializer.Deserialize<Clovent.Restaurant.Orders.ReceiptSnapshot>(order.ReceiptSnapshotJson);
+                }
+                catch
+                {
+                    snapshot = null;
+                }
+            }
+
+            if (snapshot != null)
+            {
+                orderSubtotal = snapshot.Subtotal;
+                orderDiscount = snapshot.DiscountTotal;
+                orderServiceAndDelivery = snapshot.ServiceChargeTotal;
+                orderOtherServiceCharges = Math.Max(0m, orderServiceAndDelivery - orderDeliveryFee);
+                orderTax = snapshot.TaxTotal;
+                orderExclusiveTax = snapshot.TotalExclusiveTax;
+                orderBillTotal = snapshot.GrandTotal;
+            }
+            else
+            {
+                var calcTotals = Clovent.Restaurant.Application.Orders.OrderTotalsCalculator.Calculate(
+                    activeLines.Select(Clovent.Restaurant.Application.OrderLines.Dtos.OrderLineDto.FromDomain).ToList(),
+                    discounts.Select(Clovent.Restaurant.Application.Discounts.Dtos.DiscountDto.FromDomain).ToList(),
+                    serviceCharges.Select(Clovent.Restaurant.Application.ServiceCharges.Dtos.ServiceChargeDto.FromDomain).ToList(),
+                    activePayments.Select(Clovent.Restaurant.Application.Payments.Dtos.PaymentDto.FromDomain).ToList());
+                orderSubtotal = calcTotals.Subtotal;
+                orderDiscount = calcTotals.DiscountTotal;
+                var hasDeliveryFeeSc = serviceCharges.Any(sc => string.Equals(sc.Reason, "Delivery Fee", StringComparison.OrdinalIgnoreCase));
+                orderOtherServiceCharges = hasDeliveryFeeSc
+                    ? Math.Max(0m, calcTotals.ServiceChargeTotal - orderDeliveryFee)
+                    : calcTotals.ServiceChargeTotal;
+                orderServiceAndDelivery = orderDeliveryFee + orderOtherServiceCharges;
+                orderTax = calcTotals.TaxTotal;
+                orderExclusiveTax = calcTotals.ExclusiveTaxTotal;
+                orderBillTotal = hasDeliveryFeeSc ? calcTotals.GrandTotal : calcTotals.GrandTotal + orderDeliveryFee;
+            }
+
             decimal orderPaymentsTotal = activePayments.Sum(p => p.Amount);
             decimal orderTotal = orderBillTotal > 0 ? orderBillTotal : orderPaymentsTotal;
 
@@ -294,14 +335,22 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 var itemType = vDto?.ItemType ?? "Prepared";
                 var unitCost = costPrices.GetValueOrDefault(vId, 0m);
 
+                var lineDiscount = l.AllocatedDiscount;
+                var lineTax = l.TaxAmount ?? (l.TaxRatePercentage <= 0m
+                    ? 0m
+                    : Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(
+                        l.TaxIsInclusive
+                            ? (l.LineTotal - lineDiscount) - ((l.LineTotal - lineDiscount) / (1m + l.TaxRatePercentage / 100m))
+                            : (l.LineTotal - lineDiscount) * l.TaxRatePercentage / 100m));
+
                 detailLines.Add(new ExpandedOrderLineRowDto(
                     itemName,
                     vDto?.Sku ?? "-",
                     l.Quantity,
                     l.UnitPrice,
-                    0m,
+                    lineDiscount,
                     l.TaxRatePercentage,
-                    0m,
+                    lineTax,
                     l.LineTotal,
                     itemType));
 
@@ -311,7 +360,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     ? l.Quantity * unitCost
                     : 0m;
 
-                variantAggregates[vId] = (curQty + l.Quantity, curGross + l.LineTotal, curDisc, curNet + l.LineTotal, curCost + lineCost);
+                variantAggregates[vId] = (curQty + l.Quantity, curGross + l.LineTotal, curDisc + lineDiscount, curNet + (l.LineTotal - lineDiscount), curCost + lineCost);
             }
 
             // Customer sales roll-up
@@ -717,13 +766,13 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 itemName,
                 itemType,
                 agg.Quantity,
-                Math.Round(unitPrice, 2),
-                costPriceDto.HasValue ? Math.Round(costPriceDto.Value, 2) : null,
+                Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(unitPrice),
+                costPriceDto.HasValue ? Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(costPriceDto.Value) : null,
                 agg.GrossSales,
-                itemCost.HasValue ? Math.Round(itemCost.Value, 2) : null,
-                grossProfit.HasValue ? Math.Round(grossProfit.Value, 2) : null,
-                marginPct.HasValue ? Math.Round(marginPct.Value, 1) : null,
-                Math.Round(percentOfTotal, 1)));
+                itemCost.HasValue ? Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(itemCost.Value) : null,
+                grossProfit.HasValue ? Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(grossProfit.Value) : null,
+                marginPct.HasValue ? Math.Round(marginPct.Value, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding) : null,
+                Math.Round(percentOfTotal, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding)));
         }
 
         // Build Payments rows: clearly distinguish Order Settlements, On Account, Customer Collections, and Refunds
@@ -738,7 +787,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 methodName,
                 pData.Count,
                 pData.Total,
-                Math.Round(pct, 1),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                 pData.Category));
         }
 
@@ -749,7 +798,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 $"{methodName} (Account Collection)",
                 cData.Count,
                 cData.Total,
-                Math.Round(pct, 1),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                 "Customer Collection (A/R)"));
         }
 
@@ -760,7 +809,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 "Cash Refund Payout",
                 cashRefundsCount,
                 -cashRefunds,
-                Math.Round(pct, 1),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                 "Refunds & Credits"));
         }
 
@@ -771,7 +820,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 "Customer Account Credit Refund",
                 creditRefundsCount,
                 -customerAccountCreditRefunds,
-                Math.Round(pct, 1),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                 "Refunds & Credits"));
         }
 
@@ -782,7 +831,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 "Card / Other Refund",
                 otherRefundsCount,
                 -otherRefunds,
-                Math.Round(pct, 1),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                 "Refunds & Credits"));
         }
 
@@ -810,8 +859,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 oDisc,
                 oFees,
                 oNet,
-                Math.Round(aov, 2),
-                Math.Round(pct, 1)));
+                Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(aov),
+                Math.Round(pct, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding)));
         }
 
         // Item Classification & Profitability Breakdown (Phase 9)
@@ -838,7 +887,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                         s,
                         c,
                         p,
-                        Math.Round(m, 1),
+                        Math.Round(m, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                         c.ToString("N2")));
                 }
                 else
@@ -865,7 +914,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     s,
                     c,
                     p,
-                    Math.Round(m, 1),
+                    Math.Round(m, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                     c.ToString("N2")));
             }
             else // Service
@@ -879,7 +928,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     s,
                     c,
                     p,
-                    Math.Round(m, 1),
+                    Math.Round(m, 1, Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.ApprovedMidpointRounding),
                     c.ToString("N2")));
             }
         }

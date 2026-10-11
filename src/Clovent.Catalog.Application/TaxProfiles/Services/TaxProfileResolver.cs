@@ -184,11 +184,11 @@ public sealed class TaxProfileResolver : ITaxProfileResolver
                     "Fifth Schedule / Zero-Rated");
             }
 
-            if (taxConfig.TaxClassification == TaxClassification.OutOfScope)
+            if (taxConfig.TaxClassification == TaxClassification.OutOfScope && !string.IsNullOrWhiteSpace(taxConfig.TaxCode))
             {
                 return new TaxResolutionResult(
                     null,
-                    taxConfig.TaxCode ?? "PK-OUT-OF-SCOPE",
+                    taxConfig.TaxCode,
                     "Non-Taxable",
                     taxConfig.Authority ?? "N/A",
                     jurisdiction,
@@ -242,6 +242,22 @@ public sealed class TaxProfileResolver : ITaxProfileResolver
                     return MapProfileToResult(catProfile, tenderType, isPaymentTenderVerified);
                 }
             }
+        }
+
+        if (product?.TaxConfiguration.TaxClassification == TaxClassification.OutOfScope)
+        {
+            return new TaxResolutionResult(
+                null,
+                product.TaxConfiguration.TaxCode ?? "PK-OUT-OF-SCOPE",
+                "Non-Taxable",
+                product.TaxConfiguration.Authority ?? "N/A",
+                jurisdiction,
+                TaxClassification.OutOfScope,
+                DetermineItemClassification(itemType),
+                0.00m,
+                false,
+                null,
+                "Out of Scope");
         }
 
         // Precedence 3: Jurisdiction and item classification default profile

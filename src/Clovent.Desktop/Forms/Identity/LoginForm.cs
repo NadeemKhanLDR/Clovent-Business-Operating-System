@@ -390,7 +390,7 @@ public sealed partial class LoginForm : XtraForm
 
             if (!await CanUseModuleAsync(moduleKey))
             {
-                _currentSession.SignOut();
+                await TerminateDeniedSessionAsync();
                 lblError.Text = $"You do not have permission to access {moduleDisplayName}.";
                 lblError.Visible = true;
                 return;
@@ -443,6 +443,33 @@ public sealed partial class LoginForm : XtraForm
         return moduleKey == "pos"
             ? visibleKeys.Contains("pos", StringComparer.OrdinalIgnoreCase)
             : visibleKeys.Any(key => !string.Equals(key, "pos", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task TerminateDeniedSessionAsync()
+    {
+        var sessionId = _currentSession.SessionId;
+        await _loginService.SignOutAsync();
+        if (_currentSession.IsAuthenticated)
+        {
+            _currentSession.SignOut();
+        }
+
+        if (sessionId is { } activeSessionId && _scopeFactory is not null)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var mediator = scope.ServiceProvider.GetService<MediatR.IMediator>();
+                if (mediator is not null)
+                {
+                    await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                // Session was already terminated by _loginService.SignOutAsync() or persistence was unreachable.
+            }
+        }
     }
 
     private void BtnCancelHidden_Click(object? sender, EventArgs e)

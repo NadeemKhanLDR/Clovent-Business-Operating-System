@@ -72,6 +72,8 @@ public sealed class RecordPaymentCommandHandler(
 
         await RequireWithinOutstandingBalanceAsync(orderId, request.Amount, cancellationToken);
 
+        ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+
         var isAdvance = string.Equals(paymentMethod.Name.Value, "Customer Advance", StringComparison.OrdinalIgnoreCase) ||
                         string.Equals(paymentMethod.Name.Value, "Advance", StringComparison.OrdinalIgnoreCase);
 
@@ -106,7 +108,7 @@ public sealed class RecordPaymentCommandHandler(
                 request.Amount,
                 0m,
                 customer.OutstandingBalance,
-                null,
+                shiftId,
                 paymentMethod.Name.Value);
             await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
 
@@ -121,7 +123,7 @@ public sealed class RecordPaymentCommandHandler(
                 await allocationRepository.AddAsync(alloc, cancellationToken);
             }
 
-            var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, null, request.IdempotencyKey);
+            var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId, request.IdempotencyKey);
             order.RecordPayment(advPayment.Id);
             await paymentRepository.AddAsync(advPayment, cancellationToken);
 
@@ -130,6 +132,7 @@ public sealed class RecordPaymentCommandHandler(
 
         var isCredit = string.Equals(paymentMethod.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase) ||
                        string.Equals(paymentMethod.Name.Value, "Customer Account", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
                        string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase);
 
         if (isCredit)
@@ -175,7 +178,7 @@ public sealed class RecordPaymentCommandHandler(
             customer.AdjustBalance(request.Amount);
             await customerRepository.UpdateAsync(customer, cancellationToken);
 
-            ShiftId? shiftIdForEntry = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+            ShiftId? shiftIdForEntry = shiftId;
 
             var desc = advanceApplied > 0
                 ? $"On Account Sale ({order.OrderNumber.Value}) [{advanceApplied:N2} Advance Applied]"
@@ -207,7 +210,6 @@ public sealed class RecordPaymentCommandHandler(
             }
         }
 
-        ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
         var payment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId, request.IdempotencyKey);
         order.RecordPayment(payment.Id);
 
