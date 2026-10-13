@@ -88,33 +88,33 @@ Evaluated across four standard ratings:
 
 ### 3.1 Installation and First Use
 1. **Conflicting Workstation Prerequisites:**
-   - [docs/deployment/installation.md](file:///D:/CBOS/Repository/docs/deployment/installation.md#L28-L32) specifies: Minimum 4 GB RAM (8 GB recommended) for POS terminal, 8 GB (16 GB recommended) for standalone, and minimum 10 GB SSD storage.
-   - [docs/DeploymentGuide.md](file:///D:/CBOS/Repository/docs/DeploymentGuide.md#L28-L29) specifies: Minimum 8 GB RAM (16 GB recommended) and 2 GB free disk space.
+   - [docs/deployment/installation.md](../deployment/installation.md) specifies: Minimum 4 GB RAM (8 GB recommended) for POS terminal, 8 GB (16 GB recommended) for standalone, and minimum 10 GB SSD storage.
+   - [docs/DeploymentGuide.md](../DeploymentGuide.md) specifies: Minimum 8 GB RAM (16 GB recommended) and 2 GB free disk space.
    - *Clarification:* These figures are unbenchmarked estimates. Documentation must treat sizing as provisional guidance until formal clean-machine acceptance is concluded.
 2. **Accounting for Both Installer Scripts:**
    - Baseline Script: `installer/Clovent.BusinessOperatingSystem.iss` builds `Clovent.BusinessOperatingSystem-1.2.2-Setup.exe` against versioned 1.2.2 release directories.
    - Authoritative 1.3.0 RC Script: `Tools/installer/cbos-setup.iss` builds `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe` with parameterized `#define` macros (`PublishDir`, `ProvisionerDir`, `OutputDir`), aligned with current packaging scripts (`tools/ReleaseGuard/ScanReleasePackage.ps1`).
-   - Legacy documentation ([docs/DeploymentGuide.md](file:///D:/CBOS/Repository/docs/DeploymentGuide.md#L36-L42)) incorrectly directs technicians to manually unzip binaries, bypassing NTFS ACL configuration.
+   - Legacy documentation ([docs/DeploymentGuide.md](../DeploymentGuide.md)) incorrectly directs technicians to manually unzip binaries, bypassing NTFS ACL configuration.
 3. **Commissioning Marker & Step Discrepancy:**
-   - [docs/deployment/commissioning.md](file:///D:/CBOS/Repository/docs/deployment/commissioning.md#L15-L33) claims a 9-phase wizard writing a marker at `%ProgramData%\Clovent\BusinessOperatingSystem\commissioned.json`.
-   - In committed source code ([FirstRunWizardForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs#L26-L27) and [CommissioningStateService.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/Services/CommissioningStateService.cs#L228-L237)), the wizard implements **8 steps** (`TotalSteps = 8`) and persists the marker to:
+   - [docs/deployment/commissioning.md](../deployment/commissioning.md) claims a 9-phase wizard writing a marker at `%ProgramData%\Clovent\BusinessOperatingSystem\commissioned.json`.
+   - In committed source code ([FirstRunWizardForm.cs](../../src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs) and [CommissioningStateService.cs](../../src/Clovent.Desktop/Commissioning/Services/CommissioningStateService.cs)), the wizard implements **8 steps** (`TotalSteps = 8`) and persists the marker to:
      `%ProgramData%\Clovent\BusinessOperatingSystem\Config\commissioning.json`
 4. **Missing Cashier Account Provisioning Guide:**
-   - First-run commissioning provisions only the root `Administrator` account ([FirstRunWizardForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs#L84-L89)).
-   - Neither [installation.md](file:///D:/CBOS/Repository/docs/deployment/installation.md) nor [commissioning.md](file:///D:/CBOS/Repository/docs/deployment/commissioning.md) explains how an administrator creates Cashier accounts, assigns the `Cashier` role, or configures cashier login PINs in Back Office ([UsersForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Forms/Identity/Users/UsersForm.cs)).
+   - First-run commissioning provisions only the root `Administrator` account ([FirstRunWizardForm.cs](../../src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs)).
+   - Neither [installation.md](../deployment/installation.md) nor [commissioning.md](../deployment/commissioning.md) explains how an administrator creates Cashier accounts, assigns the `Cashier` role, or configures cashier login PINs in Back Office ([UsersForm.cs](../../src/Clovent.Desktop/Forms/Identity/Users/UsersForm.cs)).
 
 ---
 
 ## 3.2 Everyday Cashier Operations
 1. **The Refund Documentation Contradiction & Pending Status:**
-   - [docs/known-limitations.md](file:///D:/CBOS/Repository/docs/known-limitations.md#L21-L26) and [docs/pos/order-lifecycle.md](file:///D:/CBOS/Repository/docs/pos/order-lifecycle.md#L93-L100) state that the Refund Aggregate is NOT implemented in CBOS 1.2.2/1.2.3.
-   - [docs/releases/cbos-1.3.0-release-notes.md](file:///D:/CBOS/Repository/docs/releases/cbos-1.3.0-release-notes.md#L38) announces the Compensating Refund Ledger in 1.3.0, and [RestaurantPosForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Restaurant/Orders/RestaurantPosForm.cs#L6970-L6975) activates [RefundOrderDialog.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Restaurant/Orders/RefundOrderDialog.cs).
+   - [docs/known-limitations.md](../known-limitations.md) and [docs/pos/order-lifecycle.md](../pos/order-lifecycle.md) state that the Refund Aggregate is NOT implemented in CBOS 1.2.2/1.2.3.
+   - [docs/releases/cbos-1.3.0-release-notes.md](../releases/cbos-1.3.0-release-notes.md) announces the Compensating Refund Ledger in 1.3.0, and [RestaurantPosForm.cs](../../src/Clovent.Desktop/Restaurant/Orders/RestaurantPosForm.cs) activates [RefundOrderDialog.cs](../../src/Clovent.Desktop/Restaurant/Orders/RefundOrderDialog.cs).
    - *Status:* This capability exists in source code, but runtime acceptance remains actively underway. Documentation must clearly identify refunds as candidate capabilities awaiting final acceptance sign-off.
 2. **Missing Tax Configuration & Classification Guide:**
-   - The codebase contains advanced tax modeling in [TaxProfile.cs](file:///D:/CBOS/Repository/src/Clovent.Catalog/TaxProfiles/TaxProfile.cs) (distinguishing `Taxable`, `ZeroRated`, `Exempt`, `OutOfScope`, along with `Inclusive` vs `Exclusive` pricing modes).
+   - The codebase contains advanced tax modeling in [TaxProfile.cs](../../src/Clovent.Catalog/TaxProfiles/TaxProfile.cs) (distinguishing `Taxable`, `ZeroRated`, `Exempt`, `OutOfScope`, along with `Inclusive` vs `Exclusive` pricing modes).
    - Documentation lacks a guide explaining how to establish tax profiles or link them to menu items. All tax examples must be labeled as synthetic and non-prescriptive.
 3. **Missing POS Operations Menu Guide:**
-   - Key operational workflows—`Print Last Receipt`, `Refund / Return`, `End of Day`, `Cash Movement`, and `Shift Close`—reside under the teal `Operations ▼` dropdown button ([RestaurantPosForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Restaurant/Orders/RestaurantPosForm.cs#L7380-L7400)). A dedicated cashier operations guide is required.
+   - Key operational workflows—`Print Last Receipt`, `Refund / Return`, `End of Day`, `Cash Movement`, and `Shift Close`—reside under the teal `Operations ▼` dropdown button ([RestaurantPosForm.cs](../../src/Clovent.Desktop/Restaurant/Orders/RestaurantPosForm.cs)). A dedicated cashier operations guide is required.
 4. **Receipt Reprint Scoping Ambiguity:**
    - The POS provides `Print Last Receipt` under `Operations ▼`. Cashiers must be informed that this is strictly scoped to the *last completed order of the active shift*. Earlier orders require Back Office order history access.
 
@@ -122,13 +122,13 @@ Evaluated across four standard ratings:
 
 ## 3.3 Printers and Peripherals
 1. **Undocumented `PrinterSettingsForm`:**
-   - [PrinterSettingsForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Forms/Settings/PrinterSettingsForm.cs) allows configuring profiles, binding Windows print queues, assigning roles (`Receipt`, `Invoice`, `Kitchen`, `Bar`, `Label`, `Report`), setting paper widths (`80 mm`, `58 mm`, `A4`), and executing test prints. This form must be documented in platform guides.
+   - [PrinterSettingsForm.cs](../../src/Clovent.Desktop/Forms/Settings/PrinterSettingsForm.cs) allows configuring profiles, binding Windows print queues, assigning roles (`Receipt`, `Invoice`, `Kitchen`, `Bar`, `Label`, `Report`), setting paper widths (`80 mm`, `58 mm`, `A4`), and executing test prints. This form must be documented in platform guides.
 2. **Incorrect Support Runbook Navigation Path:**
-   - In [docs/support/runbooks/printer-failure.md](file:///D:/CBOS/Repository/docs/support/runbooks/printer-failure.md#L40-L45), the path `Administration -> Printers & Terminals` does not exist. The actual source paths are:
+   - In [docs/support/runbooks/printer-failure.md](../support/runbooks/printer-failure.md), the path `Administration -> Printers & Terminals` does not exist. The actual source paths are:
      - **Settings** ribbon page -> **Hardware** group -> **Printers** button (`PrinterSettingsForm`).
      - **Manager Panel** ribbon page -> **Operations / Controls** group -> **Printer Health** button (`PrinterHardwareHealthView`).
 3. **Undocumented Printer Health & Quarantine Recovery:**
-   - [PrinterHardwareHealthView.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Printing/PrinterHardwareHealthView.cs) and [PrintJobQuarantineStore.cs](file:///D:/CBOS/Repository/src/Clovent.Platform/Printing/PrintJobQuarantineStore.cs) enable supervisors to monitor queue depths and replay quarantined print jobs.
+   - [PrinterHardwareHealthView.cs](../../src/Clovent.Desktop/Printing/PrinterHardwareHealthView.cs) and [PrintJobQuarantineStore.cs](../../src/Clovent.Platform/Printing/PrintJobQuarantineStore.cs) enable supervisors to monitor queue depths and replay quarantined print jobs.
 4. **Cash Drawer Kick Limitations & Driver Dependency:**
    - Direct ESC/POS hardware kick pulse commands remain unverified at the software layer. Technicians must connect cash drawers via RJ11/RJ12 to the thermal printer and configure drawer-kick settings directly in the Windows printer driver properties.
 
@@ -136,29 +136,29 @@ Evaluated across four standard ratings:
 
 ## 3.4 Data Protection and Upgrades
 1. **CRITICAL RISK: Accidental Customer Record Deletion in Routine Flow:**
-   - In [docs/deployment/uninstallation.md](file:///D:/CBOS/Repository/docs/deployment/uninstallation.md#L50-L62), Section 4 lists `DROP DATABASE [Clovent_BusinessOperatingSystem];` without prominent warnings.
+   - In [docs/deployment/uninstallation.md](../deployment/uninstallation.md), Section 4 lists `DROP DATABASE [Clovent_BusinessOperatingSystem];` without prominent warnings.
    - Decommissioning instructions must be moved out of routine flows, placed under strict `[!CAUTION]` warnings, and require explicit customer written authorization and verified off-machine backups.
 2. **Conflicting Backup Paths & Ownership:**
-   - [docs/operations/backup-and-restore.md](file:///D:/CBOS/Repository/docs/operations/backup-and-restore.md#L51-L54) targets `C:\Backups\CBOS` using `sqlcmd` (`cbos_app`).
-   - [docs/BackupRestore.md](file:///D:/CBOS/Repository/docs/BackupRestore.md#L10-L29) targets `%ProgramData%\...\Backups` using `Invoke-Sqlcmd` (`cbos_runtime`).
+   - [docs/operations/backup-and-restore.md](../operations/backup-and-restore.md) targets `C:\Backups\CBOS` using `sqlcmd` (`cbos_app`).
+   - [docs/BackupRestore.md](../BackupRestore.md) targets `%ProgramData%\...\Backups` using `Invoke-Sqlcmd` (`cbos_runtime`).
    - Automated native scheduling does not exist in CBOS; backup scheduling is an operating system task.
 3. **Invalid Database Upgrade Instructions:**
-   - [docs/deployment/upgrades.md](file:///D:/CBOS/Repository/docs/deployment/upgrades.md#L73-L76) instructs running `.\Clovent.Installer.Provisioner.exe --migrate`.
+   - [docs/deployment/upgrades.md](../deployment/upgrades.md) instructs running `.\Clovent.Installer.Provisioner.exe --migrate`.
    - `Clovent.Installer.Provisioner.exe` is deleted after setup (`deleteafterinstall`) and is not in `{app}`. Furthermore, `--migrate` is invalid; the argument is `--provision`.
-   - [docs/DatabaseUpgrade.md](file:///D:/CBOS/Repository/docs/DatabaseUpgrade.md#L56) references `Clovent.Desktop.exe --upgrade-database`, which does not exist in code.
+   - [docs/DatabaseUpgrade.md](../DatabaseUpgrade.md) references `Clovent.Desktop.exe --upgrade-database`, which does not exist in code.
 
 ---
 
 ## 3.5 Support and Troubleshooting
 1. **Diagnostic Log Directory Clarification:**
-   - Desktop application runtime logs: `%LOCALAPPDATA%\Clovent\Logs\` (defined in [FileLoggerOptions.cs](file:///D:/CBOS/Repository/src/Clovent.Platform/Logging/FileLoggerOptions.cs#L20)).
+   - Desktop application runtime logs: `%LOCALAPPDATA%\Clovent\Logs\` (defined in [FileLoggerOptions.cs](../../src/Clovent.Platform/Logging/FileLoggerOptions.cs)).
    - Setup / Installer logs: `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\` (used by Inno Setup).
 2. **Inaccurate Continuity Journal File Path:**
-   - [docs/support/runbooks/continuity-mode.md](file:///D:/CBOS/Repository/docs/support/runbooks/continuity-mode.md#L30) cites `continuity_journal.dat` at the root of `BusinessOperatingSystem`.
-   - Committed source code ([ProtectedContinuityJournalStore.cs](file:///D:/CBOS/Repository/src/Clovent.Restaurant.Infrastructure/Continuity/ProtectedContinuityJournalStore.cs#L66-L67)) places the file at:
+   - [docs/support/runbooks/continuity-mode.md](../support/runbooks/continuity-mode.md) cites `continuity_journal.dat` at the root of `BusinessOperatingSystem`.
+   - Committed source code ([ProtectedContinuityJournalStore.cs](../../src/Clovent.Restaurant.Infrastructure/Continuity/ProtectedContinuityJournalStore.cs)) places the file at:
      `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`
 3. **Effective Diagnostic Tools:**
-   - [SupportDiagnosticsForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/SupportDiagnosticsForm.cs) (`--diagnostics`) provides safe, credential-sanitized diagnostic snapshots.
+   - [SupportDiagnosticsForm.cs](../../src/Clovent.Desktop/Commissioning/UI/SupportDiagnosticsForm.cs) (`--diagnostics`) provides safe, credential-sanitized diagnostic snapshots.
 
 ---
 
@@ -176,15 +176,15 @@ Evaluated across four standard ratings:
 
 | # | Priority Gap | Customer / Operational Impact | Recommended Documentation Correction |
 | :-: | :--- | :--- | :--- |
-| **1** | **Broken Schema Upgrade Instructions** (`--migrate` invalid; Provisioner in `{tmp}`, not `{app}`) | Field technicians cannot resolve `DatabaseTooOld` blocks during upgrades. | Update [upgrades.md](file:///D:/CBOS/Repository/docs/deployment/upgrades.md) to explain that Inno Setup executes provisioning automatically during upgrade. For manual operations, document `Clovent.Installer.Provisioner.exe --provision` from tools build output. Mark [DatabaseUpgrade.md](file:///D:/CBOS/Repository/docs/DatabaseUpgrade.md) superseded. |
-| **2** | **Critical Safety Risk: Decommissioning `DROP DATABASE` in routine flow** | A technician performing troubleshooting may execute `DROP DATABASE`, destroying customer financial records. | Quarantine destructive decommissioning in [uninstallation.md](file:///D:/CBOS/Repository/docs/deployment/uninstallation.md) behind prominent `[!CAUTION]` alerts requiring written customer authorization and verified recoverable backups. Clarify that routine uninstallation preserves all data. |
-| **3** | **Refund Capability Documentation & Acceptance Status** | Store managers cannot determine if refunds are supported or how cashiers operate them. | Reconcile [known-limitations.md](file:///D:/CBOS/Repository/docs/known-limitations.md) and [order-lifecycle.md](file:///D:/CBOS/Repository/docs/pos/order-lifecycle.md) by clearly documenting the 1.3.0 compensating refund domain as a candidate capability currently under active Windows Sandbox qualification; author a source-backed cashier refund guide. |
+| **1** | **Broken Schema Upgrade Instructions** (`--migrate` invalid; Provisioner in `{tmp}`, not `{app}`) | Field technicians cannot resolve `DatabaseTooOld` blocks during upgrades. | Update [upgrades.md](../deployment/upgrades.md) to explain that Inno Setup executes provisioning automatically during upgrade. For manual operations, document `Clovent.Installer.Provisioner.exe --provision` from tools build output. Mark [DatabaseUpgrade.md](../DatabaseUpgrade.md) superseded. |
+| **2** | **Critical Safety Risk: Decommissioning `DROP DATABASE` in routine flow** | A technician performing troubleshooting may execute `DROP DATABASE`, destroying customer financial records. | Quarantine destructive decommissioning in [uninstallation.md](../deployment/uninstallation.md) behind prominent `[!CAUTION]` alerts requiring written customer authorization and verified recoverable backups. Clarify that routine uninstallation preserves all data. |
+| **3** | **Refund Capability Documentation & Acceptance Status** | Store managers cannot determine if refunds are supported or how cashiers operate them. | Reconcile [known-limitations.md](../known-limitations.md) and [order-lifecycle.md](../pos/order-lifecycle.md) by clearly documenting the 1.3.0 compensating refund domain as a candidate capability currently under active Windows Sandbox qualification; author a source-backed cashier refund guide. |
 | **4** | **Missing Cashier Account Onboarding Guide** | Shop owners completing setup cannot onboard cashiers or configure PINs. | Author `docs/deployment/cashier-account-setup.md` detailing Back Office navigation to `Users` (`UsersForm.cs`), role assignment (`Cashier`), and PIN configuration (`PinPromptForm.cs`). |
 | **5** | **Missing Cashier Operations Manual** | Cashiers cannot locate `Operations ▼` commands (discounts, reprints, day close). | Author `docs/pos/cashier-operations-guide.md` illustrating layout, discount workflows, split payments, customer credit, reprints, and blind cash close. |
-| **6** | **Missing Printer Configuration Guide & Broken Runbook Navigation** | Technicians cannot configure multi-printer routing or paper widths, and runbooks cite non-existent navigation. | Author `docs/integrations/printer-configuration.md` covering [PrinterSettingsForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Forms/Settings/PrinterSettingsForm.cs). Update [printer-failure.md](file:///D:/CBOS/Repository/docs/support/runbooks/printer-failure.md) to point to `Settings -> Hardware -> Printers` and `Manager Panel -> Operations / Controls -> Printer Health`. |
-| **7** | **Commissioning Marker & Step Discrepancy** (9 phases vs 8 steps; `commissioned.json` vs `Config\commissioning.json`) | Technicians investigating commissioning detection look for the wrong marker file. | Align [commissioning.md](file:///D:/CBOS/Repository/docs/deployment/commissioning.md) with [FirstRunWizardForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs) (8 steps) and specify the true path: `%ProgramData%\Clovent\BusinessOperatingSystem\Config\commissioning.json`. |
+| **6** | **Missing Printer Configuration Guide & Broken Runbook Navigation** | Technicians cannot configure multi-printer routing or paper widths, and runbooks cite non-existent navigation. | Author `docs/integrations/printer-configuration.md` covering [PrinterSettingsForm.cs](../../src/Clovent.Desktop/Forms/Settings/PrinterSettingsForm.cs). Update [printer-failure.md](../support/runbooks/printer-failure.md) to point to `Settings -> Hardware -> Printers` and `Manager Panel -> Operations / Controls -> Printer Health`. |
+| **7** | **Commissioning Marker & Step Discrepancy** (9 phases vs 8 steps; `commissioned.json` vs `Config\commissioning.json`) | Technicians investigating commissioning detection look for the wrong marker file. | Align [commissioning.md](../deployment/commissioning.md) with [FirstRunWizardForm.cs](../../src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs) (8 steps) and specify the true path: `%ProgramData%\Clovent\BusinessOperatingSystem\Config\commissioning.json`. |
 | **8** | **Missing Tax Profile Setup Guide** | Business owners cannot configure sales tax rates, pricing modes, or non-taxable item classifications. | Author `docs/catalog/tax-profiles.md` detailing `TaxProfile.cs` (Taxable, Zero-Rated, Exempt, Out-of-Scope; Inclusive vs Exclusive). Mark all examples as synthetic. |
-| **9** | **Inaccurate Continuity Journal File Path in Runbook** | Technicians troubleshooting offline continuity fail to find the emergency journal file. | Correct the path in [continuity-mode.md](file:///D:/CBOS/Repository/docs/support/runbooks/continuity-mode.md), [troubleshooting.md](file:///D:/CBOS/Repository/docs/support/troubleshooting.md), and [uninstallation.md](file:///D:/CBOS/Repository/docs/deployment/uninstallation.md) to `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`. |
+| **9** | **Inaccurate Continuity Journal File Path in Runbook** | Technicians troubleshooting offline continuity fail to find the emergency journal file. | Correct the path in [continuity-mode.md](../support/runbooks/continuity-mode.md), [troubleshooting.md](../support/troubleshooting.md), and [uninstallation.md](../deployment/uninstallation.md) to `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`. |
 | **10** | **Release Maturity & Readiness Governance** | Users receive conflicting signals regarding whether candidate qualification alters planned release targets or milestone scope. | Maintain strict canonical roadmap governance: 1.2.2 is the frozen internal acceptance baseline; 1.2.3 is the controlled attended single-terminal pilot; 1.3.0 is the broader commercial GA foundation. Current candidate qualification of 1.3.0 does not redefine the 1.2.3 pilot or 1.3.0 commercial milestones; operational qualification remains pending acceptance sign-off. |
 
 ---
@@ -196,7 +196,7 @@ The following items are source-inspected implementations whose operational quali
 1. **Compensating Refund Ledger & Cash Drawer Limits:**
    - Financial cap verification on `ExternalCardRefund` (`38ac204`).
    - Restock deduplication and cash payout drawer limits (`63aebaf`, `02825a3`).
-   - Clean Windows Sandbox acceptance of [RefundOrderDialog.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Restaurant/Orders/RefundOrderDialog.cs).
+   - Clean Windows Sandbox acceptance of [RefundOrderDialog.cs](../../src/Clovent.Desktop/Restaurant/Orders/RefundOrderDialog.cs).
    - *Status: PENDING acceptance agent test sign-off.*
 2. **Standard Non-Elevated User Rights:**
    - Verification that unprivileged Windows users (`Users` group / designated POS accounts) can execute CBOS Desktop without UAC prompts, access DPAPI machine stores, and write rolling logs (`38ac204`, `cbc65dd`).
