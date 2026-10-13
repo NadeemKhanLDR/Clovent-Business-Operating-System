@@ -112,10 +112,8 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
         {
             _combo.SelectedIndex = 0;
         }
-        else
-        {
-            OnSelected();
-        }
+
+        OnSelected();
     }
 
     /// <summary>

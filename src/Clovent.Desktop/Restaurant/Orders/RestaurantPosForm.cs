@@ -3927,7 +3927,8 @@ public sealed partial class RestaurantPosForm : XtraForm
                     return;
                 }
 
-                if (_warehousePicker.SelectedId is not { } warehouseId)
+                var warehouseId = await EnsureWarehouseSelectedAsync();
+                if (warehouseId is not { } effectiveWarehouseId)
                 {
                     XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
@@ -3938,7 +3939,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
                 try
                 {
-                    _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, availableTable.TableId));
+                    _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, effectiveWarehouseId, availableTable.TableId));
                     if (_defaultCustomerId is { } defaultCustId)
                     {
                         _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
@@ -5621,9 +5622,28 @@ public sealed partial class RestaurantPosForm : XtraForm
         RefreshOfflineOrder(null);
     }
 
+    private async Task<Guid?> EnsureWarehouseSelectedAsync()
+    {
+        if (_warehousePicker.SelectedId is { } id)
+        {
+            return id;
+        }
+
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        if (warehouses.Count > 0)
+        {
+            var firstId = warehouses.First().WarehouseId;
+            _warehousePicker.SelectId(firstId);
+            return _warehousePicker.SelectedId ?? firstId;
+        }
+
+        return null;
+    }
+
     private async Task NewDineInAsync()
     {
-        if (_warehousePicker.SelectedId is not { } warehouseId)
+        var warehouseId = await EnsureWarehouseSelectedAsync();
+        if (warehouseId is not { } effectiveWarehouseId)
         {
             XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -5637,11 +5657,11 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_continuityCoordinator?.IsContinuityModeActive == true)
         {
-            InitializeOfflineOrder(OrderType.DineIn, warehouseId, tableId);
+            InitializeOfflineOrder(OrderType.DineIn, effectiveWarehouseId, tableId);
             return;
         }
 
-        _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, warehouseId, tableId));
+        _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.DineIn, effectiveWarehouseId, tableId));
         if (_defaultCustomerId is { } defaultCustId)
         {
             _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
@@ -5654,7 +5674,8 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task NewTakeAwayAsync()
     {
-        if (_warehousePicker.SelectedId is not { } warehouseId)
+        var warehouseId = await EnsureWarehouseSelectedAsync();
+        if (warehouseId is not { } effectiveWarehouseId)
         {
             XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -5662,11 +5683,11 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         if (_continuityCoordinator?.IsContinuityModeActive == true)
         {
-            InitializeOfflineOrder(OrderType.TakeAway, warehouseId, null);
+            InitializeOfflineOrder(OrderType.TakeAway, effectiveWarehouseId, null);
             return;
         }
 
-        _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, warehouseId));
+        _currentOrder = await _mediator.Send(new CreateOrderCommand(OrderType.TakeAway, effectiveWarehouseId));
         if (_defaultCustomerId is { } defaultCustId)
         {
             _currentOrder = await _mediator.Send(new SetOrderCustomerCommand(_currentOrder.OrderId, defaultCustId));
@@ -5685,7 +5706,8 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        if (_warehousePicker.SelectedId is not { } warehouseId)
+        var warehouseId = await EnsureWarehouseSelectedAsync();
+        if (warehouseId is not { } effectiveWarehouseId)
         {
             XtraMessageBox.Show(this, "Select a location first.", "No Location Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
@@ -5715,7 +5737,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         _currentOrder = await _mediator.Send(new CreateOrderCommand(
             OrderType.Delivery,
-            warehouseId,
+            effectiveWarehouseId,
             TableId: null,
             OrderSource: dialog.OrderSource,
             DeliveryCustomerName: dialog.CustomerName,
