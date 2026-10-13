@@ -1,4 +1,4 @@
-﻿# CBOS Frontline Cashier Operations Guide
+# CBOS Frontline Cashier Operations Guide
 
 | Attribute | Details |
 | :--- | :--- |
@@ -149,7 +149,7 @@ To ensure the physical cash drawer reconciles with the system ledger:
 
 > [!WARNING]
 > **CANDIDATE CAPABILITY UNDER ACTIVE ACCEPTANCE:**
-> The Compensating Refund Ledger and `RefundOrderDialog` are candidate implementations in CBOS 1.3.0. Operational certification in Windows Sandbox is currently in progress by the acceptance stream.
+> The Compensating Refund Ledger and `RefundOrderDialog` are candidate implementations in CBOS 1.3.0. Candidate acceptance testing in Windows Sandbox evaluates candidate capabilities but does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones; operational certification remains in progress by the acceptance stream.
 
 ### Refund Procedure:
 1. Click **`Operations ▼`** -> **`Refund / Return`**.

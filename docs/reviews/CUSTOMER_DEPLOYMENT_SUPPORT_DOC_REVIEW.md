@@ -1,4 +1,4 @@
-﻿# CBOS Customer Deployment & Support Documentation Review Report
+# CBOS Customer Deployment & Support Documentation Review Report
 
 - **Review Role:** CBOS Customer Deployment & Support Documentation Reviewer
 - **Target Repository:** Clovent Business Operating System (CBOS)
@@ -26,8 +26,9 @@ This independent review evaluates whether a **shop owner**, **installer technici
   - *Backup Automation:* CBOS possesses no built-in native automated backup scheduling engine. Automated backups require external operating system scheduling (e.g., Windows Task Scheduler or SQL Server Agent), which is an operator responsibility.
   - *Security Certification:* The codebase enforces defense-in-depth principles (Windows DPAPI, PBKDF2/Argon2 hashing, RBAC), but possesses no third-party security certification or PCI-DSS attestation.
 - **Preservation of Approved Release Milestones:**
-  - **CBOS 1.2.2:** Frozen Internal Acceptance Baseline (explicitly NOT pilot ready, NOT commercial GA).
-  - **CBOS 1.3.0:** Release Candidate under active qualification (candidate for pilot deployment, pending final Windows Sandbox qualification).
+  - **CBOS 1.2.2:** Frozen Internal Acceptance Baseline (explicitly NOT paid-pilot ready, NOT commercial GA).
+  - **CBOS 1.2.3:** Controlled Attended Single-Terminal Pilot Hardening (strict zero database migrations).
+  - **CBOS 1.3.0:** First Broader Commercial Foundation (commercial GA target; incorporates compensating refund domain, optimistic concurrency, and high-DPI). Active candidate qualification testing in Windows Sandbox evaluates 1.3.0 candidate capabilities, but does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones.
 
 ---
 
@@ -79,7 +80,7 @@ Evaluated across four standard ratings:
 | **6. Documentation Structure** | README & docs/README Navigation | `PARTIAL` | `README.md`<br/>`docs/README.md` | Subdirectory documents are well indexed, but 16 legacy markdown documents residing directly in `docs/` are orphaned from navigation indices. |
 | | Broken Markdown Links | `COMPLETE` | Whole repository markdown scan | 0 broken physical file links detected across all documentation files. |
 | | Obsolete Paths & Navigation Mappings | `CONTRADICTORY` | `docs/support/runbooks/printer-failure.md`<br/>`src/Clovent.Desktop/Navigation/NavigationRegistry.cs` | Runbook directs technicians to `Administration -> Printers & Terminals`; actual ribbon path is `Settings -> Hardware -> Printers`. |
-| | Release Maturity & Readiness Claims | `CONTRADICTORY` | `README.md`<br/>`docs/README.md`<br/>`docs/releases/cbos-1.3.0-release-notes.md` | Root READMEs declare CBOS 1.2.2 "Internal Baseline Only - NOT pilot ready"; 1.3.0 Release Notes declare certified pilot readiness while active qualification is still ongoing. |
+| | Release Maturity & Readiness Claims | `CONTRADICTORY` | `README.md`<br/>`docs/README.md`<br/>`docs/releases/cbos-1.3.0-release-notes.md`<br/>`docs/roadmap/engineering-roadmap.md` | Root READMEs declare CBOS 1.2.2 "Internal Baseline Only - NOT pilot ready"; 1.3.0 Release Notes describe candidate capabilities while qualification is active. Roadmap governance must be strictly preserved: current candidate acceptance of 1.3.0 does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones. |
 
 ---
 
@@ -157,7 +158,7 @@ Evaluated across four standard ratings:
    - Committed source code ([ProtectedContinuityJournalStore.cs](file:///D:/CBOS/Repository/src/Clovent.Restaurant.Infrastructure/Continuity/ProtectedContinuityJournalStore.cs#L66-L67)) places the file at:
      `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`
 3. **Effective Diagnostic Tools:**
-   - [SupportDiagnosticsForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/SupportDiagnosticsForm.cs) (`--diagnostics`) provides safe, credential-sanitized diagnostic snapshots.
+   - [SupportDiagnosticsForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/SupportDiagnosticsForm.cs) (`--diagnostics`) provides safe, credential-sanitized diagnostic snapshots.
 
 ---
 
@@ -165,8 +166,9 @@ Evaluated across four standard ratings:
 1. **Orphaned Root Documents in `docs/`:**
    - 16 legacy markdown documents in `docs/` lack supersession pointers and conflict with modern subfolder guides.
 2. **Preserving Release Milestones:**
-   - CBOS 1.2.2 remains the frozen internal acceptance baseline.
-   - CBOS 1.3.0 is a release candidate under active qualification. Premature GA or pilot readiness certifications must not be claimed until the active acceptance stream concludes.
+   - CBOS 1.2.2 remains the frozen internal acceptance baseline (not paid-pilot ready, not commercial GA).
+   - CBOS 1.2.3 remains the canonical controlled attended single-terminal pilot hardening milestone.
+   - CBOS 1.3.0 remains the canonical first broader commercial foundation milestone. Current candidate qualification in Windows Sandbox evaluates candidate features, but does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones. Operational qualification remains explicitly pending acceptance sign-off.
 
 ---
 
@@ -183,7 +185,7 @@ Evaluated across four standard ratings:
 | **7** | **Commissioning Marker & Step Discrepancy** (9 phases vs 8 steps; `commissioned.json` vs `Config\commissioning.json`) | Technicians investigating commissioning detection look for the wrong marker file. | Align [commissioning.md](file:///D:/CBOS/Repository/docs/deployment/commissioning.md) with [FirstRunWizardForm.cs](file:///D:/CBOS/Repository/src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs) (8 steps) and specify the true path: `%ProgramData%\Clovent\BusinessOperatingSystem\Config\commissioning.json`. |
 | **8** | **Missing Tax Profile Setup Guide** | Business owners cannot configure sales tax rates, pricing modes, or non-taxable item classifications. | Author `docs/catalog/tax-profiles.md` detailing `TaxProfile.cs` (Taxable, Zero-Rated, Exempt, Out-of-Scope; Inclusive vs Exclusive). Mark all examples as synthetic. |
 | **9** | **Inaccurate Continuity Journal File Path in Runbook** | Technicians troubleshooting offline continuity fail to find the emergency journal file. | Correct the path in [continuity-mode.md](file:///D:/CBOS/Repository/docs/support/runbooks/continuity-mode.md), [troubleshooting.md](file:///D:/CBOS/Repository/docs/support/troubleshooting.md), and [uninstallation.md](file:///D:/CBOS/Repository/docs/deployment/uninstallation.md) to `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`. |
-| **10** | **Release Maturity & Readiness Governance** | Users receive conflicting signals regarding whether the release is a frozen baseline or certified pilot release. | Maintain strict governance distinction: 1.2.2 is the frozen internal acceptance baseline; 1.3.0 is a release candidate under active qualification. Final pilot readiness remains explicitly pending acceptance sign-off. |
+| **10** | **Release Maturity & Readiness Governance** | Users receive conflicting signals regarding whether candidate qualification alters planned release targets or milestone scope. | Maintain strict canonical roadmap governance: 1.2.2 is the frozen internal acceptance baseline; 1.2.3 is the controlled attended single-terminal pilot; 1.3.0 is the broader commercial GA foundation. Current candidate qualification of 1.3.0 does not redefine the 1.2.3 pilot or 1.3.0 commercial milestones; operational qualification remains pending acceptance sign-off. |
 
 ---
 
@@ -205,8 +207,8 @@ The following items are source-inspected implementations whose operational quali
 4. **Code-Signing, Packaging & SHA-256 Checksums:**
    - Production packaging of `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe` with Authenticode RFC 3161 timestamping and final `SHA256SUMS.txt` generation via `Tools/installer/cbos-setup.iss`.
    - *Status: PENDING acceptance agent build and signature execution.*
-5. **Release Milestone Promotion:**
-   - Official promotion of the candidate release from `1.3.0 Release Candidate` to approved pilot status.
+5. **Release Milestone Qualification & Governance:**
+   - Preservation of canonical roadmap milestones: current candidate qualification in Windows Sandbox evaluates 1.3.0 candidate capabilities, but does not redefine the 1.2.3 pilot or 1.3.0 commercial milestones.
    - *Status: PENDING acceptance agent final qualification.*
 
 ---
@@ -267,4 +269,4 @@ This checklist provides a structured deployment protocol based on source-inspect
 
 - **Status:** Review report updated with verified source contracts and explicit boundary distinctions.
 - **Active Acceptance Stream:** Preserved without interference. All Sandbox execution, packaging, and code-signing decisions remain with the active acceptance agent.
-- **Deliverable:** Full review report persisted at `artifacts/documentation-review/review-20261013-b428ad52/CUSTOMER_DEPLOYMENT_SUPPORT_DOC_REVIEW.md`.
+- **Deliverable:** Full review report persisted at `docs/reviews/CUSTOMER_DEPLOYMENT_SUPPORT_DOC_REVIEW.md`.

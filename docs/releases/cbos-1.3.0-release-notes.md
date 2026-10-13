@@ -1,10 +1,10 @@
-﻿# Clovent Business Operating System (CBOS) — Release 1.3.0 Release Notes & Pilot Sign-Off Summary
+# Clovent Business Operating System (CBOS) — Release 1.3.0 Release Notes & Candidate Qualification Summary
 
 **Target Baseline:** CBOS 1.3.0 (Release Candidate 1)
 **Distribution Target:** Windows x64 (`net10.0-windows` / `net10.0` Self-Contained)
 **Installer Package:** `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`
 **Date:** October 9, 2026
-**Status:** Release Candidate 1 under Active Windows Sandbox Qualification (Pilot Certification Pending Acceptance Results)
+**Status:** Release Candidate 1 under Active Windows Sandbox Qualification (Pending Acceptance Results; Canonical Roadmap Milestones Preserved)
 
 ---
 
@@ -178,8 +178,9 @@ Full-solution compilation and automated test execution across all 21 test projec
 
 ---
 
-## 7. Pilot Sign-Off Qualification Status
+## 7. Release Candidate Qualification Status & Roadmap Governance
 
 - **Build Quality:** Solution compiles with 0 Errors and 0 Warnings in Release configuration.
 - **Architectural Conformance:** Strict alignment with `AGENTS.md` and `.agents/rules/` regarding financial ledger immutability, DPAPI security, single physical database schema isolation, and exact tested artifact packaging.
-- **Acceptance Status:** CBOS 1.3.0 Release Candidate 1 is packaged via authoritative script `Tools/installer/cbos-setup.iss`. Live Windows Sandbox clean-machine acceptance testing, refund edge-case verification, and Authenticode signing / SHA-256 manifest generation are actively in progress by the acceptance stream. Production pilot sign-off remains **PENDING final acceptance verification**.
+- **Roadmap Governance:** In accordance with the canonical engineering roadmap (`docs/roadmap/engineering-roadmap.md`), CBOS 1.2.3 remains the designated Controlled Attended Single-Terminal Pilot milestone (with strict zero database migrations), and CBOS 1.3.0 represents the First Broader Commercial Foundation (GA target). Active candidate qualification testing in Windows Sandbox evaluates the 1.3.0 candidate build, but does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones.
+- **Acceptance Status:** CBOS 1.3.0 Release Candidate 1 is packaged via authoritative script `Tools/installer/cbos-setup.iss`. Live Windows Sandbox clean-machine acceptance testing, refund edge-case verification, and Authenticode signing / SHA-256 manifest generation are actively in progress by the acceptance stream. Production candidate sign-off remains **PENDING final acceptance verification**.

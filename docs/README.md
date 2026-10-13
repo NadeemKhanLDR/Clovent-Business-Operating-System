@@ -1,4 +1,4 @@
-﻿# Clovent Business Operating System (CBOS) — Master Documentation Index
+# Clovent Business Operating System (CBOS) — Master Documentation Index
 
 > **CBOS Enterprise Documentation Portal**
 > - **Product Version:** CBOS 1.2.2 — Frozen Internal Acceptance Baseline
@@ -255,6 +255,8 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Verified Known Limitations** | [`docs/known-limitations.md`](known-limitations.md) | All Readers | FACTUAL BASELINE |
 | **Canonical Engineering Roadmap** | [`docs/roadmap/engineering-roadmap.md`](roadmap/engineering-roadmap.md)| Architects, PMs | CANONICAL BASELINE |
 | **1.2.3 Implementation Handoff** | [`docs/roadmap/cbos-1.2.3-implementation-handoff.md`](roadmap/cbos-1.2.3-implementation-handoff.md) | Leads, Devs, QA | ACCEPTED PLANNING BASELINE |
+| **Deployment & Support Doc Review** | [`docs/reviews/CUSTOMER_DEPLOYMENT_SUPPORT_DOC_REVIEW.md`](reviews/CUSTOMER_DEPLOYMENT_SUPPORT_DOC_REVIEW.md) | All Readers | FACTUAL BASELINE |
+| **Milestone 3 Architecture Review** | [`docs/reviews/Milestone-03-Architecture-Review.md`](reviews/Milestone-03-Architecture-Review.md) | Architects, Leads | HISTORICAL BASELINE |
 
 ### 3.18 Historical & Companion Documents Index
 The following documents reside at the root of `docs/` and represent early architectural drafts, historical baselines, or companion technical references. Each is preserved for repository audit durability, with pointers to its authoritative canonical successor:

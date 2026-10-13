@@ -1,4 +1,4 @@
-﻿# CBOS Known Limitations & Architectural Boundaries
+# CBOS Known Limitations & Architectural Boundaries
 
 | Attribute | Details |
 | :--- | :--- |
@@ -22,7 +22,7 @@ This document captures verified, factual limitations and architectural boundarie
 - **Historical Baseline (CBOS 1.2.2):** **REFUND DOMAIN NOT YET IMPLEMENTED**.
 - **Historical Impact:** CBOS 1.2.2 does not contain a dedicated Refund aggregate. Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not modeled in the 1.2.2 domain layer.
 - **Pilot Rule (CBOS 1.2.2 / 1.2.3):** Voiding or pseudo-refunding already completed orders is strictly prohibited by policy during attended single-terminal pilot operations to protect ledger integrity. In the 1.2.2 baseline source code, `Order.Void()` does not check if an order is completed; enforcing this restriction at domain and UI levels, along with BalanceEpsilon elimination, is scheduled under **TASK-04**.
-- **Candidate Implementation (CBOS 1.3.0 Release Candidate):** In CBOS 1.3.0, a formal compensating Refund & Return domain aggregate (`Refund`, `RefundLine`), database migration (`AddRefundDomainAndTaxSnapshots`), and UI dialog (`RefundOrderDialog`) have been implemented in source code. This capability introduces itemized returns, restock vs. waste disposition, card refund ceilings, and manager PIN elevation. Clean Windows Sandbox qualification is actively underway by the acceptance stream; operational pilot sign-off remains **PENDING final acceptance verification**.
+- **Candidate Implementation (CBOS 1.3.0 Release Candidate):** In CBOS 1.3.0, a formal compensating Refund & Return domain aggregate (`Refund`, `RefundLine`), database migration (`AddRefundDomainAndTaxSnapshots`), and UI dialog (`RefundOrderDialog`) have been implemented in source code. This capability introduces itemized returns, restock vs. waste disposition, card refund ceilings, and manager PIN elevation. Clean Windows Sandbox qualification is actively underway by the acceptance stream. Candidate acceptance of 1.3.0 does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones; operational qualification remains **PENDING final acceptance verification**.
 
 ### 2.2 Payment Processor Direct Integration & Payment Identity (TASK-05)
 - **Current State:** **MANUAL TENDER CLASSIFICATION ONLY**.

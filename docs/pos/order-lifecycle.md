@@ -1,4 +1,4 @@
-﻿# CBOS Order Lifecycle & Workflow State Machine
+# CBOS Order Lifecycle & Workflow State Machine
 
 | Attribute | Details |
 | :--- | :--- |
@@ -95,7 +95,7 @@ stateDiagram-v2
 >
 > - **CBOS 1.2.2 / 1.2.3 Baseline:** A dedicated **Refund / Return Aggregate** is **NOT** implemented in the 1.2.x domain layer. Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not modeled. Voiding or pseudo-refunding completed orders is strictly prohibited during 1.2.x pilot operations.
 > - **CBOS 1.3.0 Candidate Implementation:** A formal compensating Refund & Return domain aggregate (`Refund`, `RefundLine`) and UI workflow (`RefundOrderDialog`) have been implemented in source code. This feature provides itemized line refunds, restock vs waste recording, card refund maximum validation, and manager authorization.
-> - **Operational Readiness:** Candidate refund capabilities in CBOS 1.3.0 are currently undergoing active Windows Sandbox acceptance qualification. Operational certification remains **PENDING final acceptance sign-off**. Do not represent refunds as qualified until clean-machine acceptance concludes.
+> - **Operational Readiness:** Candidate refund capabilities in CBOS 1.3.0 are currently undergoing active Windows Sandbox acceptance qualification. Candidate acceptance of 1.3.0 does not itself redefine the 1.2.3 pilot or 1.3.0 commercial milestones. Operational certification remains **PENDING final acceptance sign-off**. Do not represent refunds as qualified until clean-machine acceptance concludes.
 
 ---
 
