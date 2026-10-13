@@ -1,4 +1,4 @@
-# Support Runbook: POS Thermal Receipt Printer Failure
+﻿# Support Runbook: POS Thermal Receipt Printer Failure
 
 | Attribute | Details |
 | :--- | :--- |
@@ -37,12 +37,19 @@ Customer receipts or kitchen tickets are not printing after completing checkout 
    Restart-Service -Name "Spooler"
    ```
 
-### Step 3: Verify Default Printer Assignment in CBOS
+### Step 3: Verify & Reconfigure Printer in CBOS
 1. Launch CBOS Back Office.
-2. Navigate to **Administration** -> **Printers & Terminals**.
-3. Confirm that the default receipt printer matches the installed Windows print queue name.
-4. Click **Print Test Page** to verify direct communication.
+2. Navigate to **Settings** ribbon page -> **Hardware** group -> **Printers** (`PrinterSettingsForm`).
+3. Select the relevant printer profile in the left-hand profile list (e.g., default Receipt printer).
+4. Verify that the **Installed Windows Printer** dropdown matches the verified Windows print queue name.
+5. Verify that **Document Role** is set to `Receipt` and paper width matches hardware (e.g. `80 mm Standard` or `58 mm Narrow`).
+6. Click **Test Print** (or **Preview Test**) to verify direct rendering and spooling.
 
-### Step 4: Resuming Outbox Print Queue
-- Because CBOS queues secondary receipts through the Transactional Outbox, no receipts were lost during the outage.
-- Once the Windows printer prints successfully, the outbox circuit breaker resets and clears the backlog automatically.
+### Step 4: Inspect Printer Health & Replay Quarantined Jobs
+1. In Back Office, navigate to **Manager Panel** ribbon page -> **Operations / Controls** group -> **Printer Health** (`PrinterHardwareHealthView`).
+2. Inspect the live spooler queue depth and circuit breaker status.
+3. If jobs were quarantined during an extended printer outage, review the quarantined jobs via `PrintJobQuarantineStore` and trigger replay once hardware is operational.
+
+### Step 5: Resuming Outbox Print Queue
+- Because CBOS queues secondary kitchen and receipt prints through the Transactional Outbox, print requests are durably preserved during printer downtime.
+- Once the Windows print spooler and hardware respond, the outbox circuit breaker resets and drains the backlog automatically.

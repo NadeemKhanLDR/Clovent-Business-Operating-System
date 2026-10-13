@@ -1,4 +1,13 @@
-# Clovent Business Operating System - Database Backup & Restore Readiness
+﻿# Clovent Business Operating System - Database Backup & Restore Readiness
+
+> [!NOTE]
+> **SUPERSEDED HISTORICAL DOCUMENTATION**
+>
+> This document is superseded by the authoritative operational standard:
+> - Canonical Backup & Restore Procedures: [`docs/operations/backup-and-restore.md`](operations/backup-and-restore.md)
+> - Disaster Recovery Planning: [`docs/operations/disaster-recovery.md`](operations/disaster-recovery.md)
+>
+> *Note: The active runtime database user is `cbos_app` (not `cbos_runtime`). CBOS does not include a native internal automated backup scheduler; backup automation must be configured at the operating system level (e.g. Windows Task Scheduler or SQL Server Agent).*
 
 This document defines the production database backup and disaster recovery architecture for Clovent Business Operating System (CBOS).
 

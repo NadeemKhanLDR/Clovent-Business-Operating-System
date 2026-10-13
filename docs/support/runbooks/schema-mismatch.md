@@ -1,4 +1,4 @@
-# Support Runbook: Database Schema Mismatch & Upgrade
+﻿# Support Runbook: Database Schema Mismatch & Upgrade
 
 | Attribute | Details |
 | :--- | :--- |
@@ -27,11 +27,14 @@ On application launch, CBOS halts with one of the following dialogs:
    sqlcmd -S "localhost\SQLEXPRESS" -E -Q "BACKUP DATABASE [Clovent_BusinessOperatingSystem] TO DISK = 'C:\Backups\CBOS_PreMigration.bak' WITH INIT;"
    ```
 
-2. **Step 2: Run the Single-File Database Provisioner:**
-   Open PowerShell as Administrator on the workstation:
+2. **Step 2: Apply Migrations via Installer or Standalone Provisioner:**
+   Open PowerShell as Administrator:
    ```powershell
-   cd "C:\Program Files\Clovent\Business Operating System"
-   .\Clovent.Installer.Provisioner.exe --migrate
+   # Option A: Execute setup installer package (applies migrations automatically)
+   .\Clovent.BusinessOperatingSystem-1.3.0-Setup.exe /VERYSILENT
+
+   # Option B: Execute standalone provisioner from release package media or tools
+   .\Clovent.Installer.Provisioner.exe --server "localhost\SQLEXPRESS" --database "Clovent_BusinessOperatingSystem" --auth windows --provision
    ```
 
 3. **Step 3: Inspect Provisioner Output:**

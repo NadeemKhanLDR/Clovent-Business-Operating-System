@@ -1,4 +1,16 @@
-# Clovent Business Operating System - Client Deployment Guide
+﻿# Clovent Business Operating System - Client Deployment Guide
+
+> [!NOTE]
+> **SUPERSEDED HISTORICAL DOCUMENTATION**
+>
+> This document is a historical early deployment outline. It is superseded by the authoritative procedural guides:
+> - Installation & Prerequisites: [`docs/deployment/installation.md`](deployment/installation.md)
+> - First-Run Commissioning: [`docs/deployment/commissioning.md`](deployment/commissioning.md)
+> - Cashier Account Setup: [`docs/deployment/cashier-account-setup.md`](deployment/cashier-account-setup.md)
+> - Upgrade Procedures: [`docs/deployment/upgrades.md`](deployment/upgrades.md)
+> - Uninstallation & Sanitization: [`docs/deployment/uninstallation.md`](deployment/uninstallation.md)
+>
+> *Manual zip file extraction instructions in Section 4 are deprecated; always deploy using the official Inno Setup installer package to ensure proper NTFS ACL and diagnostic registration.*
 
 ## 1. Overview
 Clovent Business Operating System (CBOS) is an enterprise restaurant Point of Sale and Back Office management system built on .NET 10, DevExpress WinForms (v26.1), and Microsoft SQL Server.
@@ -44,9 +56,9 @@ CBOS supports two distribution packages:
 
 ## 5. First-Run Commissioning & Setup Wizard Workflow
 On a brand-new client workstation without existing commissioning data:
-1. **Initial Launch & Commissioning Detection:**  
+1. **Initial Launch & Commissioning Detection:**
    `Clovent.Desktop.exe` checks for all 5 commissioning signals (DB connection, applied migrations, core master data, administrator account, and commissioning marker).
-2. **First-Run Setup Wizard:**  
+2. **First-Run Setup Wizard:**
    If uncommissioned, the wizard opens:
    - **Step 1 (Welcome):** System overview and prerequisites.
    - **Step 2 (Database Connection):** Server name, database name, authentication mode (Windows Auth or SQL Auth with DPAPI encryption). Connection test required to advance.
@@ -56,7 +68,7 @@ On a brand-new client workstation without existing commissioning data:
    - **Step 6 (Regional & Business Settings):** Timezone, date format, 12h/24h time format, currency, and terminal registration name.
    - **Step 7 (Software Licensing):** Workstation Hardware ID display, copy button, and `.lic` file import with cryptographic validation.
    - **Step 8 (Review & Finish):** Parameter summary (zero secrets displayed). Writes protected commissioning marker and transitions directly to Sign-In.
-3. **Subsequent Launches:**  
+3. **Subsequent Launches:**
    Commissioned installations bypass the setup wizard and boot directly to Sign-In.
 
 ---

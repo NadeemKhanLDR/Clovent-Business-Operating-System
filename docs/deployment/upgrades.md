@@ -1,4 +1,4 @@
-# CBOS Client & Database Upgrade Guide
+﻿# CBOS Client & Database Upgrade Guide
 
 | Attribute | Details |
 | :--- | :--- |
@@ -19,17 +19,17 @@ flowchart TD
     PreCheck["1. Pre-Upgrade Preparation<br/>(Take Mandatory Full SQL Database Backup)"]
     DeployClient["2. Deploy Updated Client Package<br/>(Run Inno Setup Installer Over Existing Directory)"]
     StartClient["3. Launch Updated CBOS Desktop"]
-    
+
     SchemaCheck{"DatabaseSchemaCompatibilityValidator<br/>Evaluates Schema State"}
-    
+
     StartClient --> SchemaCheck
     PreCheck --> DeployClient
-    
+
     SchemaCheck -- Compatible --> NormalLaunch["Normal Startup & Login"]
-    SchemaCheck -- DatabaseTooOld --> RunProvisioner["Database Schema Update Required<br/>(Run Clovent.Installer.Provisioner.exe)"]
+    SchemaCheck -- DatabaseTooOld --> RunProvisioner["Database Schema Update Required<br/>(Run Setup Installer or Standalone Provisioner)"]
     SchemaCheck -- DatabaseNewer --> UpgradeClient["Database is Newer Than Client<br/>(Deploy Newer CBOS Client Binary)"]
     SchemaCheck -- ConnectionFailed --> FixConn["Check SQL Service / Firewall / Credentials"]
-    
+
     RunProvisioner --> ApplyMigrations["Provisioner Applies Pending Migrations Atomically"]
     ApplyMigrations --> NormalLaunch
 ```
@@ -54,7 +54,7 @@ sqlcmd -S "localhost\SQLEXPRESS" -E -Q "BACKUP DATABASE [Clovent_BusinessOperati
 ## 3. Application Binary Upgrade
 
 1. Ensure all instances of `Clovent.Desktop.exe` are closed on the workstation.
-2. Run the updated setup installer (e.g. `Clovent.BusinessOperatingSystem-1.2.2-Setup.exe`).
+2. Run the updated setup installer (e.g. `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe` or `Clovent.BusinessOperatingSystem-1.2.2-Setup.exe`).
 3. The installer overwrites binaries in `C:\Program Files\Clovent\Business Operating System\`.
 4. **Configuration Preservation:** Existing DPAPI-encrypted connection strings (`database.config.json`), software licenses (`clovent.lic`), and local POS settings (`pos_settings.json`) are preserved automatically.
 
@@ -67,13 +67,26 @@ When the updated client launches, `DatabaseSchemaCompatibilityValidator` compare
 If migrations are pending, the application presents:
 `"Database Schema Update Required: Database schema is older than the application..."`
 
-### Executing Migrations with `Clovent.Installer.Provisioner.exe`
-Run the provisioner tool bundled in the installation directory as Administrator:
+### Migration Execution Paths
+
+1. **Automatic Upgrade via Inno Setup (Standard Deployment):**
+   When executing an installer upgrade package (e.g., `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`), Inno Setup automatically extracts `Clovent.Installer.Provisioner.exe` to `{tmp}`, executes database provisioning silently using the saved connection credentials, and cleans up the provisioner on completion (`deleteafterinstall`).
+
+2. **Manual Standalone Provisioning (DBA / Support Execution):**
+   If an administrator or field technician needs to apply migrations manually outside the installer (e.g., in headless database deployments or troubleshooting `DatabaseTooOld`), use the standalone single-file `Clovent.Installer.Provisioner.exe` from the release package media or tools build directory:
 
 ```powershell
-cd "C:\Program Files\Clovent\Business Operating System"
-.\Clovent.Installer.Provisioner.exe --migrate
+# Run from the extracted release package media or tools directory (NOT from Program Files)
+.\Clovent.Installer.Provisioner.exe --server "localhost\SQLEXPRESS" --database "Clovent_BusinessOperatingSystem" --auth windows --provision
 ```
+
+For SQL Server Authentication:
+```powershell
+.\Clovent.Installer.Provisioner.exe --server "localhost\SQLEXPRESS" --database "Clovent_BusinessOperatingSystem" --auth sql --username "cbos_app" --password "<password>" --provision
+```
+
+> [!IMPORTANT]
+> The valid CLI parameter is `--provision` (not `--migrate`). Passing `--migrate` is unrecognized and causes error code 64. Furthermore, `Clovent.Installer.Provisioner.exe` is a temporary setup utility; it is **not** deployed into `C:\Program Files\Clovent\Business Operating System\`.
 
 The provisioner:
 - Connects using elevated setup credentials or Windows Authentication.

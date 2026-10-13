@@ -1,4 +1,4 @@
-# CBOS Field Troubleshooting Guide
+﻿# CBOS Field Troubleshooting Guide
 
 | Attribute | Details |
 | :--- | :--- |
@@ -17,7 +17,7 @@
 > When diagnosing and repairing customer installations, support personnel must **NEVER**:
 > - Manually delete or modify rows in `[Restaurant].[Orders]` or `[Identity].[Users]`.
 > - Blindly truncate or delete rows from `[Restaurant].[OutboxMessages]`.
-> - Delete `%ProgramData%\Clovent\BusinessOperatingSystem\continuity_journal.dat` (this permanently destroys un-replayed cash sales!).
+> - Delete `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat` (this permanently destroys un-replayed cash sales!).
 > - Disable Windows Firewall or grant `sa` / `sysadmin` roles to application logins to "fix" connection issues.
 
 ---
@@ -27,7 +27,7 @@
 | Symptom / Error Message | Root Cause | Safe Resolution Procedure | Detailed Runbook |
 | :--- | :--- | :--- | :--- |
 | **"Unable to connect to database"** | SQL service stopped, port 1433 blocked, or DPAPI credentials altered. | 1. Verify `MSSQL$SQLEXPRESS` service is running.<br/>2. Test port 1433 via `Test-NetConnection`.<br/>3. Re-save credentials in `DatabaseConnectionDialog`. | [database-unavailable.md](runbooks/database-unavailable.md) |
-| **"Database Schema Update Required"** | Client assembly is newer than SQL Server schema migrations. | Run `Clovent.Installer.Provisioner.exe --migrate` as Administrator to apply pending migrations. | [schema-mismatch.md](runbooks/schema-mismatch.md) |
+| **"Database Schema Update Required"** | Client assembly is newer than SQL Server schema migrations. | Run updated setup installer or standalone `Clovent.Installer.Provisioner.exe --provision` as Administrator. | [schema-mismatch.md](runbooks/schema-mismatch.md) |
 | **"License Invalid" / "Clock Tampered"** | Clock rolled backward or machine hardware UUID changed. | 1. Verify system clock against NTP.<br/>2. Launch `SoftwareRegistrationForm` to re-import replacement license. | [license-issue.md](runbooks/license-issue.md) |
 | **"Multiple active terminals found..."** | Register workstation has no explicit terminal binding. | Configure `TerminalId` in Master Data > Terminals or set `CBOS_TERMINAL_ID` environment variable. | [terminal-identity.md](../configuration/terminal-identity.md) |
 | **Thermal Printer Unavailable / Queue Stalled** | Printer out of paper, USB disconnected, or spooler jammed. | 1. Refill paper and clear Windows print queue.<br/>2. Outbox will automatically resume without dropping sales. | [printer-failure.md](runbooks/printer-failure.md) |

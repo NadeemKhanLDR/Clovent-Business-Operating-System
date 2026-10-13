@@ -1,4 +1,4 @@
-# Support Runbook: Continuity Mode Troubleshooting
+﻿# Support Runbook: Continuity Mode Troubleshooting
 
 | Attribute | Details |
 | :--- | :--- |
@@ -26,8 +26,8 @@ Orders are being assigned local emergency receipt numbers (`EM-...`), and credit
 ### Golden Rules for Store Managers:
 1. **Cash Only:** Accept physical cash only. Instruct customers paying by card to wait or use alternative registers if connected.
 2. **DO NOT Restart the PC Repeatedly:** Let the cashier continue operating until service slows down or network connectivity returns.
-3. **NEVER Delete `continuity_journal.dat`:**
-   Located at `C:\ProgramData\Clovent\BusinessOperatingSystem\continuity_journal.dat`. This file stores un-replayed cash sales. Deleting it destroys customer sales records!
+3. **NEVER Delete `journal.dat`:**
+   Located at `%ProgramData%\Clovent\BusinessOperatingSystem\ContinuityJournal\journal.dat`. This file stores cryptographically chained (DPAPI/HMAC) un-replayed cash sales. Deleting it destroys customer sales records!
 
 ---
 

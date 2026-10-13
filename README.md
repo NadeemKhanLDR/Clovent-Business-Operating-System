@@ -1,4 +1,4 @@
-# Clovent Business Operating System (CBOS)
+﻿# Clovent Business Operating System (CBOS)
 
 [![Build & Verification Status](https://img.shields.io/badge/Verification-1%2C824%20Passed%20%7C%200%20Failed-success)](#6-current-release-status--verification)
 [![Release Version](https://img.shields.io/badge/Version-1.2.2-blue)](#6-current-release-status--verification)
@@ -145,6 +145,10 @@ All developers and automated agents contributing to CBOS must adhere to authorit
 Consult the comprehensive documentation suite located in [`docs/`](docs/):
 
 - **[Master Documentation Index](docs/README.md)** — Central documentation portal linking all architectural, operational, and support guides.
+- **[Frontline Cashier Operations Guide](docs/pos/cashier-operations-guide.md)** — Everyday cashier operations, shifts, discounts, split payments, customer credit, and closing.
+- **[Cashier Account Setup & Permissions](docs/deployment/cashier-account-setup.md)** — User administration, role assignment, and POS sign-in PIN setup.
+- **[Printer Configuration & Recovery](docs/integrations/printer-configuration.md)** — Hardware printer profiles, roles, paper widths, test prints, driver cash drawer setup, and quarantine recovery.
+- **[Tax Profiles & Classification](docs/catalog/tax-profiles.md)** — Statutory tax profile configuration, classifications, and inclusive/exclusive pricing.
 - **[Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md)** — Multi-milestone roadmap from 1.2.2 to 1.4.0+.
 - **[Known Limitations](docs/known-limitations.md)** — Factual operational boundaries (Refunds, manual card recording, etc.).
 - **[System Architecture](docs/architecture/system-architecture.md)** — Clean Architecture, DDD bounded contexts, CQRS, and outbox patterns.

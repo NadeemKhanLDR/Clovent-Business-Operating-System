@@ -1,4 +1,4 @@
-# Clovent Business Operating System (CBOS) — Master Documentation Index
+﻿# Clovent Business Operating System (CBOS) — Master Documentation Index
 
 > **CBOS Enterprise Documentation Portal**
 > - **Product Version:** CBOS 1.2.2 — Frozen Internal Acceptance Baseline
@@ -72,17 +72,31 @@ If you are new to CBOS, start with your role's onboarding path:
   3. Validate pre-distribution security via [ReleaseGuard Scanner](release/releaseguard.md).
   4. Execute the formal [Release Process](release/release-process.md) and sign off on the [Release Checklist](release/release-checklist.md).
 
+- **For Shop Owners & Store Managers:**
+  1. Complete deployment via [Installation Guide](deployment/installation.md) and [First-Run Commissioning](deployment/commissioning.md).
+  2. Provision cashier accounts and PINs via [Cashier Account Setup & Permissions](deployment/cashier-account-setup.md).
+  3. Set up fiscal tax rates and inclusive/exclusive pricing via [Tax Profiles & Classification](catalog/tax-profiles.md).
+  4. Configure thermal receipt and kitchen printers via [Printer Configuration & Recovery](integrations/printer-configuration.md).
+  5. Train staff using the [Frontline Cashier Operations Guide](pos/cashier-operations-guide.md).
+
+- **For Frontline Cashiers & Head Cashiers:**
+  1. Follow the [Frontline Cashier Operations Guide](pos/cashier-operations-guide.md) for shift open/close, ringing items, discounts, split payments, customer credit, and receipt reprints.
+  2. Review offline cash-only selling rules in [Continuity Mode Runbook](support/runbooks/continuity-mode.md).
+
 - **For Operations & Sysadmins:**
   1. Review [Deployment Topologies](deployment/topologies.md) and [Installation Guide](deployment/installation.md).
   2. Follow the [SQL Server Setup Guide](deployment/sql-server.md) for mixed-mode auth and `cbos_app` permissions.
-  3. Execute [Backup and Restore Runbooks](operations/backup-and-restore.md) and [Disaster Recovery](operations/disaster-recovery.md).
-  4. Review [Upgrade Procedures](deployment/upgrades.md) and [Uninstall Procedures](deployment/uninstallation.md).
+  3. Onboard staff and registers via [Cashier Account Setup](deployment/cashier-account-setup.md).
+  4. Configure POS print queues via [Printer Configuration & Recovery](integrations/printer-configuration.md).
+  5. Execute [Backup and Restore Runbooks](operations/backup-and-restore.md) and [Disaster Recovery](operations/disaster-recovery.md).
+  6. Review [Upgrade Procedures](deployment/upgrades.md) and [Uninstall Procedures](deployment/uninstallation.md).
 
 - **For Support Engineers:**
   1. Bookmark the [Master Troubleshooting Guide](support/troubleshooting.md).
-  2. Study the operational runbooks in [`docs/support/runbooks/`](support/runbooks/).
-  3. Understand [Continuity Mode](resilience/continuity-mode.md) and local journal replay before touching customer databases.
-  4. Always observe [Anti-Destructive Support Rules](support/troubleshooting.md#anti-destructive-support-tenets).
+  2. Consult [Printer Configuration & Recovery](integrations/printer-configuration.md) and [Printer Failure Runbook](support/runbooks/printer-failure.md).
+  3. Study the operational runbooks in [`docs/support/runbooks/`](support/runbooks/).
+  4. Understand [Continuity Mode](resilience/continuity-mode.md) and local journal replay before touching customer databases.
+  5. Always observe [Anti-Destructive Support Rules](support/troubleshooting.md#1-principles-of-safe-support).
 
 ---
 
@@ -129,8 +143,9 @@ If you are new to CBOS, start with your role's onboarding path:
 ### 3.5 POS & Retail Workflows
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
+| **Frontline Cashier Operations Guide** | [`docs/pos/cashier-operations-guide.md`](pos/cashier-operations-guide.md) | Cashiers, Managers | SOURCE-VERIFIED |
 | **Restaurant POS Architecture** | [`docs/pos/pos-architecture.md`](pos/pos-architecture.md) | POS Devs, QA | VALIDATED |
-| **Order Lifecycle State Machine** | [`docs/pos/order-lifecycle.md`](pos/order-lifecycle.md) | Devs, QA | VALIDATED (Refunds Planned 1.3.0) |
+| **Order Lifecycle State Machine** | [`docs/pos/order-lifecycle.md`](pos/order-lifecycle.md) | Devs, QA | VALIDATED (1.2.2 Void Restriction; 1.3.0 Compensating Refunds Candidate) |
 | **Payment Architecture & Tenders**| [`docs/pos/payments.md`](pos/payments.md) | Devs, Finance | VALIDATED (Manual Card Only) |
 | **Shifts & Cash Management** | [`docs/pos/shifts-and-cash-management.md`](pos/shifts-and-cash-management.md) | Devs, QA | VALIDATED |
 
@@ -143,6 +158,7 @@ If you are new to CBOS, start with your role's onboarding path:
 ### 3.7 Third-Party & Peripheral Integrations
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
+| **Printer Configuration & Recovery** | [`docs/integrations/printer-configuration.md`](integrations/printer-configuration.md) | Technicians, Support | SOURCE-VERIFIED |
 | **Printing & Kitchen Dispatch** | [`docs/integrations/printing.md`](integrations/printing.md) | Devs, Hardware | VALIDATED (GDI Spooler; ESC/POS Planned) |
 | **QuickBooks Gateway** | [`docs/integrations/quickbooks.md`](integrations/quickbooks.md) | Architects, Devs | ARCHITECTURE IMPLEMENTED / SIMULATED GATEWAY |
 
@@ -166,13 +182,19 @@ If you are new to CBOS, start with your role's onboarding path:
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Installation & Setup Guide** | [`docs/deployment/installation.md`](deployment/installation.md) | Sysadmins, Ops | VALIDATED |
+| **Cashier Account Setup & Permissions** | [`docs/deployment/cashier-account-setup.md`](deployment/cashier-account-setup.md) | Admins, Store Owners | SOURCE-VERIFIED |
 | **Network & Deployment Topologies**| [`docs/deployment/topologies.md`](deployment/topologies.md) | Architects, Ops | VALIDATED (Single-Terminal 1.2.x Scope) |
 | **SQL Server Setup & Security** | [`docs/deployment/sql-server.md`](deployment/sql-server.md) | DBAs, Sysadmins | VALIDATED |
 | **First-Run Commissioning** | [`docs/deployment/commissioning.md`](deployment/commissioning.md) | Ops, Support | VALIDATED |
 | **Upgrade Procedures & Compatibility**| [`docs/deployment/upgrades.md`](deployment/upgrades.md) | Ops, Devs | VALIDATED |
 | **Uninstallation & Decommissioning**| [`docs/deployment/uninstallation.md`](deployment/uninstallation.md) | Sysadmins | VALIDATED |
 
-### 3.11 Operations, Health & Diagnostics
+### 3.11 Catalog & Fiscal Management
+| Document | Path | Audience | Status |
+| :--- | :--- | :--- | :--- |
+| **Tax Profiles & Classification** | [`docs/catalog/tax-profiles.md`](catalog/tax-profiles.md) | Accountants, Owners | SOURCE-VERIFIED (Synthetic Examples) |
+
+### 3.12 Operations, Health & Diagnostics
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Operations Health & Telemetry** | [`docs/operations/operations-health.md`](operations/operations-health.md) | Ops, Support | VALIDATED |
@@ -180,7 +202,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Database Backup & Restore** | [`docs/operations/backup-and-restore.md`](operations/backup-and-restore.md) | DBAs, Ops | VALIDATED (Pre-Upgrade Only; Maint Planned) |
 | **Disaster Recovery Runbook** | [`docs/operations/disaster-recovery.md`](operations/disaster-recovery.md) | Ops, Sysadmins | VALIDATED |
 
-### 3.12 Development Standards & Governance
+### 3.13 Development Standards & Governance
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Definition of Done (DoD)** | [`docs/development/definition-of-done.md`](development/definition-of-done.md) | All Engineers | PERMANENT STANDARD |
@@ -192,7 +214,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **WinForms Designer Safety Rules** | [`docs/development/winforms-designer-safety.md`](development/winforms-designer-safety.md)| UI Devs | VALIDATED |
 | **High-DPI PerMonitorV2 Standards**| [`docs/development/ui-high-dpi.md`](development/ui-high-dpi.md) | UI Devs | VALIDATED |
 
-### 3.13 Testing & Quality Assurance
+### 3.14 Testing & Quality Assurance
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Testing Strategy & Pyramid** | [`docs/testing/testing-strategy.md`](testing/testing-strategy.md) | QA Leads, Devs | VALIDATED |
@@ -201,7 +223,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Performance Budgets & Benchmarks**| [`docs/testing/performance.md`](testing/performance.md) | QA, Architects | VALIDATED |
 | **Security Testing Protocols** | [`docs/testing/security-testing.md`](testing/security-testing.md) | QA, Security | VALIDATED |
 
-### 3.14 Release Engineering
+### 3.15 Release Engineering
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Canonical Release Process** | [`docs/release/release-process.md`](release/release-process.md) | Release Engineers| VALIDATED |
@@ -210,7 +232,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Artifact & Git Exclusion Policy**| [`docs/release/artifact-policy.md`](release/artifact-policy.md) | All Engineers | VALIDATED |
 | **ReleaseGuard Security Scanner** | [`docs/release/releaseguard.md`](release/releaseguard.md) | DevSecOps, QA | VALIDATED |
 
-### 3.15 Support & Incident Runbooks
+### 3.16 Support & Incident Runbooks
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Master Troubleshooting Matrix** | [`docs/support/troubleshooting.md`](support/troubleshooting.md) | Support, Ops | VALIDATED |
@@ -223,7 +245,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Runbook: Installer Execution Failure**| [`docs/support/runbooks/installer-failure.md`](support/runbooks/installer-failure.md)| Support, Ops | VALIDATED |
 | **Runbook: SQL Express Setup Stalled**| [`docs/support/runbooks/sql-installation-slow.md`](support/runbooks/sql-installation-slow.md)| Support, Ops | VALIDATED |
 
-### 3.16 Enterprise Governance, Roadmap & Audit
+### 3.17 Enterprise Governance, Roadmap & Audit
 | Document | Path | Audience | Status |
 | :--- | :--- | :--- | :--- |
 | **Documentation Coverage Matrix** | [`docs/documentation-coverage.md`](documentation-coverage.md) | Management, QA | VALIDATED |
@@ -233,6 +255,28 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Verified Known Limitations** | [`docs/known-limitations.md`](known-limitations.md) | All Readers | FACTUAL BASELINE |
 | **Canonical Engineering Roadmap** | [`docs/roadmap/engineering-roadmap.md`](roadmap/engineering-roadmap.md)| Architects, PMs | CANONICAL BASELINE |
 | **1.2.3 Implementation Handoff** | [`docs/roadmap/cbos-1.2.3-implementation-handoff.md`](roadmap/cbos-1.2.3-implementation-handoff.md) | Leads, Devs, QA | ACCEPTED PLANNING BASELINE |
+
+### 3.18 Historical & Companion Documents Index
+The following documents reside at the root of `docs/` and represent early architectural drafts, historical baselines, or companion technical references. Each is preserved for repository audit durability, with pointers to its authoritative canonical successor:
+
+| Historical / Companion Document | Path | Status | Authoritative Canonical Successor |
+| :--- | :--- | :--- | :--- |
+| **Client Deployment Guide** | [`docs/DeploymentGuide.md`](DeploymentGuide.md) | SUPERSEDED | [`docs/deployment/installation.md`](deployment/installation.md) & [`docs/deployment/commissioning.md`](deployment/commissioning.md) |
+| **First-Run Commissioning & Setup** | [`docs/FirstRunCommissioning.md`](FirstRunCommissioning.md) | SUPERSEDED | [`docs/deployment/commissioning.md`](deployment/commissioning.md) & [`docs/deployment/cashier-account-setup.md`](deployment/cashier-account-setup.md) |
+| **Database Schema & Upgrade Safety**| [`docs/DatabaseUpgrade.md`](DatabaseUpgrade.md) | SUPERSEDED | [`docs/deployment/upgrades.md`](deployment/upgrades.md) & [`docs/database/migrations.md`](database/migrations.md) |
+| **Database Backup & Restore** | [`docs/BackupRestore.md`](BackupRestore.md) | SUPERSEDED | [`docs/operations/backup-and-restore.md`](operations/backup-and-restore.md) |
+| **Installer & Deployment Arch (1.1.2)**| [`docs/InstallerDeployment.md`](InstallerDeployment.md) | SUPERSEDED (1.1.2) | [`docs/deployment/installation.md`](deployment/installation.md) & Inno Setup scripts |
+| **Client Upgrade Guide** | [`docs/ClientUpgradeGuide.md`](ClientUpgradeGuide.md) | SUPERSEDED | [`docs/deployment/upgrades.md`](deployment/upgrades.md) |
+| **Release Build Specifications** | [`docs/ReleaseBuild.md`](ReleaseBuild.md) | SUPERSEDED | [`docs/release/release-process.md`](release/release-process.md) & [`docs/development/build.md`](development/build.md) |
+| **Support Diagnostics Architecture** | [`docs/SupportDiagnostics.md`](SupportDiagnostics.md) | COMPANION | [`docs/operations/logging-and-diagnostics.md`](operations/logging-and-diagnostics.md) |
+| **Database Configuration Guide** | [`docs/DatabaseConfiguration.md`](DatabaseConfiguration.md) | COMPANION | [`docs/deployment/sql-server.md`](deployment/sql-server.md) |
+| **DateTime & Currency Formatting** | [`docs/DateTimeFormatting.md`](DateTimeFormatting.md) | COMPANION | [`docs/configuration/display-settings.md`](configuration/display-settings.md) |
+| **Back-Office Permission Matrix** | [`docs/PermissionMatrix.md`](PermissionMatrix.md) | COMPANION | [`docs/security/authorization.md`](security/authorization.md) & [`docs/deployment/cashier-account-setup.md`](deployment/cashier-account-setup.md) |
+| **Security Deployment Standard** | [`docs/SecurityDeployment.md`](SecurityDeployment.md) | COMPANION | [`docs/security/security-architecture.md`](security/security-architecture.md) |
+| **Software Licensing Architecture** | [`docs/SoftwareLicensing.md`](SoftwareLicensing.md) | COMPANION | [`docs/security/licensing.md`](security/licensing.md) |
+| **Installer Clean Machine Test Run**| [`docs/InstallerCleanMachineTest.md`](InstallerCleanMachineTest.md) | COMPANION | [`docs/testing/windows-sandbox-acceptance.md`](testing/windows-sandbox-acceptance.md) |
+| **UI Back-Office Standards** | [`docs/UIBackOfficeStandards.md`](UIBackOfficeStandards.md) | COMPANION | [`docs/development/coding-guidelines.md`](development/coding-guidelines.md) |
+| **CBOS 1.2.2 Release Report** | [`docs/cbos_1.2.2_release_report.md`](cbos_1.2.2_release_report.md) | HISTORICAL BASELINE | Internal Acceptance Report |
 
 ---
 

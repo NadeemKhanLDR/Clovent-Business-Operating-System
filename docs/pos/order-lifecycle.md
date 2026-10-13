@@ -1,4 +1,4 @@
-# CBOS Order Lifecycle & Workflow State Machine
+﻿# CBOS Order Lifecycle & Workflow State Machine
 
 | Attribute | Details |
 | :--- | :--- |
@@ -17,7 +17,7 @@ The lifecycle of a customer order in the `Restaurant` bounded context is modeled
 ```mermaid
 stateDiagram-v2
     [*] --> Open: Order.Create(OrderType, Terminal, Branch)
-    
+
     state Open {
         [*] --> Building
         Building --> Building: AddLine / RemoveLine / PriceOverride
@@ -28,20 +28,20 @@ stateDiagram-v2
 
     Open --> Held: Order.Hold(Reason)
     Held --> Open: Order.Resume() / Recall
-    
+
     Open --> Cancelled: Order.Cancel() (No payments recorded)
     Open --> Voided: Order.Void(ManagerPin, Reason)
     Held --> Voided: Order.Void(ManagerPin, Reason)
-    
+
     Open --> Completed: All payments settled (Balance <= 0.005m)
-    
+
     note right of Completed
         Completed is an immutable financial state.
         Voiding or refunding completed orders
         is PROHIBITED in the 1.2.3 pilot.
         Formal Refund aggregate scheduled for 1.3.0.
     end note
-    
+
     Completed --> [*]
     Voided --> [*]
     Cancelled --> [*]
@@ -91,12 +91,11 @@ stateDiagram-v2
 ## 3. Critical Notice on Returns & Refunds
 
 > [!WARNING]
-> **REFUND DOMAIN NOT YET IMPLEMENTED**
+> **REFUND CAPABILITY STATUS BY VERSION**
 >
-> In CBOS 1.2.2 / 1.2.3, a dedicated **Refund / Return Aggregate** is **NOT** implemented in the domain layer.
-> - Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not currently modeled in the codebase.
-> - **Pilot Rule (CBOS 1.2.3):** Voiding or pseudo-refunding completed orders is prohibited during the attended single-terminal pilot to prevent corrupting completed financial ledgers and day-close figures.
-> - **Roadmap Status:** A formal compensating Refund & Return domain aggregate (with inventory restock credit, credit vouchers, and reversing ledger entries) is scheduled for **CBOS 1.3.0**. Do not present refund features as available in current production deployments.
+> - **CBOS 1.2.2 / 1.2.3 Baseline:** A dedicated **Refund / Return Aggregate** is **NOT** implemented in the 1.2.x domain layer. Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not modeled. Voiding or pseudo-refunding completed orders is strictly prohibited during 1.2.x pilot operations.
+> - **CBOS 1.3.0 Candidate Implementation:** A formal compensating Refund & Return domain aggregate (`Refund`, `RefundLine`) and UI workflow (`RefundOrderDialog`) have been implemented in source code. This feature provides itemized line refunds, restock vs waste recording, card refund maximum validation, and manager authorization.
+> - **Operational Readiness:** Candidate refund capabilities in CBOS 1.3.0 are currently undergoing active Windows Sandbox acceptance qualification. Operational certification remains **PENDING final acceptance sign-off**. Do not represent refunds as qualified until clean-machine acceptance concludes.
 
 ---
 

@@ -1,4 +1,4 @@
-# CBOS Logging & Diagnostics Architecture
+﻿# CBOS Logging & Diagnostics Architecture
 
 | Attribute | Details |
 | :--- | :--- |
@@ -21,7 +21,9 @@ Diagnostics are rooted in `Microsoft.Extensions.Logging` and extended via a roll
 ## 2. File Logging Architecture (`FileLoggerProvider`)
 
 ### 2.1 Physical Storage & File Rotation
-- **Directory Path:** `%LOCALAPPDATA%\Clovent\Logs\` (with certain components logging under `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\`).
+- **Directory Paths by Component:**
+  - **Desktop Application Runtime Logs:** `%LOCALAPPDATA%\Clovent\Logs\` (configured by `FileLoggerOptions`).
+  - **Setup, Installer & Provisioner Logs:** `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\` (configured by Inno Setup and provisioning tools).
 - **File Naming Pattern:** `cbos-YYYY-MM-DD.log`
 - **Rotation Policy:** Automatically rolls over daily with retained file count limits.
 - **Log Format:** Structured textual entries containing timestamp, log level, event category/logger name, and message:

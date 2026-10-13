@@ -1,4 +1,15 @@
-# Clovent Business Operating System - Database Schema & Upgrade Safety Guide
+﻿# Clovent Business Operating System - Database Schema & Upgrade Safety Guide
+
+> [!NOTE]
+> **SUPERSEDED HISTORICAL DOCUMENTATION**
+>
+> This document is superseded by the authoritative guides:
+> - Canonical Upgrades Guide: [`docs/deployment/upgrades.md`](deployment/upgrades.md)
+> - Database Migrations Architecture: [`docs/database/migrations.md`](database/migrations.md)
+> - Database Schema Architecture: [`docs/database/database-architecture.md`](database/database-architecture.md)
+> - Schema Mismatch Runbook: [`docs/support/runbooks/schema-mismatch.md`](support/runbooks/schema-mismatch.md)
+>
+> *Note: The command `Clovent.Desktop.exe --upgrade-database` does NOT exist in CBOS. Upgrades are performed by running the setup installer (e.g. `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`) or the standalone provisioner `Clovent.Installer.Provisioner.exe --provision`.*
 
 This document defines the schema compatibility, migration lifecycle, and database upgrade procedures in Clovent Business Operating System (CBOS).
 
@@ -51,9 +62,12 @@ All tables reside within a single physical database (`Clovent_BusinessOperatingS
    ```powershell
    BACKUP DATABASE [Clovent_BusinessOperatingSystem] TO DISK = 'C:\ProgramData\Clovent\BusinessOperatingSystem\Backups\Clovent_BusinessOperatingSystem_backup_preupgrade.bak' WITH FORMAT, INIT;
    ```
-3. **Run Application in Upgrade Mode:** Launch executable with administrative rights:
-   ```cmd
-   Clovent.Desktop.exe --upgrade-database
+3. **Execute Upgrade Provisioning:**
+   Run the updated setup installer package (which provisions automatically during setup), or execute the standalone provisioner from the release package tools:
+   ```powershell
+   # Standalone provisioner tool execution:
+   .\Clovent.Installer.Provisioner.exe --server "localhost\SQLEXPRESS" --database "Clovent_BusinessOperatingSystem" --auth windows --provision
    ```
+   *(Note: The command `Clovent.Desktop.exe --upgrade-database` does not exist).*
 4. **Validation:** Review log output in `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\` confirming all 6 contexts reported `All migrations successfully applied`.
 5. **Relaunch Terminals:** Launch standard POS terminals. Startup schema check validates `Compatible` and presents Sign-In screen.

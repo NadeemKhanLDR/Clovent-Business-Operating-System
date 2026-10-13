@@ -1,4 +1,13 @@
-# Clovent Business Operating System - Support Diagnostics Architecture
+﻿# Clovent Business Operating System - Support Diagnostics Architecture
+
+> [!NOTE]
+> **COMPANION OPERATIONAL REFERENCE**
+>
+> For complete diagnostic logging configuration and file rotation architecture, consult:
+> - Canonical Logging & Diagnostics: [`docs/operations/logging-and-diagnostics.md`](operations/logging-and-diagnostics.md)
+> - Master Field Troubleshooting: [`docs/support/troubleshooting.md`](support/troubleshooting.md)
+>
+> *Log Directory Clarification: Desktop application rolling logs are stored in `%LOCALAPPDATA%\Clovent\Logs\`; setup and installer logs are stored in `%ProgramData%\Clovent\BusinessOperatingSystem\Logs\`.*
 
 This document specifies the support diagnostic subsystem in Clovent Business Operating System (CBOS), designed to provide rapid, safe, and privacy-preserving troubleshooting information to customer support engineers.
 

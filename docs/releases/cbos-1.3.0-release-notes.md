@@ -1,10 +1,10 @@
-# Clovent Business Operating System (CBOS) — Release 1.3.0 Release Notes & Pilot Sign-Off Summary
+﻿# Clovent Business Operating System (CBOS) — Release 1.3.0 Release Notes & Pilot Sign-Off Summary
 
-**Target Baseline:** CBOS 1.3.0 (Release Candidate 1)  
-**Distribution Target:** Windows x64 (`net10.0-windows` / `net10.0` Self-Contained)  
-**Installer Package:** `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`  
-**Date:** October 9, 2026  
-**Status:** Certified Release Candidate (100% Test Green, 0 ReleaseGuard Violations)  
+**Target Baseline:** CBOS 1.3.0 (Release Candidate 1)
+**Distribution Target:** Windows x64 (`net10.0-windows` / `net10.0` Self-Contained)
+**Installer Package:** `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`
+**Date:** October 9, 2026
+**Status:** Release Candidate 1 under Active Windows Sandbox Qualification (Pilot Certification Pending Acceptance Results)
 
 ---
 
@@ -78,7 +78,7 @@ USE [Clovent_BusinessOperatingSystem];
 GO
 
 -- 1. Verify Bounded Migration History
-SELECT [ContextKey], [MigrationId], [ProductVersion] 
+SELECT [ContextKey], [MigrationId], [ProductVersion]
 FROM [dbo].[__EFMigrationsHistory]
 ORDER BY [MigrationId] DESC;
 
@@ -95,8 +95,8 @@ FROM [dbo].[__EFMigrationsHistory]
 WHERE [MigrationId] = '20261008152015_AddRefundDomainAndTaxSnapshots';
 
 -- 2. Verify New Physical Tables Exist in Dedicated Schemas
-SELECT TABLE_SCHEMA, TABLE_NAME 
-FROM INFORMATION_SCHEMA.TABLES 
+SELECT TABLE_SCHEMA, TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_NAME IN (
     'TaxProfiles',
     'Refunds',
@@ -109,7 +109,7 @@ WHERE TABLE_NAME IN (
 ORDER BY TABLE_SCHEMA, TABLE_NAME;
 
 -- 3. Verify Refund Foreign Keys and Constraints
-SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE 
+SELECT CONSTRAINT_NAME, CONSTRAINT_TYPE
 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
 WHERE TABLE_NAME IN ('Refunds', 'RefundLines');
 ```
@@ -178,8 +178,8 @@ Full-solution compilation and automated test execution across all 21 test projec
 
 ---
 
-## 7. Pilot Sign-Off Certification
+## 7. Pilot Sign-Off Qualification Status
 
 - **Build Quality:** Solution compiles with 0 Errors and 0 Warnings in Release configuration.
 - **Architectural Conformance:** Strict alignment with `AGENTS.md` and `.agents/rules/` regarding financial ledger immutability, DPAPI security, single physical database schema isolation, and exact tested artifact packaging.
-- **Release Qualification:** CBOS 1.3.0 Release Candidate 1 is fully packaged, signed/hashed, and ready for deployment to pilot restaurant terminals.
+- **Acceptance Status:** CBOS 1.3.0 Release Candidate 1 is packaged via authoritative script `Tools/installer/cbos-setup.iss`. Live Windows Sandbox clean-machine acceptance testing, refund edge-case verification, and Authenticode signing / SHA-256 manifest generation are actively in progress by the acceptance stream. Production pilot sign-off remains **PENDING final acceptance verification**.

@@ -1,4 +1,12 @@
-# Clovent Business Operating System - First-Run Commissioning & Setup Guide
+﻿# Clovent Business Operating System - First-Run Commissioning & Setup Guide
+
+> [!NOTE]
+> **SUPERSEDED HISTORICAL DOCUMENTATION**
+>
+> This document is superseded by the canonical procedural standard:
+> - Canonical Commissioning Guide: [`docs/deployment/commissioning.md`](deployment/commissioning.md)
+> - Cashier Account Onboarding: [`docs/deployment/cashier-account-setup.md`](deployment/cashier-account-setup.md)
+> - Terminal Identity Configuration: [`docs/configuration/terminal-identity.md`](configuration/terminal-identity.md)
 
 This document details the multi-step First-Run Commissioning Wizard, commissioning state detection logic, and clean-machine onboarding workflow in Clovent Business Operating System (CBOS).
 
@@ -8,15 +16,15 @@ This document details the multi-step First-Run Commissioning Wizard, commissioni
 
 CBOS does not rely on a simple editable boolean flag such as `FirstRun=true` to determine whether an installation is ready for operational use. A reliable, multi-signal heuristic is evaluated on every application launch by `CommissioningStateService`:
 
-1. **Signal 1: Database Configuration Exists & Is Reachable**  
+1. **Signal 1: Database Configuration Exists & Is Reachable**
    `database.config.json` is located in `%ProgramData%\Clovent\BusinessOperatingSystem\Config\`, contains valid server/credentials, and successfully connects.
-2. **Signal 2: Database Schema Initialized**  
+2. **Signal 2: Database Schema Initialized**
    The target physical database exists and all EF Core migrations across all 6 bounded contexts are applied.
-3. **Signal 3: Foundational Master Data Exists**  
+3. **Signal 3: Foundational Master Data Exists**
    At least one valid Organization, Company, and Branch record exist in the database.
-4. **Signal 4: Active Administrator Account Exists**  
+4. **Signal 4: Active Administrator Account Exists**
    At least one active user exists with the `Administrator` role assigned in `IdentityDbContext`.
-5. **Signal 5: Local Commissioning Marker Present**  
+5. **Signal 5: Local Commissioning Marker Present**
    A cryptographic / protected commissioning record exists in `%ProgramData%\Clovent\BusinessOperatingSystem\Config\commissioning.json`.
 
 If **ALL 5 signals** are satisfied, the system is deemed **Commissioned** and launches directly to the Sign-In screen. If **ANY signal is missing**, the First-Run Setup Wizard is presented.

@@ -1,6 +1,14 @@
-# Clovent Business Operating System - Installer & Deployment Architecture
+﻿# Clovent Business Operating System - Installer & Deployment Architecture
 
-**Version:** 1.1.2 (Current) | 1.1.1, 1.1.0, 1.0.8, 1.0.7 (Frozen Baselines Preserved)  
+> [!NOTE]
+> **SUPERSEDED HISTORICAL ARCHITECTURAL DOCUMENT (VERSION 1.1.2)**
+>
+> This document documents the historical 1.1.2 installer architecture. It is superseded by the authoritative procedural guides:
+> - Canonical Installation Guide: [`docs/deployment/installation.md`](deployment/installation.md)
+> - Current Installer Scripts: `installer/Clovent.BusinessOperatingSystem.iss` (1.2.2 baseline) and `Tools/installer/cbos-setup.iss` (1.3.0 RC pilot packaging).
+> - First-Run Commissioning: [`docs/deployment/commissioning.md`](deployment/commissioning.md)
+
+**Version:** 1.1.2 (Historical) | 1.2.2 (Frozen Internal Baseline) | 1.3.0 (Release Candidate under Active Qualification)
 **Authoritative Reference:** [AGENTS.md](../AGENTS.md) | [winforms-ui.md](../.agents/rules/winforms-ui.md) | [database.md](../.agents/rules/database.md) | [security.md](../.agents/rules/security.md) | [release.md](../.agents/rules/release.md)
 
 ---
