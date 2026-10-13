@@ -345,32 +345,81 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
                 return;
             }
 
-            await using var conn = new SqlConnection(connectionString);
-            await conn.OpenAsync(ct).ConfigureAwait(false);
+            var machineName = Environment.MachineName;
+            var designatedPrincipal = ResolveDesignatedWindowsPrincipal(machineName);
 
-            const string grantSql = """
-                IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'BUILTIN\Users')
-                BEGIN
-                    CREATE LOGIN [BUILTIN\Users] FROM WINDOWS;
-                END;
-                IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'BUILTIN\Users')
-                BEGIN
-                    CREATE USER [BUILTIN\Users] FOR LOGIN [BUILTIN\Users];
-                END;
-                ALTER ROLE [db_datareader] ADD MEMBER [BUILTIN\Users];
-                ALTER ROLE [db_datawriter] ADD MEMBER [BUILTIN\Users];
-                GRANT EXECUTE TO [BUILTIN\Users];
-                GRANT VIEW DEFINITION TO [BUILTIN\Users];
-                """;
+            // 1. Server-level login on master
+            var masterBuilder = new SqlConnectionStringBuilder(connectionString)
+            {
+                InitialCatalog = "master"
+            };
+            await using (var masterConn = new SqlConnection(masterBuilder.ConnectionString))
+            {
+                await masterConn.OpenAsync(ct).ConfigureAwait(false);
+                await using var loginCmd = masterConn.CreateCommand();
+                loginCmd.CommandText = $"""
+                    IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{designatedPrincipal}')
+                    BEGIN
+                        CREATE LOGIN [{designatedPrincipal}] FROM WINDOWS;
+                    END;
+                    """;
+                loginCmd.CommandTimeout = 30;
+                await loginCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
 
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = grantSql;
-            cmd.CommandTimeout = 30;
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            // 2. Database-level user and role memberships on target database
+            await using (var conn = new SqlConnection(connectionString))
+            {
+                await conn.OpenAsync(ct).ConfigureAwait(false);
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = $"""
+                    IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'{designatedPrincipal}')
+                    BEGIN
+                        CREATE USER [{designatedPrincipal}] FOR LOGIN [{designatedPrincipal}];
+                    END;
+                    ALTER ROLE [db_datareader] ADD MEMBER [{designatedPrincipal}];
+                    ALTER ROLE [db_datawriter] ADD MEMBER [{designatedPrincipal}];
+                    GRANT EXECUTE TO [{designatedPrincipal}];
+                    GRANT VIEW DEFINITION TO [{designatedPrincipal}];
+                    """;
+                cmd.CommandTimeout = 30;
+                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+
+            logger?.LogInformation("Successfully provisioned database access for designated Windows principal '{Principal}'.", designatedPrincipal);
         }
         catch (Exception ex)
         {
-            logger?.LogDebug(ex, "Best-effort BUILTIN\\Users database access grant skipped.");
+            logger?.LogWarning(ex, "Designated Windows principal database access grant failed: {Message}", ex.Message);
         }
+    }
+
+    private static string ResolveDesignatedWindowsPrincipal(string machineName)
+    {
+        var envPrincipal = Environment.GetEnvironmentVariable("CBOS_DESIGNATED_WINDOWS_PRINCIPAL");
+        if (!string.IsNullOrWhiteSpace(envPrincipal))
+        {
+            return envPrincipal.Trim();
+        }
+
+        string[] candidates = [$@"{machineName}\cbos_cashier", $@"{machineName}\CBOS_POS_Users", "cbos_cashier", "CBOS_POS_Users"];
+        foreach (var c in candidates)
+        {
+            try
+            {
+                var account = new System.Security.Principal.NTAccount(c);
+                var sid = account.Translate(typeof(System.Security.Principal.SecurityIdentifier));
+                if (sid != null)
+                {
+                    return c;
+                }
+            }
+            catch
+            {
+                // Account or group does not exist on this workstation
+            }
+        }
+
+        return @"BUILTIN\Users";
     }
 }
