@@ -533,7 +533,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 refund.Id.Value.ToString(),
                 refundNumber.Value,
                 JsonSerializer.Serialize(restockPayload),
-                $"RESTOCK-{refund.Id.Value:N}");
+                $"RESTOCK-{refund.Id.Value:N}",
+                priority: 0,
+                availableAtUtc: DateTimeOffset.UtcNow.AddSeconds(10));
 
             await _outboxRepository.AddAsync(restockOutboxMessage, cancellationToken);
         }
@@ -647,7 +649,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         catch (Exception)
         {
             // If inline post-commit inventory restock fails (or in minimal unit tests without inventory handlers),
-            // the durable OutboxMessage remains unprocessed in [Restaurant].[OutboxMessages] for guaranteed retry.
+            // the durable OutboxMessage remains in [Restaurant].[OutboxMessages] for guaranteed retry by OutboxProcessor.
         }
     }
 
