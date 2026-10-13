@@ -7042,10 +7042,21 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// <summary>Gets the active POS shift, if one is currently open.</summary>
     public Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? ActiveShift => _activeShift;
 
+    private Guid _lastKnownBranchId;
+    private DateOnly? _lastKnownBusinessDate;
+
     /// <summary>Sets the active POS shift and updates UI accordingly.</summary>
     public void SetActiveShift(Clovent.Restaurant.Application.Shifts.Dtos.ShiftDto? shift)
     {
         _activeShift = shift;
+        if (shift != null)
+        {
+            if (shift.BranchId != Guid.Empty)
+            {
+                _lastKnownBranchId = shift.BranchId;
+            }
+            _lastKnownBusinessDate = DateOnly.FromDateTime(BusinessDateTimeService.Instance.ConvertUtcToBusinessTime(shift.OpenedAtUtc).DateTime);
+        }
         if (_cashierLabel != null)
         {
             if (_activeShift != null)
@@ -7157,16 +7168,10 @@ public sealed partial class RestaurantPosForm : XtraForm
                 $"Expected Cash: {CurrencyDisplay.Format(summary.ExpectedCash)}\n" +
                 $"Counted Cash: {CurrencyDisplay.Format(summary.CountedCash)}\n" +
                 $"Variance: {CurrencyDisplay.Format(summary.Variance)}\n\n" +
-                "You will now be returned to the Login screen.",
+                "You can now run End of Day, open a new shift, switch to Back Office, or log out.",
                 "Shift Closed",
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
-
-            if (_applicationModeNavigator != null)
-            {
-                _closeInitiator = PosCloseInitiator.SessionSignOut;
-                await _applicationModeNavigator.OpenLoginAsync();
-            }
         }
     }
 
@@ -7307,30 +7312,35 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task HandleEndOfDayAsync()
     {
-        var branchId = _activeShift?.BranchId ?? Guid.Empty;
+        var branchId = _activeShift?.BranchId ?? _lastKnownBranchId;
         var branchName = "Branch";
         var businessDate = _activeShift != null
             ? DateOnly.FromDateTime(BusinessDateTimeService.Instance.ConvertUtcToBusinessTime(_activeShift.OpenedAtUtc).DateTime)
-            : DateTimeDisplay.GetCurrentBusinessDate();
+            : (_lastKnownBusinessDate ?? DateTimeDisplay.GetCurrentBusinessDate());
 
         try
         {
-            if (branchId == Guid.Empty)
+            var termResService = _scope?.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
+            if (termResService != null)
             {
-                var termResService = _scope?.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.ITerminalResolutionService>();
-                if (termResService != null)
+                var termRes = await termResService.ResolveCurrentTerminalAsync();
+                if (termRes.BranchId.HasValue && branchId == Guid.Empty)
                 {
-                    var termRes = await termResService.ResolveCurrentTerminalAsync();
-                    if (termRes.BranchId.HasValue)
-                    {
-                        branchId = termRes.BranchId.Value;
-                        branchName = termRes.BranchName ?? "Branch";
-                    }
+                    branchId = termRes.BranchId.Value;
+                }
+                if (!string.IsNullOrWhiteSpace(termRes.BranchName))
+                {
+                    branchName = termRes.BranchName;
                 }
             }
 
+            if (branchId == Guid.Empty)
+            {
+                branchId = PosSettingsStore.LoadBranchId() ?? Guid.Empty;
+            }
+
             var dateProvider = _scope?.ServiceProvider.GetService<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider>();
-            if (dateProvider != null)
+            if (dateProvider != null && _activeShift == null && _lastKnownBusinessDate == null)
             {
                 businessDate = dateProvider.GetCurrentBusinessDate();
             }
@@ -7827,7 +7837,28 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
         }
 
-        using var form = new CustomerEditForm("New Customer");
+        string nextCode = "C001";
+        try
+        {
+            var customers = await _mediator.Send(new ListCustomersQuery());
+            var nextNumber = 1;
+            foreach (var c in customers)
+            {
+                if (c.Code.StartsWith("C", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(c.Code.AsSpan(1), out var num) &&
+                    num >= nextNumber)
+                {
+                    nextNumber = num + 1;
+                }
+            }
+            nextCode = $"C{nextNumber:D3}";
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Failed to compute next customer code for POS quick customer dialog.");
+        }
+
+        using var form = new CustomerEditForm("New Customer", code: nextCode, creditLimit: 50000m, isCreditAllowed: true);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
             await TryRunAsync(async () =>

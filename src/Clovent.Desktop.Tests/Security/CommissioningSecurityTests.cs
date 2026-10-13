@@ -102,11 +102,13 @@ public sealed class CommissioningSecurityTests
         Assert.EndsWith("License", ProgramDataAclManager.LicenseDirectory);
         Assert.EndsWith("Logs", ProgramDataAclManager.LogsDirectory);
         Assert.EndsWith("State", ProgramDataAclManager.StateDirectory);
+        Assert.EndsWith("PrintJobs", ProgramDataAclManager.PrintJobsDirectory);
 
         Assert.Contains(ProgramDataAclManager.ConfigDirectory, ProgramDataAclManager.ManagedSubdirectories);
         Assert.Contains(ProgramDataAclManager.LicenseDirectory, ProgramDataAclManager.ManagedSubdirectories);
         Assert.Contains(ProgramDataAclManager.LogsDirectory, ProgramDataAclManager.ManagedSubdirectories);
         Assert.Contains(ProgramDataAclManager.StateDirectory, ProgramDataAclManager.ManagedSubdirectories);
+        Assert.Contains(ProgramDataAclManager.PrintJobsDirectory, ProgramDataAclManager.ManagedSubdirectories);
     }
 
     [Fact]

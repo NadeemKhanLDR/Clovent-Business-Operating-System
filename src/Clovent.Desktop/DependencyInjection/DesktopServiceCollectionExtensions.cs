@@ -111,16 +111,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<FirstRunWizardForm>();
 
         services.TryAddTransient<MainForm>();
-        services.TryAddSingleton<IWorkspaceHost>(sp =>
-        {
-            var navigator = sp.GetService<IApplicationModeNavigator>();
-            if (navigator?.CurrentWorkspaceHost is { } host)
-            {
-                return host;
-            }
-
-            return sp.GetRequiredService<MainForm>();
-        });
+        services.TryAddSingleton<IWorkspaceHost>(sp => new NavigatorWorkspaceHostProxy(sp));
         services.TryAddSingleton<INavigationService, NavigationService>();
         services.TryAddScoped<NavigationMenuBuilder>();
 
@@ -263,6 +254,36 @@ public static class DesktopServiceCollectionExtensions
         services.AddSingleton<Clovent.Restaurant.Application.Printing.IReceiptPrintService, DesktopReceiptPrintService>();
 
         return services;
+    }
+
+    private sealed class NavigatorWorkspaceHostProxy(IServiceProvider serviceProvider) : IWorkspaceHost
+    {
+        private MainForm? _fallbackMainForm;
+
+        private IWorkspaceHost ResolveActiveHost()
+        {
+            var navigator = serviceProvider.GetService<IApplicationModeNavigator>();
+            if (navigator?.CurrentWorkspaceHost is { } activeHost)
+            {
+                if (activeHost is not System.Windows.Forms.Control ctrl || !ctrl.IsDisposed)
+                {
+                    return activeHost;
+                }
+            }
+
+            if (_fallbackMainForm == null || _fallbackMainForm.IsDisposed)
+            {
+                _fallbackMainForm = serviceProvider.GetRequiredService<MainForm>();
+            }
+
+            return _fallbackMainForm;
+        }
+
+        public void ShowDocument(string key, string caption, Func<System.Windows.Forms.Control> contentFactory, bool allowMultipleInstances = false) =>
+            ResolveActiveHost().ShowDocument(key, caption, contentFactory, allowMultipleInstances);
+
+        public void SetStatus(string text) =>
+            ResolveActiveHost().SetStatus(text);
     }
 }
 

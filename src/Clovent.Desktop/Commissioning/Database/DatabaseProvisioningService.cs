@@ -320,6 +320,9 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
                 await restaurantInit.InitializeAsync(ct).ConfigureAwait(false);
             }
 
+            // 7. Ensure local workstation standard users (BUILTIN\Users) can access the commissioned database under Windows Authentication
+            await EnsureStandardWindowsUsersDatabaseAccessAsync(connectionString, ct).ConfigureAwait(false);
+
             progressCallback?.Invoke("Database migrations completed successfully.", 100);
             logger?.LogInformation("All bounded context migrations and schema initializations applied successfully.");
             return (true, "All database migrations and schemas were applied successfully.");
@@ -329,6 +332,45 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
             var masked = DatabaseErrorMasker.Mask(ex.Message, connectionString);
             logger?.LogError(ex, "Database migration failed: {Message}", masked);
             return (false, $"Database migration failed: {masked}");
+        }
+    }
+
+    private async Task EnsureStandardWindowsUsersDatabaseAccessAsync(string connectionString, CancellationToken ct)
+    {
+        try
+        {
+            var csBuilder = new SqlConnectionStringBuilder(connectionString);
+            if (!csBuilder.IntegratedSecurity)
+            {
+                return;
+            }
+
+            await using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            const string grantSql = """
+                IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'BUILTIN\Users')
+                BEGIN
+                    CREATE LOGIN [BUILTIN\Users] FROM WINDOWS;
+                END;
+                IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'BUILTIN\Users')
+                BEGIN
+                    CREATE USER [BUILTIN\Users] FOR LOGIN [BUILTIN\Users];
+                END;
+                ALTER ROLE [db_datareader] ADD MEMBER [BUILTIN\Users];
+                ALTER ROLE [db_datawriter] ADD MEMBER [BUILTIN\Users];
+                GRANT EXECUTE TO [BUILTIN\Users];
+                GRANT VIEW DEFINITION TO [BUILTIN\Users];
+                """;
+
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = grantSql;
+            cmd.CommandTimeout = 30;
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "Best-effort BUILTIN\\Users database access grant skipped.");
         }
     }
 }

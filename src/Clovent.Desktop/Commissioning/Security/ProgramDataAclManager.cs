@@ -56,6 +56,11 @@ public static class ProgramDataAclManager
     public static string CartCheckpointsDirectory => Path.Combine(BaseDirectory, "CartCheckpoints");
 
     /// <summary>
+    /// Subdirectory for durable print job tracking and quarantined print jobs.
+    /// </summary>
+    public static string PrintJobsDirectory => Path.Combine(BaseDirectory, "PrintJobs");
+
+    /// <summary>
     /// All managed subdirectories under %ProgramData%\Clovent\BusinessOperatingSystem\.
     /// </summary>
     public static readonly string[] ManagedSubdirectories =
@@ -66,13 +71,14 @@ public static class ProgramDataAclManager
         StateDirectory,
         ContinuityJournalDirectory,
         OperationalCacheDirectory,
-        CartCheckpointsDirectory
+        CartCheckpointsDirectory,
+        PrintJobsDirectory
     ];
 
     /// <summary>
     /// Creates the standard directory structure and applies hardened Windows ACLs.
     /// Administrators &amp; SYSTEM: FullControl.
-    /// Built-in Users: Read-only on Config, License, State; Modify on Logs, ContinuityJournal, OperationalCache, CartCheckpoints.
+    /// Built-in Users: Read-only on Config, License, State; Modify on Logs, ContinuityJournal, OperationalCache, CartCheckpoints, PrintJobs.
     /// Handles errors gracefully if running in a non-elevated or restricted context.
     /// </summary>
     /// <returns>True if all directories and ACLs were configured successfully; otherwise, false.</returns>
@@ -119,6 +125,7 @@ public static class ProgramDataAclManager
             ApplyDirectorySecurity(ContinuityJournalDirectory, isLogs: true);
             ApplyDirectorySecurity(OperationalCacheDirectory, isLogs: true);
             ApplyDirectorySecurity(CartCheckpointsDirectory, isLogs: true);
+            ApplyDirectorySecurity(PrintJobsDirectory, isLogs: true);
 
             return true;
         }

@@ -433,6 +433,63 @@ public class ApplicationModeNavigatorTests
         navigator.CurrentForm.Dispose();
     }
 
+    [Fact]
+    public async Task OpenBackOfficeAsync_AfterPosRoundTrip_RoutesNavigationToActiveMainFormWorkspaceHost()
+    {
+        var services = new ServiceCollection();
+        var fakeErrorService = new FakeErrorDialogService();
+        var appContext = new CbosApplicationContext();
+
+        services.AddSingleton(appContext);
+        services.AddSingleton<IErrorDialogService>(fakeErrorService);
+        services.AddSingleton<IApplicationModeNavigator>(sp =>
+            new ApplicationModeNavigator(sp, appContext, fakeErrorService, NullLogger<ApplicationModeNavigator>.Instance));
+        services.AddTransient<RestaurantPosForm>();
+        services.AddTransient<MainForm>(_ => (MainForm)Activator.CreateInstance(typeof(MainForm), nonPublic: true)!);
+
+        // Register the production IWorkspaceHost proxy and NavigationService
+        services.AddSingleton<IWorkspaceHost>(sp =>
+        {
+            var proxyType = typeof(Clovent.Desktop.DependencyInjection.DesktopServiceCollectionExtensions)
+                .GetNestedType("NavigatorWorkspaceHostProxy", System.Reflection.BindingFlags.NonPublic)!;
+            return (IWorkspaceHost)Activator.CreateInstance(proxyType, sp)!;
+        });
+        services.AddSingleton<INavigationService>(sp =>
+        {
+            var nav = new NavigationService(sp, NullLogger<NavigationService>.Instance);
+            nav.Register("dashboard", () => new Control());
+            nav.Register("endofday", () => new Control());
+            return nav;
+        });
+
+        var provider = services.BuildServiceProvider();
+        var navigator = provider.GetRequiredService<IApplicationModeNavigator>();
+        var navService = provider.GetRequiredService<INavigationService>();
+        var workspaceHostProxy = provider.GetRequiredService<IWorkspaceHost>();
+
+        // 1. Open Back Office (MainForm #1)
+        await navigator.OpenBackOfficeAsync("dashboard", "Dashboard");
+        var firstMainForm = Assert.IsType<MainForm>(navigator.CurrentForm);
+        Assert.Same(firstMainForm, navigator.CurrentWorkspaceHost);
+
+        // 2. Switch to POS -> disposes MainForm #1
+        await navigator.OpenPosAsync();
+        Assert.True(firstMainForm.IsDisposed);
+        Assert.Null(navigator.CurrentWorkspaceHost);
+
+        // 3. Switch back to Back Office (MainForm #2) and navigate to End-of-Day report
+        await navigator.OpenBackOfficeAsync("endofday", "Sales Summary");
+        var secondMainForm = Assert.IsType<MainForm>(navigator.CurrentForm);
+        Assert.NotSame(firstMainForm, secondMainForm);
+        Assert.False(secondMainForm.IsDisposed);
+        Assert.Same(secondMainForm, navigator.CurrentWorkspaceHost);
+        Assert.Equal("endofday", navService.CurrentKey);
+
+        // Ensure proxy resolves to the live secondMainForm, not the disposed firstMainForm
+        workspaceHostProxy.SetStatus("Report Ready");
+        secondMainForm.Dispose();
+    }
+
     private sealed class TestSyncContext : SynchronizationContext
     {
         private readonly Action<SendOrPostCallback, object?> _postHandler;

@@ -258,4 +258,12 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>Cash refund payout validation failed closed because payment-method metadata is unavailable.</summary>
     public static RestaurantDomainException CashRefundPaymentMethodValidationUnavailable(string details) =>
         new($"Cash refund payout validation failed closed: {details}");
+
+    /// <summary>External card refund exceeds remaining net card paid on original sale.</summary>
+    public static RestaurantDomainException CardRefundExceedsPaidFunds(decimal requested, decimal maxAllowed) =>
+        new($"External card refund of {requested:N2} exceeds remaining eligible card paid of {maxAllowed:N2} on original sale.");
+
+    /// <summary>External card refund validation failed closed because payment-method metadata is unavailable.</summary>
+    public static RestaurantDomainException CardRefundPaymentMethodValidationUnavailable(string details) =>
+        new($"External card refund validation failed closed: {details}");
 }

@@ -393,15 +393,15 @@ internal static class Program
                         {
                             using var scope = host.Services.CreateScope();
                             var gate = scope.ServiceProvider.GetService<Clovent.Desktop.Restaurant.Services.IPosEntryGateCoordinator>();
-                            var opened = gate != null && await gate.EnsureShiftAndOpenPosAsync().ConfigureAwait(false);
+                            var opened = gate != null && await gate.EnsureShiftAndOpenPosAsync();
                             if (!opened)
                             {
-                                await navigator.OpenBackOfficeAsync().ConfigureAwait(false);
+                                await navigator.OpenBackOfficeAsync();
                             }
                         }
                         else
                         {
-                            await navigator.OpenBackOfficeAsync().ConfigureAwait(false);
+                            await navigator.OpenBackOfficeAsync();
                         }
                     }
                     catch (Exception ex)

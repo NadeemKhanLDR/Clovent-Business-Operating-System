@@ -452,6 +452,41 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 throw RestaurantDomainException.CashRefundExceedsPaidFunds(grandTotalRefunded, maxCashAllowed);
             }
         }
+        else if (request.SettlementMethod == RefundSettlementMethod.ExternalCardRefund)
+        {
+            // External card refund records an external card settlement reference in POS and cannot exceed
+            // remaining card tender received on the original sale (never silently shifts refundable cash capacity to card).
+            if (_paymentMethodRepository == null)
+            {
+                throw RestaurantDomainException.CardRefundPaymentMethodValidationUnavailable(
+                    "Payment method repository is unavailable; cannot verify original card tender cap.");
+            }
+
+            var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
+            var cardMethodIds = methods
+                .Where(m => string.Equals(m.Name.Value, "Card", StringComparison.OrdinalIgnoreCase))
+                .Select(m => m.Id.Value)
+                .ToHashSet();
+
+            if (cardMethodIds.Count == 0)
+            {
+                throw RestaurantDomainException.CardRefundPaymentMethodValidationUnavailable(
+                    "No 'Card' payment method is configured; cannot verify original card tender cap.");
+            }
+
+            var totalCardPaid = payments
+                .Where(p => !p.IsVoided && cardMethodIds.Contains(p.PaymentMethodId.Value))
+                .Sum(p => p.Amount);
+            var priorCardRefunds = priorRefunds
+                .Where(r => r.SettlementMethod == RefundSettlementMethod.ExternalCardRefund)
+                .Sum(r => r.GrandTotalRefunded);
+
+            var maxCardAllowed = Math.Max(0m, totalCardPaid - priorCardRefunds);
+            if (grandTotalRefunded > maxCardAllowed)
+            {
+                throw RestaurantDomainException.CardRefundExceedsPaidFunds(grandTotalRefunded, maxCardAllowed);
+            }
+        }
         else if (request.SettlementMethod == RefundSettlementMethod.CustomerAccountCredit)
         {
             if (order.CustomerId == null)

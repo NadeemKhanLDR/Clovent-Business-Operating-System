@@ -39,10 +39,10 @@ public sealed class PosEntryGateCoordinator(
         // 0. Pre-flight Database Health Check
         if (continuityCoordinator != null)
         {
-            var isDbUp = await continuityCoordinator.CheckDatabaseHealthAsync().ConfigureAwait(false);
+            var isDbUp = await continuityCoordinator.CheckDatabaseHealthAsync();
             if (!isDbUp)
             {
-                return await TryStartContinuityModeAsync(owner, null).ConfigureAwait(false);
+                return await TryStartContinuityModeAsync(owner, null);
             }
         }
 
@@ -197,7 +197,7 @@ public sealed class PosEntryGateCoordinator(
             // Database connectivity failed during gate resolution; attempt safe continuity mode startup
             if (continuityCoordinator != null)
             {
-                return await TryStartContinuityModeAsync(owner, null).ConfigureAwait(false);
+                return await TryStartContinuityModeAsync(owner, null);
             }
             throw;
         }
@@ -218,7 +218,7 @@ public sealed class PosEntryGateCoordinator(
                 Guid.Empty, "Main Warehouse", "PKR", "Rs.", 2);
         }
 
-        var (status, msg) = await continuityCoordinator.ValidateCacheAsync().ConfigureAwait(false);
+        var (status, msg) = await continuityCoordinator.ValidateCacheAsync();
         if (status is CacheValidationStatus.Valid or CacheValidationStatus.StaleWithinPolicy)
         {
             var snapshot = continuityCoordinator.ActiveCache;
@@ -255,7 +255,7 @@ public sealed class PosEntryGateCoordinator(
                 "Primary database is currently unreachable.\n\nOpening Restaurant POS in Continuity Mode (Cash Only).\nTransactions are secured in the encrypted local journal and will synchronize upon network restoration.",
                 "Database Offline - Continuity Mode");
 
-            await OpenPosWithShiftAsync(offlineShift).ConfigureAwait(false);
+            await OpenPosWithShiftAsync(offlineShift);
             return true;
         }
 

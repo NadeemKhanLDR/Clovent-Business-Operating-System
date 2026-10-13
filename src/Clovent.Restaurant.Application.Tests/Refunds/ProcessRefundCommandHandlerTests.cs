@@ -834,6 +834,165 @@ public class ProcessRefundCommandHandlerTests
         Assert.Empty(await _refundRepo.GetAllAsync());
     }
 
+    [Fact]
+    public async Task ProcessRefund_ExternalCardRefundOnSplitOrder_EnforcesCardOnlyCapAndRejectsShiftingCashCapacityToCard()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        // Line 1 (Taxable 16%): 2 units @ 2000 = 4000 gross, 400 discount, 3600 base, 576 tax = 4176 net (2088 per unit)
+        var line1 = OrderLine.Create(order.Id, ProductVariantId.New(), 2m, 2000m, 16m, false);
+        line1.SetTaxSnapshot("Taxable", "PRA", "PK-PRA-16", 3600m, 400m, 576m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line1.Id);
+        await _orderLineRepo.AddAsync(line1);
+
+        // Line 2 (OutOfScope 0%): 2 units @ 340 = 680 gross, 68 discount, 612 base, 0 tax = 612 net (306 per unit)
+        var line2 = OrderLine.Create(order.Id, ProductVariantId.New(), 2m, 340m, 0m, false);
+        line2.SetTaxSnapshot("OutOfScope", "FBR", "PK-EXEMPT", 612m, 68m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line2.Id);
+        await _orderLineRepo.AddAsync(line2);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var cardMethod = PaymentMethod.Create(PaymentMethodName.Create("Card"));
+        var paymentMethodRepo = new StubPaymentMethodRepository([cashMethod, cardMethod]);
+
+        // Split tender: 2,394.00 Cash + 2,394.00 Card = 4,788.00 Total
+        var cashPay = Payment.Create(order.Id, cashMethod.Id, 2394m, null);
+        var cardPay = Payment.Create(order.Id, cardMethod.Id, 2394m, null);
+        order.RecordPayment(cashPay.Id);
+        order.RecordPayment(cardPay.Id);
+        await _paymentRepo.AddAsync(cashPay);
+        await _paymentRepo.AddAsync(cardPay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: paymentMethodRepo);
+
+        var cashierId = Guid.NewGuid();
+
+        // 1. First partial refund: 1x Line 1 (2,088.00) via CashPayout -> succeeds (leaves 306.00 Cash capacity and 2,394.00 Card capacity)
+        var cashRefund1 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m)],
+            "Partial return 1x taxable item in cash",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-SPLIT-CASH-2088",
+            cashierId,
+            "Cashier"), CancellationToken.None);
+        Assert.Equal(2088.00m, cashRefund1.GrandTotalRefunded);
+
+        // 2. Attempting to refund all remaining items (1x Line 1 + 2x Line 2 = 2,700.00) via ExternalCardRefund MUST FAIL
+        // because only 2,394.00 was paid by Card (cannot silently shift 306.00 of refundable Cash capacity to Card).
+        var overCardEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [
+                    new RefundItemRequest(line1.Id.Value, 1m),
+                    new RefundItemRequest(line2.Id.Value, 2m)
+                ],
+                "Attempt to shift 306 cash capacity onto external card refund",
+                RefundSettlementMethod.ExternalCardRefund,
+                "IDEMP-SPLIT-CARD-OVER-2700",
+                cashierId,
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("exceeds remaining eligible card paid", overCardEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        // 3. Refunding 1x Line 1 + 1x Line 2 (2,088.00 + 306.00 = 2,394.00) via ExternalCardRefund succeeds
+        var cardRefund = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [
+                new RefundItemRequest(line1.Id.Value, 1m),
+                new RefundItemRequest(line2.Id.Value, 1m)
+            ],
+            "Card-capped refund matching original 2,394.00 card tender",
+            RefundSettlementMethod.ExternalCardRefund,
+            "IDEMP-SPLIT-CARD-EXACT-2394",
+            cashierId,
+            "Cashier",
+            SettlementReference: "EXT-CARD-REF-001"), CancellationToken.None);
+        Assert.Equal(2394.00m, cardRefund.GrandTotalRefunded);
+
+        // 4. Refunding the final 1x Line 2 (306.00) via CashPayout consumes the exact remaining 306.00 Cash capacity
+        var cashRefund2 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line2.Id.Value, 1m)],
+            "Remaining cash refund consuming 306.00 cash capacity",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-SPLIT-CASH-306",
+            cashierId,
+            "Cashier"), CancellationToken.None);
+        Assert.Equal(306.00m, cashRefund2.GrandTotalRefunded);
+
+        var allRefunds = await _refundRepo.GetByOrderIdAsync(order.Id);
+        Assert.Equal(3, allRefunds.Count);
+        Assert.Equal(2394.00m, allRefunds.Where(r => r.SettlementMethod == RefundSettlementMethod.CashPayout).Sum(r => r.GrandTotalRefunded));
+        Assert.Equal(2394.00m, allRefunds.Where(r => r.SettlementMethod == RefundSettlementMethod.ExternalCardRefund).Sum(r => r.GrandTotalRefunded));
+    }
+
+    [Fact]
+    public async Task ProcessRefund_ExternalCardRefundWithMissingOrUnconfiguredPaymentMethodDependency_FailsClosedAndCannotBypassCardCap()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 1000m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 1000m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var cashPay = Payment.Create(order.Id, _cashMethod.Id, 1000m, null);
+        order.RecordPayment(cashPay.Id);
+        await _paymentRepo.AddAsync(cashPay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handlerWithNullRepo = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: null);
+
+        var nullRepoEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handlerWithNullRepo.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m)],
+                "Attempt card refund with null paymentMethodRepository",
+                RefundSettlementMethod.ExternalCardRefund,
+                "IDEMP-FAIL-CLOSED-NULL-CARD-REPO",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("failed closed", nullRepoEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        var handlerWithoutCardMethod = CreateHandler(); // Only has _cashMethod configured
+        var noCardMethodEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handlerWithoutCardMethod.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m)],
+                "Attempt card refund without Card payment method configured",
+                RefundSettlementMethod.ExternalCardRefund,
+                "IDEMP-FAIL-CLOSED-NO-CARD-PM",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("failed closed", noCardMethodEx.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(await _refundRepo.GetAllAsync());
+    }
+
     private sealed class StubFeatureAuthorizationPolicy(HashSet<(Guid UserId, string Code)> grants)
         : Clovent.Identity.Application.Authorization.IFeatureAuthorizationPolicy
     {

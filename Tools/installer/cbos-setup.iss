@@ -10,6 +10,16 @@
 #define MyAppExeName "Clovent.Desktop.exe"
 #define MyAppId "{{C107E47D-CB05-47F1-9BD7-A107CB052026}}"
 
+#ifndef PublishDir
+  #define PublishDir "..\..\artifacts\release\Clovent.BusinessOperatingSystem-win-x64"
+#endif
+#ifndef ProvisionerDir
+  #define ProvisionerDir "..\Clovent.Installer.Provisioner\bin\publish"
+#endif
+#ifndef OutputDir
+  #define OutputDir "..\..\artifacts\installer"
+#endif
+
 [Setup]
 AppId={#MyAppId}
 AppName={#MyAppName}
@@ -19,7 +29,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\Clovent\Business Operating System
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir=..\..\artifacts\installer
+OutputDir={#OutputDir}
 OutputBaseFilename=Clovent.BusinessOperatingSystem-1.3.0-Setup
 UninstallDisplayIcon={app}\Clovent.Desktop.exe
 Compression=lzma2/max
@@ -50,21 +60,22 @@ Name: "{commonappdata}\Clovent\BusinessOperatingSystem\Config"; Permissions: sys
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\License"; Permissions: system-full admins-full users-readexec
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\State"; Permissions: system-full admins-full users-readexec
 
-; Operational stores (Logs, ContinuityJournal, OperationalCache, CartCheckpoints): Admins/SYSTEM Full Control, standard Users Modify
+; Operational stores (Logs, ContinuityJournal, OperationalCache, CartCheckpoints, PrintJobs): Admins/SYSTEM Full Control, standard Users Modify
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\Logs"; Permissions: system-full admins-full users-modify
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\ContinuityJournal"; Permissions: system-full admins-full users-modify
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\OperationalCache"; Permissions: system-full admins-full users-modify
 Name: "{commonappdata}\Clovent\BusinessOperatingSystem\CartCheckpoints"; Permissions: system-full admins-full users-modify
+Name: "{commonappdata}\Clovent\BusinessOperatingSystem\PrintJobs"; Permissions: system-full admins-full users-modify
 
 [Files]
 ; 1. Main application payload (Self-contained .NET 10 win-x64 release binaries)
-Source: "..\..\artifacts\release\Clovent.BusinessOperatingSystem-win-x64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 2. Configuration reference templates for administrators
 Source: "templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 3. Internal silent database provisioner CLI (Single-file win-x64 extracted to {tmp} and deleted on setup completion)
-Source: "..\Clovent.Installer.Provisioner\bin\publish\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
+Source: "{#ProvisionerDir}\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\Resources\cbos.ico"
