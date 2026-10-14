@@ -533,9 +533,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 refund.Id.Value.ToString(),
                 refundNumber.Value,
                 JsonSerializer.Serialize(restockPayload),
-                $"RESTOCK-{refund.Id.Value:N}",
-                priority: 0,
-                availableAtUtc: DateTimeOffset.UtcNow.AddSeconds(10));
+                $"RESTOCK-{refund.Id.Value:N}");
 
             await _outboxRepository.AddAsync(restockOutboxMessage, cancellationToken);
         }

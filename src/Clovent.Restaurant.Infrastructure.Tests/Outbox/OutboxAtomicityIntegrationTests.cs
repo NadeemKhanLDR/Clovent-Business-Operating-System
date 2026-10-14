@@ -410,4 +410,68 @@ public sealed class OutboxAtomicityIntegrationTests : SqliteTestBase
             }
         }
     }
+
+    [Fact]
+    public async Task I_RefundAndOutboxMessages_CommitAtomicallyAndProcessWithOptimisticConcurrency()
+    {
+        await using var context = CreateContext();
+        var refundRepo = new RefundRepository(context);
+        var outboxRepo = new OutboxRepository(context);
+
+        var refundNumber = Clovent.Restaurant.Refunds.RefundNumber.Generate(DateTimeOffset.UtcNow);
+        var refund = Clovent.Restaurant.Refunds.Refund.Create(
+            refundNumber,
+            new OrderId(Guid.NewGuid()),
+            new Clovent.Identity.Branches.BranchId(Guid.NewGuid()),
+            new Clovent.MasterData.Warehouses.WarehouseId(Guid.NewGuid()),
+            Guid.NewGuid(),
+            "cashier",
+            "Customer Return",
+            $"IDEMP-REFUND-{Guid.NewGuid():N}",
+            Clovent.Restaurant.Refunds.RefundSettlementMethod.CashPayout);
+
+        var outboxMsg = OutboxMessage.Create(
+            OutboxMessageType.InventoryPosting,
+            "Refund",
+            refund.Id.Value.ToString(),
+            refundNumber.Value,
+            "{\"OrderId\":\"" + refund.Id.Value + "\"}",
+            $"RESTOCK-{refund.Id.Value:N}");
+
+        // Act: Commit in single transaction
+        await using (var tx = await context.Database.BeginTransactionAsync())
+        {
+            await refundRepo.AddAsync(refund);
+            await outboxRepo.AddAsync(outboxMsg);
+            await context.SaveChangesAsync();
+            await tx.CommitAsync();
+        }
+
+        // Assert: Both entities persisted atomically, outbox message available immediately (no 10s grace period)
+        await using var verifyContext = CreateContext();
+        var savedRefund = await verifyContext.Refunds.FindAsync(refund.Id);
+        var savedOutbox = await verifyContext.OutboxMessages.FindAsync(outboxMsg.Id);
+
+        Assert.NotNull(savedRefund);
+        Assert.NotNull(savedOutbox);
+        Assert.Equal(OutboxMessageStatus.Pending, savedOutbox.Status);
+        Assert.True(savedOutbox.AvailableAtUtc <= DateTimeOffset.UtcNow + TimeSpan.FromSeconds(2));
+
+        // Optimistic concurrency: two concurrent workers attempt to claim the same restock outbox message
+        await using var worker1 = CreateContext();
+        await using var worker2 = CreateContext();
+
+        var msg1 = await worker1.OutboxMessages.FirstAsync(m => m.Id == outboxMsg.Id);
+        var msg2 = await worker2.OutboxMessages.FirstAsync(m => m.Id == outboxMsg.Id);
+
+        msg1.ClaimForProcessing();
+        await worker1.SaveChangesAsync();
+
+        msg2.ClaimForProcessing();
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(async () =>
+        {
+            await worker2.SaveChangesAsync();
+        });
+    }
 }
+

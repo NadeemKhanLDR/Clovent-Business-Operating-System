@@ -993,6 +993,121 @@ public class ProcessRefundCommandHandlerTests
         Assert.Empty(await _refundRepo.GetAllAsync());
     }
 
+    [Fact]
+    public async Task ProcessRefund_ConcurrentOutboxProcessingAndRetry_MaintainsAtomicPersistenceAndExactlyOnceStockEffect()
+    {
+        var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
+        var outboxRepo = new StubOutboxRepository();
+        var recordedInventoryTx = new List<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>();
+        var stockReceiveCalls = 0;
+        var syncLock = new object();
+
+        var mediator = new FakeMediator(req =>
+        {
+            if (req is Clovent.Inventory.Application.Transactions.Queries.ListInventoryTransactionsByReferenceQuery query)
+            {
+                lock (syncLock)
+                {
+                    var matches = recordedInventoryTx
+                        .Where(t => t.ReferenceType == query.ReferenceType && t.ReferenceId == query.ReferenceId)
+                        .ToList();
+                    return Task.FromResult<object?>((IReadOnlyCollection<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>)matches);
+                }
+            }
+
+            if (req is Clovent.Inventory.Application.WarehouseStocks.Commands.OpenOrReceiveStockCommand receiveCmd)
+            {
+                lock (syncLock)
+                {
+                    stockReceiveCalls++;
+                    recordedInventoryTx.Add(new Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto(
+                        Guid.NewGuid(),
+                        receiveCmd.WarehouseId,
+                        receiveCmd.ProductVariantId,
+                        nameof(Clovent.Inventory.Transactions.InventoryTransactionType.Receipt),
+                        receiveCmd.Quantity,
+                        receiveCmd.ReferenceType,
+                        receiveCmd.ReferenceId,
+                        receiveCmd.Notes,
+                        DateTimeOffset.UtcNow));
+
+                    return Task.FromResult<object?>(new Clovent.Inventory.Application.WarehouseStocks.Dtos.WarehouseStockDto(
+                        Guid.NewGuid(),
+                        receiveCmd.WarehouseId,
+                        receiveCmd.ProductVariantId,
+                        receiveCmd.Quantity,
+                        0m,
+                        receiveCmd.Quantity,
+                        0m,
+                        0m,
+                        false,
+                        DateTimeOffset.UtcNow,
+                        DateTimeOffset.UtcNow));
+                }
+            }
+
+            return Task.FromResult<object?>(null);
+        });
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            mediator,
+            _unitOfWork,
+            outboxRepository: outboxRepo,
+            paymentMethodRepository: _paymentMethodRepo);
+
+        var cmd = new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m, InventoryDisposition.Restock)],
+            "Concurrent outbox and retry verification",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-CONCURRENT-OUTBOX-RETRY",
+            Guid.NewGuid(),
+            "Cashier");
+
+        // 1. Process refund: commits Refund + OutboxMessage atomically in same unit of work
+        var refundDto = await handler.Handle(cmd, CancellationToken.None);
+        Assert.NotNull(refundDto);
+
+        // Verify outbox message was persisted immediately (not delayed by any artificial grace period)
+        var outboxMsg = Assert.Single(outboxRepo.Messages);
+        Assert.Equal($"RESTOCK-{refundDto.RefundId:N}", outboxMsg.IdempotencyKey);
+        Assert.True(outboxMsg.AvailableAtUtc <= DateTimeOffset.UtcNow + TimeSpan.FromSeconds(2),
+            "OutboxMessage must be available immediately without artificial delay.");
+
+        // 2. Simulate concurrent background OutboxProcessor processing the message while an inline command retry arrives
+        var outboxHandler = new Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler(
+            mediator,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
+
+        var taskOutboxWorker = Task.Run(async () =>
+        {
+            await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
+        });
+
+        var taskRetryCommand = Task.Run(async () =>
+        {
+            return await handler.Handle(cmd, CancellationToken.None);
+        });
+
+        await Task.WhenAll(taskOutboxWorker, taskRetryCommand);
+        var retryDto = await taskRetryCommand;
+
+        // 3. Exactly-once assertions:
+        // - Both calls returned the same refund DTO
+        Assert.Equal(refundDto.RefundId, retryDto.RefundId);
+        // - Stock receive was invoked strictly once despite concurrent outbox processing and command retry
+        Assert.Equal(1, stockReceiveCalls);
+        // - Single recorded inventory receipt transaction
+        Assert.Single(recordedInventoryTx);
+    }
+
     private sealed class StubFeatureAuthorizationPolicy(HashSet<(Guid UserId, string Code)> grants)
         : Clovent.Identity.Application.Authorization.IFeatureAuthorizationPolicy
     {
