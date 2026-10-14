@@ -55,4 +55,27 @@ public class UnitOfWorkBehaviorTests
 
         Assert.Equal(0, unitOfWork.SaveChangesCallCount);
     }
+
+    private sealed record SampleQuery;
+
+    [Fact]
+    public async Task Handle_WhenRequestIsQuery_DoesNotSaveChanges()
+    {
+        var unitOfWork = new FakeUnitOfWork();
+        var behavior = new UnitOfWorkBehavior<SampleQuery, string>(unitOfWork);
+        var nextCalled = false;
+
+        var result = await behavior.Handle(
+            new SampleQuery(),
+            () =>
+            {
+                nextCalled = true;
+                return Task.FromResult("response");
+            },
+            CancellationToken.None);
+
+        Assert.True(nextCalled);
+        Assert.Equal("response", result);
+        Assert.Equal(0, unitOfWork.SaveChangesCallCount);
+    }
 }

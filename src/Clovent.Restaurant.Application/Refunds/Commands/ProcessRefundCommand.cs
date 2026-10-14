@@ -151,7 +151,14 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         if (existingRefund != null)
         {
             ValidateIdempotencyDetails(existingRefund, request);
-            await EnsureRestockAppliedIdempotentlyAsync(existingRefund, null, cancellationToken);
+            if (_outboxProcessor != null)
+            {
+                _outboxProcessor.TriggerImmediate();
+            }
+            else
+            {
+                await EnsureRestockAppliedInlineFallbackAsync(existingRefund, cancellationToken);
+            }
             return RefundDto.FromDomain(existingRefund);
         }
 
@@ -582,22 +589,35 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             if (existing != null)
             {
                 ValidateIdempotencyDetails(existing, request);
-                await EnsureRestockAppliedIdempotentlyAsync(existing, null, cancellationToken);
+                if (_outboxProcessor != null)
+                {
+                    _outboxProcessor.TriggerImmediate();
+                }
+                else
+                {
+                    await EnsureRestockAppliedInlineFallbackAsync(existing, cancellationToken);
+                }
                 return RefundDto.FromDomain(existing);
             }
             throw;
         }
 
-        // 11. Post-commit idempotent inventory restock application (recoverable via durable OutboxMessage on crash/failure)
-        await EnsureRestockAppliedIdempotentlyAsync(refund, restockOutboxMessage, cancellationToken);
-        _outboxProcessor?.TriggerImmediate();
+        // 11. Post-commit inventory restock dispatch: in production, OutboxProcessor is the sole owner of outbox message processing
+        if (_outboxProcessor != null)
+        {
+            _outboxProcessor.TriggerImmediate();
+        }
+        else
+        {
+            // Minimal test harnesses without background outbox processor apply restock inline
+            await EnsureRestockAppliedInlineFallbackAsync(refund, cancellationToken);
+        }
 
         return RefundDto.FromDomain(refund);
     }
 
-    private async Task EnsureRestockAppliedIdempotentlyAsync(
+    private async Task EnsureRestockAppliedInlineFallbackAsync(
         Refund refund,
-        OutboxMessage? outboxMessage,
         CancellationToken cancellationToken)
     {
         var groupedRestock = refund.Lines
@@ -635,19 +655,19 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                     cancellationToken);
             }
 
-            outboxMessage ??= _outboxRepository != null
-                ? await _outboxRepository.GetByIdempotencyKeyAsync($"RESTOCK-{refund.Id.Value:N}", cancellationToken)
-                : null;
-            if (outboxMessage != null && outboxMessage.Status != OutboxMessageStatus.Completed)
+            if (_outboxRepository != null)
             {
-                outboxMessage.MarkCompleted(DateTimeOffset.UtcNow);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                var outboxMessage = await _outboxRepository.GetByIdempotencyKeyAsync($"RESTOCK-{refund.Id.Value:N}", cancellationToken);
+                if (outboxMessage != null && outboxMessage.Status != OutboxMessageStatus.Completed)
+                {
+                    outboxMessage.MarkCompleted(DateTimeOffset.UtcNow);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
             }
         }
         catch (Exception)
         {
-            // If inline post-commit inventory restock fails (or in minimal unit tests without inventory handlers),
-            // the durable OutboxMessage remains in [Restaurant].[OutboxMessages] for guaranteed retry by OutboxProcessor.
+            // Fallback for minimal test environments without inventory handlers registered
         }
     }
 

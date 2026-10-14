@@ -628,6 +628,7 @@ public class ProcessRefundCommandHandlerTests
             mediator,
             Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
         await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
+        outboxMsg.MarkCompleted(DateTimeOffset.UtcNow);
         Assert.Equal(1, stockReceiveCalls);
 
         // 3. Duplicate delivery to InventoryPostingOutboxHandler AND idempotent retry of ProcessRefundCommand: zero duplicate stock movements
