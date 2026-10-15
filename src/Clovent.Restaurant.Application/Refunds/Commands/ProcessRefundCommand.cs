@@ -349,29 +349,26 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 throw RestaurantDomainException.RefundExceedsRemainingEligibility(line.Id, reqItem.Quantity, remainingQty);
             }
 
-            decimal discountReversed;
-            decimal taxReversed;
+            var calc = RefundCalculator.CalculateLineRefund(
+                originalQuantity: line.Quantity,
+                unitPrice: line.UnitPrice,
+                allocatedDiscount: line.AllocatedDiscount,
+                taxAmount: line.TaxAmount ?? 0m,
+                taxIsInclusive: line.TaxIsInclusive,
+                priorRefundedQuantity: priorQty,
+                priorDiscountReversed: priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value),
+                priorTaxReversed: priorTaxReversedByLine.GetValueOrDefault(line.Id.Value),
+                requestedQuantity: reqItem.Quantity);
 
-            if (reqItem.Quantity == remainingQty)
-            {
-                // Final partial refund of this line: absorbs exact remaining residual cents
-                discountReversed = line.AllocatedDiscount - priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value);
-                taxReversed = (line.TaxAmount ?? 0m) - priorTaxReversedByLine.GetValueOrDefault(line.Id.Value);
-            }
-            else
-            {
-                // Partial refund: proportional allocation rounded AwayFromZero
-                var ratio = reqItem.Quantity / line.Quantity;
-                discountReversed = MoneyRoundingPolicy.RoundMoney(line.AllocatedDiscount * ratio);
-                taxReversed = MoneyRoundingPolicy.RoundMoney((line.TaxAmount ?? 0m) * ratio);
-            }
+            var discountReversed = calc.DiscountReversed;
+            var taxReversed = calc.TaxReversed;
 
             priorRefundedQtyByLine[line.Id.Value] = priorQty + reqItem.Quantity;
             priorDiscountReversedByLine[line.Id.Value] = priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value) + discountReversed;
             priorTaxReversedByLine[line.Id.Value] = priorTaxReversedByLine.GetValueOrDefault(line.Id.Value) + taxReversed;
 
-            var grossRefund = MoneyRoundingPolicy.RoundMoney(reqItem.Quantity * line.UnitPrice);
-            var linePayableRefund = grossRefund - discountReversed + (line.TaxIsInclusive ? 0m : taxReversed);
+            var grossRefund = calc.GrossRefund;
+            var linePayableRefund = calc.NetPayableRefund;
 
             variantMap.TryGetValue(line.ProductVariantId.Value, out var variantDto);
             var sku = variantDto?.Sku ?? string.Empty;

@@ -126,4 +126,37 @@ public class BusinessSettingsAndDisplayTests
         Assert.True(form.Right <= screen.WorkingArea.Right);
         Assert.True(form.Bottom <= screen.WorkingArea.Bottom);
     }
+
+    [Fact]
+    public void DesktopDialogSizing_WhenHandleCreated_CentersImmediately()
+    {
+        using var form = new Form();
+        _ = form.Handle;
+        Assert.True(form.IsHandleCreated);
+
+        DesktopDialogSizing.Apply(form, 640, 480, 500, 400, null, true);
+
+        var screen = Screen.FromControl(form) ?? Screen.PrimaryScreen;
+        Assert.NotNull(screen);
+
+        Assert.True(form.Left >= screen.WorkingArea.Left);
+        Assert.True(form.Top >= screen.WorkingArea.Top);
+        Assert.True(form.Right <= screen.WorkingArea.Right);
+        Assert.True(form.Bottom <= screen.WorkingArea.Bottom);
+    }
+
+    [Fact]
+    public void DesktopDialogSizing_SharedDialog_SoftwareRegistrationForm_FitsWithinWorkingArea()
+    {
+        using var form = new Clovent.Desktop.Licensing.SoftwareRegistrationForm();
+        DesktopDialogSizing.CenterOnOwnerOrScreen(form, null);
+
+        var screen = Screen.FromControl(form) ?? Screen.PrimaryScreen;
+        Assert.NotNull(screen);
+
+        Assert.True(form.Left >= screen.WorkingArea.Left, $"Form left {form.Left} must be >= screen left {screen.WorkingArea.Left}");
+        Assert.True(form.Top >= screen.WorkingArea.Top, $"Form top {form.Top} must be >= screen top {screen.WorkingArea.Top}");
+        Assert.True(form.Right <= screen.WorkingArea.Right, $"Form right {form.Right} must be <= screen right {screen.WorkingArea.Right}");
+        Assert.True(form.Bottom <= screen.WorkingArea.Bottom, $"Form bottom {form.Bottom} must be <= screen bottom {screen.WorkingArea.Bottom}");
+    }
 }

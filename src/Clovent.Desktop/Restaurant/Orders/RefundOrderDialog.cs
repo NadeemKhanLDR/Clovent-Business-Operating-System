@@ -47,8 +47,32 @@ public sealed class RefundLineItemRow
     /// <summary>Selling unit price from original sale.</summary>
     public decimal UnitPrice { get; set; }
 
-    /// <summary>Estimated refund total for this line.</summary>
-    public decimal EstimatedRefund => MoneyRoundingPolicy.RoundMoney(RefundQuantity * UnitPrice);
+    /// <summary>Total discount allocated to this line on the original sale.</summary>
+    public decimal AllocatedDiscount { get; set; }
+
+    /// <summary>Total tax amount on this line from the original sale.</summary>
+    public decimal TaxAmount { get; set; }
+
+    /// <summary>Whether original tax was inclusive.</summary>
+    public bool TaxIsInclusive { get; set; }
+
+    /// <summary>Total discount reversed on previous credit notes for this line.</summary>
+    public decimal AlreadyReversedDiscount { get; set; }
+
+    /// <summary>Total tax reversed on previous credit notes for this line.</summary>
+    public decimal AlreadyReversedTax { get; set; }
+
+    /// <summary>Estimated refundable net amount after allocated discounts and applicable tax.</summary>
+    public decimal EstimatedRefund => RefundCalculator.CalculateLineRefund(
+        OriginalQuantity,
+        UnitPrice,
+        AllocatedDiscount,
+        TaxAmount,
+        TaxIsInclusive,
+        AlreadyRefundedQuantity,
+        AlreadyReversedDiscount,
+        AlreadyReversedTax,
+        RefundQuantity).NetPayableRefund;
 
     /// <summary>Whether returned stock is restored to warehouse inventory or written off as waste.</summary>
     public InventoryDisposition Disposition { get; set; } = InventoryDisposition.Restock;
@@ -264,6 +288,7 @@ public sealed partial class RefundOrderDialog : XtraForm
                         _linesGridView.SetRowCellValue(e.RowHandle, e.Column, 0);
                     }
                 }
+                _linesGridView.RefreshRow(e.RowHandle);
                 UpdateSummary();
             }
         };
@@ -330,10 +355,22 @@ public sealed partial class RefundOrderDialog : XtraForm
                 .GroupBy(l => l.OrderLineId)
                 .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
 
+            var reversedDiscountByLineId = existingRefunds
+                .SelectMany(r => r.Lines)
+                .GroupBy(l => l.OrderLineId)
+                .ToDictionary(g => g.Key, g => g.Sum(l => l.DiscountReversed));
+
+            var reversedTaxByLineId = existingRefunds
+                .SelectMany(r => r.Lines)
+                .GroupBy(l => l.OrderLineId)
+                .ToDictionary(g => g.Key, g => g.Sum(l => l.TaxReversed));
+
             _lineRows.Clear();
             foreach (var line in lines)
             {
                 var prevRefunded = refundedQtyByLineId.GetValueOrDefault(line.OrderLineId, 0m);
+                var prevDiscount = reversedDiscountByLineId.GetValueOrDefault(line.OrderLineId, 0m);
+                var prevTax = reversedTaxByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var itemName = variantNames.GetValueOrDefault(line.ProductVariantId, line.Notes ?? "Menu Item");
                 var row = new RefundLineItemRow
                 {
@@ -343,6 +380,11 @@ public sealed partial class RefundOrderDialog : XtraForm
                     OriginalQuantity = line.Quantity,
                     AlreadyRefundedQuantity = prevRefunded,
                     UnitPrice = line.UnitPrice,
+                    AllocatedDiscount = line.AllocatedDiscount,
+                    TaxAmount = line.TaxAmount ?? 0m,
+                    TaxIsInclusive = line.TaxIsInclusive,
+                    AlreadyReversedDiscount = prevDiscount,
+                    AlreadyReversedTax = prevTax,
                     RefundQuantity = 0,
                     Disposition = InventoryDisposition.Restock
                 };

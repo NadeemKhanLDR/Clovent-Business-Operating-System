@@ -328,4 +328,70 @@ public class RefundOrderDialogTests
         Assert.Equal(2, mediator.SentRefundCommands.Count);
         Assert.Equal(mediator.SentRefundCommands[0].IdempotencyKey, mediator.SentRefundCommands[1].IdempotencyKey);
     }
+
+    [Fact]
+    public async Task RefundOrderDialog_AllocatedDiscountItem_PreviewsAndSubmitsNetRefundAccurately()
+    {
+        // Synthetic scenario: 1x White Daal Mash from ORD-1 (Ordered 2 @ 340 = 680, 10% Allocated Discount 68, Tax 0)
+        var orderId = Guid.NewGuid();
+        var managerId = Guid.NewGuid();
+        var mediator = new FakeRefundMediator();
+        var variantId = Guid.NewGuid();
+        var lineId = Guid.NewGuid();
+
+        mediator.Variants.Add(new ProductVariantDto(
+            variantId, Guid.NewGuid(), "White Daal Mash (Full Plate)", "WHITE-DAAL-MASH-FULL", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow));
+
+        mediator.OrderLines.Add(new OrderLineDto(
+            lineId, orderId, variantId, 2m, 340m, 340m, false, null, null, null,
+            TaxRatePercentage: 0m,
+            TaxIsInclusive: false,
+            Notes: null,
+            IsVoided: false,
+            LineTotal: 612m,
+            CreatedAtUtc: DateTimeOffset.UtcNow,
+            TaxClassification: "Exempt",
+            TaxAuthority: "None",
+            TaxCode: "PK-OUT-OF-SCOPE",
+            TaxableBase: 612m,
+            AllocatedDiscount: 68m,
+            TaxAmount: 0m));
+
+        using var dialog = new RefundOrderDialog(
+            mediator,
+            NullLogger.Instance,
+            orderId,
+            "ORD-1",
+            Guid.NewGuid(),
+            "System Administrator",
+            authorizationPrompt: (_, _, _) =>
+                Task.FromResult<ManagerAuthorizationResult?>(
+                    ManagerAuthorizationResult.Approved(managerId, "System Administrator")));
+
+        await dialog.ReloadOrderLinesAsync();
+        Assert.Single(dialog.LineRows);
+        var row = dialog.LineRows[0];
+        Assert.Equal(2m, row.RemainingQuantity);
+        Assert.Equal(0m, row.EstimatedRefund);
+
+        // Selecting 1 unit must preview net refund Rs. 306 (340 gross - 34 allocated discount), NOT 340 gross
+        row.RefundQuantity = 1m;
+        Assert.Equal(306m, row.EstimatedRefund);
+
+        // Selecting full remaining (2 units) must preview net refund Rs. 612 (680 gross - 68 allocated discount)
+        dialog.SelectFullRemainingQuantities();
+        Assert.Equal(612m, row.EstimatedRefund);
+
+        // Switch back to 1 unit for partial refund
+        row.RefundQuantity = 1m;
+        dialog.ReasonEdit.Text = "Portion reduction";
+        dialog.SettlementMethodCombo.SelectedIndex = 0; // Cash Payout
+
+        await dialog.ExecuteSubmitRefundAsync(suppressInteractivePrompts: true);
+
+        var cmd = Assert.Single(mediator.SentRefundCommands);
+        Assert.Single(cmd.Items);
+        Assert.Equal(1m, cmd.Items[0].Quantity);
+        Assert.Equal(lineId, cmd.Items[0].OrderLineId);
+    }
 }
