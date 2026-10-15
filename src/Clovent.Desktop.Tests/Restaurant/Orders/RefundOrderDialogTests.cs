@@ -12,6 +12,7 @@ using Clovent.Restaurant.Application.OrderLines.Queries;
 using Clovent.Restaurant.Application.Refunds.Commands;
 using Clovent.Restaurant.Application.Refunds.Dtos;
 using Clovent.Restaurant.Application.Refunds.Queries;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Refunds;
 using MediatR;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -374,6 +375,13 @@ public class RefundOrderDialogTests
         Assert.Equal(2m, row.RemainingQuantity);
         Assert.Equal(0m, row.EstimatedRefund);
 
+        // Verify control names for reliable automation inspection
+        Assert.Equal("_reasonEdit", dialog.ReasonEdit.Name);
+        Assert.Equal("_submitRefundButton", dialog.SubmitRefundButton.Name);
+        Assert.Equal("_clearQuantitiesButton", dialog.ClearQuantitiesButton.Name);
+        Assert.Equal("_refundRemainingButton", dialog.RefundRemainingButton.Name);
+        Assert.Equal("_settlementMethodCombo", dialog.SettlementMethodCombo.Name);
+
         // Selecting 1 unit must preview net refund Rs. 306 (340 gross - 34 allocated discount), NOT 340 gross
         row.RefundQuantity = 1m;
         Assert.Equal(306m, row.EstimatedRefund);
@@ -393,5 +401,11 @@ public class RefundOrderDialogTests
         Assert.Single(cmd.Items);
         Assert.Equal(1m, cmd.Items[0].Quantity);
         Assert.Equal(lineId, cmd.Items[0].OrderLineId);
+
+        // Preview amount must match committed refund calculation exactly
+        var committedLine = RefundCalculator.CalculateLineRefund(
+            2m, 340m, 68m, 0m, false, 0m, 0m, 0m, cmd.Items[0].Quantity);
+        Assert.Equal(row.EstimatedRefund, committedLine.NetPayableRefund);
+        Assert.Equal(306m, committedLine.NetPayableRefund);
     }
 }

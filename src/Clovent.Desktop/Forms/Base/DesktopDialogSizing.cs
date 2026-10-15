@@ -45,9 +45,9 @@ public static class DesktopDialogSizing
         var screen = Screen.FromControl(reference);
         var workArea = screen.WorkingArea;
 
-        // Clamp to 96% of working area to guarantee borders, title bar, and taskbar stay accessible
-        int maxAllowedW = Math.Max(minW, (int)(workArea.Width * 0.96));
-        int maxAllowedH = Math.Max(minH, (int)(workArea.Height * 0.96));
+        // Clamp to safe percentage of working area to guarantee borders, title bar, and taskbar stay accessible
+        int maxAllowedW = Math.Max(minW, (int)(workArea.Width * 0.94));
+        int maxAllowedH = Math.Max(minH, (int)(workArea.Height * 0.90));
 
         int finalW = Math.Clamp(targetW, minW, maxAllowedW);
         int finalH = Math.Clamp(targetH, minH, maxAllowedH);
@@ -107,6 +107,15 @@ public static class DesktopDialogSizing
         var screen = Screen.FromRectangle(parentBounds) ?? Screen.PrimaryScreen;
         var workArea = screen?.WorkingArea ?? parentBounds;
 
+        if (form.Width > workArea.Width)
+        {
+            form.Width = Math.Max(form.MinimumSize.Width, workArea.Width - 16);
+        }
+        if (form.Height > workArea.Height)
+        {
+            form.Height = Math.Max(form.MinimumSize.Height, workArea.Height - 16);
+        }
+
         int x = parentBounds.Left + (parentBounds.Width - form.Width) / 2;
         int y = parentBounds.Top + (parentBounds.Height - form.Height) / 2;
 
@@ -115,5 +124,14 @@ public static class DesktopDialogSizing
 
         form.StartPosition = FormStartPosition.Manual;
         form.Location = new Point(x, y);
+
+        if (form.Bottom > workArea.Bottom)
+        {
+            form.Top = Math.Max(workArea.Top, workArea.Bottom - form.Height);
+            if (form.Bottom > workArea.Bottom)
+            {
+                form.Height = Math.Max(form.MinimumSize.Height, workArea.Bottom - form.Top);
+            }
+        }
     }
 }

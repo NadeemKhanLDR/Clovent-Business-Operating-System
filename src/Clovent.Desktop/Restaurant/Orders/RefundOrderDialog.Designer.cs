@@ -58,14 +58,32 @@ partial class RefundOrderDialog
         SuspendLayout();
 
         Text = "Process Order Refund";
-        MinimumSize = new Size(760, 560);
-        Size = new Size(820, 640);
+        MinimumSize = new Size(720, 440);
+        Size = new Size(820, 520);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.Sizable;
         MaximizeBox = true;
         MinimizeBox = false;
         ShowInTaskbar = false;
         Name = "RefundOrderDialog";
+
+        _headerLabel.Name = "_headerLabel";
+        _subtitleLabel.Name = "_subtitleLabel";
+        _linesGrid.Name = "_linesGrid";
+        _linesGridView.Name = "_linesGridView";
+        _reasonLabel.Name = "_reasonLabel";
+        _reasonEdit.Name = "_reasonEdit";
+        _settlementMethodLabel.Name = "_settlementMethodLabel";
+        _settlementMethodCombo.Name = "_settlementMethodCombo";
+        _settlementRefLabel.Name = "_settlementRefLabel";
+        _settlementRefEdit.Name = "_settlementRefEdit";
+        _approverLabel.Name = "_approverLabel";
+        _approverEdit.Name = "_approverEdit";
+        _summaryLabel.Name = "_summaryLabel";
+        _refundRemainingButton.Name = "_refundRemainingButton";
+        _clearQuantitiesButton.Name = "_clearQuantitiesButton";
+        _submitRefundButton.Name = "_submitRefundButton";
+        _cancelButton.Name = "_cancelButton";
 
         BuildLayout();
         WireEvents();
@@ -199,7 +217,7 @@ partial class RefundOrderDialog
             Padding = new Padding(16, 0, 0, 0)
         };
         actionsPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        actionsPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        actionsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         actionsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         actionsPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
@@ -220,10 +238,12 @@ partial class RefundOrderDialog
         };
 
         _refundRemainingButton.Text = "Refund Full Remaining";
-        _refundRemainingButton.Size = new Size(155, 30);
+        _refundRemainingButton.AutoSize = true;
+        _refundRemainingButton.MinimumSize = new Size(155, 30);
 
         _clearQuantitiesButton.Text = "Clear Quantities";
-        _clearQuantitiesButton.Size = new Size(120, 30);
+        _clearQuantitiesButton.AutoSize = true;
+        _clearQuantitiesButton.MinimumSize = new Size(120, 30);
 
         quickSelectFlow.Controls.Add(_refundRemainingButton);
         quickSelectFlow.Controls.Add(_clearQuantitiesButton);
@@ -240,11 +260,13 @@ partial class RefundOrderDialog
         _submitRefundButton.Text = "Submit Refund";
         _submitRefundButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         _submitRefundButton.Appearance.Options.UseFont = true;
-        _submitRefundButton.Size = new Size(130, 36);
+        _submitRefundButton.AutoSize = true;
+        _submitRefundButton.MinimumSize = new Size(130, 36);
 
         _cancelButton.Text = "Cancel";
         _cancelButton.DialogResult = DialogResult.Cancel;
-        _cancelButton.Size = new Size(100, 36);
+        _cancelButton.AutoSize = true;
+        _cancelButton.MinimumSize = new Size(100, 36);
 
         buttonFlow.Controls.Add(_submitRefundButton);
         buttonFlow.Controls.Add(_cancelButton);

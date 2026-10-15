@@ -159,4 +159,26 @@ public class BusinessSettingsAndDisplayTests
         Assert.True(form.Right <= screen.WorkingArea.Right, $"Form right {form.Right} must be <= screen right {screen.WorkingArea.Right}");
         Assert.True(form.Bottom <= screen.WorkingArea.Bottom, $"Form bottom {form.Bottom} must be <= screen bottom {screen.WorkingArea.Bottom}");
     }
+
+    [Fact]
+    public void DesktopDialogSizing_SharedDialog_RefundOrderDialog_FitsWithinWorkingArea()
+    {
+        using var form = (Clovent.Desktop.Restaurant.Orders.RefundOrderDialog)Activator.CreateInstance(
+            typeof(Clovent.Desktop.Restaurant.Orders.RefundOrderDialog), nonPublic: true)!;
+        DesktopDialogSizing.Apply(form, 820, 520, 720, 440, null, true);
+        DesktopDialogSizing.CenterOnOwnerOrScreen(form, null);
+
+        var screen = Screen.FromControl(form) ?? Screen.PrimaryScreen;
+        Assert.NotNull(screen);
+
+        Assert.True(form.Left >= screen.WorkingArea.Left, $"Form left {form.Left} must be >= screen left {screen.WorkingArea.Left}");
+        Assert.True(form.Top >= screen.WorkingArea.Top, $"Form top {form.Top} must be >= screen top {screen.WorkingArea.Top}");
+        Assert.True(form.Right <= screen.WorkingArea.Right, $"Form right {form.Right} must be <= screen right {screen.WorkingArea.Right}");
+        Assert.True(form.Bottom <= screen.WorkingArea.Bottom, $"Form bottom {form.Bottom} must be <= screen bottom {screen.WorkingArea.Bottom}");
+        Assert.Equal("_reasonEdit", form.ReasonEdit.Name);
+        Assert.Equal("_submitRefundButton", form.SubmitRefundButton.Name);
+        Assert.Equal("_clearQuantitiesButton", form.ClearQuantitiesButton.Name);
+        Assert.Equal("_refundRemainingButton", form.RefundRemainingButton.Name);
+        Assert.Equal("_settlementMethodCombo", form.SettlementMethodCombo.Name);
+    }
 }
