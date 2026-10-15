@@ -165,6 +165,7 @@ public sealed partial class RefundOrderDialog : XtraForm
         }
 
         _headerLabel.Text = $"Process Refund - {orderNumber}";
+        DesktopDialogSizing.Apply(this, 820, 640, 760, 560, null, true);
     }
 
     private void AppearanceManager_Changed(object? sender, EventArgs e) =>
@@ -175,7 +176,7 @@ public sealed partial class RefundOrderDialog : XtraForm
         if (DesignModeHelper.IsInDesignMode)
             return;
 
-        DesktopDialogSizing.Apply(this, 820, 640, 760, 560, null, true);
+        DesktopDialogSizing.CenterOnOwnerOrScreen(this);
         await LoadOrderLinesAsync();
     }
 

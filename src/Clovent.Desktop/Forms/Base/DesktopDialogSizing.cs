@@ -71,7 +71,14 @@ public static class DesktopDialogSizing
         form.ClientSize = new Size(finalW, finalH);
 
         // Guarantee dialog is always centered over owner or active screen, never stranded in top-left
-        form.Load += (s, e) => CenterOnOwnerOrScreen(form, owner);
+        if (form.IsHandleCreated)
+        {
+            CenterOnOwnerOrScreen(form, owner);
+        }
+        else
+        {
+            form.Load += (s, e) => CenterOnOwnerOrScreen(form, owner);
+        }
     }
 
     /// <summary>
