@@ -1,3 +1,4 @@
+using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Orders;
 using MediatR;
@@ -5,7 +6,7 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Orders.Queries;
 
 /// <summary>Retrieves an order by id.</summary>
-public sealed record GetOrderByIdQuery(Guid OrderId) : IRequest<OrderDto>;
+public sealed record GetOrderByIdQuery(Guid OrderId) : IRequest<OrderDto>, IRequireBranchScope;
 
 /// <summary>Handles <see cref="GetOrderByIdQuery"/>.</summary>
 public sealed class GetOrderByIdQueryHandler(IOrderRepository repository) : IRequestHandler<GetOrderByIdQuery, OrderDto>

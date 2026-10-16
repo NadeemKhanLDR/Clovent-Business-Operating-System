@@ -20,6 +20,7 @@ using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Forms.Shell;
 using Clovent.Desktop.Printing;
 using Clovent.Platform.Printing;
+using Clovent.Platform.Execution;
 using Clovent.Desktop.Inventory.Adjustments;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
@@ -82,6 +83,10 @@ public static class DesktopServiceCollectionExtensions
     public static IServiceCollection AddDesktopHost(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddValidatedOptions<DesktopOptions>(configuration, DesktopOptions.SectionName);
+
+        services.AddScopeEnforcement();
+        services.TryAddSingleton<Clovent.Platform.Execution.IInteractiveScopeProvider, Clovent.Desktop.Security.DesktopInteractiveScopeProvider>();
+        services.TryAddScoped<Clovent.Platform.Execution.ITenancyHierarchyProvider, Clovent.Desktop.Security.TenancyHierarchyProviderAdapter>();
 
         services.TryAddSingleton<IThemeService, ThemeService>();
         services.TryAddSingleton<ISplashScreenService, SplashScreenService>();

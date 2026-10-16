@@ -1,3 +1,4 @@
+using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
@@ -9,7 +10,7 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Orders.Commands;
 
 /// <summary>Voids an order. For a seated dine-in order, also vacates its table.</summary>
-public sealed record VoidOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDto>;
+public sealed record VoidOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDto>, IRequireBranchScope;
 
 /// <summary>Handles <see cref="VoidOrderCommand"/>.</summary>
 public sealed class VoidOrderCommandHandler(

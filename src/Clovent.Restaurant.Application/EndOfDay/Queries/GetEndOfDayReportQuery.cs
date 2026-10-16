@@ -39,7 +39,8 @@ namespace Clovent.Restaurant.Application.EndOfDay.Queries;
 /// figures without asking a restaurant owner to open the underlying Cash
 /// Summary breakdown by payment method.
 /// </remarks>
-public sealed record GetEndOfDayReportQuery(Guid WarehouseId, DateOnly FromDate, DateOnly ToDate) : IRequest<EndOfDayReportDto>;
+public sealed record GetEndOfDayReportQuery(Guid WarehouseId, DateOnly FromDate, DateOnly ToDate)
+    : IRequest<EndOfDayReportDto>, Clovent.Platform.Execution.IRequireCompanyScope;
 
 /// <summary>Handles <see cref="GetEndOfDayReportQuery"/>.</summary>
 public sealed class GetEndOfDayReportQueryHandler(

@@ -1,3 +1,4 @@
+using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
@@ -6,7 +7,7 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Orders.Commands;
 
 /// <summary>Cancels an order before any payment. For a seated dine-in order, also vacates its table.</summary>
-public sealed record CancelOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDto>;
+public sealed record CancelOrderCommand(Guid OrderId, string Reason) : IRequest<OrderDto>, IRequireBranchScope;
 
 /// <summary>Handles <see cref="CancelOrderCommand"/>.</summary>
 public sealed class CancelOrderCommandHandler(IOrderRepository orderRepository, ITableRepository tableRepository)
