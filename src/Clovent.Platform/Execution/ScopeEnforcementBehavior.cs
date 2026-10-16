@@ -50,21 +50,18 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
                 }
             }
 
-            // 2. Bypass if request explicitly allows anonymous scope
-            if (request is IAllowAnonymousScope)
-            {
-                return await next();
-            }
-
-            // 3. Enforce Branch-level scope (requires BranchId, CompanyId, OrganizationId)
+            // 2. Enforce Branch-level scope (requires BranchId, CompanyId, OrganizationId)
             if (request is IRequireBranchScope)
             {
                 var current = _accessor.Current;
-                if (current == null || !current.BranchId.HasValue || !current.CompanyId.HasValue || !current.OrganizationId.HasValue)
+                if (current == null ||
+                    !current.BranchId.HasValue || current.BranchId.Value == Guid.Empty ||
+                    !current.CompanyId.HasValue || current.CompanyId.Value == Guid.Empty ||
+                    !current.OrganizationId.HasValue || current.OrganizationId.Value == Guid.Empty)
                 {
                     throw new ScopeUnresolvedException(
                         $"Request '{typeof(TRequest).Name}' requires valid Branch, Company, and Organization scope, " +
-                        $"but current execution context is incomplete or null (Org: {current?.OrganizationId}, Company: {current?.CompanyId}, Branch: {current?.BranchId}). " +
+                        $"but current execution context is incomplete or empty (Org: {current?.OrganizationId}, Company: {current?.CompanyId}, Branch: {current?.BranchId}). " +
                         "Null scope never grants global access.");
                 }
 
@@ -75,15 +72,17 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
                         $"does not match caller's verified active branch '{current.BranchId.Value}'.");
                 }
             }
-            // 4. Enforce Company-level scope (requires CompanyId, OrganizationId; BranchId NOT required)
+            // 3. Enforce Company-level scope (requires CompanyId, OrganizationId; BranchId NOT required)
             else if (request is IRequireCompanyScope)
             {
                 var current = _accessor.Current;
-                if (current == null || !current.CompanyId.HasValue || !current.OrganizationId.HasValue)
+                if (current == null ||
+                    !current.CompanyId.HasValue || current.CompanyId.Value == Guid.Empty ||
+                    !current.OrganizationId.HasValue || current.OrganizationId.Value == Guid.Empty)
                 {
                     throw new ScopeUnresolvedException(
                         $"Request '{typeof(TRequest).Name}' requires valid Company and Organization scope, " +
-                        $"but current execution context is incomplete or null (Org: {current?.OrganizationId}, Company: {current?.CompanyId}). " +
+                        $"but current execution context is incomplete or empty (Org: {current?.OrganizationId}, Company: {current?.CompanyId}). " +
                         "Null scope never grants global access.");
                 }
 
@@ -94,15 +93,16 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
                         $"does not match caller's verified active company '{current.CompanyId.Value}'.");
                 }
             }
-            // 5. Enforce Organization-level scope (requires OrganizationId; CompanyId/BranchId NOT required)
+            // 4. Enforce Organization-level scope (requires OrganizationId; CompanyId/BranchId NOT required)
             else if (request is IRequireOrganizationScope)
             {
                 var current = _accessor.Current;
-                if (current == null || !current.OrganizationId.HasValue)
+                if (current == null ||
+                    !current.OrganizationId.HasValue || current.OrganizationId.Value == Guid.Empty)
                 {
                     throw new ScopeUnresolvedException(
                         $"Request '{typeof(TRequest).Name}' requires valid Organization scope, " +
-                        "but current execution context is incomplete or null. Null scope never grants global access.");
+                        "but current execution context is incomplete or empty. Null scope never grants global access.");
                 }
 
                 if (request is ITargetOrganizationScoped targetOrg && current.OrganizationId.Value != targetOrg.TargetOrganizationId)
@@ -111,6 +111,11 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
                         $"Request '{typeof(TRequest).Name}' target organization '{targetOrg.TargetOrganizationId}' " +
                         $"does not match caller's verified active organization '{current.OrganizationId.Value}'.");
                 }
+            }
+            // 5. Bypass if request explicitly allows anonymous scope and does not require explicit scope
+            else if (request is IAllowAnonymousScope)
+            {
+                return await next();
             }
 
             return await next();

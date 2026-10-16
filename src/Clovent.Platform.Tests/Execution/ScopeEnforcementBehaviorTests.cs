@@ -221,6 +221,47 @@ public sealed class ScopeEnforcementBehaviorTests
         Assert.Null(_accessor.Current);
     }
 
+    [Fact]
+    public async Task ProtectedRequest_WithAllowAnonymousMarker_CannotBypassScopeEnforcement()
+    {
+        // Request implements BOTH IRequireBranchScope and IAllowAnonymousScope
+        // Scope must still be enforced - anonymous marker cannot bypass it
+        await Assert.ThrowsAsync<ScopeUnresolvedException>(() => _mediator.Send(new SampleProtectedAnonymousCommand()));
+    }
+
+    [Fact]
+    public async Task ProtectedRequest_WithEmptyGuidAmbientContext_ThrowsScopeUnresolvedException()
+    {
+        // Ambient context has Guid.Empty placeholders (e.g. unverified "system" context)
+        var context = new PlatformExecutionContext
+        {
+            OrganizationId = Guid.Empty,
+            CompanyId = Guid.Empty,
+            BranchId = Guid.Empty
+        };
+
+        using (_accessor.BeginScope(context))
+        {
+            await Assert.ThrowsAsync<ScopeUnresolvedException>(() => _mediator.Send(new SampleBranchCommand("Item1")));
+        }
+    }
+
+    [Fact]
+    public void ComposedDI_ScopeEnforcementBehavior_RegisteredExactlyOnce()
+    {
+        var services = new ServiceCollection();
+        // Simulate composition where AddScopeEnforcement is called multiple times (e.g. DesktopHost and Application)
+        services.AddScopeEnforcement();
+        services.AddScopeEnforcement();
+
+        var provider = services.BuildServiceProvider();
+        var behaviors = provider.GetServices<IPipelineBehavior<SampleBranchCommand, string>>()
+            .Where(b => b.GetType().GetGenericTypeDefinition() == typeof(ScopeEnforcementBehavior<,>))
+            .ToList();
+
+        Assert.Single(behaviors);
+    }
+
     private sealed class FakeInteractiveScopeProvider : IInteractiveScopeProvider
     {
         private IExecutionContext? _context;
@@ -228,6 +269,16 @@ public sealed class ScopeEnforcementBehaviorTests
         public IExecutionContext? GetCurrentContext() => _context;
         public void SetCurrentContext(IExecutionContext context) => _context = context;
         public void Clear() => _context = null;
+    }
+}
+
+public sealed record SampleProtectedAnonymousCommand : IRequest<string>, IRequireBranchScope, IAllowAnonymousScope;
+
+public sealed class SampleProtectedAnonymousCommandHandler : IRequestHandler<SampleProtectedAnonymousCommand, string>
+{
+    public Task<string> Handle(SampleProtectedAnonymousCommand request, CancellationToken cancellationToken)
+    {
+        return Task.FromResult("Bypassed");
     }
 }
 

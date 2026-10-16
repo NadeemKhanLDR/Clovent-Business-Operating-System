@@ -47,7 +47,8 @@ public sealed class GetEndOfDayReportQueryHandler(
     IOrderRepository orderRepository,
     IOrderLineRepository orderLineRepository,
     IPaymentRepository paymentRepository,
-    IPaymentMethodRepository paymentMethodRepository) : IRequestHandler<GetEndOfDayReportQuery, EndOfDayReportDto>
+    IPaymentMethodRepository paymentMethodRepository,
+    Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null) : IRequestHandler<GetEndOfDayReportQuery, EndOfDayReportDto>
 {
     private const string CashMethodName = "Cash";
     private const string CardMethodNameFragment = "card";
@@ -55,6 +56,11 @@ public sealed class GetEndOfDayReportQueryHandler(
     /// <inheritdoc/>
     public async Task<EndOfDayReportDto> Handle(GetEndOfDayReportQuery request, CancellationToken cancellationToken)
     {
+        if (orderScopeValidator != null)
+        {
+            await orderScopeValidator.ValidateWarehouseCompanyAccessAsync(request.WarehouseId, cancellationToken).ConfigureAwait(false);
+        }
+
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 

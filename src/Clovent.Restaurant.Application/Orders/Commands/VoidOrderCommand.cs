@@ -20,7 +20,8 @@ public sealed class VoidOrderCommandHandler(
     ICustomerRepository customerRepository,
     ICustomerLedgerEntryRepository ledgerRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null)
+    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null,
+    Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null)
     : IRequestHandler<VoidOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -28,6 +29,11 @@ public sealed class VoidOrderCommandHandler(
     {
         var order = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
+
+        if (orderScopeValidator != null)
+        {
+            await orderScopeValidator.ValidateOrderAccessAsync(order, cancellationToken).ConfigureAwait(false);
+        }
 
         order.Void(request.Reason);
 

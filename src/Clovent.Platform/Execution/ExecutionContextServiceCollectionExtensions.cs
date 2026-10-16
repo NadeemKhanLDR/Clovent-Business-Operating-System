@@ -29,7 +29,7 @@ public static class ExecutionContextServiceCollectionExtensions
         services.AddExecutionContextAccessor();
         services.TryAddScoped<ITrustedScopeResolver, AuthoritativeScopeResolver>();
         services.TryAddSingleton<IBackgroundExecutionScopeService, BackgroundExecutionScopeService>();
-        services.AddScoped(typeof(MediatR.IPipelineBehavior<,>), typeof(ScopeEnforcementBehavior<,>));
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(MediatR.IPipelineBehavior<,>), typeof(ScopeEnforcementBehavior<,>)));
         return services;
     }
 }

@@ -1,5 +1,6 @@
 using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Orders.Dtos;
+using Clovent.Restaurant.Application.Security;
 using Clovent.Restaurant.Orders;
 using MediatR;
 
@@ -9,13 +10,20 @@ namespace Clovent.Restaurant.Application.Orders.Queries;
 public sealed record GetOrderByIdQuery(Guid OrderId) : IRequest<OrderDto>, IRequireBranchScope;
 
 /// <summary>Handles <see cref="GetOrderByIdQuery"/>.</summary>
-public sealed class GetOrderByIdQueryHandler(IOrderRepository repository) : IRequestHandler<GetOrderByIdQuery, OrderDto>
+public sealed class GetOrderByIdQueryHandler(
+    IOrderRepository repository,
+    IOrderScopeValidator? orderScopeValidator = null) : IRequestHandler<GetOrderByIdQuery, OrderDto>
 {
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(GetOrderByIdQuery request, CancellationToken cancellationToken)
     {
         var order = await repository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
+
+        if (orderScopeValidator != null)
+        {
+            await orderScopeValidator.ValidateOrderAccessAsync(order, cancellationToken).ConfigureAwait(false);
+        }
 
         return OrderDto.FromDomain(order);
     }

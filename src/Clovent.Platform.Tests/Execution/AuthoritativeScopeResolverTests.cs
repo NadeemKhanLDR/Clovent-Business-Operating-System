@@ -302,6 +302,78 @@ public sealed class AuthoritativeScopeResolverTests
         Assert.Null(result.Context.BranchId);
     }
 
+    [Fact]
+    public async Task ResolveScope_AdministratorInCompanyA_CannotElevateToCompanyB()
+    {
+        var orgId = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var compB = Guid.NewGuid();
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+
+        _hierarchy.AddOrganization(orgId, true);
+        _hierarchy.AddCompany(compA, orgId, true);
+        _hierarchy.AddCompany(compB, orgId, true);
+        _hierarchy.AddBranch(branchA, compA, true);
+        _hierarchy.AddBranch(branchB, compB, true);
+        // Administrator assigned to Company A
+        _hierarchy.AddUser(adminUserId, compA, branchA, true, true);
+
+        var resolver = new AuthoritativeScopeResolver(_hierarchy);
+        // Admin in Company A tries to elevate to Branch B (which belongs to Company B)
+        var request = new ScopeResolutionRequest(
+            adminUserId,
+            null,
+            branchB,
+            compB,
+            orgId,
+            IsAdministratorElevation: true);
+
+        var result = await resolver.ResolveAndValidateScopeAsync(request);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("Unauthorized", result.ErrorMessage);
+        Assert.Contains("is assigned to Company", result.ErrorMessage);
+        Assert.Contains("cannot operate in Company", result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ResolveScope_AdministratorInCompanyA_CanElevateToAnotherBranchInCompanyA()
+    {
+        var orgId = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var branchA1 = Guid.NewGuid();
+        var branchA2 = Guid.NewGuid();
+        var adminUserId = Guid.NewGuid();
+
+        _hierarchy.AddOrganization(orgId, true);
+        _hierarchy.AddCompany(compA, orgId, true);
+        _hierarchy.AddBranch(branchA1, compA, true);
+        _hierarchy.AddBranch(branchA2, compA, true);
+        // Administrator assigned to Company A and Branch A1
+        _hierarchy.AddUser(adminUserId, compA, branchA1, true, true);
+
+        var resolver = new AuthoritativeScopeResolver(_hierarchy);
+        // Admin elevates to Branch A2 within the same company
+        var request = new ScopeResolutionRequest(
+            adminUserId,
+            null,
+            branchA2,
+            compA,
+            orgId,
+            IsAdministratorElevation: true);
+
+        var result = await resolver.ResolveAndValidateScopeAsync(request);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(result.Context);
+        Assert.Equal(adminUserId, result.Context.UserId);
+        Assert.Equal(branchA2, result.Context.BranchId);
+        Assert.Equal(compA, result.Context.CompanyId);
+        Assert.Equal(orgId, result.Context.OrganizationId);
+    }
+
     private sealed class FakeTenancyHierarchyProvider : ITenancyHierarchyProvider
     {
         private readonly Dictionary<Guid, OrganizationScopeInfo> _orgs = new();
