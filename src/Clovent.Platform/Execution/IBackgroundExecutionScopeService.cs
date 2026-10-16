@@ -33,12 +33,17 @@ public interface IBackgroundExecutionScopeService
 public sealed class BackgroundExecutionScopeService : IBackgroundExecutionScopeService
 {
     private readonly IExecutionContextAccessor _accessor;
+    private readonly IInteractiveScopeProvider? _interactiveScopeProvider;
 
     /// <summary>Initializes a new instance of <see cref="BackgroundExecutionScopeService"/>.</summary>
     /// <param name="accessor">The ambient execution context accessor.</param>
-    public BackgroundExecutionScopeService(IExecutionContextAccessor accessor)
+    /// <param name="interactiveScopeProvider">Optional interactive scope provider to suppress during background execution.</param>
+    public BackgroundExecutionScopeService(
+        IExecutionContextAccessor accessor,
+        IInteractiveScopeProvider? interactiveScopeProvider = null)
     {
         _accessor = accessor ?? throw new ArgumentNullException(nameof(accessor));
+        _interactiveScopeProvider = interactiveScopeProvider;
     }
 
     /// <inheritdoc />
@@ -67,6 +72,24 @@ public sealed class BackgroundExecutionScopeService : IBackgroundExecutionScopeS
             ExecutionTimestamp = DateTimeOffset.UtcNow
         };
 
-        return _accessor.BeginScope(context);
+        var scope = _accessor.BeginScope(context);
+        var suppression = _interactiveScopeProvider?.Suppress();
+
+        return new BackgroundScopeDisposable(scope, suppression);
+    }
+
+    private sealed class BackgroundScopeDisposable(IDisposable scope, IDisposable? suppression) : IDisposable
+    {
+        private bool _disposed;
+
+        public void Dispose()
+        {
+            if (!_disposed)
+            {
+                _disposed = true;
+                suppression?.Dispose();
+                scope.Dispose();
+            }
+        }
     }
 }

@@ -20,4 +20,16 @@ public interface IInteractiveScopeProvider
     /// Clears the active execution context upon logout or session termination.
     /// </summary>
     void Clear();
+
+    /// <summary>
+    /// Suppresses interactive scope resolution in the current async execution flow.
+    /// Returns a disposable that restores interactive scope resolution when disposed.
+    /// </summary>
+    IDisposable Suppress() => NullDisposable.Instance;
+
+    private sealed class NullDisposable : IDisposable
+    {
+        public static readonly NullDisposable Instance = new();
+        public void Dispose() { }
+    }
 }

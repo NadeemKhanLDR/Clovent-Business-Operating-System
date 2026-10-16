@@ -54,4 +54,55 @@ public sealed class BackgroundExecutionScopeServiceTests
         Assert.Contains("LegacyDeltaReplication", ex.Message);
         Assert.Contains("lacks required Organization tenancy scope", ex.Message);
     }
+
+    [Fact]
+    public void EstablishScope_WhileInteractiveSessionActive_SuppressesInteractiveScopeAndRestoresOnDispose()
+    {
+        var fakeInteractive = new FakeInteractiveScopeProvider();
+        var cashierContext = new PlatformExecutionContext
+        {
+            UserId = Guid.NewGuid(),
+            OrganizationId = Guid.NewGuid(),
+            CompanyId = Guid.NewGuid(),
+            BranchId = Guid.NewGuid()
+        };
+        fakeInteractive.SetCurrentContext(cashierContext);
+
+        Assert.NotNull(fakeInteractive.GetCurrentContext());
+
+        var service = new BackgroundExecutionScopeService(_accessor, fakeInteractive);
+        var workerOrg = Guid.NewGuid();
+
+        using (service.EstablishScope(workerOrg, null, null, null, "BackgroundWorkerJob"))
+        {
+            // Inside the background scope, interactive scope is suppressed
+            Assert.Null(fakeInteractive.GetCurrentContext());
+            Assert.Equal(workerOrg, _accessor.Current?.OrganizationId);
+        }
+
+        // After disposing background scope, interactive session scope is restored
+        Assert.NotNull(fakeInteractive.GetCurrentContext());
+        Assert.Equal(cashierContext.UserId, fakeInteractive.GetCurrentContext()?.UserId);
+    }
+
+    private sealed class FakeInteractiveScopeProvider : IInteractiveScopeProvider
+    {
+        private readonly AsyncLocal<bool> _suppressed = new();
+        private IExecutionContext? _context;
+
+        public IExecutionContext? GetCurrentContext() => _suppressed.Value ? null : _context;
+        public void SetCurrentContext(IExecutionContext context) => _context = context;
+        public void Clear() => _context = null;
+
+        public IDisposable Suppress()
+        {
+            _suppressed.Value = true;
+            return new SuppressionScope(this);
+        }
+
+        private sealed class SuppressionScope(FakeInteractiveScopeProvider parent) : IDisposable
+        {
+            public void Dispose() => parent._suppressed.Value = false;
+        }
+    }
 }

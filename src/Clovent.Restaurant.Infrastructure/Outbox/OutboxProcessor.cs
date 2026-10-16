@@ -16,6 +16,7 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxProcessor> _logger;
+    private readonly Clovent.Platform.Execution.IInteractiveScopeProvider? _interactiveScopeProvider;
     private readonly SemaphoreSlim _signal = new(0, 1);
     private readonly CancellationTokenSource _cts = new();
 
@@ -30,10 +31,12 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     public OutboxProcessor(
         IServiceScopeFactory scopeFactory,
         ILogger<OutboxProcessor> logger,
-        Clovent.Platform.Sync.INetworkConnectivityProbe? connectivityProbe = null)
+        Clovent.Platform.Sync.INetworkConnectivityProbe? connectivityProbe = null,
+        Clovent.Platform.Execution.IInteractiveScopeProvider? interactiveScopeProvider = null)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _interactiveScopeProvider = interactiveScopeProvider;
 
         if (connectivityProbe != null)
         {
@@ -101,6 +104,7 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     /// <inheritdoc/>
     public async Task<int> RecoverStaleProcessingMessagesAsync(TimeSpan? staleThreshold = null, CancellationToken cancellationToken = default)
     {
+        using var interactiveSuppression = _interactiveScopeProvider?.Suppress();
         var threshold = staleThreshold ?? TimeSpan.FromMinutes(2);
         using var scope = _scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
@@ -121,6 +125,7 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     /// <inheritdoc/>
     public async Task<int> ProcessBatchAsync(CancellationToken cancellationToken = default)
     {
+        using var interactiveSuppression = _interactiveScopeProvider?.Suppress();
         IReadOnlyList<OutboxMessage> messages;
         using (var claimScope = _scopeFactory.CreateScope())
         {
