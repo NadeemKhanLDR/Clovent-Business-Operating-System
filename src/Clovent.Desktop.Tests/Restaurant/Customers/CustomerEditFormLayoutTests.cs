@@ -170,7 +170,12 @@ public sealed class CustomerEditFormLayoutTests
             .GetValue(form)!;
 
         Assert.True(contentPanel.AutoScroll, "Content panel AutoScroll must be true to ensure all fields are reachable at high DPI");
-        Assert.Equal(FormStartPosition.CenterParent, form.StartPosition);
+        Assert.Equal(FormStartPosition.Manual, form.StartPosition);
+
+        var screen = Screen.FromControl(form) ?? Screen.PrimaryScreen;
+        Assert.NotNull(screen);
+        Assert.True(form.Left >= screen.WorkingArea.Left, $"Form left {form.Left} must be >= screen left {screen.WorkingArea.Left}");
+        Assert.True(form.Top >= screen.WorkingArea.Top, $"Form top {form.Top} must be >= screen top {screen.WorkingArea.Top}");
     }
 
     [Theory]
