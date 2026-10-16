@@ -309,6 +309,140 @@ public sealed class OutboxClaimConcurrencyIntegrationTests : IAsyncLifetime
         Assert.Contains(claimed, m => m.Id == staleMsg.Id);
     }
 
+    [Fact]
+    public async Task UnrelatedTrackedEntity_ConcurrencyConflict_PropagatesExceptionWithoutSwallowing()
+    {
+        // Arrange: seed 1 pending message (so ClaimMessagesAsync attempts a claim)
+        // and 1 unrelated message in Completed status (never eligible for claim)
+        var pendingMsg = OutboxMessage.Create("PendingType", "Order", "p1", "c-p1", "{}");
+        var unrelatedMsg = OutboxMessage.Create("UnrelatedType", "Order", "u1", "c-u1", "{}");
+        unrelatedMsg.MarkProcessing(DateTimeOffset.UtcNow.AddMinutes(-5));
+        unrelatedMsg.MarkCompleted(DateTimeOffset.UtcNow.AddMinutes(-4));
+
+        await using (var seedDb = CreateDbContext())
+        {
+            await seedDb.OutboxMessages.AddRangeAsync(pendingMsg, unrelatedMsg);
+            await seedDb.SaveChangesAsync();
+        }
+
+        await using var dbB = CreateDbContext();
+        var unrelatedInB = await dbB.OutboxMessages.FindAsync(unrelatedMsg.Id);
+        Assert.NotNull(unrelatedInB);
+        unrelatedInB.ScheduleRetry(DateTimeOffset.UtcNow.AddMinutes(5), "Simulated external change");
+
+        // Concurrent context modifies and saves the unrelated entity first, incrementing Version in SQL Server
+        await using (var dbOther = CreateDbContext())
+        {
+            var unrelatedInOther = await dbOther.OutboxMessages.FindAsync(unrelatedMsg.Id);
+            Assert.NotNull(unrelatedInOther);
+            unrelatedInOther.ScheduleRetry(DateTimeOffset.UtcNow.AddMinutes(10), "Other context change");
+            await dbOther.SaveChangesAsync();
+        }
+
+        var repoB = new OutboxRepository(dbB);
+
+        // Act & Assert:
+        // When repoB attempts to claim pending messages, SaveChangesAsync encounters a concurrency violation
+        // on the unrelated tracked entity. ClaimMessagesAsync must propagate the exception and NOT detach it.
+        var ex = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => repoB.ClaimMessagesAsync(10));
+        Assert.Contains(ex.Entries, e => ReferenceEquals(e.Entity, unrelatedInB));
+
+        // The unrelated entity must NOT have been detached by ClaimMessagesAsync
+        var entryInB = dbB.Entry(unrelatedInB);
+        Assert.NotEqual(EntityState.Detached, entryInB.State);
+    }
+
+    [Fact]
+    public async Task MixedEntries_ConcurrencyConflict_PropagatesExceptionWithoutSwallowing()
+    {
+        // Arrange: seed 1 pending message and 1 unrelated message
+        var pendingMsg = OutboxMessage.Create("PendingType", "Order", "p2", "c-p2", "{}");
+        var unrelatedMsg = OutboxMessage.Create("UnrelatedType", "Order", "u2", "c-u2", "{}");
+        unrelatedMsg.MarkProcessing(DateTimeOffset.UtcNow.AddMinutes(-5));
+        unrelatedMsg.MarkCompleted(DateTimeOffset.UtcNow.AddMinutes(-4));
+
+        await using (var seedDb = CreateDbContext())
+        {
+            await seedDb.OutboxMessages.AddRangeAsync(pendingMsg, unrelatedMsg);
+            await seedDb.SaveChangesAsync();
+        }
+
+        var interceptor = new ThrowingInterceptor(eventData =>
+        {
+            var ctx = eventData.Context!;
+            var entryClaimed = GetUpdateEntry(ctx.Entry(ctx.Set<OutboxMessage>().Local.First(m => m.Id == pendingMsg.Id)));
+            var entryUnrelated = GetUpdateEntry(ctx.Entry(unrelatedMsg));
+
+            return new DbUpdateConcurrencyException(
+                "Mixed concurrency violation",
+                null,
+                new List<Microsoft.EntityFrameworkCore.Update.IUpdateEntry> { entryClaimed, entryUnrelated });
+        });
+
+        await using var db = CreateDbContext(interceptor);
+        db.Attach(unrelatedMsg);
+        db.Entry(unrelatedMsg).State = EntityState.Modified;
+
+        var repo = new OutboxRepository(db);
+
+        // Act & Assert:
+        // ClaimMessagesAsync attempts to claim pendingMsg. During SaveChangesAsync, a mixed concurrency exception occurs.
+        // ClaimMessagesAsync must detect the mixed entry, propagate the exception, and NOT detach entities.
+        var ex = await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => repo.ClaimMessagesAsync(10));
+        Assert.Equal(2, ex.Entries.Count);
+        Assert.Contains(ex.Entries, e => ReferenceEquals(e.Entity, unrelatedMsg));
+        Assert.NotEqual(EntityState.Detached, db.Entry(unrelatedMsg).State);
+    }
+
+    [Fact]
+    public async Task EmptyConcurrencyExceptionEntries_PropagatesExceptionWithoutSwallowing()
+    {
+        // Arrange: seed 1 pending message
+        var pendingMsg = OutboxMessage.Create("PendingType", "Order", "p3", "c-p3", "{}");
+        await using (var seedDb = CreateDbContext())
+        {
+            await seedDb.OutboxMessages.AddAsync(pendingMsg);
+            await seedDb.SaveChangesAsync();
+        }
+
+        var interceptor = new ThrowingInterceptor(_ =>
+            new DbUpdateConcurrencyException("Synthesized empty entries exception"));
+
+        await using var db = CreateDbContext(interceptor);
+        var repo = new OutboxRepository(db);
+
+        // Act & Assert: when ex.Entries is empty, ClaimMessagesAsync must propagate the exception
+        await Assert.ThrowsAsync<DbUpdateConcurrencyException>(() => repo.ClaimMessagesAsync(10));
+    }
+
+    private sealed class ThrowingInterceptor(Func<DbContextEventData, Exception> exceptionFactory) : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(
+            DbContextEventData eventData,
+            InterceptionResult<int> result,
+            CancellationToken cancellationToken = default)
+        {
+            throw exceptionFactory(eventData);
+        }
+    }
+
+    private static Microsoft.EntityFrameworkCore.Update.IUpdateEntry GetUpdateEntry(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry)
+    {
+        var iface = entry.GetType().GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(Microsoft.EntityFrameworkCore.Infrastructure.IInfrastructure<>));
+        if (iface != null)
+        {
+            var prop = iface.GetProperty("Instance");
+            var val = prop?.GetValue(entry);
+            if (val is Microsoft.EntityFrameworkCore.Update.IUpdateEntry updateEntry)
+            {
+                return updateEntry;
+            }
+        }
+
+        var internalEntryProp = entry.GetType().GetProperty("InternalEntry", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        return (Microsoft.EntityFrameworkCore.Update.IUpdateEntry)internalEntryProp!.GetValue(entry)!;
+    }
+
     private sealed class CallbackSavingChangesInterceptor(Func<Task> onSavingAsync) : SaveChangesInterceptor
     {
         public override async ValueTask<InterceptionResult<int>> SavingChangesAsync(

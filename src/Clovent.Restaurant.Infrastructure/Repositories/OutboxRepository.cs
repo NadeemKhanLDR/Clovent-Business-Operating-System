@@ -1,6 +1,7 @@
 using Clovent.Restaurant.Infrastructure.Persistence;
 using Clovent.Restaurant.Outbox;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace Clovent.Restaurant.Infrastructure.Repositories;
 
@@ -83,12 +84,39 @@ public sealed class OutboxRepository(RestaurantDbContext dbContext) : IOutboxRep
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                var removedAny = false;
+                if (ex.Entries.Count == 0)
+                {
+                    // Concurrency exception cannot be attributed to this invocation's claims; propagate
+                    throw;
+                }
+
+                var claimedSet = new HashSet<OutboxMessage>(claimed);
+                var hasUnrelatedEntry = false;
+                var distinctFailedMessages = new Dictionary<OutboxMessage, EntityEntry>();
+
                 foreach (var entry in ex.Entries)
                 {
-                    if (entry.Entity is OutboxMessage failedMessage)
+                    if (entry.Entity is OutboxMessage message && claimedSet.Contains(message))
                     {
-                        claimed.Remove(failedMessage);
+                        distinctFailedMessages.TryAdd(message, entry);
+                    }
+                    else
+                    {
+                        hasUnrelatedEntry = true;
+                    }
+                }
+
+                if (hasUnrelatedEntry)
+                {
+                    // Concurrency exception involves unrelated tracked entities or mixed entries; propagate
+                    throw;
+                }
+
+                var removedAny = false;
+                foreach (var (message, entry) in distinctFailedMessages)
+                {
+                    if (claimed.Remove(message))
+                    {
                         entry.State = EntityState.Detached;
                         removedAny = true;
                     }
@@ -96,17 +124,8 @@ public sealed class OutboxRepository(RestaurantDbContext dbContext) : IOutboxRep
 
                 if (!removedAny)
                 {
-                    // Fallback to safely detach all attempted claim entries without touching unrelated entities
-                    foreach (var message in claimed)
-                    {
-                        var entry = dbContext.Entry(message);
-                        if (entry.State == EntityState.Modified)
-                        {
-                            entry.State = EntityState.Detached;
-                        }
-                    }
-                    claimed.Clear();
-                    break;
+                    // Removal did not succeed or no progress was made; propagate
+                    throw;
                 }
             }
         }
