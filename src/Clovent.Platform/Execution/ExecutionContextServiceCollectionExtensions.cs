@@ -20,4 +20,16 @@ public static class ExecutionContextServiceCollectionExtensions
         services.TryAddSingleton<IExecutionContextAccessor, ExecutionContextAccessor>();
         return services;
     }
+
+    /// <summary>
+    /// Registers trusted scope enforcement, background scope service, and the MediatR scope pipeline behavior.
+    /// </summary>
+    public static IServiceCollection AddScopeEnforcement(this IServiceCollection services)
+    {
+        services.AddExecutionContextAccessor();
+        services.TryAddScoped<ITrustedScopeResolver, AuthoritativeScopeResolver>();
+        services.TryAddSingleton<IBackgroundExecutionScopeService, BackgroundExecutionScopeService>();
+        services.TryAddEnumerable(ServiceDescriptor.Scoped(typeof(MediatR.IPipelineBehavior<,>), typeof(ScopeEnforcementBehavior<,>)));
+        return services;
+    }
 }

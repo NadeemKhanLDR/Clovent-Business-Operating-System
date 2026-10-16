@@ -1,6 +1,9 @@
+using Clovent.Platform.Execution;
+using Clovent.Restaurant.Application.Security;
 using MediatR;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Clovent.Restaurant.Application.DependencyInjection;
 
@@ -14,6 +17,8 @@ public static class ApplicationServiceCollectionExtensions
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
+        services.AddScopeEnforcement();
+        services.TryAddScoped<IOrderScopeValidator, OrderScopeValidator>();
 
         services.AddScoped<Clovent.Restaurant.Application.SmartCombos.SmartComboService>();
         services.AddSingleton<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider, Clovent.Restaurant.Application.Shifts.Services.BusinessDateProvider>();

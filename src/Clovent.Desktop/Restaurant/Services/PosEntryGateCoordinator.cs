@@ -26,7 +26,9 @@ public sealed class PosEntryGateCoordinator(
     IMediator mediator,
     ICurrentSession currentSession,
     Clovent.Restaurant.Application.Attendance.Services.IAttendanceAccessService? attendanceAccessService = null,
-    IContinuityCoordinator? continuityCoordinator = null) : IPosEntryGateCoordinator
+    IContinuityCoordinator? continuityCoordinator = null,
+    Clovent.Platform.Execution.ITrustedScopeResolver? trustedScopeResolver = null,
+    Clovent.Platform.Execution.IInteractiveScopeProvider? interactiveScopeProvider = null) : IPosEntryGateCoordinator
 {
     internal static Action<IWin32Window?, string, string, MessageBoxButtons, MessageBoxIcon>? CustomMessageBoxShow { get; set; }
     internal static Func<IWin32Window?, Form, DialogResult>? CustomDialogShow { get; set; }
@@ -57,6 +59,24 @@ public sealed class PosEntryGateCoordinator(
                     terminalRes.ErrorMessage ?? "No POS terminal is configured for this workstation.\n\nPlease configure a terminal under Master Data > Terminals.",
                     "POS Terminal Required");
                 return false;
+            }
+
+            // 1.1 Authoritatively validate caller access to resolved terminal scope
+            if (trustedScopeResolver != null && interactiveScopeProvider != null && currentSession.UserId.HasValue)
+            {
+                var scopeResult = await trustedScopeResolver.ResolveAndValidateScopeAsync(
+                    new Clovent.Platform.Execution.ScopeResolutionRequest(
+                        currentSession.UserId.Value,
+                        TerminalId: terminalRes.TerminalId,
+                        BranchId: terminalRes.BranchId));
+
+                if (!scopeResult.IsSuccess || scopeResult.Context == null)
+                {
+                    ShowWarning(owner, scopeResult.ErrorMessage ?? "Access denied: Workstation scope is unauthorized.", "Scope Authorization Failed");
+                    return false;
+                }
+
+                interactiveScopeProvider.SetCurrentContext(scopeResult.Context);
             }
 
             // Update terminal context on coordinator and trigger background cache sync

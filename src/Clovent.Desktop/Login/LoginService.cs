@@ -54,6 +54,7 @@ public sealed class LoginService(
 
         using var scope = scopeFactory.CreateScope();
         var services = scope.ServiceProvider;
+        var interactiveScopeProvider = services.GetService<Clovent.Platform.Execution.IInteractiveScopeProvider>();
         var userRepository = services.GetRequiredService<IUserRepository>();
         var credentialsRepository = services.GetRequiredService<IUserCredentialsRepository>();
         var mediator = services.GetRequiredService<IMediator>();
@@ -79,6 +80,7 @@ public sealed class LoginService(
 
         if (user is null)
         {
+            interactiveScopeProvider?.Clear();
             var attemptedName = pinOnly ? "(pin)" : request.Username;
             await mediator.Send(new RecordLoginAttemptCommand(attemptedName, null, LoginOutcome.UserNotFound), cancellationToken);
             return LoginResult.Failure(GenericFailureMessage);
@@ -91,12 +93,14 @@ public sealed class LoginService(
 
         if (user.Status == UserStatus.Locked)
         {
+            interactiveScopeProvider?.Clear();
             await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.UserLocked), cancellationToken);
             return LoginResult.Failure("Your account is locked. Contact an administrator.");
         }
 
         if (user.Status != UserStatus.Active)
         {
+            interactiveScopeProvider?.Clear();
             await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.UserInactive), cancellationToken);
             return LoginResult.Failure("Your account is not active yet.");
         }
@@ -106,6 +110,7 @@ public sealed class LoginService(
 
         if (!verified)
         {
+            interactiveScopeProvider?.Clear();
             await mediator.Send(new RecordLoginAttemptCommand(attemptIdentifier, user.Id.Value, LoginOutcome.InvalidCredentials), cancellationToken);
             if (credentials is not null)
             {
@@ -126,6 +131,29 @@ public sealed class LoginService(
         }
 
         currentSession.SignIn(user.Id.Value, session.SessionId, user.DisplayName.Value, user.UserName.Value);
+
+        // Establish authoritatively validated execution scope for the authenticated session
+        var scopeResolver = services.GetService<Clovent.Platform.Execution.ITrustedScopeResolver>();
+        if (scopeResolver != null && interactiveScopeProvider != null)
+        {
+            var scopeResult = await scopeResolver.ResolveAndValidateScopeAsync(
+                new Clovent.Platform.Execution.ScopeResolutionRequest(
+                    user.Id.Value,
+                    CompanyId: user.CompanyId?.Value,
+                    BranchId: user.BranchId?.Value),
+                cancellationToken);
+
+            if (scopeResult.IsSuccess && scopeResult.Context != null)
+            {
+                interactiveScopeProvider.SetCurrentContext(scopeResult.Context);
+            }
+            else
+            {
+                currentSession.SignOut();
+                interactiveScopeProvider.Clear();
+                return LoginResult.Failure(scopeResult.ErrorMessage ?? "Authorization failed: Unable to establish trusted execution scope.");
+            }
+        }
 
         // Best-effort: the Restaurant activity log is a convenience audit
         // trail, not the authoritative record of this sign-in (that's
@@ -150,14 +178,17 @@ public sealed class LoginService(
         var sessionId = currentSession.SessionId;
         currentSession.SignOut();
 
-        if (sessionId is not { } activeSessionId)
-        {
-            return;
-        }
-
         try
         {
             using var scope = scopeFactory.CreateScope();
+            var interactiveScopeProvider = scope.ServiceProvider.GetService<Clovent.Platform.Execution.IInteractiveScopeProvider>();
+            interactiveScopeProvider?.Clear();
+
+            if (sessionId is not { } activeSessionId)
+            {
+                return;
+            }
+
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             await mediator.Send(new LogOutSessionCommand(activeSessionId), cancellationToken);
         }
