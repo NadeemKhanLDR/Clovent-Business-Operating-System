@@ -40,13 +40,32 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
 
         try
         {
-            // 1. Bind interactive scope at request-dispatch boundary if no ambient context exists
-            if (_accessor.Current == null && _interactiveScopeProvider != null)
+            // 1. Authoritative interactive boundary resolution & provenance verification
+            var interactiveContext = _interactiveScopeProvider?.GetCurrentContext();
+
+            if (interactiveContext != null)
             {
-                var interactiveContext = _interactiveScopeProvider.GetCurrentContext();
-                if (interactiveContext != null)
+                if (_accessor.Current == null)
                 {
+                    // Bind authoritative interactive scope at request-dispatch boundary
                     boundaryScope = _accessor.BeginScope(interactiveContext);
+                }
+                else
+                {
+                    // Ambient context already exists in an interactive session.
+                    // Validate provenance: ensure stale, unverified, or cross-tenant ambient contexts
+                    // cannot override the authenticated interactive session.
+                    var current = _accessor.Current;
+                    if (current.UserId.HasValue && current.UserId.Value != interactiveContext.UserId ||
+                        current.CompanyId.HasValue && current.CompanyId.Value != interactiveContext.CompanyId ||
+                        current.OrganizationId.HasValue && current.OrganizationId.Value != interactiveContext.OrganizationId)
+                    {
+                        throw new ScopeMismatchException(
+                            $"Ambient execution context (User: '{current.UserId}', Company: '{current.CompanyId}', Org: '{current.OrganizationId}') " +
+                            $"conflicts with authenticated interactive session (User: '{interactiveContext.UserId}', Company: '{interactiveContext.CompanyId}', Org: '{interactiveContext.OrganizationId}'). " +
+                            "Stale or unverified ambient context cannot override the authenticated session's authorized scope.");
+                    }
+                    // If identities match, this is a legitimate nested request within the same session. Proceed.
                 }
             }
 

@@ -214,18 +214,21 @@ public class SessionWiringTests
     }
 
     [Fact]
-    public async Task FailedScopeResolution_ClearsScopeAndDoesNotRetainStaleContext()
+    public async Task FailedScopeResolution_TerminatesSessionAndFailsLogin()
     {
         var fixture = BuildFixture();
         var (user, _) = CreateActiveUserWithPassword(fixture, "alice", "Correct123!", Guid.NewGuid(), Guid.NewGuid());
 
-        // Scope resolution fails (e.g. company inactive or hierarchy mismatch)
+        // Scope resolution fails (e.g. company inactive, unassigned user, or hierarchy mismatch)
         fixture.ScopeResolver.ResultToReturn = ScopeResolutionResult.Failed("Hierarchy inconsistency");
 
         var result = await fixture.LoginService.LoginAsync(new LoginRequest("alice", "Correct123!", null, RememberMe: false));
 
-        Assert.True(result.Succeeded); // Authentication succeeded
-        Assert.Null(fixture.InteractiveScopeProvider.GetCurrentContext()); // Scope was rejected and cleared
+        // Authentication might have validated credentials, but login MUST FAIL due to scope resolution failure
+        Assert.False(result.Succeeded);
+        Assert.Contains("Hierarchy inconsistency", result.ErrorMessage);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+        Assert.Null(fixture.InteractiveScopeProvider.GetCurrentContext());
     }
 
     private sealed class FakeScopeResolver : ITrustedScopeResolver

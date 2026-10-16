@@ -262,6 +262,98 @@ public sealed class ScopeEnforcementBehaviorTests
         Assert.Single(behaviors);
     }
 
+    [Fact]
+    public async Task InteractiveSession_WithConflictingAmbientContext_ThrowsScopeMismatchException()
+    {
+        var userA = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var orgA = Guid.NewGuid();
+        var branchA = Guid.NewGuid();
+
+        var userB = Guid.NewGuid();
+        var compB = Guid.NewGuid();
+
+        // Interactive session belongs to User A
+        _interactiveProvider.SetCurrentContext(new PlatformExecutionContext
+        {
+            UserId = userA,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = branchA
+        });
+
+        // Ambient context was pre-populated with User B (e.g. leaked or hostile context)
+        var ambientContextUserB = new PlatformExecutionContext
+        {
+            UserId = userB,
+            OrganizationId = orgA,
+            CompanyId = compB,
+            BranchId = branchA
+        };
+
+        using (_accessor.BeginScope(ambientContextUserB))
+        {
+            var ex = await Assert.ThrowsAsync<ScopeMismatchException>(
+                () => _mediator.Send(new SampleBranchCommand("Item1")));
+
+            Assert.Contains("conflicts with authenticated interactive session", ex.Message);
+            Assert.Contains(userB.ToString(), ex.Message);
+            Assert.Contains(userA.ToString(), ex.Message);
+        }
+    }
+
+    [Fact]
+    public async Task InteractiveSession_WithMatchingNestedAmbientContext_PreservesLegitimateNestedRequests()
+    {
+        var userA = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var orgA = Guid.NewGuid();
+        var branchA = Guid.NewGuid();
+
+        var context = new PlatformExecutionContext
+        {
+            UserId = userA,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = branchA
+        };
+
+        _interactiveProvider.SetCurrentContext(context);
+
+        // Dispatches outer request, which sets ambient context.
+        // Nested request inherits ambient context matching the interactive session and succeeds.
+        using (_accessor.BeginScope(context))
+        {
+            var result = await _mediator.Send(new SampleBranchCommand("NestedItem"));
+            Assert.Equal("Processed NestedItem at branch " + branchA, result);
+        }
+    }
+
+    [Fact]
+    public async Task BackgroundWorker_WithoutInteractiveSession_PreservesWorkerAmbientContext()
+    {
+        // No interactive desktop session
+        _interactiveProvider.Clear();
+        Assert.Null(_interactiveProvider.GetCurrentContext());
+
+        var workerOrg = Guid.NewGuid();
+        var workerComp = Guid.NewGuid();
+        var workerBranch = Guid.NewGuid();
+
+        var workerContext = new PlatformExecutionContext
+        {
+            OrganizationId = workerOrg,
+            CompanyId = workerComp,
+            BranchId = workerBranch
+        };
+
+        using (_accessor.BeginScope(workerContext))
+        {
+            var result = await _mediator.Send(new SampleBranchCommand("WorkerItem"));
+            Assert.Equal("Processed WorkerItem at branch " + workerBranch, result);
+        }
+    }
+
     private sealed class FakeInteractiveScopeProvider : IInteractiveScopeProvider
     {
         private IExecutionContext? _context;

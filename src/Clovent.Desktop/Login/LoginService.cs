@@ -149,7 +149,9 @@ public sealed class LoginService(
             }
             else
             {
+                currentSession.SignOut();
                 interactiveScopeProvider.Clear();
+                return LoginResult.Failure(scopeResult.ErrorMessage ?? "Authorization failed: Unable to establish trusted execution scope.");
             }
         }
 
