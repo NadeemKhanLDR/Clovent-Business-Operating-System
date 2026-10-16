@@ -52,22 +52,43 @@ public sealed class ScopeEnforcementBehavior<TRequest, TResponse> : IPipelineBeh
                 }
                 else
                 {
-                    // Ambient context already exists in an interactive session.
-                    // Validate provenance: ensure stale, unverified, or cross-tenant ambient contexts
-                    // cannot override the authenticated interactive session.
+                    // Ambient context already exists while an authenticated interactive session is active.
+                    // Validate complete provenance: stale, unverified, or missing ambient identity must not
+                    // silently pass as a matching session.
                     var current = _accessor.Current;
-                    if (current.UserId.HasValue && current.UserId.Value != interactiveContext.UserId ||
-                        current.CompanyId.HasValue && current.CompanyId.Value != interactiveContext.CompanyId ||
-                        current.OrganizationId.HasValue && current.OrganizationId.Value != interactiveContext.OrganizationId)
+
+                    if (current.UserId != interactiveContext.UserId ||
+                        !current.UserId.HasValue || current.UserId.Value == Guid.Empty ||
+                        current.CompanyId != interactiveContext.CompanyId ||
+                        !current.CompanyId.HasValue || current.CompanyId.Value == Guid.Empty ||
+                        current.OrganizationId != interactiveContext.OrganizationId ||
+                        !current.OrganizationId.HasValue || current.OrganizationId.Value == Guid.Empty)
                     {
                         throw new ScopeMismatchException(
                             $"Ambient execution context (User: '{current.UserId}', Company: '{current.CompanyId}', Org: '{current.OrganizationId}') " +
                             $"conflicts with authenticated interactive session (User: '{interactiveContext.UserId}', Company: '{interactiveContext.CompanyId}', Org: '{interactiveContext.OrganizationId}'). " +
-                            "Stale or unverified ambient context cannot override the authenticated session's authorized scope.");
+                            "Missing ambient identity, stale context, or ID mismatch cannot override the authenticated session's authorized scope.");
                     }
-                    // If identities match, this is a legitimate nested request within the same session. Proceed.
+
+                    // For branch-scoped operations, validate complete required authorized scope including BranchId.
+                    // A matching user/company/organization must not permit an unauthorized foreign branch.
+                    if (request is IRequireBranchScope)
+                    {
+                        if (current.BranchId != interactiveContext.BranchId ||
+                            !current.BranchId.HasValue || current.BranchId.Value == Guid.Empty)
+                        {
+                            throw new ScopeMismatchException(
+                                $"Ambient execution context branch '{current.BranchId}' conflicts with authenticated interactive session branch '{interactiveContext.BranchId}' " +
+                                $"for branch-scoped request '{typeof(TRequest).Name}'. A matching user/company/organization cannot permit an unauthorized foreign branch " +
+                                "without explicit authorized scope transition through the trusted resolver.");
+                        }
+                    }
+                    // If identities and required scopes match, this is a legitimate nested request within the same session. Proceed.
                 }
             }
+            // Note: When no interactive session is active (interactiveContext == null), the pipeline relies solely on
+            // ambient context (_accessor.Current). Accepting an ambient context alone does NOT prove that a validated worker
+            // established it; worker provenance verification remains explicitly deferred.
 
             // 2. Enforce Branch-level scope (requires BranchId, CompanyId, OrganizationId)
             if (request is IRequireBranchScope)

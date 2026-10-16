@@ -330,6 +330,78 @@ public sealed class ScopeEnforcementBehaviorTests
     }
 
     [Fact]
+    public async Task InteractiveSession_WithUnauthorizedBranchId_ThrowsScopeMismatchException()
+    {
+        var userA = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var orgA = Guid.NewGuid();
+        var branchA = Guid.NewGuid();
+        var unauthorizedBranch = Guid.NewGuid();
+
+        _interactiveProvider.SetCurrentContext(new PlatformExecutionContext
+        {
+            UserId = userA,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = branchA
+        });
+
+        // Ambient context has matching user, company, and organization, but an unauthorized foreign branch
+        var ambientContextUnauthorizedBranch = new PlatformExecutionContext
+        {
+            UserId = userA,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = unauthorizedBranch
+        };
+
+        using (_accessor.BeginScope(ambientContextUnauthorizedBranch))
+        {
+            var ex = await Assert.ThrowsAsync<ScopeMismatchException>(
+                () => _mediator.Send(new SampleBranchCommand("Item1")));
+
+            Assert.Contains("conflicts with authenticated interactive session branch", ex.Message);
+            Assert.Contains(unauthorizedBranch.ToString(), ex.Message);
+            Assert.Contains(branchA.ToString(), ex.Message);
+        }
+    }
+
+    [Fact]
+    public async Task InteractiveSession_WithMissingAmbientUserId_ThrowsScopeMismatchException()
+    {
+        var userA = Guid.NewGuid();
+        var compA = Guid.NewGuid();
+        var orgA = Guid.NewGuid();
+        var branchA = Guid.NewGuid();
+
+        _interactiveProvider.SetCurrentContext(new PlatformExecutionContext
+        {
+            UserId = userA,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = branchA
+        });
+
+        // Ambient context has matching organization, company, and branch, but missing UserId
+        var ambientContextMissingUserId = new PlatformExecutionContext
+        {
+            UserId = null,
+            OrganizationId = orgA,
+            CompanyId = compA,
+            BranchId = branchA
+        };
+
+        using (_accessor.BeginScope(ambientContextMissingUserId))
+        {
+            var ex = await Assert.ThrowsAsync<ScopeMismatchException>(
+                () => _mediator.Send(new SampleBranchCommand("Item1")));
+
+            Assert.Contains("conflicts with authenticated interactive session", ex.Message);
+            Assert.Contains("Missing ambient identity", ex.Message);
+        }
+    }
+
+    [Fact]
     public async Task BackgroundWorker_WithoutInteractiveSession_PreservesWorkerAmbientContext()
     {
         // No interactive desktop session
