@@ -74,15 +74,40 @@ public sealed class OutboxRepository(RestaurantDbContext dbContext) : IOutboxRep
             }
         }
 
-        if (claimed.Count > 0)
+        while (claimed.Count > 0)
         {
             try
             {
                 await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                break;
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
-                // If another worker claimed any overlapping message concurrently, return those that were tracked
+                var removedAny = false;
+                foreach (var entry in ex.Entries)
+                {
+                    if (entry.Entity is OutboxMessage failedMessage)
+                    {
+                        claimed.Remove(failedMessage);
+                        entry.State = EntityState.Detached;
+                        removedAny = true;
+                    }
+                }
+
+                if (!removedAny)
+                {
+                    // Fallback to safely detach all attempted claim entries without touching unrelated entities
+                    foreach (var message in claimed)
+                    {
+                        var entry = dbContext.Entry(message);
+                        if (entry.State == EntityState.Modified)
+                        {
+                            entry.State = EntityState.Detached;
+                        }
+                    }
+                    claimed.Clear();
+                    break;
+                }
             }
         }
 
