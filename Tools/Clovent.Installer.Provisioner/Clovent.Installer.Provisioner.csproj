@@ -31,6 +31,7 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
   </ItemGroup>
 
   <!-- Compile shared provisioning and configuration source files directly from src/Clovent.Desktop -->
