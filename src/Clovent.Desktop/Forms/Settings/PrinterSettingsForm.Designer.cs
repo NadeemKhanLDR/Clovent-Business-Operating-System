@@ -572,7 +572,7 @@ partial class PrinterSettingsForm
         this.spinCustomerCopies.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
         this.spinCustomerCopies.Properties.IsFloatValue = false;
-        this.spinCustomerCopies.Properties.MaxValue = new decimal(new int[] { 10, 0, 0, 0 });
+        this.spinCustomerCopies.Properties.MaxValue = new decimal(new int[] { 5, 0, 0, 0 });
         this.spinCustomerCopies.Properties.MinValue = new decimal(new int[] { 1, 0, 0, 0 });
         this.spinCustomerCopies.Size = new System.Drawing.Size(70, 20);
         this.spinCustomerCopies.TabIndex = 4;
@@ -619,7 +619,7 @@ partial class PrinterSettingsForm
         this.spinMerchantCopies.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
         this.spinMerchantCopies.Properties.IsFloatValue = false;
-        this.spinMerchantCopies.Properties.MaxValue = new decimal(new int[] { 10, 0, 0, 0 });
+        this.spinMerchantCopies.Properties.MaxValue = new decimal(new int[] { 5, 0, 0, 0 });
         this.spinMerchantCopies.Properties.MinValue = new decimal(new int[] { 1, 0, 0, 0 });
         this.spinMerchantCopies.Size = new System.Drawing.Size(70, 20);
         this.spinMerchantCopies.TabIndex = 9;

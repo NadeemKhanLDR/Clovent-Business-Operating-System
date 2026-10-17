@@ -778,4 +778,92 @@ public class PrinterManagementServiceTests : IDisposable
         Assert.NotNull(adapter.LastDispatchedProfile);
         Assert.True(adapter.LastDispatchedProfile.SupportsCashDrawer, "Cash drawer MUST be allowed for primary customer copy with cash tender.");
     }
+
+    [Fact]
+    public async Task SaveTerminalReceiptSettingsAsync_BoundaryCopyCount_1Copy_Succeeds()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var terminalId = Guid.NewGuid();
+        var settings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 1, // Min boundary
+            MerchantCopyEnabled = true,
+            MerchantCopyCount = 1
+        };
+
+        // Act
+        await service.SaveTerminalReceiptSettingsAsync(terminalId, settings);
+        var loaded = await service.GetTerminalReceiptSettingsAsync(terminalId);
+
+        // Assert
+        Assert.Equal(1, loaded.CustomerCopyCount);
+        Assert.Equal(1, loaded.MerchantCopyCount);
+    }
+
+    [Fact]
+    public async Task SaveTerminalReceiptSettingsAsync_BoundaryCopyCount_5Copies_Succeeds()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var terminalId = Guid.NewGuid();
+        var settings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 5, // Max boundary (shared limit of 5)
+            MerchantCopyEnabled = true,
+            MerchantCopyCount = 5
+        };
+
+        // Act
+        await service.SaveTerminalReceiptSettingsAsync(terminalId, settings);
+        var loaded = await service.GetTerminalReceiptSettingsAsync(terminalId);
+
+        // Assert
+        Assert.Equal(5, loaded.CustomerCopyCount);
+        Assert.Equal(5, loaded.MerchantCopyCount);
+    }
+
+    [Fact]
+    public async Task SaveTerminalReceiptSettingsAsync_BoundaryCopyCount_6Copies_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var terminalId = Guid.NewGuid();
+        var settings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 6, // Exceeds MaxCopyCount of 5!
+            MerchantCopyEnabled = false
+        };
+
+        // Act & Assert: Throws explicit ArgumentOutOfRangeException requiring correction (does not silently truncate)
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            service.SaveTerminalReceiptSettingsAsync(terminalId, settings));
+
+        Assert.Contains("Configured customer copy count (6) exceeds supported range (1-5)", ex.Message);
+        Assert.Contains("Please correct the configuration", ex.Message);
+    }
 }

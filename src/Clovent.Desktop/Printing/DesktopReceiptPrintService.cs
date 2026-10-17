@@ -77,13 +77,23 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
             var printableData = snapshot.ToPrintable();
             var terminalSettings = await _printerManagementService.GetTerminalReceiptSettingsAsync(effectiveTerminalId, cancellationToken).ConfigureAwait(false);
 
+            // Validate copy count limits: do not silently truncate or clamp if existing configuration exceeds MaxCopyCount
+            if (!terminalSettings.IsCopyCountValid(out var copyValidationError))
+            {
+                _logger?.LogError("Terminal receipt settings for terminal {TerminalId} are invalid: {Error}", effectiveTerminalId, copyValidationError);
+                return new ReceiptPrintResult(
+                    ReceiptPrintStatus.PrintFailed,
+                    null,
+                    $"Print failed: {copyValidationError}");
+            }
+
             PrintDispatchResult? customerResult = null;
             PrintDispatchResult? merchantResult = null;
 
             // 1. Customer Copy dispatch
             if (terminalSettings.CustomerCopyEnabled)
             {
-                var copies = Math.Clamp(terminalSettings.CustomerCopyCount, 1, 5);
+                var copies = terminalSettings.CustomerCopyCount;
                 for (var i = 1; i <= copies; i++)
                 {
                     var isAdditionalCopy = i > 1;
@@ -110,7 +120,7 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
             // 2. Merchant / Store Copy dispatch
             if (terminalSettings.MerchantCopyEnabled)
             {
-                var copies = Math.Clamp(terminalSettings.MerchantCopyCount, 1, 5);
+                var copies = terminalSettings.MerchantCopyCount;
                 for (var i = 1; i <= copies; i++)
                 {
                     var copyJobId = DeriveSubJobId(jobId, "merchant", i);

@@ -275,6 +275,11 @@ public sealed class PrinterManagementService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(settings);
+        if (!settings.IsCopyCountValid(out var copyError))
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings), copyError);
+        }
+
         await EnsurePermissionAsync("feature.printers.manage", "save terminal receipt settings").ConfigureAwait(false);
         EnsureScopeOwnership(organizationId: organizationId, branchId: branchId, terminalId: terminalId, "saving terminal receipt settings");
 

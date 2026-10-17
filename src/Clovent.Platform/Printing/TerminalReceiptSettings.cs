@@ -12,10 +12,16 @@ public sealed class TerminalReceiptSettings
     /// <summary>Whether customer receipt copy printing is enabled.</summary>
     public bool CustomerCopyEnabled { get; set; } = true;
 
+    /// <summary>Minimum supported copies per copy type.</summary>
+    public const int MinCopyCount = 1;
+
+    /// <summary>Maximum supported copies per copy type across UI, settings validation, and dispatch.</summary>
+    public const int MaxCopyCount = 5;
+
     /// <summary>Destination printer profile ID for customer copy (null uses default receipt printer).</summary>
     public Guid? CustomerCopyProfileId { get; set; }
 
-    /// <summary>Number of customer copies to produce (default 1).</summary>
+    /// <summary>Number of customer copies to produce (default 1, max 5).</summary>
     public int CustomerCopyCount { get; set; } = 1;
 
     /// <summary>Whether merchant/store accounting copy printing is enabled.</summary>
@@ -24,8 +30,30 @@ public sealed class TerminalReceiptSettings
     /// <summary>Destination printer profile ID for merchant copy (null uses customer copy destination).</summary>
     public Guid? MerchantCopyProfileId { get; set; }
 
-    /// <summary>Number of merchant/store copies to produce (default 1).</summary>
+    /// <summary>Number of merchant/store copies to produce (default 1, max 5).</summary>
     public int MerchantCopyCount { get; set; } = 1;
+
+    /// <summary>
+    /// Validates configured copy counts against the shared boundary limits (1 to 5).
+    /// Returns false and an explicit validation error message if either copy count is out of range.
+    /// </summary>
+    public bool IsCopyCountValid(out string? errorMessage)
+    {
+        if (CustomerCopyEnabled && (CustomerCopyCount < MinCopyCount || CustomerCopyCount > MaxCopyCount))
+        {
+            errorMessage = $"Configured customer copy count ({CustomerCopyCount}) exceeds supported range ({MinCopyCount}-{MaxCopyCount}). Please correct the configuration.";
+            return false;
+        }
+
+        if (MerchantCopyEnabled && (MerchantCopyCount < MinCopyCount || MerchantCopyCount > MaxCopyCount))
+        {
+            errorMessage = $"Configured merchant copy count ({MerchantCopyCount}) exceeds supported range ({MinCopyCount}-{MaxCopyCount}). Please correct the configuration.";
+            return false;
+        }
+
+        errorMessage = null;
+        return true;
+    }
 
     /// <summary>Paper width profile (58mm, 80mm, or A4).</summary>
     public PaperWidth PaperWidth { get; set; } = PaperWidth.Width80mm;

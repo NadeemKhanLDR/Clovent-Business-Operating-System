@@ -272,14 +272,25 @@ public partial class PrinterSettingsForm : XtraForm
             cmbTerminalDefaultReceipt.SelectedIndex = 0;
         }
 
+        // Explicit validation notice for existing configurations above MaxCopyCount (do not silently accept)
+        if ((settings.CustomerCopyEnabled && settings.CustomerCopyCount > TerminalReceiptSettings.MaxCopyCount) ||
+            (settings.MerchantCopyEnabled && settings.MerchantCopyCount > TerminalReceiptSettings.MaxCopyCount))
+        {
+            XtraMessageBox.Show(
+                $"The existing configuration for receipt copies exceeds the maximum supported limit of {TerminalReceiptSettings.MaxCopyCount} copies per transaction (Customer: {settings.CustomerCopyCount}, Merchant: {settings.MerchantCopyCount}).\n\nPlease correct the copy count to between {TerminalReceiptSettings.MinCopyCount} and {TerminalReceiptSettings.MaxCopyCount} before saving.",
+                "Copy Count Configuration Requires Correction",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
+
         // Customer copy
         chkCustomerCopy.Checked = settings.CustomerCopyEnabled;
-        spinCustomerCopies.Value = Math.Clamp(settings.CustomerCopyCount, 1, 10);
+        spinCustomerCopies.Value = Math.Clamp(settings.CustomerCopyCount, TerminalReceiptSettings.MinCopyCount, TerminalReceiptSettings.MaxCopyCount);
         SelectProfileInCombo(cmbCustomerPrinter, settings.CustomerCopyProfileId);
 
         // Merchant copy
         chkMerchantCopy.Checked = settings.MerchantCopyEnabled;
-        spinMerchantCopies.Value = Math.Clamp(settings.MerchantCopyCount, 1, 10);
+        spinMerchantCopies.Value = Math.Clamp(settings.MerchantCopyCount, TerminalReceiptSettings.MinCopyCount, TerminalReceiptSettings.MaxCopyCount);
         SelectProfileInCombo(cmbMerchantPrinter, settings.MerchantCopyProfileId);
 
         // Layout & formatting
@@ -557,6 +568,26 @@ public partial class PrinterSettingsForm : XtraForm
             {
                 return;
             }
+        }
+
+        if (chkCustomerCopy.Checked && (spinCustomerCopies.Value < TerminalReceiptSettings.MinCopyCount || spinCustomerCopies.Value > TerminalReceiptSettings.MaxCopyCount))
+        {
+            XtraMessageBox.Show(
+                $"Customer copy count ({spinCustomerCopies.Value}) is invalid. Supported range is {TerminalReceiptSettings.MinCopyCount} to {TerminalReceiptSettings.MaxCopyCount} copies per transaction.",
+                "Validation Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (chkMerchantCopy.Checked && (spinMerchantCopies.Value < TerminalReceiptSettings.MinCopyCount || spinMerchantCopies.Value > TerminalReceiptSettings.MaxCopyCount))
+        {
+            XtraMessageBox.Show(
+                $"Merchant copy count ({spinMerchantCopies.Value}) is invalid. Supported range is {TerminalReceiptSettings.MinCopyCount} to {TerminalReceiptSettings.MaxCopyCount} copies per transaction.",
+                "Validation Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+            return;
         }
 
         var terminalId = PosSettingsStore.LoadTerminalId() ?? Guid.NewGuid();
