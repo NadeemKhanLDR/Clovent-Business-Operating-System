@@ -45,7 +45,10 @@ param(
     [string]$CompensationReference,
 
     [Parameter(Mandatory = $false)]
-    [string]$BackupDirectory
+    [string]$BackupDirectory,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$AllowUnapprovedScript
 )
 
 Set-StrictMode -Version 2.0
@@ -65,4 +68,5 @@ Invoke-CbosCorrectiveScript `
     -Execute:$Execute `
     -PreTestedOnRestoredCopy:$PreTestedOnRestoredCopy `
     -CompensationReference $CompensationReference `
-    -BackupDirectory $BackupDirectory
+    -BackupDirectory $BackupDirectory `
+    -AllowUnapprovedScript:$AllowUnapprovedScript

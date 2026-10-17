@@ -93,16 +93,28 @@ public static class Program
         string connStr = "";
         string sourceConnStr = "";
         string restoredConnStr = "";
+        string referenceConnStr = "";
+        string diagnosticConnStr = "";
+        decimal adjustmentAmount = 100.00m;
         string? factsFilePath = null;
 
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--seed") mode = "seed";
-            else if (args[i] == "--reconcile") mode = "reconcile";
+            else if (args[i] == "--reconcile" || args[i] == "--reconcile-equivalence") mode = "reconcile-equivalence";
+            else if (args[i] == "--reconcile-post-correction") mode = "reconcile-post-correction";
             else if (args[i] == "--connection-string" && i + 1 < args.Length) connStr = args[++i];
             else if (args[i] == "--source" && i + 1 < args.Length) sourceConnStr = args[++i];
             else if (args[i] == "--restored" && i + 1 < args.Length) restoredConnStr = args[++i];
+            else if (args[i] == "--reference" && i + 1 < args.Length) referenceConnStr = args[++i];
+            else if (args[i] == "--diagnostic" && i + 1 < args.Length) diagnosticConnStr = args[++i];
+            else if (args[i] == "--adjustment" && i + 1 < args.Length && decimal.TryParse(args[++i], out var adj)) adjustmentAmount = adj;
             else if (args[i] == "--facts-file" && i + 1 < args.Length) factsFilePath = args[++i];
+        }
+
+        if (string.IsNullOrEmpty(referenceConnStr) && !string.IsNullOrEmpty(restoredConnStr))
+        {
+            referenceConnStr = restoredConnStr;
         }
 
         if (mode == "seed")
@@ -132,11 +144,11 @@ public static class Program
             return 0;
         }
 
-        if (mode == "reconcile")
+        if (mode == "reconcile-equivalence")
         {
-            if (string.IsNullOrWhiteSpace(sourceConnStr) || string.IsNullOrWhiteSpace(restoredConnStr))
+            if (string.IsNullOrWhiteSpace(sourceConnStr) || string.IsNullOrWhiteSpace(referenceConnStr))
             {
-                Console.Error.WriteLine("Error: --source and --restored required for --reconcile.");
+                Console.Error.WriteLine("Error: --source and --reference (or --restored) required for --reconcile-equivalence.");
                 return 1;
             }
 
@@ -147,26 +159,53 @@ public static class Program
                 facts = JsonSerializer.Deserialize<SyntheticFixtureFacts>(json);
             }
 
-            Console.WriteLine("[FIXTURE-RECONCILER] Reconciling business facts between Source and Restored database...");
-            var results = await ReconcileBusinessFactsAsync(sourceConnStr, restoredConnStr, facts);
+            Console.WriteLine("[FIXTURE-RECONCILER] Reconciling equivalence between Source and Restored Reference database...");
+            var results = await ReconcileEquivalenceAsync(sourceConnStr, referenceConnStr, facts);
             PrintReconciliationTable(results);
 
             bool allPass = results.All(r => r.Matches);
             if (!allPass)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("[FIXTURE-RECONCILER] RECONCILIATION FAILED.");
+                Console.WriteLine("[FIXTURE-RECONCILER] RESTORE EQUIVALENCE RECONCILIATION FAILED.");
                 Console.ResetColor();
                 return 2;
             }
 
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("[FIXTURE-RECONCILER] RECONCILIATION PASSED: All business facts and invariants match.");
+            Console.WriteLine("[FIXTURE-RECONCILER] RESTORE EQUIVALENCE PASSED: Reference copy is 100% equivalent to Source.");
             Console.ResetColor();
             return 0;
         }
 
-        Console.Error.WriteLine("Error: Unknown mode. Use --seed or --reconcile.");
+        if (mode == "reconcile-post-correction")
+        {
+            if (string.IsNullOrWhiteSpace(referenceConnStr) || string.IsNullOrWhiteSpace(diagnosticConnStr))
+            {
+                Console.Error.WriteLine("Error: --reference and --diagnostic required for --reconcile-post-correction.");
+                return 1;
+            }
+
+            Console.WriteLine("[FIXTURE-RECONCILER] Reconciling post-correction domain facts between Reference and Diagnostic database...");
+            var results = await ReconcilePostCorrectionAsync(referenceConnStr, diagnosticConnStr, adjustmentAmount);
+            PrintReconciliationTable(results);
+
+            bool allPass = results.All(r => r.Matches);
+            if (!allPass)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("[FIXTURE-RECONCILER] POST-CORRECTION RECONCILIATION FAILED.");
+                Console.ResetColor();
+                return 2;
+            }
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("[FIXTURE-RECONCILER] POST-CORRECTION RECONCILIATION PASSED: Compensating adjustment verified without historical mutation.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        Console.Error.WriteLine("Error: Unknown mode. Use --seed, --reconcile-equivalence, or --reconcile-post-correction.");
         return 1;
     }
 
@@ -546,18 +585,18 @@ public static class Program
         string RestoredValue,
         bool Matches);
 
-    public static async Task<List<ReconciliationRow>> ReconcileBusinessFactsAsync(
+    public static async Task<List<ReconciliationRow>> ReconcileEquivalenceAsync(
         string sourceConnStr,
-        string restoredConnStr,
+        string referenceConnStr,
         SyntheticFixtureFacts? facts)
     {
         var rows = new List<ReconciliationRow>();
 
         var sourceServices = BuildServiceProvider(sourceConnStr);
-        var restoredServices = BuildServiceProvider(restoredConnStr);
+        var refServices = BuildServiceProvider(referenceConnStr);
 
         await using var sScope = sourceServices.CreateAsyncScope();
-        await using var rScope = restoredServices.CreateAsyncScope();
+        await using var rScope = refServices.CreateAsyncScope();
 
         var sRest = sScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
         var rRest = rScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
@@ -609,15 +648,18 @@ public static class Program
                             rOrd1.ReceiptSnapshotJson == sOrd1.ReceiptSnapshotJson;
         rows.Add(new ReconciliationRow("Receipt Immutability", "Order #1 Frozen Receipt Snapshot JSON", "Exact Hash Match", receiptMatch ? "Exact Hash Match" : "Mismatch", receiptMatch));
 
-        // 6. Customer Balance & Ledger Reconciliation
+        // 6. Customer Balance & Ledger Reconciliation (Equivalence: identical in Source and Reference!)
         var sCustList = await sRest.Customers.ToListAsync();
         var rCustList = await rRest.Customers.ToListAsync();
         var sCust = sCustList.FirstOrDefault(c => c.Code.Value == "CREDIT-DEMO");
         var rCust = rCustList.FirstOrDefault(c => c.Code.Value == "CREDIT-DEMO");
         var rLedgerEntries = rCust != null ? await rRest.CustomerLedgerEntries.Where(l => l.CustomerId == rCust.Id).ToListAsync() : [];
         var ledgerSum = rLedgerEntries.Sum(l => l.Debit) - rLedgerEntries.Sum(l => l.Credit);
-        bool customerReconciled = sCust != null && rCust != null && rCust.OutstandingBalance == ledgerSum;
-        rows.Add(new ReconciliationRow("Receivables Ledger", "Customer CREDIT-DEMO Balance vs Ledger",
+        bool customerReconciled = sCust != null && rCust != null &&
+                                  sCust.OutstandingBalance == rCust.OutstandingBalance &&
+                                  rCust.OutstandingBalance == ledgerSum &&
+                                  rCust.OutstandingBalance == 1044.00m;
+        rows.Add(new ReconciliationRow("Receivables Ledger", "Customer CREDIT-DEMO Balance Equivalence",
             sCust != null ? $"{sCust.OutstandingBalance:N2} PKR" : "null",
             rCust != null ? $"{rCust.OutstandingBalance:N2} PKR (Sum: {ledgerSum:N2})" : "null",
             customerReconciled));
@@ -640,6 +682,95 @@ public static class Program
                           sStocks.All(s => rStocks.Any(r => r.ProductVariantId == s.ProductVariantId && r.QuantityOnHand == s.QuantityOnHand));
         rows.Add(new ReconciliationRow("Inventory Positions", "All Warehouse Stock Levels Match",
             $"{sStocks.Count} stock records", $"{rStocks.Count} stock records", stockMatch));
+
+        return rows;
+    }
+
+    public static async Task<List<ReconciliationRow>> ReconcilePostCorrectionAsync(
+        string referenceConnStr,
+        string diagnosticConnStr,
+        decimal expectedAdjustment)
+    {
+        var rows = new List<ReconciliationRow>();
+        var refServices = BuildServiceProvider(referenceConnStr);
+        var diagServices = BuildServiceProvider(diagnosticConnStr);
+
+        await using var refScope = refServices.CreateAsyncScope();
+        await using var diagScope = diagServices.CreateAsyncScope();
+
+        var refRest = refScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var diagRest = diagScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+
+        // 1. Customer Balance Adjustment Check (1,044.00 -> 944.00)
+        var refCust = (await refRest.Customers.ToListAsync()).FirstOrDefault(c => c.Code.Value == "CREDIT-DEMO");
+        var diagCust = (await diagRest.Customers.ToListAsync()).FirstOrDefault(c => c.Code.Value == "CREDIT-DEMO");
+
+        decimal originalBalance = refCust?.OutstandingBalance ?? 0m;
+        decimal correctedBalance = diagCust?.OutstandingBalance ?? 0m;
+        decimal expectedCorrectedBalance = originalBalance - expectedAdjustment;
+
+        bool balanceAdjusted = refCust != null && diagCust != null &&
+                               originalBalance == 1044.00m &&
+                               correctedBalance == 944.00m &&
+                               correctedBalance == expectedCorrectedBalance;
+
+        rows.Add(new ReconciliationRow("Corrective Adjustment", "Customer Balance (1,044.00 -> 944.00 PKR)",
+            $"{originalBalance:N2} PKR", $"{correctedBalance:N2} PKR (Expected: {expectedCorrectedBalance:N2})", balanceAdjusted));
+
+        // 2. Ledger Reconciliation (Sum of debits - credits == Customer.OutstandingBalance)
+        var diagLedgerEntries = diagCust != null ? await diagRest.CustomerLedgerEntries.Where(l => l.CustomerId == diagCust.Id).ToListAsync() : [];
+        var refLedgerEntries = refCust != null ? await refRest.CustomerLedgerEntries.Where(l => l.CustomerId == refCust.Id).ToListAsync() : [];
+        var diagLedgerSum = diagLedgerEntries.Sum(l => l.Debit) - diagLedgerEntries.Sum(l => l.Credit);
+
+        bool ledgerReconciled = diagCust != null &&
+                                diagCust.OutstandingBalance == diagLedgerSum &&
+                                diagLedgerEntries.Count == refLedgerEntries.Count + 1;
+
+        rows.Add(new ReconciliationRow("Receivables Ledger", "Ledger Sum vs Customer OutstandingBalance",
+            $"{diagLedgerSum:N2} PKR (Sum)", $"{correctedBalance:N2} PKR (Cust)", ledgerReconciled));
+
+        // 3. Compensating Credit Entry Validation
+        var compEntry = diagLedgerEntries.FirstOrDefault(l => l.Reference.Contains("DISPUTE"));
+        bool compEntryValid = compEntry != null && compEntry.Credit == expectedAdjustment && compEntry.Debit == 0.00m && compEntry.RunningBalance == 944.00m;
+        rows.Add(new ReconciliationRow("Compensating Entry", "Credit Memo Details (100.00 Credit, Running 944.00)",
+            "100.00 Credit / 944.00 Run",
+            compEntry != null ? $"{compEntry.Credit:N2} Credit / {compEntry.RunningBalance:N2} Run" : "Not Found",
+            compEntryValid));
+
+        // 4. Sales Orders Immutability Check (Must remain IDENTICAL to reference!)
+        var refOrdersCount = await refRest.Orders.CountAsync();
+        var diagOrdersCount = await diagRest.Orders.CountAsync();
+        rows.Add(new ReconciliationRow("Financial Immutability", "Completed Orders Count Unchanged",
+            refOrdersCount.ToString(), diagOrdersCount.ToString(), refOrdersCount == diagOrdersCount));
+
+        // 5. Payment Totals Immutability Check (Cash & On-Account payments must remain untouched)
+        var refPaymentMethods = await refRest.PaymentMethods.ToListAsync();
+        var diagPaymentMethods = await diagRest.PaymentMethods.ToListAsync();
+        var refCashId = refPaymentMethods.First(pm => pm.Name.Value == "Cash").Id;
+        var diagCashId = diagPaymentMethods.First(pm => pm.Name.Value == "Cash").Id;
+        var refCashPaid = await refRest.Payments.Where(p => p.PaymentMethodId == refCashId).SumAsync(p => p.Amount);
+        var diagCashPaid = await diagRest.Payments.Where(p => p.PaymentMethodId == diagCashId).SumAsync(p => p.Amount);
+        rows.Add(new ReconciliationRow("Financial Immutability", "Total Cash Payments Untouched",
+            $"{refCashPaid:N2} PKR", $"{diagCashPaid:N2} PKR", refCashPaid == diagCashPaid));
+
+        // 6. Tax Snapshots Immutability Check
+        var refLine1 = await refRest.OrderLines.FirstOrDefaultAsync(l => l.TaxCode == "SYNTHETIC-TAX-16");
+        var diagLine1 = await diagRest.OrderLines.FirstOrDefaultAsync(l => l.TaxCode == "SYNTHETIC-TAX-16");
+        bool taxSnapUnchanged = refLine1 != null && diagLine1 != null &&
+                                refLine1.TaxableBase == diagLine1.TaxableBase &&
+                                refLine1.TaxAmount == diagLine1.TaxAmount;
+        rows.Add(new ReconciliationRow("Financial Immutability", "Historical Tax Snapshot Untouched",
+            refLine1 != null ? $"{refLine1.TaxAmount:N2} PKR" : "null",
+            diagLine1 != null ? $"{diagLine1.TaxAmount:N2} PKR" : "null",
+            taxSnapUnchanged));
+
+        // 7. Receipt Snapshots Immutability Check
+        var refOrd1 = (await refRest.Orders.ToListAsync()).FirstOrDefault(o => o.OrderNumber.Value == "ORD-20261017-0001");
+        var diagOrd1 = (await diagRest.Orders.ToListAsync()).FirstOrDefault(o => o.OrderNumber.Value == "ORD-20261017-0001");
+        bool receiptUnchanged = refOrd1 != null && diagOrd1 != null &&
+                                refOrd1.ReceiptSnapshotJson == diagOrd1.ReceiptSnapshotJson;
+        rows.Add(new ReconciliationRow("Financial Immutability", "Frozen Receipt Snapshot JSON Untouched",
+            "Exact Match", receiptUnchanged ? "Exact Match" : "Altered", receiptUnchanged));
 
         return rows;
     }

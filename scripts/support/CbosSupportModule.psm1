@@ -50,7 +50,7 @@ function Mask-DatabaseSecrets {
     $masked = [System.Text.RegularExpressions.Regex]::Replace(
         $masked,
         "(?i)(password|pwd)\s*=\s*[^;]+",
-        "$1=******"
+        '$1=******'
     )
 
     # Mask user id if present in certain traces
@@ -139,13 +139,15 @@ function New-CbosSqlConnection {
         $conn.Open()
         return @{
             Connection = $conn
-            ConnectionString = $cs
-            PlainPassword = $plainPassword
+            ConnectionString = (Mask-DatabaseSecrets $cs)
         }
     }
     catch {
         $maskedErr = Mask-DatabaseSecrets $_.Exception.Message $plainPassword
         throw "Failed to connect to SQL Server at '$Server' (Database: '$Database'): $maskedErr"
+    }
+    finally {
+        $plainPassword = $null
     }
 }
 
@@ -484,7 +486,7 @@ function New-CbosSupportBundle {
                     # Redact credit card numbers (13-16 digits with optional dashes/spaces)
                     $sanitized = [System.Text.RegularExpressions.Regex]::Replace($sanitized, "\b(?:\d[ -]*?){13,16}\b", "[CARD_NUMBER_REDACTED]")
                     # Redact potential authorization tokens and PINs
-                    $sanitized = [System.Text.RegularExpressions.Regex]::Replace($sanitized, "(?i)(pin|password|secret|bearer)\s*[:=]\s*[^\s,;]+", "$1=******")
+                    $sanitized = [System.Text.RegularExpressions.Regex]::Replace($sanitized, "(?i)(pin|password|secret|bearer)\s*[:=]\s*[^\s,;]+", '$1=******')
 
                     $targetLogFile = Join-Path $logsSubDir $lf.Name
                     $sanitized | Set-Content -Path $targetLogFile -Encoding UTF8
@@ -797,6 +799,27 @@ END
             Write-Host "    $quarantinedQbCount QuickBooks sync mapping(s) suspended." -ForegroundColor Green
         }
 
+        # 2b. Quarantine and disable SyncInboxRecords if table exists
+        $cmdInbox = $conn.CreateCommand()
+        $cmdInbox.CommandText = @"
+IF OBJECT_ID(N'[Restaurant].[SyncInboxRecords]', N'U') IS NOT NULL
+BEGIN
+    UPDATE [Restaurant].[SyncInboxRecords]
+    SET [Status] = 'Failed',
+        [FailureReason] = 'Quarantined in isolated support environment'
+    WHERE [Status] IN ('Received', 'Pending');
+    SELECT @@ROWCOUNT;
+END
+ELSE
+BEGIN
+    SELECT 0;
+END
+"@
+        $quarantinedInboxCount = [int]$cmdInbox.ExecuteScalar()
+        if ($quarantinedInboxCount -gt 0) {
+            Write-Host "    $quarantinedInboxCount incoming sync inbox record(s) quarantined." -ForegroundColor Green
+        }
+
         # 3. Create isolated printer configuration (disabling physical printing)
         $targetConfigDir = if (-not [string]::IsNullOrWhiteSpace($ConfigDirectory)) {
             $ConfigDirectory
@@ -836,6 +859,7 @@ END
             Success = $true
             QuarantinedOutboxCount = $quarantinedOutboxCount
             QuarantinedQbCount = $quarantinedQbCount
+            QuarantinedInboxCount = $quarantinedInboxCount
             PrinterConfigPath = $printerJsonPath
             DatabaseConfigPath = $dbConfigJsonPath
         }
@@ -883,7 +907,10 @@ function Invoke-CbosCorrectiveScript {
         [string]$CompensationReference,
 
         [Parameter(Mandatory = $false)]
-        [string]$BackupDirectory
+        [string]$BackupDirectory,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$AllowUnapprovedScript
     )
 
     if (-not $DryRun -and -not $Execute) {
@@ -904,6 +931,7 @@ function Invoke-CbosCorrectiveScript {
     $scriptId = if ($scriptContent -match "(?im)^--\s*SCRIPT_ID:\s*([^\r\n]+)") { $matches[1].Trim() } else { [System.IO.Path]::GetFileNameWithoutExtension($ScriptFilePath) }
     $description = if ($scriptContent -match "(?im)^--\s*DESCRIPTION:\s*([^\r\n]+)") { $matches[1].Trim() } else { "Ad-hoc corrective script" }
     $targetSchema = if ($scriptContent -match "(?im)^--\s*TARGET_SCHEMA:\s*([^\r\n]+)") { $matches[1].Trim() } else { "" }
+    $targetDbPattern = if ($scriptContent -match "(?im)^--\s*TARGET_DATABASE_PATTERN:\s*([^\r\n]+)") { $matches[1].Trim() } else { "" }
 
     Write-Host "================================================================================" -ForegroundColor Cyan
     Write-Host "  CBOS CORRECTIVE SCRIPT EXECUTION WORKFLOW" -ForegroundColor Cyan
@@ -914,7 +942,56 @@ function Invoke-CbosCorrectiveScript {
     Write-Host "  Mode:        $(if ($DryRun) { 'PREVIEW / READ-ONLY DIAGNOSIS' } else { 'TRANSACTIONAL EXECUTION' })" -ForegroundColor Cyan
     Write-Host "================================================================================" -ForegroundColor Cyan
 
-    # 2. Financial Immutability Static Guard (PDR-0003)
+    # 2. Approved Script Catalog Whitelist Verification
+    $catalogPath = Join-Path $PSScriptRoot "approved_scripts_catalog.json"
+    $isApproved = $false
+    $approvedEntry = $null
+
+    if (Test-Path $catalogPath) {
+        try {
+            $catalog = Get-Content -Path $catalogPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            foreach ($entry in $catalog.ApprovedScripts) {
+                if ($entry.ScriptId -eq $scriptId) {
+                    $approvedEntry = $entry
+                    if ($entry.Sha256.ToUpperInvariant() -eq $scriptHash.ToUpperInvariant()) {
+                        $isApproved = $true
+                    }
+                    break
+                }
+            }
+        } catch { }
+    }
+
+    if (-not $isApproved) {
+        if (-not $AllowUnapprovedScript) {
+            if ($null -ne $approvedEntry) {
+                throw "SCRIPT INTEGRITY VIOLATION: Script '$scriptId' hash '$scriptHash' does not match the approved catalog hash '$($approvedEntry.Sha256)'. File has been altered. Execution aborted. Use -AllowUnapprovedScript only in non-production environments with explicit authorization."
+            } else {
+                throw "UNAPPROVED SCRIPT BLOCKED: Script '$scriptId' (hash '$scriptHash') is not registered in the approved script catalog. To prevent unauthorized or untested database mutations, only whitelisted scripts may be executed. Use -AllowUnapprovedScript only in non-production environments with explicit authorization."
+            }
+        } else {
+            Write-Warning "NON-APPROVED SCRIPT EXECUTION PERMITTED via -AllowUnapprovedScript. Ensure this is an isolated disposable environment."
+        }
+    } else {
+        Write-Host "  Approved Script Identity Verified against Catalog Whitelist (Approved by: $($approvedEntry.ApprovedBy))." -ForegroundColor Green
+    }
+
+    # 3. Target Database Pattern Guard
+    $effectiveDbPattern = if (-not [string]::IsNullOrWhiteSpace($targetDbPattern)) {
+        $targetDbPattern
+    } elseif ($null -ne $approvedEntry -and -not [string]::IsNullOrWhiteSpace($approvedEntry.TargetDatabasePattern)) {
+        $approvedEntry.TargetDatabasePattern
+    } else {
+        ""
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($effectiveDbPattern)) {
+        if ($TargetDatabaseName -notmatch $effectiveDbPattern) {
+            throw "TARGET DATABASE GUARD VIOLATION: Script '$scriptId' is scoped to database pattern '$effectiveDbPattern', but target database is '$TargetDatabaseName'. Execution halted before any database operation."
+        }
+    }
+
+    # 4. Financial Immutability Static Guard (PDR-0003)
     # Strictly prohibit direct rewrite of completed sales, payments, refunds, taxes, or customer ledger entries
     $illegalPatterns = @(
         "(?im)\bUPDATE\s+\[?Restaurant\]?\.\[?Orders\]?\s+SET\s+",
@@ -939,9 +1016,23 @@ function Invoke-CbosCorrectiveScript {
     $conn = $connContext.Connection
 
     try {
-        $operator = (Test-CbosSupportPrivileges -Connection $conn -TargetDatabase $TargetDatabaseName).LoginName
+        $priv = Test-CbosSupportPrivileges -Connection $conn -TargetDatabase $TargetDatabaseName
+        if (-not ($priv.IsSysAdmin -or $priv.IsDbOwner)) {
+            throw "SECURITY VIOLATION: Login '$($priv.LoginName)' lacks administrative permissions ('db_owner' or 'sysadmin') on '$TargetDatabaseName' to execute corrective scripts."
+        }
+        $operator = $priv.LoginName
 
-        # Ensure Audit Table Exists
+        # Target Schema Validation
+        if (-not [string]::IsNullOrWhiteSpace($targetSchema)) {
+            $cmdSchema = $conn.CreateCommand()
+            $cmdSchema.CommandText = "SELECT COUNT(1) FROM sys.schemas WHERE name = @schema;"
+            $cmdSchema.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@schema", [System.Data.SqlDbType]::NVarChar, 128) -Property @{ Value = $targetSchema })) | Out-Null
+            if ([int]$cmdSchema.ExecuteScalar() -eq 0) {
+                throw "TARGET SCHEMA GUARD VIOLATION: Target schema '$targetSchema' does not exist in database '$TargetDatabaseName'."
+            }
+        }
+
+        # Ensure Audit Table and Unique Success Filtered Index Exist
         $cmdInitAudit = $conn.CreateCommand()
         $cmdInitAudit.CommandText = @"
 IF NOT EXISTS (SELECT 1 FROM sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE s.name = 'MasterData' AND t.name = 'SupportScriptExecutionAudit')
@@ -961,12 +1052,19 @@ BEGIN
     );
     CREATE INDEX [IX_SupportScriptExecutionAudit_ScriptId] ON [MasterData].[SupportScriptExecutionAudit] ([ScriptId]);
 END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_SupportScriptExecutionAudit_ScriptId_Success' AND object_id = OBJECT_ID('[MasterData].[SupportScriptExecutionAudit]'))
+BEGIN
+    CREATE UNIQUE INDEX [UX_SupportScriptExecutionAudit_ScriptId_Success]
+    ON [MasterData].[SupportScriptExecutionAudit] ([ScriptId])
+    WHERE [Outcome] = 'Success';
+END
 "@
         $cmdInitAudit.ExecuteNonQuery() | Out-Null
 
-        # Repeat-Execution Protection
+        # Repeat-Execution Protection with Concurrency Lock (UPDLOCK, HOLDLOCK)
         $cmdCheckRepeat = $conn.CreateCommand()
-        $cmdCheckRepeat.CommandText = "SELECT COUNT(1) FROM [MasterData].[SupportScriptExecutionAudit] WHERE [ScriptId] = @sid AND [Outcome] = 'Success';"
+        $cmdCheckRepeat.CommandText = "SELECT COUNT(1) FROM [MasterData].[SupportScriptExecutionAudit] WITH (UPDLOCK, HOLDLOCK) WHERE [ScriptId] = @sid AND [Outcome] = 'Success';"
         $cmdCheckRepeat.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@sid", [System.Data.SqlDbType]::NVarChar, 100) -Property @{ Value = $scriptId })) | Out-Null
         $alreadyRunCount = [int]$cmdCheckRepeat.ExecuteScalar()
 
@@ -1093,6 +1191,18 @@ END
                 $preRes = $cmdPre.ExecuteScalar()
                 $precheckSummary = "Precheck evaluated: $preRes"
                 Write-Host "  Precheck result: $precheckSummary" -ForegroundColor Gray
+
+                $isFailure = ($null -eq $preRes) -or 
+                             ([DBNull]::Value.Equals($preRes)) -or 
+                             ($preRes -is [int] -and $preRes -eq 0) -or 
+                             ($preRes -is [long] -and $preRes -eq 0) -or 
+                             ($preRes -is [bool] -and -not $preRes) -or 
+                             ($preRes.ToString().Trim() -eq "0") -or 
+                             ($preRes.ToString().Trim() -match "(?i)^FAIL")
+
+                if ($isFailure) {
+                    throw "PRECHECK FAILED: Precheck query failed assertion for script '$scriptId'. Result was '$preRes'. Transaction was never started and zero database changes occurred."
+                }
             }
 
             # 3. Transactional Execution
@@ -1115,7 +1225,20 @@ END
                     $cmdPost.Transaction = $tran
                     $cmdPost.CommandText = $postcheckSql
                     $postRes = $cmdPost.ExecuteScalar()
-                    Write-Host "  Reconciliation query passed: $postRes" -ForegroundColor Green
+                    Write-Host "  Reconciliation query returned: $postRes" -ForegroundColor Gray
+
+                    $isPostFailure = ($null -eq $postRes) -or 
+                                     ([DBNull]::Value.Equals($postRes)) -or 
+                                     ($postRes -is [int] -and $postRes -eq 0) -or 
+                                     ($postRes -is [long] -and $postRes -eq 0) -or 
+                                     ($postRes -is [bool] -and -not $postRes) -or 
+                                     ($postRes.ToString().Trim() -eq "0") -or 
+                                     ($postRes.ToString().Trim() -match "(?i)^FAIL")
+
+                    if ($isPostFailure) {
+                        throw "POSTCHECK RECONCILIATION FAILED: Post-fix assertions failed for script '$scriptId'. Result was '$postRes'. Rolling back transaction to ensure zero partial correction."
+                    }
+                    Write-Host "  Reconciliation assertions verified successfully." -ForegroundColor Green
                 }
 
                 # 5. Record Audit Entry

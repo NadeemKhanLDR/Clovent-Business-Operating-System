@@ -2,16 +2,23 @@
 -- SCRIPT_ID: FIX_20261017_02_CompensatingLedgerAdjustment
 -- DESCRIPTION: Post approved compensating credit entry for billing dispute resolution under PDR-0003
 -- TARGET_SCHEMA: Restaurant
+-- TARGET_DATABASE_PATTERN: (?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$
 -- AUTHOR: CBOS Customer Support Engineering
 -- REVIEW_STATUS: Approved for isolated & live execution
 -- POLICY_COMPLIANCE: Enforces PDR-0003 by posting an additive compensating ledger entry without rewriting historical transactions.
 -- ==============================================================================
 
 -- PRECHECK:
-SELECT COUNT(1) AS EligibleCustomerCount
-FROM [Restaurant].[Customers]
-WHERE [Code] = 'CREDIT-DEMO'
-  AND [OutstandingBalance] > 0;
+SELECT CASE 
+    WHEN c.[OutstandingBalance] = 1044.00 
+     AND (ISNULL(SUM(l.[Debit]), 0) - ISNULL(SUM(l.[Credit]), 0)) = 1044.00 
+    THEN 1 
+    ELSE 0 
+END AS PrecheckResult
+FROM [Restaurant].[Customers] c
+LEFT JOIN [Restaurant].[CustomerLedgerEntries] l ON c.[Id] = l.[CustomerId]
+WHERE c.[Code] = 'CREDIT-DEMO'
+GROUP BY c.[OutstandingBalance];
 
 -- PREVIEW_DIAGNOSIS:
 SELECT [Id], [Code], [Name], [OutstandingBalance], [OpeningBalance], [CreditLimit]
@@ -48,11 +55,19 @@ END;
 
 -- POSTCHECK_RECONCILIATION:
 SELECT CASE
-    WHEN ABS(c.[OutstandingBalance] - (ISNULL(SUM(l.[Debit]), 0) - ISNULL(SUM(l.[Credit]), 0))) < 0.001
-    THEN 'PASS: Customer outstanding balance perfectly reconciles with sum of all ledger debits and credits'
-    ELSE 'FAIL: Ledger mismatch detected'
+    WHEN c.[OutstandingBalance] = 944.00
+     AND (ISNULL(SUM(l.[Debit]), 0) - ISNULL(SUM(l.[Credit]), 0)) = 944.00
+     AND EXISTS (
+         SELECT 1 
+         FROM [Restaurant].[CustomerLedgerEntries] e 
+         WHERE e.[CustomerId] = c.[Id] 
+           AND e.[Credit] = 100.00 
+           AND e.[RunningBalance] = 944.00
+     )
+    THEN 'PASS: Customer balance adjusted from 1,044.00 to 944.00 PKR and fully reconciled with ledger'
+    ELSE 'FAIL: Ledger reconciliation mismatch detected'
 END AS ReconciliationResult
 FROM [Restaurant].[Customers] c
 LEFT JOIN [Restaurant].[CustomerLedgerEntries] l ON c.[Id] = l.[CustomerId]
 WHERE c.[Code] = 'CREDIT-DEMO'
-GROUP BY c.[OutstandingBalance];
+GROUP BY c.[Id], c.[OutstandingBalance];

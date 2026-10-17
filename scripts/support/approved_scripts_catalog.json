@@ -1,0 +1,25 @@
+{
+  "Version": "1.0",
+  "LastUpdatedUtc": "2026-10-17T16:05:00Z",
+  "Policy": "CBOS Support Corrective Script Whitelist. Only scripts registered in this catalog with matching SHA-256 digests may execute in customer environments. Any unlisted or modified script requires -AllowUnapprovedScript and is restricted to non-production environments.",
+  "ApprovedScripts": [
+    {
+      "ScriptId": "FIX_20261017_01_QuarantineStuckOutbox",
+      "FileName": "FIX_20261017_01_QuarantineStuckOutbox.sql",
+      "Sha256": "2B12F497F49569B0276F800E9D9D6D2602F672A77FCDAB564DE0AEEB3FD15EA0",
+      "TargetDatabasePattern": "(?i)^CBOS_Support_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$",
+      "TargetSchema": "Restaurant",
+      "Description": "Quarantine stuck outbox message causing background processor retry loops",
+      "ApprovedBy": "CBOS Support Engineering & Lead Architect"
+    },
+    {
+      "ScriptId": "FIX_20261017_02_CompensatingLedgerAdjustment",
+      "FileName": "FIX_20261017_02_CompensatingLedgerAdjustment.sql",
+      "Sha256": "0B10A95E4A6F610ADD247C1212D1A3828629E629EA9BF3414E4B37DCE64709D8",
+      "TargetDatabasePattern": "(?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$",
+      "TargetSchema": "Restaurant",
+      "Description": "Post approved compensating credit entry for billing dispute resolution under PDR-0003",
+      "ApprovedBy": "CBOS Support Engineering & Lead Architect"
+    }
+  ]
+}
