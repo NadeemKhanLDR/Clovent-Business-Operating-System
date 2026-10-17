@@ -105,8 +105,9 @@ To preserve audit integrity, programmatically enforced software controls are str
 | **Tested Software Control** | SHA-256 Digest Verification | `Restore-CbosIsolatedDatabase.ps1` | `CHECKSUM MISMATCH`: Restoration aborts before SQL connection. |
 | **Tested Software Control** | Backup Media & Chain Integrity | `COPY_ONLY, CHECKSUM` | Preserves production LSN; detects corrupt media. |
 | **Tested Software Control** | Least-Privilege Gate | `Test-CbosSupportPrivileges` | `SECURITY VIOLATION`: Cashiers blocked; credentials masked. |
-| **Tested Software Control** | External Dispatch Quarantine | `Protect-CbosRestoredEnvironment` | Outbox -> `DeadLetter`; SyncMaps -> `Suspended`. |
-| **Tested Software Control** | Printer Hardware Isolation | Quarantined `printers.json` | `PrinterRouter` returns `NoAssignment`; zero physical spooling. |
+| **Tested Software Control** | Database Dispatch Quarantine (Config/State Only) | `Protect-CbosRestoredEnvironment` | Outbox -> `DeadLetter`; SyncMaps -> `Suspended`. (Full runtime application/worker isolation is NOT VERIFIED). |
+| **Tested Software Control** | Printer Hardware Isolation (Config Only) | Quarantined `printers.json` | `PrinterRouter` returns `NoAssignment`; zero physical spooling. |
+| **Unverified / Prerequisite** | Application & Background-Worker Runtime Isolation | Live process execution & network boundary | **NOT VERIFIED**: Neither `Clovent.Desktop.exe` (WinForms) nor background workers were executed as live processes. Must be verified before opening customer backups in an active diagnostic UI. |
 | **Tested Software Control** | Script Catalog Whitelisting | `approved_scripts_catalog.json` | `UNAPPROVED SCRIPT BLOCKED` unless `-AllowUnapprovedScript`. |
 | **Tested Software Control** | Tamper Content Hash Check | SHA-256 comparison vs catalog | `SCRIPT INTEGRITY VIOLATION`: Modified script rejected. |
 | **Tested Software Control** | Target Database Regex Guard | `-- TARGET_DATABASE_PATTERN` | `TARGET DATABASE GUARD VIOLATION`: Cross-database run blocked. |
@@ -158,6 +159,17 @@ Before launching CBOS or testing against the Diagnostic copy, external integrati
 3. **QuickBooks Sync Suspension:** Sets `[Restaurant].[QuickBooksSyncMaps]` to `Suspended`.
 4. **Physical Printing Neutralization:** Generates a quarantined `printers.json` with all printer profiles disabled or cleared. Restored database cannot spool physical print jobs to kitchen or counter receipt printers.
 5. **Machine-Bound DPAPI Reconfiguration:** Customer DPAPI connection strings cannot be decrypted across machines. Generates a local `database.config.json` targeting the isolated database.
+
+### 4.3 Application & Background-Worker Runtime Isolation: NOT VERIFIED
+
+> [!WARNING]
+> **APPLICATION & BACKGROUND-WORKER RUNTIME PROCESS ISOLATION: NOT VERIFIED**
+> While database table state sanitization (setting outbox records to `DeadLetter`, sync inbox records to `Failed`, QuickBooks sync maps to `Suspended`) and isolated component routing (confirming quarantined `printers.json` causes `PrinterRouter` to return `NoAssignment`) were verified, **neither the actual `Clovent.Desktop.exe` WinForms application nor background worker daemons/services were launched as active live OS processes during verification**.
+> 
+> Testing verified static database state sanitization and in-process component routing, but did not measure or verify live runtime process isolation (e.g., whether a launched `Clovent.Desktop.exe` WinForms client or background worker process might spawn newly generated outbound jobs, background tasks, or network requests that could reach external adapters).
+> 
+> **Mandatory Operational Prerequisite:**
+> Full live application and background-worker runtime process isolation remains **NOT VERIFIED**. Live runtime process verification is strictly required before opening real customer backups in an active diagnostic application or on any network-connected workstation. Diagnostic engineers must run diagnostic applications inside an air-gapped virtual machine or container with all external network adapters disabled.
 
 ---
 
@@ -211,7 +223,7 @@ In our verified billing dispute scenario:
    - Completed order count, cash payments (`1,644.00 PKR`), historical tax snapshots (`144.00 PKR`), and receipt snapshots remain **100% identical and unchanged**.
 
 ### 6.3 Separation of Equivalence vs. Post-Correction Reconciliation
-- **Restore Equivalence (`--reconcile-equivalence`):** Compares **Source Database vs. Restored Reference Database**. Proves the backup and restore process produced an exact 100% bitwise/domain duplicate (including the original 1,044.00 PKR balance).
+- **Restore Equivalence (`--reconcile-equivalence`):** Compares **Source Database vs. Restored Reference Database**. Verifies **business-data equivalence across all bounded contexts** (comparing completed orders, payment totals, tax snapshots, receipts, customer ledger balances, and inventory levels). It verifies business domain data fidelity, not raw physical page-by-page binary/bitwise disk layout (including the original 1,044.00 PKR balance).
 - **Post-Correction Reconciliation (`--reconcile-post-correction`):** Compares **Reference Database vs. Diagnostic Database**. Proves that ONLY the targeted customer balance changed (1,044.00 -> 944.00 PKR), while all orders, payments, taxes, and frozen receipts remained 100% immutable.
 
 ### 6.4 Retained Architectural Limitation: Un-Scoped Customer Ownership & Isolation Prerequisite
