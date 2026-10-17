@@ -69,6 +69,15 @@ public sealed class PrinterJob
     /// <summary>Whether this job remains unresolved (Requested, Queued, InFlight, or Ambiguous).</summary>
     public bool IsUnresolved => Status is PrinterJobStatus.Requested or PrinterJobStatus.Queued or PrinterJobStatus.InFlight or PrinterJobStatus.Ambiguous;
 
+    /// <summary>Optional path to a physical logo image on disk to render via GDI+.</summary>
+    public string? LogoPath { get; init; }
+
+    /// <summary>Optional page margin in millimeters.</summary>
+    public int? MarginMm { get; init; }
+
+    /// <summary>Optional paper width profile.</summary>
+    public PaperWidth? PaperWidth { get; init; }
+
     /// <summary>Creates a new print job.</summary>
     public static PrinterJob Create(
         string documentType,
@@ -84,7 +93,10 @@ public sealed class PrinterJob
         Guid? correlationId = null,
         string? documentReference = null,
         Guid? jobId = null,
-        Guid? documentId = null)
+        Guid? documentId = null,
+        string? logoPath = null,
+        int? marginMm = null,
+        PaperWidth? paperWidth = null)
     {
         return new PrinterJob
         {
@@ -103,6 +115,9 @@ public sealed class PrinterJob
             ReprintCount = reprintCount,
             ReprintReason = reprintReason,
             PayloadText = payloadText,
+            LogoPath = logoPath,
+            MarginMm = marginMm,
+            PaperWidth = paperWidth,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
     }

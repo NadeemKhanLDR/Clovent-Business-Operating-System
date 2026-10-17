@@ -1,3 +1,4 @@
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Printing;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -9,6 +10,7 @@ namespace Clovent.Desktop.Tests.Printing;
 public class PrinterManagementServiceTests : IDisposable
 {
     private readonly string _tempFile;
+    private readonly string _tempPosSettingsFile;
 
     private sealed class FakeQueueProvider : IWindowsPrinterQueueProvider
     {
@@ -31,6 +33,7 @@ public class PrinterManagementServiceTests : IDisposable
         public bool ShouldFail { get; set; }
         public int DispatchCount { get; private set; }
         public PrinterJob? LastDispatchedJob { get; private set; }
+        public PrinterProfile? LastDispatchedProfile { get; private set; }
         public Action<PrinterJob>? OnDispatchAction { get; set; }
         public int DispatchDelayMs { get; set; }
 
@@ -46,6 +49,7 @@ public class PrinterManagementServiceTests : IDisposable
         {
             DispatchCount++;
             LastDispatchedJob = job;
+            LastDispatchedProfile = profile;
             OnDispatchAction?.Invoke(job);
 
             if (DispatchDelayMs > 0)
@@ -94,13 +98,17 @@ public class PrinterManagementServiceTests : IDisposable
     public PrinterManagementServiceTests()
     {
         _tempFile = Path.Combine(Path.GetTempPath(), $"mgmt-test-{Guid.NewGuid():N}.json");
+        _tempPosSettingsFile = Path.Combine(Path.GetTempPath(), $"pos-settings-mgmt-test-{Guid.NewGuid():N}.json");
+        PosSettingsStore.SetTestingOverrides(_tempPosSettingsFile);
     }
 
     public void Dispose()
     {
+        PosSettingsStore.ResetTestingOverrides();
         try
         {
             if (File.Exists(_tempFile)) File.Delete(_tempFile);
+            if (File.Exists(_tempPosSettingsFile)) File.Delete(_tempPosSettingsFile);
         }
         catch { }
     }
@@ -479,5 +487,295 @@ public class PrinterManagementServiceTests : IDisposable
         Assert.Equal(1, adapter.DispatchCount);
         Assert.Contains(results, r => r.Success);
         Assert.Contains(results, r => !r.Success && r.Status == PrinterJobStatus.Ambiguous);
+    }
+
+    [Fact]
+    public async Task EnsureScopeOwnership_ThrowsWhenTerminalMismatch_EvenForAdmin()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var auth = new FakeAuthorizationService();
+        auth.GrantedRoles.Add("Administrator"); // Admin role
+        var session = new FakeCurrentSession();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter, auth, session);
+
+        var activeTerminalId = Guid.NewGuid();
+        var differentTerminalId = Guid.NewGuid();
+        PosSettingsStore.SaveTerminalId(activeTerminalId);
+
+        var settings = new TerminalReceiptSettings { TerminalId = differentTerminalId };
+
+        // Act & Assert 1: Saving settings for a different terminal throws UnauthorizedAccessException
+        var ex1 = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.SaveTerminalReceiptSettingsAsync(differentTerminalId, settings));
+        Assert.Contains("Scope ownership mismatch for terminal", ex1.Message);
+        Assert.Contains("Manager/Admin status cannot bypass ownership boundaries", ex1.Message);
+
+        // Act & Assert 2: Dispatching receipt for a different terminal throws UnauthorizedAccessException
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-SCOPE-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]);
+
+        var ex2 = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.DispatchReceiptAsync(receiptData, terminalId: differentTerminalId));
+        Assert.Contains("Scope ownership mismatch for terminal", ex2.Message);
+        Assert.Contains("Manager/Admin status cannot bypass ownership boundaries", ex2.Message);
+    }
+
+    [Fact]
+    public async Task EnsureScopeOwnership_ThrowsWhenBranchMismatch()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var activeBranchId = Guid.NewGuid();
+        var differentBranchId = Guid.NewGuid();
+        PosSettingsStore.SaveBranchId(activeBranchId);
+
+        // Act & Assert: Dispatching text for a different branch throws UnauthorizedAccessException
+        var ex = await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.DispatchTextAsync("Test text", branchId: differentBranchId));
+        Assert.Contains("Scope ownership mismatch for branch", ex.Message);
+        Assert.Contains("Manager/Admin status cannot bypass ownership boundaries", ex.Message);
+    }
+
+    [Fact]
+    public async Task EnsureScopeOwnership_SucceedsWhenScopeMatches()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var termId = Guid.NewGuid();
+        var branchId = Guid.NewGuid();
+        PosSettingsStore.SaveTerminalId(termId);
+        PosSettingsStore.SaveBranchId(branchId);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-MATCH-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]);
+
+        // Act: Scope matches active workstation
+        var result = await service.DispatchReceiptAsync(receiptData, branchId: branchId, terminalId: termId);
+
+        // Assert: Succeeded without error
+        Assert.True(result.Success);
+        Assert.Equal(1, adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task CashDrawer_NotTriggered_OnReprints()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Cash Drawer Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            SupportsCashDrawer = true, // Drawer enabled on profile
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-REPRINT-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]);
+
+        // Act: Dispatch as reprint
+        var result = await service.DispatchReceiptAsync(
+            receiptData,
+            isReprint: true,
+            reprintCount: 1,
+            reprintReason: "Customer requested reprint",
+            copyType: ReceiptCopyType.Reprint);
+
+        // Assert: Cash drawer kick MUST be suppressed on reprints
+        Assert.True(result.Success);
+        Assert.NotNull(adapter.LastDispatchedProfile);
+        Assert.False(adapter.LastDispatchedProfile.SupportsCashDrawer, "Cash drawer must NOT kick on reprints.");
+    }
+
+    [Fact]
+    public async Task CashDrawer_NotTriggered_OnAdditionalCopies()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Cash Drawer Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            SupportsCashDrawer = true,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-ADDITIONAL-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]);
+
+        // Act: Dispatch as copy 2 (isAdditionalCopy = true)
+        var result = await service.DispatchReceiptAsync(
+            receiptData,
+            isReprint: false,
+            isAdditionalCopy: true,
+            copyType: ReceiptCopyType.Customer);
+
+        // Assert: Cash drawer kick MUST be suppressed on additional copies (copy 2..N)
+        Assert.True(result.Success);
+        Assert.NotNull(adapter.LastDispatchedProfile);
+        Assert.False(adapter.LastDispatchedProfile.SupportsCashDrawer, "Cash drawer must NOT kick on copy 2..N.");
+    }
+
+    [Fact]
+    public async Task CashDrawer_NotTriggered_WhenPaymentMethodHasNoCash()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Cash Drawer Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            SupportsCashDrawer = true,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-CARD-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Credit Card", 200m)]); // Non-cash payment
+
+        // Act: Original customer copy, but paid with Credit Card
+        var result = await service.DispatchReceiptAsync(
+            receiptData,
+            isReprint: false,
+            isAdditionalCopy: false,
+            copyType: ReceiptCopyType.Customer);
+
+        // Assert: Cash drawer kick MUST be suppressed for non-cash tenders
+        Assert.True(result.Success);
+        Assert.NotNull(adapter.LastDispatchedProfile);
+        Assert.False(adapter.LastDispatchedProfile.SupportsCashDrawer, "Cash drawer must NOT kick for non-cash payments.");
+    }
+
+    [Fact]
+    public async Task CashDrawer_Triggered_OnPrimaryCustomerCopy_WithCashPayment()
+    {
+        // Arrange
+        var queueProvider = new FakeQueueProvider();
+        var store = new WindowsPrinterConfigurationStore(_tempFile);
+        var router = new PrinterRouter(store);
+        var tracker = new InMemoryPrinterJobTracker();
+        var adapter = new FakePrinterAdapter();
+        var service = new PrinterManagementService(queueProvider, store, router, tracker, adapter);
+
+        var profile = new PrinterProfile
+        {
+            Id = Guid.NewGuid(),
+            ProfileName = "Cash Drawer Receipt Printer",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            SupportsCashDrawer = true,
+            IsEnabled = true
+        };
+        await service.SaveProfileAsync(profile);
+
+        var receiptData = new PrintableReceiptData(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-CASH-01",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new PrintableReceiptItem("Burger", "SKU-B", 1m, 200m, 200m)],
+            Subtotal: 200m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 200m, Balance: 0m,
+            Payments: [new PrintableReceiptPayment("Cash", 200m)]); // Cash payment
+
+        // Act: Original primary customer copy of cash tender
+        var result = await service.DispatchReceiptAsync(
+            receiptData,
+            isReprint: false,
+            isAdditionalCopy: false,
+            copyType: ReceiptCopyType.Customer);
+
+        // Assert: Cash drawer kick IS permitted on the primary customer copy of cash tenders
+        Assert.True(result.Success);
+        Assert.NotNull(adapter.LastDispatchedProfile);
+        Assert.True(adapter.LastDispatchedProfile.SupportsCashDrawer, "Cash drawer MUST be allowed for primary customer copy with cash tender.");
     }
 }

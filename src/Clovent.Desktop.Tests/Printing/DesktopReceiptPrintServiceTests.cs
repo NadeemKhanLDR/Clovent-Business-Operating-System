@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Printing;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -13,6 +14,7 @@ namespace Clovent.Desktop.Tests.Printing;
 public class DesktopReceiptPrintServiceTests : IDisposable
 {
     private readonly string _tempConfigFile;
+    private readonly string _tempPosSettingsFile;
     private readonly FakeQueueProvider _queueProvider = new();
     private readonly FakePrinterAdapter _adapter = new();
     private readonly FakeCurrentSession _session = new();
@@ -100,6 +102,9 @@ public class DesktopReceiptPrintServiceTests : IDisposable
     public DesktopReceiptPrintServiceTests()
     {
         _tempConfigFile = Path.Combine(Path.GetTempPath(), $"receipt-test-{Guid.NewGuid():N}.json");
+        _tempPosSettingsFile = Path.Combine(Path.GetTempPath(), $"pos-settings-test-{Guid.NewGuid():N}.json");
+        PosSettingsStore.SetTestingOverrides(_tempPosSettingsFile);
+
         _configStore = new WindowsPrinterConfigurationStore(_tempConfigFile);
 
         var profile = new PrinterProfile
@@ -136,9 +141,11 @@ public class DesktopReceiptPrintServiceTests : IDisposable
 
     public void Dispose()
     {
+        PosSettingsStore.ResetTestingOverrides();
         try
         {
             if (File.Exists(_tempConfigFile)) File.Delete(_tempConfigFile);
+            if (File.Exists(_tempPosSettingsFile)) File.Delete(_tempPosSettingsFile);
         }
         catch { }
     }
