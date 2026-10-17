@@ -2,7 +2,7 @@
 -- SCRIPT_ID: FIX_20261017_01_QuarantineStuckOutbox
 -- DESCRIPTION: Quarantine stuck outbox message causing background processor retry loops
 -- TARGET_SCHEMA: Restaurant
--- TARGET_DATABASE_PATTERN: (?i)^CBOS_Support_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$
+-- TARGET_DATABASE_PATTERN: (?i)^CBOS_Support_.*_(?:Isolated|Disposable)$|(?i)^Clovent_BusinessOperatingSystem$
 -- AUTHOR: CBOS Customer Support Engineering
 -- REVIEW_STATUS: Approved for isolated & live execution
 -- ==============================================================================

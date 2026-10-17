@@ -68,7 +68,7 @@ $runTimestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd_HHmmss")
 $sourceDb = "CBOS_Support_Source_${runTimestamp}_Disposable"
 $refDb = "CBOS_Support_Ref_${runTimestamp}_Disposable"
 $diagDb = "CBOS_Support_Diag_${runTimestamp}_Disposable"
-$concurrentDb = "CBOS_Concurrent_${runTimestamp}_Disposable"
+$concurrentDb = "CBOS_Support_Diag_Concurrent_${runTimestamp}_Disposable"
 $freshDb = "CBOS_Fresh_${runTimestamp}_Disposable"
 $upgradeDb = "CBOS_Upgrade_${runTimestamp}_Disposable"
 $clientDb = "CBOS_Client_Store01_${runTimestamp}_Disposable"
@@ -140,6 +140,13 @@ END
 }
 
 function Drop-DisposableSqlLoginSafely($loginName) {
+    if ($null -eq $script:createdLogins -or -not $script:createdLogins.Contains($loginName)) {
+        throw "SAFETY VIOLATION: Refusing to drop login '$loginName' that was not demonstrably created by this test run."
+    }
+    if ($loginName -notmatch "^cbos_disp_.*_${runTimestamp}$") {
+        throw "SAFETY VIOLATION: Refusing to drop login '$loginName' that does not match this test run's pattern."
+    }
+
     [System.Data.SqlClient.SqlConnection]::ClearAllPools()
     $conn = New-Object System.Data.SqlClient.SqlConnection($masterConnStr)
     $conn.Open()
@@ -166,6 +173,7 @@ BEGIN
 END
 "@
         $cmd.ExecuteNonQuery() | Out-Null
+        $script:createdLogins.Remove($loginName) | Out-Null
     }
     finally {
         $conn.Close()
@@ -217,14 +225,27 @@ try {
     & $fixtureRunnerExe --seed --connection-string $sourceConnStr --facts-file $factsFile
     Assert-Condition ($LASTEXITCODE -eq 0 -and (Test-Path $factsFile)) "Synthetic business fixture successfully populated across all 6 bounded contexts."
 
+    # Query customer CREDIT-DEMO ID to verify explicit ID pinning
+    $connSource = New-Object System.Data.SqlClient.SqlConnection($sourceConnStr)
+    $connSource.Open()
+    $cmdGetCustId = $connSource.CreateCommand()
+    $cmdGetCustId.CommandText = "SELECT [Id] FROM [Restaurant].[Customers] WHERE [Code] = 'CREDIT-DEMO';"
+    $creditDemoCustomerId = ([guid]$cmdGetCustId.ExecuteScalar()).ToString("D")
+    $connSource.Close()
+    Log-Message "  Target customer 'CREDIT-DEMO' pinned to explicit GUID: $creditDemoCustomerId" "Gray"
+
     # --------------------------------------------------------------------------
     # Step 3: Authentication & Privilege Separation Verification
     # --------------------------------------------------------------------------
     Log-Message "[STEP 3/14] Verifying authentication modes and support privilege separation..." "Cyan"
 
-    $dispCashierUser = "cbos_cashier_disp"
-    $dispBackupOpUser = "cbos_backupop_disp"
-    $dispSupportUser = "cbos_support_disp"
+    $dispCashierUser = "cbos_disp_cashier_${runTimestamp}"
+    $dispBackupOpUser = "cbos_disp_backupop_${runTimestamp}"
+    $dispSupportUser = "cbos_disp_support_${runTimestamp}"
+    $script:createdLogins = [System.Collections.Generic.List[string]]::new()
+    $script:createdLogins.Add($dispCashierUser)
+    $script:createdLogins.Add($dispBackupOpUser)
+    $script:createdLogins.Add($dispSupportUser)
     $dispCashierPassPlain = New-EphemeralSecret
     $dispBackupOpPassPlain = New-EphemeralSecret
     $dispSupportPassPlain = New-EphemeralSecret
@@ -302,6 +323,7 @@ END
     }
 
     Assert-Condition $cashierDenied "Cashier account '$dispCashierUser' strictly denied backup privileges."
+    Assert-Condition (-not [string]::IsNullOrEmpty($dispCashierPassPlain)) "Plaintext cashier secret is verified non-null in memory before non-leakage evaluation."
     Assert-Condition ($cashierErrMsg -notmatch [regex]::Escape($dispCashierPassPlain)) "Cashier denial error contains zero plaintext password leakage."
     $dispCashierPassPlain = $null
 
@@ -314,6 +336,7 @@ END
         -BackupDirectory (Join-Path $bundleOutputDir "backups_leastpriv")
 
     Assert-Condition ($backupOpResult.Success -and (Test-Path $backupOpResult.BackupPath)) "Least-privilege 'db_backupoperator' created full backup successfully without sysadmin role."
+    Assert-Condition ($backupOpResult.VerificationStatus -eq "VerificationPending") "Backup created under least-privilege backup operator recorded VerificationStatus = 'VerificationPending' (RESTORE VERIFYONLY deferred until execution under authorized account)."
 
     # 3c. Demonstrate Least-Privilege Backup Operator CANNOT Restore (Privilege Separation)
     $restoreDenied = $false
@@ -332,6 +355,7 @@ END
     }
 
     Assert-Condition $restoreDenied "Least-privilege 'db_backupoperator' strictly denied restore privileges (proves separation of backup vs restore permissions)."
+    Assert-Condition (-not [string]::IsNullOrEmpty($dispBackupOpPassPlain)) "Plaintext backup operator secret was non-null in memory during credential use."
     $dispBackupOpPassPlain = $null
 
     # 3d. Demonstrate Dedicated Support Admin Backup & Restore Success
@@ -349,6 +373,7 @@ END
     Drop-DisposableSqlLoginSafely $dispCashierUser
     Drop-DisposableSqlLoginSafely $dispBackupOpUser
     Drop-DisposableSqlLoginSafely $dispSupportUser
+    Assert-Condition (-not [string]::IsNullOrEmpty($dispSupportPassPlain)) "Plaintext support secret was non-null in memory during credential use."
     $dispSupportPassPlain = $null
     Log-Message "  Disposable SQL logins cleanly dropped after privilege verification." "Gray"
 
@@ -360,6 +385,7 @@ END
         -BackupDirectory (Join-Path $bundleOutputDir "backups")
 
     Assert-Condition ($backupResult.Success -and (Test-Path $backupResult.BackupPath)) "Windows Authentication backup created successfully with COPY_ONLY and CHECKSUM."
+    Assert-Condition ($backupResult.VerificationStatus -eq "Verified") "Backup created under authorized support account recorded VerificationStatus = 'Verified' via RESTORE VERIFYONLY WITH CHECKSUM."
     Assert-Condition ($backupResult.SchemasBackedUp.Count -eq 6) "Backup verified all 6 bounded-context schemas present."
     Assert-Condition (-not [string]::IsNullOrWhiteSpace($backupResult.Sha256Checksum)) "SHA-256 digest computed for backup archive ($($backupResult.Sha256Checksum))."
 
@@ -635,6 +661,21 @@ END
     }
     Assert-Condition $rewriteBlocked "PDR-0003 static analysis guard strictly blocked illegal update of completed orders."
 
+    # 8f. Explicit TargetCustomerId Pinning Gate Test
+    $missingCustIdBlocked = $false
+    try {
+        Invoke-CbosCorrectiveScript `
+            -ScriptFilePath $script02 `
+            -TargetDatabaseName $diagDb `
+            -Server $Server `
+            -UseWindowsAuth `
+            -DryRun
+    }
+    catch {
+        $missingCustIdBlocked = $_.Exception.Message -match "EXPLICIT CUSTOMER ID REQUIRED"
+    }
+    Assert-Condition $missingCustIdBlocked "TargetCustomerId pinning gate strictly blocked execution when customer GUID was omitted."
+
     # --------------------------------------------------------------------------
     # Step 9: Concurrent Duplicate Protection (Two Simultaneous Executions)
     # --------------------------------------------------------------------------
@@ -651,7 +692,7 @@ END
     Protect-CbosRestoredEnvironment -TargetDatabaseName $concurrentDb -Server $Server -UseWindowsAuth | Out-Null
 
     $jobScript = {
-        param($modPath, $scriptPath, $targetDb, $serverName)
+        param($modPath, $scriptPath, $targetDb, $serverName, $targetCustId)
         Import-Module $modPath -Force -DisableNameChecking
         try {
             $res = Invoke-CbosCorrectiveScript `
@@ -661,15 +702,16 @@ END
                 -UseWindowsAuth `
                 -Execute `
                 -PreTestedOnRestoredCopy `
-                -CompensationReference "AUTH-CONCURRENT-TEST-001"
+                -CompensationReference "AUTH-CONCURRENT-TEST-001" `
+                -TargetCustomerId $targetCustId
             return @{ Success = $true; Outcome = $res.Outcome; Error = $null }
         } catch {
             return @{ Success = $false; Outcome = "Failed"; Error = $_.Exception.Message }
         }
     }
 
-    $job1 = Start-Job -ScriptBlock $jobScript -ArgumentList $modulePath, $script02, $concurrentDb, $Server
-    $job2 = Start-Job -ScriptBlock $jobScript -ArgumentList $modulePath, $script02, $concurrentDb, $Server
+    $job1 = Start-Job -ScriptBlock $jobScript -ArgumentList $modulePath, $script02, $concurrentDb, $Server, $creditDemoCustomerId
+    $job2 = Start-Job -ScriptBlock $jobScript -ArgumentList $modulePath, $script02, $concurrentDb, $Server, $creditDemoCustomerId
 
     $job1Result = Wait-Job $job1 | Receive-Job
     $job2Result = Wait-Job $job2 | Receive-Job
@@ -684,7 +726,7 @@ END
     # Verify that the rejected job caught repeat execution or unique constraint violation
     $failedJob = if (-not $job1Result.Success) { $job1Result } else { $job2Result }
     $repeatCaught = ($failedJob.Error -match "REPEAT EXECUTION BLOCKED") -or ($failedJob.Error -match "duplicate key")
-    Assert-Condition $repeatCaught "Second concurrent execution was cleanly blocked by repeat-execution protection."
+    Assert-Condition $repeatCaught "Second concurrent execution was cleanly blocked by repeat-execution protection (Rejection detail: '$($failedJob.Error)')."
 
     # Verify customer table in concurrentDb has strictly ONE credit adjustment (1,044.00 -> 944.00 PKR, NOT 844.00 PKR)
     $connConc = New-Object System.Data.SqlClient.SqlConnection($concurrentConnStr)
@@ -712,7 +754,8 @@ END
         -TargetDatabaseName $diagDb `
         -Server $Server `
         -UseWindowsAuth `
-        -DryRun
+        -DryRun `
+        -TargetCustomerId $creditDemoCustomerId
 
     Assert-Condition ($dryRunResult.Success -and $dryRunResult.Mode -eq "DryRun") "Preview diagnosis completed with zero mutations."
 
@@ -724,7 +767,8 @@ END
         -UseWindowsAuth `
         -Execute `
         -PreTestedOnRestoredCopy `
-        -CompensationReference "AUTH-DISPUTE-CR-20261017-001"
+        -CompensationReference "AUTH-DISPUTE-CR-20261017-001" `
+        -TargetCustomerId $creditDemoCustomerId
 
     Assert-Condition ($execCompResult.Success -and $execCompResult.Outcome -eq "Success") "Compensating credit memo applied successfully inside transaction."
     Assert-Condition (Test-Path $execCompResult.PreFixBackup) "Fresh pre-fix backup created prior to mutation ($($execCompResult.PreFixBackup))."
@@ -748,7 +792,8 @@ END
             -UseWindowsAuth `
             -Execute `
             -PreTestedOnRestoredCopy `
-            -CompensationReference "AUTH-DISPUTE-CR-20261017-001"
+            -CompensationReference "AUTH-DISPUTE-CR-20261017-001" `
+            -TargetCustomerId $creditDemoCustomerId
     }
     catch {
         $repeatBlocked = $_.Exception.Message -match "REPEAT EXECUTION BLOCKED"
@@ -833,9 +878,8 @@ VALUES
         -ExpectedSha256 $manifestJson.Backup.Sha256Checksum | Out-Null
 
     # Boss validates schema compatibility before running fix
-    $compValidator = New-Object Clovent.Desktop.Commissioning.Database.DatabaseSchemaCompatibilityValidator
-    $valRes = $compValidator.ValidateCompatibilityAsync($clientConnStr).GetAwaiter().GetResult()
-    Assert-Condition ($valRes.Status -eq [Clovent.Desktop.Commissioning.Database.SchemaCompatibilityStatus]::Compatible) "Boss verified client database schema is 100% Compatible."
+    & $provisionerExe --server $Server --database $clientDb --auth windows --verify-only
+    Assert-Condition ($LASTEXITCODE -eq 0) "Boss verified client database schema is 100% Compatible via Provisioner."
 
     # Boss executes Preview Diagnosis (-DryRun)
     $bossDryRun = Invoke-CbosCorrectiveScript `
@@ -843,7 +887,8 @@ VALUES
         -TargetDatabaseName $clientDb `
         -Server $Server `
         -UseWindowsAuth `
-        -DryRun
+        -DryRun `
+        -TargetCustomerId $creditDemoCustomerId
 
     Assert-Condition ($bossDryRun.Success -and $bossDryRun.Mode -eq "DryRun") "Boss preview diagnosis completed cleanly with zero changes."
 
@@ -855,7 +900,8 @@ VALUES
         -UseWindowsAuth `
         -Execute `
         -PreTestedOnRestoredCopy `
-        -CompensationReference "AUTH-DISPUTE-CR-20261017-CLIENT01"
+        -CompensationReference "AUTH-DISPUTE-CR-20261017-CLIENT01" `
+        -TargetCustomerId $creditDemoCustomerId
 
     Assert-Condition ($bossExec.Success -and $bossExec.Outcome -eq "Success") "Boss executed approved correction successfully inside transaction."
     Assert-Condition (Test-Path $bossExec.PreFixBackup) "Fresh pre-fix backup created prior to client mutation ($($bossExec.PreFixBackup))."
@@ -905,9 +951,11 @@ finally {
     $dispCashierPassPlain = $null
     $dispBackupOpPassPlain = $null
     $dispSupportPassPlain = $null
-    try { Drop-DisposableSqlLoginSafely "cbos_cashier_disp" } catch { }
-    try { Drop-DisposableSqlLoginSafely "cbos_backupop_disp" } catch { }
-    try { Drop-DisposableSqlLoginSafely "cbos_support_disp" } catch { }
+    if ($null -ne $script:createdLogins) {
+        foreach ($l in @($script:createdLogins)) {
+            try { Drop-DisposableSqlLoginSafely $l } catch { }
+        }
+    }
 
     if (-not $KeepDatabases) {
         Log-Message "Tearing down disposable verification databases and temporary bundles..." "Cyan"

@@ -15,9 +15,11 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
+    [Alias("Path", "ScriptPath", "File")]
     [string]$ScriptFilePath,
 
     [Parameter(Mandatory = $true)]
+    [Alias("Database", "DatabaseName")]
     [string]$TargetDatabaseName,
 
     [Parameter(Mandatory = $false)]

@@ -2,7 +2,7 @@
 -- SCRIPT_ID: FIX_20261017_02_CompensatingLedgerAdjustment
 -- DESCRIPTION: Post approved compensating credit entry for billing dispute resolution under PDR-0003
 -- TARGET_SCHEMA: Restaurant
--- TARGET_DATABASE_PATTERN: (?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^CBOS_Client_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$
+-- TARGET_DATABASE_PATTERN: (?i)^CBOS_Support_Diag_.*_(?:Isolated|Disposable)$|(?i)^CBOS_Client_.*_(?:Isolated|Disposable)$|(?i)^Clovent_BusinessOperatingSystem$
 -- AUTHOR: CBOS Customer Support Engineering
 -- REVIEW_STATUS: Approved for isolated & live execution
 -- POLICY_COMPLIANCE: Enforces PDR-0003 by posting an additive compensating ledger entry without rewriting historical transactions.

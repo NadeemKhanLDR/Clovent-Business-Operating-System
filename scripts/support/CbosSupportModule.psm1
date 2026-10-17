@@ -293,7 +293,7 @@ function Backup-CbosDatabase {
         $cmdBackup.CommandTimeout = 300
         $cmdBackup.ExecuteNonQuery() | Out-Null
 
-        $verifiedMedia = $false
+        $verificationStatus = "Verified"
         if ($priv.HasRestorePrivilege) {
             Write-Host "  Verifying backup structure with RESTORE VERIFYONLY WITH CHECKSUM..." -ForegroundColor Cyan
             $cmdVerify = $conn.CreateCommand()
@@ -301,15 +301,17 @@ function Backup-CbosDatabase {
             $cmdVerify.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@path", [System.Data.SqlDbType]::NVarChar, 4000) -Property @{ Value = $backupPath })) | Out-Null
             $cmdVerify.CommandTimeout = 120
             $cmdVerify.ExecuteNonQuery() | Out-Null
-            $verifiedMedia = $true
+            $verificationStatus = "Verified"
+            Write-Host "  Physical media verification passed (RESTORE VERIFYONLY WITH CHECKSUM)." -ForegroundColor Green
         }
         else {
-            Write-Host "  Operator '$($priv.LoginName)' holds 'db_backupoperator' but lacks restore privileges ('dbcreator'/'sysadmin'). Skipping RESTORE VERIFYONLY (privilege separation enforced)." -ForegroundColor Gray
+            $verificationStatus = "VerificationPending"
+            Write-Host "  Operator '$($priv.LoginName)' holds 'db_backupoperator' but lacks restore privileges ('dbcreator'/'sysadmin'). Physical media verification recorded as 'VerificationPending' (RESTORE VERIFYONLY requires execution under authorized account before treating backup as verified)." -ForegroundColor Yellow
         }
 
         $fileInfo = Get-Item $backupPath
         $sha256 = (Get-FileHash -Path $backupPath -Algorithm SHA256).Hash
-        Write-Host "  Backup verified successfully: $backupPath" -ForegroundColor Green
+        Write-Host "  Backup created: $backupPath (Verification Status: $verificationStatus)" -ForegroundColor Green
         Write-Host "  Backup Size: $([Math]::Round($fileInfo.Length / 1MB, 2)) MB ($($fileInfo.Length) bytes)" -ForegroundColor Gray
         Write-Host "  SHA-256: $sha256" -ForegroundColor Gray
 
@@ -323,6 +325,7 @@ function Backup-CbosDatabase {
             TimestampUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
             Operator = $priv.LoginName
             SchemasBackedUp = $foundSchemas
+            VerificationStatus = $verificationStatus
         }
     }
     finally {
@@ -341,6 +344,7 @@ function New-CbosSupportBundle {
         [string]$Server = "localhost",
 
         [Parameter(Mandatory = $false)]
+        [Alias("DatabaseName")]
         [string]$Database = "Clovent_BusinessOperatingSystem",
 
         [Parameter(Mandatory = $false)]
@@ -353,6 +357,7 @@ function New-CbosSupportBundle {
         [System.Security.SecureString]$SqlPassword,
 
         [Parameter(Mandatory = $false)]
+        [Alias("IncidentId", "Ticket")]
         [string]$TicketId,
 
         [Parameter(Mandatory = $false)]
@@ -543,6 +548,7 @@ function New-CbosSupportBundle {
             Sha256Checksum = $backupResult.Sha256Checksum
             IsCopyOnly = $true
             CreatedAtUtc = $backupResult.TimestampUtc
+            VerificationStatus = $backupResult.VerificationStatus
         }
         BoundedContextMigrations = $migrations
     }
@@ -588,9 +594,11 @@ function Restore-CbosIsolatedDatabase {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [Alias("Path", "BackupPath")]
         [string]$BackupFilePath,
 
         [Parameter(Mandatory = $true)]
+        [Alias("Database", "DatabaseName")]
         [string]$TargetDatabaseName,
 
         [Parameter(Mandatory = $false)]
@@ -760,6 +768,7 @@ function Protect-CbosRestoredEnvironment {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [Alias("Database", "DatabaseName")]
         [string]$TargetDatabaseName,
 
         [Parameter(Mandatory = $false)]
@@ -880,6 +889,7 @@ END
             QuarantinedInboxCount = $quarantinedInboxCount
             PrinterConfigPath = $printerJsonPath
             DatabaseConfigPath = $dbConfigJsonPath
+            ConfigDirectory = $targetConfigDir
         }
     }
     finally {
@@ -895,9 +905,11 @@ function Invoke-CbosCorrectiveScript {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [Alias("Path", "ScriptPath", "File")]
         [string]$ScriptFilePath,
 
         [Parameter(Mandatory = $true)]
+        [Alias("Database", "DatabaseName")]
         [string]$TargetDatabaseName,
 
         [Parameter(Mandatory = $false)]
@@ -1035,6 +1047,8 @@ function Invoke-CbosCorrectiveScript {
     # Connect to database
     $connContext = New-CbosSqlConnection -Server $Server -Database $TargetDatabaseName -UseWindowsAuth:$UseWindowsAuth -SqlUser $SqlUser -SqlPassword $SqlPassword
     $conn = $connContext.Connection
+    $appLockAcquired = $false
+    $appLockResource = "CBOS_CorrectiveScript_${scriptId}"
 
     try {
         $priv = Test-CbosSupportPrivileges -Connection $conn -TargetDatabase $TargetDatabaseName
@@ -1082,6 +1096,23 @@ BEGIN
 END
 "@
         $cmdInitAudit.ExecuteNonQuery() | Out-Null
+
+        # For transactional execution, serialize concurrent runs via SQL Server application lock
+        if ($Execute) {
+            $cmdAcquireLock = $conn.CreateCommand()
+            $cmdAcquireLock.CommandText = @"
+DECLARE @res INT;
+EXEC @res = sp_getapplock @Resource = @resName, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 60000;
+SELECT @res;
+"@
+            $cmdAcquireLock.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@resName", [System.Data.SqlDbType]::NVarChar, 255) -Property @{ Value = $appLockResource })) | Out-Null
+            $cmdAcquireLock.CommandTimeout = 90
+            $lockRes = [int]$cmdAcquireLock.ExecuteScalar()
+            if ($lockRes -lt 0) {
+                throw "CONCURRENCY LOCK TIMEOUT: Unable to acquire execution lock for script '$scriptId' (sp_getapplock code: $lockRes)."
+            }
+            $appLockAcquired = $true
+        }
 
         # Repeat-Execution Protection with Concurrency Lock (UPDLOCK, HOLDLOCK)
         $cmdCheckRepeat = $conn.CreateCommand()
@@ -1210,7 +1241,7 @@ END
             Write-Host "[1/5] Creating fresh pre-execution backup..." -ForegroundColor Cyan
             $freshBackupDir = if (-not [string]::IsNullOrWhiteSpace($BackupDirectory)) { $BackupDirectory } else { Join-Path $env:ProgramData "Clovent\Backups\PreFix" }
             New-CbosSupportDirectory -Path $freshBackupDir | Out-Null
-            $preFixBackupName = "${TargetDatabaseName}_PreFix_${scriptId}_$((Get-Date).ToUniversalTime().ToString('yyyyMMdd_HHmmss')).bak"
+            $preFixBackupName = "${TargetDatabaseName}_PreFix_${scriptId}_$((Get-Date).ToUniversalTime().ToString('yyyyMMdd_HHmmssfff')).bak"
             $preFixBackupPath = Join-Path $freshBackupDir $preFixBackupName
 
             $cmdBak = $conn.CreateCommand()
@@ -1353,6 +1384,14 @@ VALUES
         }
     }
     finally {
+        if ($appLockAcquired) {
+            try {
+                $cmdReleaseLock = $conn.CreateCommand()
+                $cmdReleaseLock.CommandText = "EXEC sp_releaseapplock @Resource = @resName, @LockOwner = 'Session';"
+                $cmdReleaseLock.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@resName", [System.Data.SqlDbType]::NVarChar, 255) -Property @{ Value = $appLockResource })) | Out-Null
+                $cmdReleaseLock.ExecuteNonQuery() | Out-Null
+            } catch { }
+        }
         $conn.Close()
         $conn.Dispose()
     }

@@ -27,10 +27,13 @@ This runbook establishes the formal, audited procedure for customer database dia
 
 Authorized support staff can create a consistent full database backup of the entire CBOS database, including all six bounded-context schemas (`[Authentication]`, `[Identity]`, `[MasterData]`, `[Catalog]`, `[Inventory]`, `[Restaurant]`).
 
-### 2.1 Authentication & Privilege Requirements
-- **Windows Authentication (Preferred):** The technician runs PowerShell elevated as an authorized Windows domain or local administrator possessing the `sysadmin` or `db_backupoperator` SQL Server role.
-- **SQL Server Authentication:** Dedicated support login (e.g. `cbos_support_admin` with `sysadmin` or `db_backupoperator`). Passwords must be provided as secure strings via `Get-Credential` or prompted interactively. Plaintext passwords are automatically masked in output, connection strings, and error messages.
-- **Cashier Restriction:** Attempting to run backups using frontline POS/cashier accounts (`cbos_cashier`, etc.) is blocked with a security violation.
+### 2.1 Authentication & Privilege Separation (Backup vs. Restore Roles)
+- **Privilege Separation Principle:**
+  - **Database Backup Rights (`db_backupoperator` / `db_owner`):** Authorized staff holding `db_backupoperator` on the target database can create backups via `BACKUP DATABASE ... WITH COPY_ONLY, CHECKSUM`. However, `db_backupoperator` **strictly lacks restore permissions** (it cannot restore databases or execute `RESTORE VERIFYONLY` against `master`).
+  - **Database Restoration Rights (`sysadmin` / `dbcreator`):** Restoring a database (allocating or recreating physical files) strictly requires the SQL Server server role `sysadmin` or `dbcreator`.
+  - **Frontline Cashier Restriction:** Application/cashier accounts (`cbos_cashier`, `CBOS_POS_Users`) hold only `db_datareader`/`db_datawriter` and are unconditionally denied backup and restore execution.
+  - **Least Privilege Proven without Sysadmin:** Administrative tests must never confuse a `sysadmin` connection with a least-privilege proof. Least privilege for backup is proven exclusively via `db_backupoperator` without `sysadmin`.
+- **Zero Credential Leakage:** Passwords must be provided as secure strings via `Read-Host -AsSecureString` or `Get-Credential`. Plaintext passwords are automatically masked in console transcripts, connection strings, and error messages.
 
 ### 2.2 Backup Command
 Execute the support backup script:
@@ -42,18 +45,19 @@ Execute the support backup script:
     -Database "Clovent_BusinessOperatingSystem" `
     -UseWindowsAuth
 
-# Or using SQL Server Authentication with Secure Credentials:
-$cred = Get-Credential
+# Or using SQL Server Authentication with Secure Interactive Prompting:
+$sqlUser = "cbos_backupop"
+$sqlPassword = Read-Host -Prompt "Enter password for $sqlUser" -AsSecureString
 .\scripts\support\Backup-CbosDatabase.ps1 `
     -Server "localhost" `
     -Database "Clovent_BusinessOperatingSystem" `
-    -SqlUser $cred.UserName `
-    -SqlPassword $cred.Password
+    -SqlUser $sqlUser `
+    -SqlPassword $sqlPassword
 ```
 
 ### 2.3 Technical Guarantees
 - Executes `BACKUP DATABASE [<Database>] TO DISK = @path WITH COPY_ONLY, CHECKSUM, STATS = 10, INIT`. The `COPY_ONLY` clause ensures the customer's production log sequence number (LSN) chain is preserved.
-- Verifies physical archive media integrity immediately using `RESTORE VERIFYONLY FROM DISK = @path WITH CHECKSUM`.
+- When executed by an operator possessing restore privileges (`sysadmin`/`dbcreator`), verifies physical archive media integrity immediately using `RESTORE VERIFYONLY FROM DISK = @path WITH CHECKSUM`. When run under least-privilege `db_backupoperator`, media verification is safely skipped to enforce privilege boundaries.
 - Computes SHA-256 cryptographic digest of the generated `.bak` file.
 
 ---
@@ -91,6 +95,30 @@ Customer consent is an unconditional prerequisite. The technician must obtain ex
 > 2. Bundles must be stored on BitLocker/LUKS encrypted storage with least-privilege RBAC.
 > 3. Bundles must be deleted upon ticket resolution in accordance with customer data retention policies.
 > 4. **Automated or unapproved cloud uploads are strictly prohibited.**
+
+### 3.4 Tested Software Controls vs. Operator / Organizational Requirements
+
+To preserve audit integrity, programmatically enforced software controls are strictly distinguished from operator requirements and organizational policies:
+
+| Category | Control / Requirement | Enforcement Mechanism | Failure Consequence |
+| :--- | :--- | :--- | :--- |
+| **Tested Software Control** | SHA-256 Digest Verification | `Restore-CbosIsolatedDatabase.ps1` | `CHECKSUM MISMATCH`: Restoration aborts before SQL connection. |
+| **Tested Software Control** | Backup Media & Chain Integrity | `COPY_ONLY, CHECKSUM` | Preserves production LSN; detects corrupt media. |
+| **Tested Software Control** | Least-Privilege Gate | `Test-CbosSupportPrivileges` | `SECURITY VIOLATION`: Cashiers blocked; credentials masked. |
+| **Tested Software Control** | External Dispatch Quarantine | `Protect-CbosRestoredEnvironment` | Outbox -> `DeadLetter`; SyncMaps -> `Suspended`. |
+| **Tested Software Control** | Printer Hardware Isolation | Quarantined `printers.json` | `PrinterRouter` returns `NoAssignment`; zero physical spooling. |
+| **Tested Software Control** | Script Catalog Whitelisting | `approved_scripts_catalog.json` | `UNAPPROVED SCRIPT BLOCKED` unless `-AllowUnapprovedScript`. |
+| **Tested Software Control** | Tamper Content Hash Check | SHA-256 comparison vs catalog | `SCRIPT INTEGRITY VIOLATION`: Modified script rejected. |
+| **Tested Software Control** | Target Database Regex Guard | `-- TARGET_DATABASE_PATTERN` | `TARGET DATABASE GUARD VIOLATION`: Cross-database run blocked. |
+| **Tested Software Control** | Target Customer ID Pinning | `-- TARGET_CUSTOMER_ID` | `EXPLICIT CUSTOMER ID REQUIRED`: Protects un-scoped Customer schema. |
+| **Tested Software Control** | Atomic Transaction Rollback | SQL Transaction + Postcheck | `POSTCHECK FAILED`: Zero mutation; failure logged to audit. |
+| **Tested Software Control** | Concurrent Duplicate Protection | `sp_getapplock` + Filtered UX | `REPEAT EXECUTION BLOCKED`: Exactly 1 commit; 0 duplicate ledger rows. |
+| **Tested Software Control** | Schema Upgrade Idempotency | EF Core `IF NOT EXISTS` DDL | Upgrade succeeds without table conflict on existing audit schemas. |
+| **Operator / Policy Requirement** | Secure Bundle Transfer | SFTP / TLS 1.3 encrypted transfer | Organizational mandate: Never transmit unencrypted over open network. |
+| **Operator / Policy Requirement** | Storage at Rest Encryption | BitLocker / LUKS full-disk encryption | Organizational mandate: Support bundles stored on encrypted volumes. |
+| **Operator / Policy Requirement** | Mandatory Customer Consent | Written customer agreement | Operator gate: `-CustomerConsent` flag required with contact name. |
+| **Operator / Policy Requirement** | Secure Credential Entry | Interactive password prompt | Operator standard: `Read-Host -AsSecureString` / `Get-Credential`. |
+| **Operator / Policy Requirement** | Post-Incident Bundle Deletion | Retention policy enforcement | Organizational mandate: Securely wipe diagnostic bundles post-ticket. |
 
 ---
 
@@ -186,17 +214,21 @@ In our verified billing dispute scenario:
 - **Restore Equivalence (`--reconcile-equivalence`):** Compares **Source Database vs. Restored Reference Database**. Proves the backup and restore process produced an exact 100% bitwise/domain duplicate (including the original 1,044.00 PKR balance).
 - **Post-Correction Reconciliation (`--reconcile-post-correction`):** Compares **Reference Database vs. Diagnostic Database**. Proves that ONLY the targeted customer balance changed (1,044.00 -> 944.00 PKR), while all orders, payments, taxes, and frozen receipts remained 100% immutable.
 
-### 6.4 Retained Architectural Limitation: Un-Scoped Customer Ownership
+### 6.4 Retained Architectural Limitation: Un-Scoped Customer Ownership & Isolation Prerequisite
 > [!WARNING]
-> **RETAINED ARCHITECTURAL LIMITATION (PDR-0003 & PERSISTENCE):**
+> **RETAINED ARCHITECTURAL LIMITATION & DEPLOYMENT PREREQUISITE (PDR-0003 & TENANCY):**
 > In the current CBOS implementation, `[Restaurant].[Customers]` and `[Restaurant].[CustomerLedgerEntries]` **do not possess a `CompanyId`, `TenantId`, or `BranchId` column** (confirmed in `Customer.cs`, `CustomerConfiguration.cs`, and `RestaurantPersistenceInitializer.cs`).
 > 
-> Customer tenant isolation is therefore enforced **exclusively at the physical database boundary** (one physical database per store/restaurant instance). There is no row-level multi-tenancy inside the customer tables.
+> **Database-Per-Customer/Store Isolation is a Deployment Prerequisite:**
+> Customer and store tenant isolation is **not enforced within the relational schema**. Database names (e.g. `CBOS_Store123`) and customer GUIDs alone **do not provide cryptographic or schema-enforced proof of tenant ownership**.
+> 
+> Physical database separation (one database per store/restaurant instance) must be **independently established and enforced as a mandatory deployment prerequisite** at the infrastructure layer (e.g. dedicated SQL Server instances or discrete catalog databases with isolated host credentials, firewall perimeters, and store connection string bindings).
 > 
 > **Mandatory Corrective Script Safeguards:**
-> Because customer rows lack tenant ownership keys, corrective scripts targeting customer receivables must be restricted by:
-> 1. **Verified Target Database Pattern:** Using `-- TARGET_DATABASE_PATTERN:` to strictly constrain execution to verified diagnostic databases (e.g. `(?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$`).
+> Because customer rows lack tenant ownership keys and database naming conventions alone do not prove ownership, corrective scripts targeting customer receivables must be restricted by:
+> 1. **Verified Target Database Pattern:** Using `-- TARGET_DATABASE_PATTERN:` to strictly constrain execution to verified diagnostic and client database naming patterns (e.g. `(?i)^CBOS_Support_Diag_.*_(?:Isolated|Disposable)$|(?i)^CBOS_Client_.*_(?:Isolated|Disposable)$|(?i)^Clovent_BusinessOperatingSystem$`).
 > 2. **Explicit Customer GUID Pinning:** Corrective scripts must parameterize the customer identifier via `$(TARGET_CUSTOMER_ID)` and require the operator to pass `-TargetCustomerId <Guid>`. Omitting `-TargetCustomerId` raises an immediate `EXPLICIT CUSTOMER ID REQUIRED` error. Supplying an incorrect or non-matching customer ID fails precheck assertions, halting execution with zero mutations.
+> 3. **Prior Verification on Restored Copy:** Corrective mutations must be verified on a restored diagnostic database before running against live customer databases (`-PreTestedOnRestoredCopy`).
 
 ---
 
