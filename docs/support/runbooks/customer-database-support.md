@@ -186,6 +186,18 @@ In our verified billing dispute scenario:
 - **Restore Equivalence (`--reconcile-equivalence`):** Compares **Source Database vs. Restored Reference Database**. Proves the backup and restore process produced an exact 100% bitwise/domain duplicate (including the original 1,044.00 PKR balance).
 - **Post-Correction Reconciliation (`--reconcile-post-correction`):** Compares **Reference Database vs. Diagnostic Database**. Proves that ONLY the targeted customer balance changed (1,044.00 -> 944.00 PKR), while all orders, payments, taxes, and frozen receipts remained 100% immutable.
 
+### 6.4 Retained Architectural Limitation: Un-Scoped Customer Ownership
+> [!WARNING]
+> **RETAINED ARCHITECTURAL LIMITATION (PDR-0003 & PERSISTENCE):**
+> In the current CBOS implementation, `[Restaurant].[Customers]` and `[Restaurant].[CustomerLedgerEntries]` **do not possess a `CompanyId`, `TenantId`, or `BranchId` column** (confirmed in `Customer.cs`, `CustomerConfiguration.cs`, and `RestaurantPersistenceInitializer.cs`).
+> 
+> Customer tenant isolation is therefore enforced **exclusively at the physical database boundary** (one physical database per store/restaurant instance). There is no row-level multi-tenancy inside the customer tables.
+> 
+> **Mandatory Corrective Script Safeguards:**
+> Because customer rows lack tenant ownership keys, corrective scripts targeting customer receivables must be restricted by:
+> 1. **Verified Target Database Pattern:** Using `-- TARGET_DATABASE_PATTERN:` to strictly constrain execution to verified diagnostic databases (e.g. `(?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$`).
+> 2. **Explicit Customer GUID Pinning:** Corrective scripts must parameterize the customer identifier via `$(TARGET_CUSTOMER_ID)` and require the operator to pass `-TargetCustomerId <Guid>`. Omitting `-TargetCustomerId` raises an immediate `EXPLICIT CUSTOMER ID REQUIRED` error. Supplying an incorrect or non-matching customer ID fails precheck assertions, halting execution with zero mutations.
+
 ---
 
 ## 7. Audit Table Provisioning & Schema Versioning
@@ -241,16 +253,18 @@ To ensure support operations do not cause schema drift across versions:
     -AuthorizedBy "Store Manager Name" `
     -CustomerConsent
 
-# 3. Preview corrective script diagnosis on isolated database:
+# 3. Preview corrective script diagnosis on isolated database (with pinned customer ID):
 .\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
     -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
     -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
     -DryRun
 
 # 4. Execute approved corrective script inside transaction:
 .\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
     -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
     -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
     -Execute `
     -PreTestedOnRestoredCopy `
     -CompensationReference "AUTH-DISPUTE-CR-20261017-001"

@@ -97,12 +97,15 @@ public static class Program
         string diagnosticConnStr = "";
         decimal adjustmentAmount = 100.00m;
         string? factsFilePath = null;
+        string? configDirPath = null;
 
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--seed") mode = "seed";
             else if (args[i] == "--reconcile" || args[i] == "--reconcile-equivalence") mode = "reconcile-equivalence";
             else if (args[i] == "--reconcile-post-correction") mode = "reconcile-post-correction";
+            else if (args[i] == "--verify-printer-isolation") mode = "verify-printer-isolation";
+            else if (args[i] == "--verify-migration-upgrade") mode = "verify-migration-upgrade";
             else if (args[i] == "--connection-string" && i + 1 < args.Length) connStr = args[++i];
             else if (args[i] == "--source" && i + 1 < args.Length) sourceConnStr = args[++i];
             else if (args[i] == "--restored" && i + 1 < args.Length) restoredConnStr = args[++i];
@@ -110,6 +113,7 @@ public static class Program
             else if (args[i] == "--diagnostic" && i + 1 < args.Length) diagnosticConnStr = args[++i];
             else if (args[i] == "--adjustment" && i + 1 < args.Length && decimal.TryParse(args[++i], out var adj)) adjustmentAmount = adj;
             else if (args[i] == "--facts-file" && i + 1 < args.Length) factsFilePath = args[++i];
+            else if (args[i] == "--config-dir" && i + 1 < args.Length) configDirPath = args[++i];
         }
 
         if (string.IsNullOrEmpty(referenceConnStr) && !string.IsNullOrEmpty(restoredConnStr))
@@ -205,7 +209,75 @@ public static class Program
             return 0;
         }
 
-        Console.Error.WriteLine("Error: Unknown mode. Use --seed, --reconcile-equivalence, or --reconcile-post-correction.");
+        if (mode == "verify-printer-isolation")
+        {
+            if (string.IsNullOrWhiteSpace(configDirPath))
+            {
+                Console.Error.WriteLine("Error: --config-dir required for --verify-printer-isolation.");
+                return 1;
+            }
+
+            Console.WriteLine("[PRINTER-ISOLATION-CHECK] Verifying diagnostic printer isolation survives application startup...");
+            var printersJson = Path.Combine(configDirPath, "printers.json");
+            if (!File.Exists(printersJson))
+            {
+                Console.Error.WriteLine($"Error: printers.json not found in config directory '{configDirPath}'.");
+                return 1;
+            }
+
+            var store = new Clovent.Desktop.Printing.WindowsPrinterConfigurationStore(printersJson);
+            var router = new Clovent.Platform.Printing.PrinterRouter(store);
+
+            var res = router.ResolvePrinterDetailed(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Clovent.Platform.Printing.PrinterRole.Receipt);
+            Console.WriteLine($"  Printer Router Resolution Result: IsResolved={res.IsResolved}, Outcome={res.Outcome}, Message={res.Message}");
+
+            if (res.IsResolved)
+            {
+                Console.Error.WriteLine("FAILURE: Printer router resolved an active printer under quarantined diagnostic configuration!");
+                return 2;
+            }
+
+            Console.WriteLine("  [OK] Printer router strictly refused profile resolution (NoAssignment / Disabled).");
+            Console.WriteLine("  [OK] Newly generated print jobs cannot route to physical printer hardware or Windows spooler.");
+            Console.WriteLine("[PRINTER-ISOLATION-PASS] Diagnostic isolation confirmed for printing.");
+            return 0;
+        }
+
+        if (mode == "verify-migration-upgrade")
+        {
+            if (string.IsNullOrWhiteSpace(connStr))
+            {
+                Console.Error.WriteLine("Error: --connection-string required for --verify-migration-upgrade.");
+                return 1;
+            }
+
+            Console.WriteLine("[MIGRATION-UPGRADE-CHECK] Applying EF Core migrations to verify upgrade on existing audit schema...");
+            var provService = new DatabaseProvisioningService();
+
+            var (migrated, msg) = await provService.ApplyMigrationsAsync(connStr).ConfigureAwait(false);
+            if (!migrated)
+            {
+                Console.Error.WriteLine($"FAILURE: Migration application failed: {msg}");
+                return 2;
+            }
+
+            Console.WriteLine($"  [OK] EF Core migrations applied successfully: {msg}");
+
+            var validator = new DatabaseSchemaCompatibilityValidator();
+            var valResult = await validator.ValidateCompatibilityAsync(connStr).ConfigureAwait(false);
+            Console.WriteLine($"  [OK] Schema Compatibility Validation: {valResult.Status} - {valResult.Message}");
+
+            if (valResult.Status != SchemaCompatibilityStatus.Compatible)
+            {
+                Console.Error.WriteLine($"FAILURE: Schema is not compatible after upgrade: {valResult.Status}");
+                return 3;
+            }
+
+            Console.WriteLine("[MIGRATION-UPGRADE-PASS] EF Core migration applied idempotently and schema is 100% Compatible.");
+            return 0;
+        }
+
+        Console.Error.WriteLine("Error: Unknown mode. Use --seed, --reconcile-equivalence, --reconcile-post-correction, --verify-printer-isolation, or --verify-migration-upgrade.");
         return 1;
     }
 

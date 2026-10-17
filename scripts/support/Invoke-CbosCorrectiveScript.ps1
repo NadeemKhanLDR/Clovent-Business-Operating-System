@@ -48,7 +48,10 @@ param(
     [string]$BackupDirectory,
 
     [Parameter(Mandatory = $false)]
-    [switch]$AllowUnapprovedScript
+    [switch]$AllowUnapprovedScript,
+
+    [Parameter(Mandatory = $false)]
+    [string]$TargetCustomerId
 )
 
 Set-StrictMode -Version 2.0
@@ -69,4 +72,5 @@ Invoke-CbosCorrectiveScript `
     -PreTestedOnRestoredCopy:$PreTestedOnRestoredCopy `
     -CompensationReference $CompensationReference `
     -BackupDirectory $BackupDirectory `
-    -AllowUnapprovedScript:$AllowUnapprovedScript
+    -AllowUnapprovedScript:$AllowUnapprovedScript `
+    -TargetCustomerId $TargetCustomerId

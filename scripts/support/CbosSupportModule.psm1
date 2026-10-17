@@ -168,18 +168,21 @@ function Test-CbosSupportPrivileges {
 SELECT 
     SUSER_SNAME() AS LoginName,
     IS_SRVROLEMEMBER('sysadmin') AS IsSysAdmin,
+    IS_SRVROLEMEMBER('dbcreator') AS IsDbCreator,
     IS_ROLEMEMBER('db_backupoperator') AS IsBackupOperator,
     IS_ROLEMEMBER('db_owner') AS IsDbOwner;
 "@
     $reader = $cmd.ExecuteReader()
     $loginName = ""
     $isSysAdmin = $false
+    $isDbCreator = $false
     $isBackupOperator = $false
     $isDbOwner = $false
 
     if ($reader.Read()) {
         $loginName = [string]$reader["LoginName"]
         $isSysAdmin = -not [DBNull]::Value.Equals($reader["IsSysAdmin"]) -and [int]$reader["IsSysAdmin"] -eq 1
+        $isDbCreator = -not [DBNull]::Value.Equals($reader["IsDbCreator"]) -and [int]$reader["IsDbCreator"] -eq 1
         $isBackupOperator = -not [DBNull]::Value.Equals($reader["IsBackupOperator"]) -and [int]$reader["IsBackupOperator"] -eq 1
         $isDbOwner = -not [DBNull]::Value.Equals($reader["IsDbOwner"]) -and [int]$reader["IsDbOwner"] -eq 1
     }
@@ -192,12 +195,15 @@ SELECT
     }
 
     $hasBackupPrivilege = $isSysAdmin -or $isBackupOperator -or $isDbOwner
+    $hasRestorePrivilege = $isSysAdmin -or $isDbCreator
     return [PSCustomObject]@{
         LoginName = $loginName
         IsSysAdmin = $isSysAdmin
+        IsDbCreator = $isDbCreator
         IsBackupOperator = $isBackupOperator
         IsDbOwner = $isDbOwner
         HasBackupPrivilege = $hasBackupPrivilege
+        HasRestorePrivilege = $hasRestorePrivilege
     }
 }
 
@@ -287,12 +293,19 @@ function Backup-CbosDatabase {
         $cmdBackup.CommandTimeout = 300
         $cmdBackup.ExecuteNonQuery() | Out-Null
 
-        Write-Host "  Verifying backup structure with RESTORE VERIFYONLY WITH CHECKSUM..." -ForegroundColor Cyan
-        $cmdVerify = $conn.CreateCommand()
-        $cmdVerify.CommandText = "RESTORE VERIFYONLY FROM DISK = @path WITH CHECKSUM;"
-        $cmdVerify.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@path", [System.Data.SqlDbType]::NVarChar, 4000) -Property @{ Value = $backupPath })) | Out-Null
-        $cmdVerify.CommandTimeout = 120
-        $cmdVerify.ExecuteNonQuery() | Out-Null
+        $verifiedMedia = $false
+        if ($priv.HasRestorePrivilege) {
+            Write-Host "  Verifying backup structure with RESTORE VERIFYONLY WITH CHECKSUM..." -ForegroundColor Cyan
+            $cmdVerify = $conn.CreateCommand()
+            $cmdVerify.CommandText = "RESTORE VERIFYONLY FROM DISK = @path WITH CHECKSUM;"
+            $cmdVerify.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@path", [System.Data.SqlDbType]::NVarChar, 4000) -Property @{ Value = $backupPath })) | Out-Null
+            $cmdVerify.CommandTimeout = 120
+            $cmdVerify.ExecuteNonQuery() | Out-Null
+            $verifiedMedia = $true
+        }
+        else {
+            Write-Host "  Operator '$($priv.LoginName)' holds 'db_backupoperator' but lacks restore privileges ('dbcreator'/'sysadmin'). Skipping RESTORE VERIFYONLY (privilege separation enforced)." -ForegroundColor Gray
+        }
 
         $fileInfo = Get-Item $backupPath
         $sha256 = (Get-FileHash -Path $backupPath -Algorithm SHA256).Hash
@@ -633,6 +646,11 @@ function Restore-CbosIsolatedDatabase {
     $conn = $connContext.Connection
 
     try {
+        $priv = Test-CbosSupportPrivileges -Connection $conn -TargetDatabase "master"
+        if (-not $priv.HasRestorePrivilege) {
+            throw "SECURITY VIOLATION: Login '$($priv.LoginName)' lacks server-level restoration privileges ('sysadmin' or 'dbcreator') required to restore a database on '$Server'. Least-privilege backup roles ('db_backupoperator') are scoped to database backups and cannot create or restore databases."
+        }
+
         # Safety Guard 4: Never overwrite existing database by default
         $cmdCheckExist = $conn.CreateCommand()
         $cmdCheckExist.CommandText = "SELECT COUNT(1) FROM sys.databases WHERE name = @name;"
@@ -824,7 +842,7 @@ END
         $targetConfigDir = if (-not [string]::IsNullOrWhiteSpace($ConfigDirectory)) {
             $ConfigDirectory
         } else {
-            Join-Path $env:ProgramData "Clovent\BusinessOperatingSystem\Config"
+            Join-Path $env:ProgramData "Clovent\SupportIsolated_${TargetDatabaseName}\Config"
         }
 
         New-CbosSupportDirectory -Path $targetConfigDir | Out-Null
@@ -910,7 +928,10 @@ function Invoke-CbosCorrectiveScript {
         [string]$BackupDirectory,
 
         [Parameter(Mandatory = $false)]
-        [switch]$AllowUnapprovedScript
+        [switch]$AllowUnapprovedScript,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetCustomerId
     )
 
     if (-not $DryRun -and -not $Execute) {
@@ -1112,6 +1133,24 @@ END
             $mutationSql = $scriptContent
         }
 
+        # Explicit Customer ID Pinning (Required for Customer-scoped corrections due to legacy un-scoped Customer schema)
+        if (-not [string]::IsNullOrWhiteSpace($TargetCustomerId)) {
+            try {
+                $guidObj = [System.Guid]::Parse($TargetCustomerId)
+                $targetCustGuidStr = $guidObj.ToString("D")
+            } catch {
+                throw "INVALID CUSTOMER ID: '$TargetCustomerId' is not a valid GUID."
+            }
+            $precheckSql = $precheckSql.Replace('$(TARGET_CUSTOMER_ID)', $targetCustGuidStr)
+            $previewSql = $previewSql.Replace('$(TARGET_CUSTOMER_ID)', $targetCustGuidStr)
+            $mutationSql = $mutationSql.Replace('$(TARGET_CUSTOMER_ID)', $targetCustGuidStr)
+            $postcheckSql = $postcheckSql.Replace('$(TARGET_CUSTOMER_ID)', $targetCustGuidStr)
+            Write-Host "  Explicit Customer ID Pinned: $targetCustGuidStr" -ForegroundColor Gray
+        }
+        elseif ($scriptContent -match '\$\(TARGET_CUSTOMER_ID\)') {
+            throw "EXPLICIT CUSTOMER ID REQUIRED: Script '$scriptId' targets customer account records and requires '`$(TARGET_CUSTOMER_ID)'. Because CBOS customer ownership lacks a row-level tenant foreign key (enforced only at the physical database boundary), customer mutations must be explicitly pinned by passing -TargetCustomerId <Guid>."
+        }
+
         # ----------------------------------------------------------------------
         # MODE 1: Preview / Read-Only Diagnosis
         # ----------------------------------------------------------------------
@@ -1211,6 +1250,16 @@ END
             $affectedRows = 0
 
             try {
+                # In-transaction repeat execution verification under lock
+                $cmdCheckInTran = $conn.CreateCommand()
+                $cmdCheckInTran.Transaction = $tran
+                $cmdCheckInTran.CommandText = "SELECT COUNT(1) FROM [MasterData].[SupportScriptExecutionAudit] WITH (UPDLOCK, HOLDLOCK) WHERE [ScriptId] = @sid AND [Outcome] = 'Success';"
+                $cmdCheckInTran.Parameters.Add((New-Object System.Data.SqlClient.SqlParameter("@sid", [System.Data.SqlDbType]::NVarChar, 100) -Property @{ Value = $scriptId })) | Out-Null
+                $alreadyRunInTran = [int]$cmdCheckInTran.ExecuteScalar()
+                if ($alreadyRunInTran -gt 0) {
+                    throw "REPEAT EXECUTION BLOCKED (IN-TRANSACTION): Script '$scriptId' has already been committed successfully on database '$TargetDatabaseName'."
+                }
+
                 $cmdMut = $conn.CreateCommand()
                 $cmdMut.Transaction = $tran
                 $cmdMut.CommandText = $mutationSql

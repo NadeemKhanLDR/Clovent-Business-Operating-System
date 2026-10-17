@@ -42,6 +42,9 @@ public sealed class MasterDataDbContext(DbContextOptions<MasterDataDbContext> op
     /// <summary>BusinessSettings aggregates.</summary>
     public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
 
+    /// <summary>Support script execution audit trail.</summary>
+    public DbSet<Clovent.MasterData.Support.SupportScriptExecutionAudit> SupportScriptExecutionAudits => Set<Clovent.MasterData.Support.SupportScriptExecutionAudit>();
+
     /// <inheritdoc/>
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

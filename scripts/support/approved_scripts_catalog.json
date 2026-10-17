@@ -15,8 +15,8 @@
     {
       "ScriptId": "FIX_20261017_02_CompensatingLedgerAdjustment",
       "FileName": "FIX_20261017_02_CompensatingLedgerAdjustment.sql",
-      "Sha256": "0B10A95E4A6F610ADD247C1212D1A3828629E629EA9BF3414E4B37DCE64709D8",
-      "TargetDatabasePattern": "(?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$",
+      "Sha256": "249D4ED5B930D7DA77F6EBB141BF1F80640CEBEB574519D019620D0BFF5D4856",
+      "TargetDatabasePattern": "(?i)^CBOS_Support_Diag_.*_Disposable$|(?i)^CBOS_Client_.*_Disposable$|(?i)^Clovent_BusinessOperatingSystem$",
       "TargetSchema": "Restaurant",
       "Description": "Post approved compensating credit entry for billing dispute resolution under PDR-0003",
       "ApprovedBy": "CBOS Support Engineering & Lead Architect"
