@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Select patched .NET 10 runtime to remediate GHSA-846f-f764-76mx and GHSA-2fmv-rv2c-59x7 -->
+    <RuntimeFrameworkVersion Condition="'$(TargetFramework)' == 'net10.0' or '$(TargetFramework)' == 'net10.0-windows'">10.0.13</RuntimeFrameworkVersion>
+  </PropertyGroup>
+</Project>
