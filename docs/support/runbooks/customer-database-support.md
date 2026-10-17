@@ -265,34 +265,155 @@ To ensure support operations do not cause schema drift across versions:
 
 ---
 
-## 8. Exact Operator Commands
+## 8. End-to-End Operational Runbook (3-Tier Workflow)
 
-### 8.1 For Field Support Technicians & Database Administrators
+```mermaid
+flowchart LR
+    subgraph Tier1["Phase 1: Boss / Store Owner"]
+        B1["Backup Client Database<br/>(COPY_ONLY, CHECKSUM)"] --> B2["Package Support Bundle<br/>(Consent, Manifest SHA-256)"]
+        B2 --> B3["Secure SFTP Transfer<br/>(To Developer Diagnostic Env)"]
+    end
+    subgraph Tier2["Phase 2: Developer / Support Engineer"]
+        D1["Restore 2 Copies<br/>(Untouched Ref & Sanitized Diag)"] --> D2["Reconcile Restore Equivalence<br/>(100% Match with Source)"]
+        D2 --> D3["Develop/Test Approved Fix<br/>(-DryRun -> -Execute on Diag)"]
+        D3 --> D4["Reconcile Post-Correction<br/>(Domain Invariant & PDR-0003)"]
+        D4 --> D5["Handoff to Boss<br/>(Approved Script + Catalog Hash)"]
+    end
+    subgraph Tier3["Phase 3: Boss / Store Owner"]
+        P1["Verify Client Schema<br/>(Provisioner --verify-only)"] --> P2["Validate Approved Hash<br/>(Catalog Whitelist Check)"]
+        P2 --> P3["Preview on Client DB<br/>(-DryRun)"]
+        P3 --> P4["Apply Transactional Fix<br/>(-Execute with Pre-Fix Backup)"]
+        P4 --> P5["Verify Ledger & Audit<br/>(Postcheck & Audit Trail)"]
+    end
+    Tier1 --> Tier2 --> Tier3
+```
+
+### 8.0 Prerequisites & Tool Distribution Instructions
+- **Operator Workstation Prerequisites:**
+  - PowerShell 5.1 or PowerShell 7+ on Windows.
+  - Microsoft SQL Server Management Tools / `Microsoft.Data.SqlClient` or `Sqlcmd`.
+  - Network connectivity to SQL Server instance (port 1433 or local named pipes).
+- **Tool Distribution Packaging:**
+  - Distribute the support toolkit as a clean, signed directory package containing:
+    - `scripts/support/CbosSupportModule.psm1`
+    - `scripts/support/Backup-CbosDatabase.ps1`
+    - `scripts/support/New-CbosSupportBundle.ps1`
+    - `scripts/support/Restore-CbosIsolatedDatabase.ps1`
+    - `scripts/support/Invoke-CbosCorrectiveScript.ps1`
+    - `scripts/support/approved_scripts_catalog.json`
+    - `scripts/support/corrective_scripts/*.sql`
+    - Compiled `Clovent.Installer.Provisioner.exe` (.NET 10 self-contained or runtime-dependent).
+    - Compiled `Clovent.SupportFixtureRunner.exe` (.NET 10 diagnostic CLI).
+  - Unpack the toolkit to a secure local administrative path (e.g., `C:\SupportTools\cbos-support\`).
+
+---
+
+### 8.1 Phase 1: Boss / Store Owner (Backup & Export Support Bundle)
+
+The store owner or designated operations supervisor creates a full backup and packages the diagnostic bundle.
+
+#### Step 1.1: Backup the Client Production Database
 ```powershell
-# 1. Create full copy-only backup using Windows Auth:
+# Option A: Windows Authentication (Integrated Security)
 .\scripts\support\Backup-CbosDatabase.ps1 `
     -Server "localhost" `
     -Database "Clovent_BusinessOperatingSystem" `
     -UseWindowsAuth
 
-# 2. Package authorized support bundle (with customer consent):
+# Option B: Dedicated SQL Authentication (Secure Password Prompt - Zero Credential Leakage)
+$sqlUser = "cbos_backupop"
+$sqlPassword = Read-Host -Prompt "Enter password for $sqlUser" -AsSecureString
+.\scripts\support\Backup-CbosDatabase.ps1 `
+    -Server "localhost" `
+    -Database "Clovent_BusinessOperatingSystem" `
+    -SqlUser $sqlUser `
+    -SqlPassword $sqlPassword
+```
+
+#### Step 1.2: Package Support Bundle with Customer Consent
+```powershell
+# Option A: Windows Authentication
 .\scripts\support\New-CbosSupportBundle.ps1 `
     -Server "localhost" `
     -Database "Clovent_BusinessOperatingSystem" `
     -UseWindowsAuth `
     -TicketId "INC-20261017-001" `
-    -CustomerOrganization "Customer Business Name" `
-    -AuthorizedBy "Store Manager Name" `
+    -CustomerOrganization "Grandview Hospitality LLC" `
+    -AuthorizedBy "Jane Doe (General Manager)" `
     -CustomerConsent
 
-# 3. Preview corrective script diagnosis on isolated database (with pinned customer ID):
+# Option B: Dedicated SQL Authentication
+$sqlUser = "cbos_backupop"
+$sqlPassword = Read-Host -Prompt "Enter password for $sqlUser" -AsSecureString
+.\scripts\support\New-CbosSupportBundle.ps1 `
+    -Server "localhost" `
+    -Database "Clovent_BusinessOperatingSystem" `
+    -SqlUser $sqlUser `
+    -SqlPassword $sqlPassword `
+    -TicketId "INC-20261017-001" `
+    -CustomerOrganization "Grandview Hospitality LLC" `
+    -AuthorizedBy "Jane Doe (General Manager)" `
+    -CustomerConsent
+```
+
+#### Step 1.3: Secure Bundle Transfer
+Transfer the resulting zip bundle (`C:\ProgramData\Clovent\SupportBundles\CBOS_SupportBundle_*.zip`) and record its SHA-256 digest. Transmit via encrypted channels (TLS 1.3 / SFTP) to the development diagnostic team.
+
+---
+
+### 8.2 Phase 2: Developer / Support Engineer (Restore, Diagnose, Test)
+
+The diagnostic developer works strictly in an isolated test environment. Operational databases are never targeted.
+
+#### Step 2.1: Two-Copy Isolated Restoration
+Restore both the untouched Reference copy and the quarantined Diagnostic copy:
+```powershell
+# 1. Restore Untouched Reference Copy (Baseline Control):
+.\scripts\support\Restore-CbosIsolatedDatabase.ps1 `
+    -BackupFilePath "C:\Support\CBOS_SupportBackup_20261017_120000.bak" `
+    -TargetDatabaseName "CBOS_Support_Ref_INC20261017_Isolated" `
+    -UseWindowsAuth `
+    -ExpectedSha256 "<SHA256_FROM_MANIFEST>"
+
+# 2. Restore Quarantined Diagnostic Copy (Sandbox):
+.\scripts\support\Restore-CbosIsolatedDatabase.ps1 `
+    -BackupFilePath "C:\Support\CBOS_SupportBackup_20261017_120000.bak" `
+    -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
+    -UseWindowsAuth `
+    -ExpectedSha256 "<SHA256_FROM_MANIFEST>"
+```
+
+#### Step 2.2: Sanitize & Isolate Diagnostic Environment
+```powershell
+Import-Module .\scripts\support\CbosSupportModule.psm1
+Protect-CbosRestoredEnvironment `
+    -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
+    -UseWindowsAuth
+```
+
+#### Step 2.3: Reconcile Restore Equivalence (Source vs. Reference)
+```powershell
+.\Tools\SupportFixtureRunner\bin\Debug\net10.0-windows\Clovent.SupportFixtureRunner.exe `
+    --reconcile-equivalence `
+    --source "Server=localhost;Database=SourceDb;Integrated Security=True;TrustServerCertificate=True;" `
+    --reference "Server=localhost;Database=CBOS_Support_Ref_INC20261017_Isolated;Integrated Security=True;TrustServerCertificate=True;"
+```
+
+#### Step 2.4: Preview Diagnosis on Diagnostic Copy
+> [!NOTE]
+> **FIXTURE-ONLY EXAMPLE:** The customer GUID `4B341AD5-DD30-41FA-A8DC-99C8C1628FBD` and 100.00 PKR credit adjustment in these examples are synthetic test fixtures. In real support cases, use the actual customer GUID identified in the support ticket.
+
+```powershell
+# Preview diagnosis with pinned customer GUID:
 .\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
     -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
     -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
     -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
     -DryRun
+```
 
-# 4. Execute approved corrective script inside transaction:
+#### Step 2.5: Apply & Test on Diagnostic Copy
+```powershell
 .\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
     -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
     -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
@@ -302,34 +423,8 @@ To ensure support operations do not cause schema drift across versions:
     -CompensationReference "AUTH-DISPUTE-CR-20261017-001"
 ```
 
-### 8.2 For Developers & Diagnostic Engineers
+#### Step 2.6: Post-Correction Domain Reconciliation
 ```powershell
-# 1. Restore Reference Copy (Untouched):
-.\scripts\support\Restore-CbosIsolatedDatabase.ps1 `
-    -BackupFilePath "C:\Support\CBOS_SupportBackup_20261017_120000.bak" `
-    -TargetDatabaseName "CBOS_Support_Ref_INC20261017_Isolated" `
-    -UseWindowsAuth `
-    -ExpectedSha256 "<SHA256_FROM_MANIFEST>"
-
-# 2. Restore Diagnostic Copy (For Quarantine & Fixing):
-.\scripts\support\Restore-CbosIsolatedDatabase.ps1 `
-    -BackupFilePath "C:\Support\CBOS_SupportBackup_20261017_120000.bak" `
-    -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" `
-    -UseWindowsAuth `
-    -ExpectedSha256 "<SHA256_FROM_MANIFEST>"
-
-# 3. Quarantine and Sanitize Diagnostic Copy:
-# (Disables outbox, inbox, QB sync, and physical printing)
-Import-Module .\scripts\support\CbosSupportModule.psm1
-Protect-CbosRestoredEnvironment -TargetDatabaseName "CBOS_Support_Diag_INC20261017_Isolated" -UseWindowsAuth
-
-# 4. Verify Restore Equivalence (Source vs Reference):
-.\Tools\SupportFixtureRunner\bin\Debug\net10.0-windows\Clovent.SupportFixtureRunner.exe `
-    --reconcile-equivalence `
-    --source "Server=localhost;Database=SourceDb;Integrated Security=True;TrustServerCertificate=True;" `
-    --reference "Server=localhost;Database=CBOS_Support_Ref_INC20261017_Isolated;Integrated Security=True;TrustServerCertificate=True;"
-
-# 5. Verify Post-Correction Reconciliation (Reference vs Diagnostic):
 .\Tools\SupportFixtureRunner\bin\Debug\net10.0-windows\Clovent.SupportFixtureRunner.exe `
     --reconcile-post-correction `
     --reference "Server=localhost;Database=CBOS_Support_Ref_INC20261017_Isolated;Integrated Security=True;TrustServerCertificate=True;" `
@@ -337,11 +432,80 @@ Protect-CbosRestoredEnvironment -TargetDatabaseName "CBOS_Support_Diag_INC202610
     --adjustment 100.00
 ```
 
-### 8.3 For Engineering Managers & Compliance Auditors
+#### Step 2.7: Handoff Package to Boss
+Upon successful verification, the developer delivers:
+1. The approved script file (e.g. `FIX_20261017_02_CompensatingLedgerAdjustment.sql`).
+2. The catalog entry with the verified SHA-256 hash.
+3. The specific `-TargetCustomerId` GUID and `-CompensationReference`.
+
+---
+
+### 8.3 Phase 3: Boss / Store Owner (Preview, Apply, Verify on Client Database)
+
+Following developer validation, the store owner or authorized administrator executes the approved correction on the client database.
+
+#### Step 3.1: Pre-Execution Schema Compatibility Check
+Verify the client database schema is 100% compatible with CBOS before running corrections:
 ```powershell
-# Verify audit trail and past corrective script executions:
+# Using the compiled Provisioner tool:
+.\Clovent.Installer.Provisioner.exe `
+    --server "localhost" `
+    --database "Clovent_BusinessOperatingSystem" `
+    --auth windows `
+    --verify-only
+# Exit code 0 confirms 100% schema compatibility across all 6 bounded contexts.
+```
+
+#### Step 3.2: Preview Diagnosis on Client Database (`-DryRun`)
+```powershell
+# Windows Authentication:
+.\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
+    -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
+    -TargetDatabaseName "Clovent_BusinessOperatingSystem" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
+    -DryRun
+
+# Dedicated SQL Authentication (Secure Password Prompt):
+$sqlUser = "cbos_support_admin"
+$sqlPassword = Read-Host -Prompt "Enter password for $sqlUser" -AsSecureString
+.\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
+    -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
+    -TargetDatabaseName "Clovent_BusinessOperatingSystem" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
+    -SqlUser $sqlUser `
+    -SqlPassword $sqlPassword `
+    -DryRun
+```
+
+#### Step 3.3: Apply Transactional Correction on Client Database (`-Execute`)
+The cmdlet automatically creates a pre-fix full backup before executing mutations:
+```powershell
+# Windows Authentication:
+.\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
+    -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
+    -TargetDatabaseName "Clovent_BusinessOperatingSystem" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
+    -Execute `
+    -PreTestedOnRestoredCopy `
+    -CompensationReference "AUTH-DISPUTE-CR-20261017-001"
+
+# Dedicated SQL Authentication:
+.\scripts\support\Invoke-CbosCorrectiveScript.ps1 `
+    -ScriptFilePath ".\scripts\support\corrective_scripts\FIX_20261017_02_CompensatingLedgerAdjustment.sql" `
+    -TargetDatabaseName "Clovent_BusinessOperatingSystem" `
+    -TargetCustomerId "4B341AD5-DD30-41FA-A8DC-99C8C1628FBD" `
+    -SqlUser $sqlUser `
+    -SqlPassword $sqlPassword `
+    -Execute `
+    -PreTestedOnRestoredCopy `
+    -CompensationReference "AUTH-DISPUTE-CR-20261017-001"
+```
+
+#### Step 3.4: Post-Execution Audit Verification
+Verify the correction was committed and recorded in the audit trail:
+```powershell
 Invoke-Sqlcmd -ServerInstance "localhost" -Database "Clovent_BusinessOperatingSystem" -Query @"
-SELECT [ScriptId], [ScriptHash], [Operator], [ExecutedAtUtc], [Outcome], [AffectedRows], [CompensationReference], [ErrorMessage]
+SELECT TOP 5 [ScriptId], [ScriptHash], [Operator], [ExecutedAtUtc], [Outcome], [AffectedRows], [CompensationReference]
 FROM [MasterData].[SupportScriptExecutionAudit]
 ORDER BY [ExecutedAtUtc] DESC;
 "@
