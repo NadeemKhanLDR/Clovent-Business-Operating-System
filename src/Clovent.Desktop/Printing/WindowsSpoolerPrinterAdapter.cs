@@ -114,7 +114,16 @@ public sealed class WindowsSpoolerPrinterAdapter : IPrinterAdapter
         try
         {
             var containsUrdu = ReceiptSnapshotFormatter.HasComplexScript(job.PayloadText);
-            using var doc = new EnhancedReceiptPrintDocument(job.PayloadText, profile.PaperWidth, containsUrdu);
+            var effectiveMarginMm = job.MarginMm ?? profile.MarginMm;
+            var effectivePaperWidth = job.PaperWidth ?? profile.PaperWidth;
+            var effectiveLogoPath = !string.IsNullOrWhiteSpace(job.LogoPath) && File.Exists(job.LogoPath) ? job.LogoPath : null;
+
+            using var doc = new EnhancedReceiptPrintDocument(
+                job.PayloadText,
+                effectivePaperWidth,
+                containsUrdu,
+                effectiveMarginMm,
+                effectiveLogoPath);
 
             doc.PrinterSettings.PrinterName = queueName;
             doc.PrinterSettings.Copies = (short)Math.Clamp(profile.PrintCopies, 1, 10);

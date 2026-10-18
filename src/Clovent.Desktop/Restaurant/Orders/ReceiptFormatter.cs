@@ -1,6 +1,7 @@
 using System.Text;
 using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Desktop.Forms.Base;
+using Clovent.Platform.Printing;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.Discounts.Queries;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
@@ -22,6 +23,71 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// </summary>
 public static class ReceiptFormatter
 {
+    /// <summary>
+    /// Formats an open/draft order as a preliminary guest bill.
+    /// Invariant: Draft orders MUST NEVER produce a finalized sales receipt.
+    /// Explicitly marked with '*** DRAFT BILL / NOT A FINAL RECEIPT ***'.
+    /// </summary>
+    public static async Task<string> FormatDraftBillAsync(
+        IMediator mediator,
+        OrderDto order,
+        TerminalReceiptSettings? settings = null)
+    {
+        var lines = await mediator.Send(new ListOrderLinesByOrderQuery(order.OrderId));
+        var discounts = await mediator.Send(new ListDiscountsByOrderQuery(order.OrderId));
+        var serviceCharges = await mediator.Send(new ListServiceChargesByOrderQuery(order.OrderId));
+        var payments = await mediator.Send(new ListPaymentsByOrderQuery(order.OrderId));
+
+        var activeLines = lines.Where(l => !l.IsVoided).ToList();
+        var totals = OrderTotalsCalculator.Calculate(lines, discounts, serviceCharges, payments);
+
+        var printableItems = new List<PrintableReceiptItem>();
+        foreach (var line in activeLines)
+        {
+            var name = await ResolveVariantNameAsync(mediator, line.ProductVariantId);
+            printableItems.Add(new PrintableReceiptItem(
+                Name: name,
+                Sku: null,
+                Quantity: line.Quantity,
+                UnitPrice: line.UnitPrice,
+                LineTotal: line.LineTotal,
+                Notes: line.Notes));
+        }
+
+        var printablePayments = payments.Where(p => !p.IsVoided)
+            .Select(p => new PrintableReceiptPayment("Payment", p.Amount))
+            .ToList();
+
+        var printable = new PrintableReceiptData(
+            OrderId: order.OrderId,
+            OrderNumber: order.OrderNumber,
+            DailySalesNumber: order.DailySalesNumber,
+            OrderType: order.OrderType ?? "DineIn",
+            CompletedAtUtc: order.UpdatedAtUtc,
+            Items: printableItems,
+            Subtotal: totals.Subtotal,
+            TaxTotal: totals.TaxTotal,
+            DiscountTotal: totals.DiscountTotal,
+            ServiceChargeTotal: totals.ServiceChargeTotal,
+            GrandTotal: totals.GrandTotal,
+            Balance: totals.Balance,
+            Payments: printablePayments,
+            CustomerNotes: order.CustomerNotes);
+
+        var options = new ReceiptRenderOptions(
+            PaperWidth: settings?.PaperWidth ?? PaperWidth.Width80mm,
+            CharactersPerLine: settings?.CharactersPerLine ?? 42,
+            CopyType: ReceiptCopyType.Draft,
+            MarginMm: settings?.MarginMm ?? 2,
+            HeaderText: settings?.HeaderText,
+            FooterText: settings?.FooterText,
+            LogoPath: settings?.LogoPath,
+            EnableLogo: settings?.EnableLogo ?? false);
+
+        var result = ReceiptSnapshotFormatter.FormatDraftBill(printable, options);
+        return result.FormattedText;
+    }
+
     /// <summary>Formats <paramref name="order"/> into a plain-text receipt.</summary>
     public static async Task<string> FormatAsync(IMediator mediator, OrderDto order)
     {

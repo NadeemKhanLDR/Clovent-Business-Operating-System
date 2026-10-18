@@ -113,7 +113,6 @@ partial class NotificationsForm
         //
         // NotificationsForm
         //
-        AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.None;
         ClientSize = new Size(560, 440);
         Controls.Add(_contentPanel);

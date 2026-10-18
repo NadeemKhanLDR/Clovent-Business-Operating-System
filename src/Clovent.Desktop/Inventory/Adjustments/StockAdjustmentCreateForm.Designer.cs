@@ -95,7 +95,7 @@ partial class StockAdjustmentCreateForm
         // _typeCombo
         //
         _typeCombo.Name = "_typeCombo";
-        _typeCombo.Properties.Items.AddRange(["Increase", "Decrease"]);
+        _typeCombo.Properties.Items.AddRange(new object[] { "Increase", "Decrease" });
         _typeCombo.SelectedIndex = 0;
         //
         // _quantityEdit

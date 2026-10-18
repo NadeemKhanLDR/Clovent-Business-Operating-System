@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Printing;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -13,6 +14,7 @@ namespace Clovent.Desktop.Tests.Printing;
 public class DesktopReceiptPrintServiceTests : IDisposable
 {
     private readonly string _tempConfigFile;
+    private readonly string _tempPosSettingsFile;
     private readonly FakeQueueProvider _queueProvider = new();
     private readonly FakePrinterAdapter _adapter = new();
     private readonly FakeCurrentSession _session = new();
@@ -100,6 +102,9 @@ public class DesktopReceiptPrintServiceTests : IDisposable
     public DesktopReceiptPrintServiceTests()
     {
         _tempConfigFile = Path.Combine(Path.GetTempPath(), $"receipt-test-{Guid.NewGuid():N}.json");
+        _tempPosSettingsFile = Path.Combine(Path.GetTempPath(), $"pos-settings-test-{Guid.NewGuid():N}.json");
+        PosSettingsStore.SetTestingOverrides(_tempPosSettingsFile);
+
         _configStore = new WindowsPrinterConfigurationStore(_tempConfigFile);
 
         var profile = new PrinterProfile
@@ -136,9 +141,11 @@ public class DesktopReceiptPrintServiceTests : IDisposable
 
     public void Dispose()
     {
+        PosSettingsStore.ResetTestingOverrides();
         try
         {
             if (File.Exists(_tempConfigFile)) File.Delete(_tempConfigFile);
+            if (File.Exists(_tempPosSettingsFile)) File.Delete(_tempPosSettingsFile);
         }
         catch { }
     }
@@ -407,5 +414,140 @@ public class DesktopReceiptPrintServiceTests : IDisposable
         Assert.Equal(snapshotOrg, _adapter.LastDispatchedJob.OrganizationId);
         Assert.Equal(snapshotBranch, _adapter.LastDispatchedJob.BranchId);
         Assert.Equal(snapshotTerminal, _adapter.LastDispatchedJob.TerminalId);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_BoundaryCopyCount_1Copy_DispatchesExactCount()
+    {
+        // Arrange
+        var terminalId = Guid.NewGuid();
+        var terminalSettings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 1,
+            MerchantCopyEnabled = false
+        };
+        var config = await _configStore.LoadAsync();
+        config.SetSettingsForTerminal(terminalId, terminalSettings);
+        await _configStore.SaveAsync(config);
+
+        var snapshot = new ReceiptSnapshot(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-COPY-1",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new ReceiptSnapshotItem(Guid.NewGuid(), "SKU-1", "Burger", 1m, 100m, 100m, null)],
+            Subtotal: 100m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 100m, Balance: 0m,
+            Payments: [new ReceiptSnapshotPayment(100m, "Cash")],
+            CashierName: "Cashier",
+            TerminalName: "TERM-1",
+            CustomerNotes: null,
+            TerminalId: terminalId);
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: snapshot.OrderId,
+            OrderNumber: snapshot.OrderNumber,
+            ReceiptText: "Receipt text",
+            SnapshotJson: JsonSerializer.Serialize(snapshot));
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert: Exactly 1 copy dispatched
+        Assert.Equal(ReceiptPrintStatus.Printed, result.Status);
+        Assert.Equal(1, _adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_BoundaryCopyCount_5Copies_DispatchesExactCount()
+    {
+        // Arrange
+        var terminalId = Guid.NewGuid();
+        var terminalSettings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 5,
+            MerchantCopyEnabled = false
+        };
+        var config = await _configStore.LoadAsync();
+        config.SetSettingsForTerminal(terminalId, terminalSettings);
+        await _configStore.SaveAsync(config);
+
+        var snapshot = new ReceiptSnapshot(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-COPY-5",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new ReceiptSnapshotItem(Guid.NewGuid(), "SKU-1", "Burger", 1m, 100m, 100m, null)],
+            Subtotal: 100m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 100m, Balance: 0m,
+            Payments: [new ReceiptSnapshotPayment(100m, "Cash")],
+            CashierName: "Cashier",
+            TerminalName: "TERM-1",
+            CustomerNotes: null,
+            TerminalId: terminalId);
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: snapshot.OrderId,
+            OrderNumber: snapshot.OrderNumber,
+            ReceiptText: "Receipt text",
+            SnapshotJson: JsonSerializer.Serialize(snapshot));
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert: Exactly 5 copies dispatched (max allowed boundary)
+        Assert.Equal(ReceiptPrintStatus.Printed, result.Status);
+        Assert.Equal(5, _adapter.DispatchCount);
+    }
+
+    [Fact]
+    public async Task PrintReceiptAsync_BoundaryCopyCount_6Copies_ReturnsPrintFailedWithoutSilentTruncation()
+    {
+        // Arrange: Existing configuration with 6 copies (above shared maximum of 5)
+        var terminalId = Guid.NewGuid();
+        var terminalSettings = new TerminalReceiptSettings
+        {
+            TerminalId = terminalId,
+            CustomerCopyEnabled = true,
+            CustomerCopyCount = 6, // Exceeds MaxCopyCount!
+            MerchantCopyEnabled = false
+        };
+        var config = await _configStore.LoadAsync();
+        config.SetSettingsForTerminal(terminalId, terminalSettings);
+        await _configStore.SaveAsync(config);
+
+        var snapshot = new ReceiptSnapshot(
+            OrderId: Guid.NewGuid(),
+            OrderNumber: "ORD-COPY-6",
+            DailySalesNumber: 1,
+            OrderType: "DineIn",
+            CompletedAtUtc: DateTimeOffset.UtcNow,
+            Items: [new ReceiptSnapshotItem(Guid.NewGuid(), "SKU-1", "Burger", 1m, 100m, 100m, null)],
+            Subtotal: 100m, TaxTotal: 0m, DiscountTotal: 0m, ServiceChargeTotal: 0m, GrandTotal: 100m, Balance: 0m,
+            Payments: [new ReceiptSnapshotPayment(100m, "Cash")],
+            CashierName: "Cashier",
+            TerminalName: "TERM-1",
+            CustomerNotes: null,
+            TerminalId: terminalId);
+
+        var payload = new ReceiptPrintPayload(
+            OrderId: snapshot.OrderId,
+            OrderNumber: snapshot.OrderNumber,
+            ReceiptText: "Receipt text",
+            SnapshotJson: JsonSerializer.Serialize(snapshot));
+
+        // Act
+        var result = await _receiptPrintService.PrintReceiptAsync(payload);
+
+        // Assert: Print fails with explicit validation error requiring correction; does NOT silently truncate to 5!
+        Assert.Equal(ReceiptPrintStatus.PrintFailed, result.Status);
+        Assert.NotNull(result.ErrorMessage);
+        Assert.Contains("exceeds supported range (1-5)", result.ErrorMessage);
+        Assert.Contains("Please correct the configuration", result.ErrorMessage);
+        Assert.Equal(0, _adapter.DispatchCount); // No jobs dispatched
     }
 }

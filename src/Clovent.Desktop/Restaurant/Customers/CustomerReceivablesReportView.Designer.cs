@@ -382,7 +382,7 @@ partial class CustomerReceivablesReportView
         _gridView.Columns["CustomerName"].SummaryItem.SummaryType = DevExpress.Data.SummaryItemType.Custom;
         _gridView.Columns["CustomerName"].SummaryItem.DisplayFormat = "Total";
 
-        string[] sumColumns = ["Receivable", "Advance", "CurrentBalance", "CurrentBucket", "Days1To7Bucket", "Days8To15Bucket", "Days16To30Bucket", "Days31To60Bucket", "Days60PlusBucket"];
+        string[] sumColumns = new string[] { "Receivable", "Advance", "CurrentBalance", "CurrentBucket", "Days1To7Bucket", "Days8To15Bucket", "Days16To30Bucket", "Days31To60Bucket", "Days60PlusBucket" };
         foreach (var sumCol in sumColumns)
         {
             if (_gridView.Columns[sumCol] is { } c)

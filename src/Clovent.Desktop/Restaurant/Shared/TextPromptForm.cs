@@ -1,3 +1,4 @@
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.MasterData;
 
 namespace Clovent.Desktop.Restaurant.Shared;
@@ -39,7 +40,8 @@ public sealed partial class TextPromptForm : MasterDataEditFormBase
         this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
         this.MinimizeBox = false;
         this.MaximizeBox = false;
-        this.ClientSize = new System.Drawing.Size(420, 170);
+        this.ClientSize = new System.Drawing.Size(DesktopDpi.Scale(500, this), DesktopDpi.Scale(230, this));
+        this.MinimumSize = new System.Drawing.Size(DesktopDpi.Scale(420, this), DesktopDpi.Scale(200, this));
     }
 
     /// <summary>The entered text, trimmed, or <see langword="null"/> if blank.</summary>

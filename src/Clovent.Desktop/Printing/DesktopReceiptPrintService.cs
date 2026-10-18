@@ -75,17 +75,91 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
             var effectiveTerminalId = snapshot.TerminalId ?? payload.TerminalId;
 
             var printableData = snapshot.ToPrintable();
-            dispatchResult = await _printerManagementService.DispatchReceiptAsync(
-                printableData,
-                organizationId: effectiveOrgId,
-                branchId: effectiveBranchId,
-                terminalId: effectiveTerminalId,
-                isReprint: false,
-                reprintCount: 1,
-                reprintReason: null,
-                jobId: jobId,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+            var terminalSettings = await _printerManagementService.GetTerminalReceiptSettingsAsync(effectiveTerminalId, cancellationToken).ConfigureAwait(false);
 
+            // Validate copy count limits: do not silently truncate or clamp if existing configuration exceeds MaxCopyCount
+            if (!terminalSettings.IsCopyCountValid(out var copyValidationError))
+            {
+                _logger?.LogError("Terminal receipt settings for terminal {TerminalId} are invalid: {Error}", effectiveTerminalId, copyValidationError);
+                return new ReceiptPrintResult(
+                    ReceiptPrintStatus.PrintFailed,
+                    null,
+                    $"Print failed: {copyValidationError}");
+            }
+
+            PrintDispatchResult? customerResult = null;
+            PrintDispatchResult? merchantResult = null;
+
+            // 1. Customer Copy dispatch
+            if (terminalSettings.CustomerCopyEnabled)
+            {
+                var copies = terminalSettings.CustomerCopyCount;
+                for (var i = 1; i <= copies; i++)
+                {
+                    var isAdditionalCopy = i > 1;
+                    var copyJobId = i == 1 ? jobId : DeriveSubJobId(jobId, "customer", i);
+                    var result = await _printerManagementService.DispatchReceiptAsync(
+                        printableData,
+                        organizationId: effectiveOrgId,
+                        branchId: effectiveBranchId,
+                        terminalId: effectiveTerminalId,
+                        isReprint: false,
+                        reprintCount: 1,
+                        reprintReason: null,
+                        jobId: copyJobId,
+                        copyType: ReceiptCopyType.Customer,
+                        customSettings: terminalSettings,
+                        targetProfileId: terminalSettings.CustomerCopyProfileId,
+                        isAdditionalCopy: isAdditionalCopy,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                    customerResult = (customerResult == null || customerResult.Success) ? result : customerResult;
+                }
+            }
+
+            // 2. Merchant / Store Copy dispatch
+            if (terminalSettings.MerchantCopyEnabled)
+            {
+                var copies = terminalSettings.MerchantCopyCount;
+                for (var i = 1; i <= copies; i++)
+                {
+                    var copyJobId = DeriveSubJobId(jobId, "merchant", i);
+                    var result = await _printerManagementService.DispatchReceiptAsync(
+                        printableData,
+                        organizationId: effectiveOrgId,
+                        branchId: effectiveBranchId,
+                        terminalId: effectiveTerminalId,
+                        isReprint: false,
+                        reprintCount: 1,
+                        reprintReason: null,
+                        jobId: copyJobId,
+                        copyType: ReceiptCopyType.Merchant,
+                        customSettings: terminalSettings,
+                        targetProfileId: terminalSettings.MerchantCopyProfileId,
+                        isAdditionalCopy: false,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                    merchantResult = (merchantResult == null || merchantResult.Success) ? result : merchantResult;
+                }
+            }
+
+            if (customerResult == null && merchantResult == null)
+            {
+                return new ReceiptPrintResult(ReceiptPrintStatus.Printed, "No copies configured", null);
+            }
+
+            // Partial multi-copy failure handling: if any copy failed or was quarantined, report that failure
+            if (customerResult != null && !customerResult.Success)
+            {
+                return MapResult(customerResult);
+            }
+
+            if (merchantResult != null && !merchantResult.Success)
+            {
+                return MapResult(merchantResult);
+            }
+
+            dispatchResult = customerResult ?? merchantResult!;
             return MapResult(dispatchResult);
         }
 
@@ -121,4 +195,12 @@ public sealed class DesktopReceiptPrintService : IReceiptPrintService
 
         return new ReceiptPrintResult(ReceiptPrintStatus.PrintFailed, result.TargetQueueName, result.ErrorMessage);
     }
+
+    private static Guid DeriveSubJobId(Guid baseId, string copyType, int index)
+    {
+        var input = $"{baseId:N}:{copyType}:{index}";
+        var hash = System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes(input));
+        return new Guid(hash);
+    }
 }
+

@@ -51,8 +51,8 @@ public static class ReceiptSnapshotFormatter
         var divider = new string('-', charsPerLine);
         var doubleDivider = new string('=', charsPerLine);
 
-        // 1. Reprint Banner (if applicable)
-        if (options.IsReprint)
+        // 1. Reprint / Copy Banner
+        if (options.IsReprint || options.CopyType == ReceiptCopyType.Reprint)
         {
             AppendLineAndScan(doubleDivider);
             AppendLineAndScan(Center($"*** REPRINT (COPY #{options.ReprintCount}) ***"));
@@ -62,6 +62,31 @@ public static class ReceiptSnapshotFormatter
             }
             AppendLineAndScan(Center($"Reprinted: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
             AppendLineAndScan(doubleDivider);
+        }
+        else if (options.CopyType == ReceiptCopyType.Merchant)
+        {
+            AppendLineAndScan(doubleDivider);
+            AppendLineAndScan(Center("*** MERCHANT / STORE COPY ***"));
+            AppendLineAndScan(doubleDivider);
+        }
+        else if (options.CopyType == ReceiptCopyType.Draft)
+        {
+            AppendLineAndScan(doubleDivider);
+            AppendLineAndScan(Center("*** DRAFT BILL / NOT A FINAL RECEIPT ***"));
+            AppendLineAndScan(doubleDivider);
+        }
+        else
+        {
+            AppendLineAndScan(doubleDivider);
+            AppendLineAndScan(Center("*** CUSTOMER COPY ***"));
+            AppendLineAndScan(doubleDivider);
+        }
+
+        // 1.1 Header Logo (if enabled)
+        if (options.EnableLogo && !string.IsNullOrWhiteSpace(options.LogoPath))
+        {
+            var logoName = Path.GetFileNameWithoutExtension(options.LogoPath);
+            AppendLineAndScan(Center($"[{logoName.ToUpperInvariant()} LOGO]"));
         }
 
         // 2. Header Information
@@ -278,4 +303,20 @@ public static class ReceiptSnapshotFormatter
 
         return false;
     }
+
+    /// <summary>
+    /// Formats a draft bill or pre-settlement proforma check.
+    /// Strictly labeled as a draft bill, never producing a finalized sales receipt.
+    /// </summary>
+    public static ReceiptFormattingResult FormatDraftBill(PrintableReceiptData data, ReceiptRenderOptions? options = null)
+    {
+        var draftOptions = (options ?? new ReceiptRenderOptions()) with
+        {
+            CopyType = ReceiptCopyType.Draft,
+            IsReprint = false
+        };
+
+        return Format(data, draftOptions);
+    }
 }
+

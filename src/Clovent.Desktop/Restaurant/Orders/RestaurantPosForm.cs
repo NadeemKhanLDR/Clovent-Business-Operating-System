@@ -67,6 +67,9 @@ using DevExpress.XtraEditors;
 using DevExpress.XtraEditors.Repository;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using Clovent.Platform.Printing;
+using Clovent.Desktop.Printing;
+using Clovent.Restaurant.Application.Printing;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -6047,19 +6050,40 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        await PosPerformanceTracker.TrackAsync("OrderComplete", async () =>
+        var completedOrderDto = await PosPerformanceTracker.TrackAsync("OrderComplete", async () =>
         {
-            await _mediator.Send(new CompleteOrderCommand(
+            return await _mediator.Send(new CompleteOrderCommand(
                 _currentOrder!.OrderId,
                 null,
                 PosSettingsStore.LoadBranchId(),
                 PosSettingsStore.LoadTerminalId()));
-            return true;
         });
 
         if (_checkpointStore != null)
         {
             await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+        }
+
+        var changeDue = Math.Max(0m, totals.PaidTotal - totals.GrandTotal);
+        var printerService = _scope.ServiceProvider.GetService<PrinterManagementService>();
+        var receiptPrintService = _scope.ServiceProvider.GetService<Clovent.Restaurant.Application.Printing.IReceiptPrintService>();
+        var jobTracker = _scope.ServiceProvider.GetService<Clovent.Platform.Printing.IPrinterJobTracker>();
+        var authService = _scope.ServiceProvider.GetService<Clovent.Identity.Application.Authorization.IAuthorizationService>();
+
+        using (var dialog = new OrderCompletedDialog(
+            completedOrderDto,
+            totals.GrandTotal,
+            totals.PaidTotal,
+            changeDue,
+            _mediator,
+            printerService,
+            receiptPrintService,
+            jobTracker,
+            authService,
+            _currentSession,
+            _logger))
+        {
+            dialog.ShowDialog(this);
         }
 
         _currentOrder = null;
@@ -6775,7 +6799,13 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
-        var receipt = await ReceiptFormatter.FormatAsync(_mediator, _currentOrder);
+        var terminalId = PosSettingsStore.LoadTerminalId();
+        var printerService = _scope.ServiceProvider.GetService<PrinterManagementService>();
+        var settings = printerService != null
+            ? await printerService.GetTerminalReceiptSettingsAsync(terminalId)
+            : null;
+
+        var receipt = await ReceiptFormatter.FormatDraftBillAsync(_mediator, _currentOrder, settings);
 
         if (QueueRushModeStore.IsEnabled())
         {
@@ -6786,8 +6816,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         using var preview = new ReceiptPreviewForm(receipt);
+        preview.Text = $"Guest Bill (Draft) - {_currentOrder.OrderNumber}";
         preview.ShowDialog(this);
-        await LogActivityAsync("Print", _currentOrder.OrderNumber);
+        await LogActivityAsync("PrintDraftBill", _currentOrder.OrderNumber);
     }
 
     private async Task LogActivityAsync(string action, string? details = null)
@@ -7244,11 +7275,105 @@ public sealed partial class RestaurantPosForm : XtraForm
                 return;
             }
 
-            var receiptText = await ReceiptFormatter.FormatAsync(_mediator, lastOrder);
-            var jobTracker = _scope.ServiceProvider.GetService<Clovent.Platform.Printing.IPrinterJobTracker>();
+            PrintableReceiptData? printable = null;
+            if (!string.IsNullOrWhiteSpace(lastOrder.ReceiptSnapshotJson))
+            {
+                try
+                {
+                    var snapshot = System.Text.Json.JsonSerializer.Deserialize<Clovent.Restaurant.Orders.ReceiptSnapshot>(lastOrder.ReceiptSnapshotJson);
+                    if (snapshot != null)
+                    {
+                        try
+                        {
+                            PosSettingsStore.EnsureWorkstationScopeOwnership(
+                                snapshot.OrganizationId,
+                                snapshot.BranchId,
+                                snapshot.TerminalId,
+                                "reprint last receipt");
+                        }
+                        catch (UnauthorizedAccessException ex)
+                        {
+                            XtraMessageBox.Show(this, ex.Message, "Scope Violation", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        printable = snapshot.ToPrintable();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to parse receipt snapshot for order {OrderNumber}", lastOrder.OrderNumber);
+                }
+            }
+
+            var jobTracker = _scope.ServiceProvider.GetService<IPrinterJobTracker>();
             var reprintCount = (jobTracker?.GetReprintCount(lastOrder.OrderNumber) ?? 0) + 1;
+            var terminalId = PosSettingsStore.LoadTerminalId();
+            var branchId = PosSettingsStore.LoadBranchId();
+            var printerService = _scope.ServiceProvider.GetService<PrinterManagementService>();
+            var settings = printerService != null
+                ? await printerService.GetTerminalReceiptSettingsAsync(terminalId)
+                : new TerminalReceiptSettings();
+
+            var options = new ReceiptRenderOptions(
+                PaperWidth: settings.PaperWidth,
+                CharactersPerLine: settings.CharactersPerLine,
+                IsReprint: true,
+                ReprintCount: reprintCount,
+                ReprintReason: "Print Last Receipt Action",
+                CopyType: ReceiptCopyType.Reprint,
+                MarginMm: settings.MarginMm,
+                HeaderText: settings.HeaderText,
+                FooterText: settings.FooterText,
+                LogoPath: settings.LogoPath,
+                EnableLogo: settings.EnableLogo);
+
+            string receiptText;
+            if (printable != null)
+            {
+                var formatted = ReceiptSnapshotFormatter.Format(printable, options);
+                receiptText = formatted.FormattedText;
+            }
+            else
+            {
+                receiptText = await ReceiptFormatter.FormatAsync(_mediator, lastOrder);
+            }
+
+            // Track reprint job
+            var reprintJob = new PrinterJob
+            {
+                JobId = Guid.NewGuid(),
+                DocumentId = lastOrder.OrderId,
+                DocumentReference = lastOrder.OrderNumber,
+                DocumentType = "ReprintReceipt",
+                IsReprint = true,
+                ReprintCount = reprintCount,
+                ReprintReason = "Print Last Receipt Action",
+                Status = PrinterJobStatus.Requested,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                BranchId = branchId,
+                TerminalId = terminalId
+            };
+            jobTracker?.RecordJob(reprintJob);
+
+            // Invariant: Cash drawer strictly suppressed on reprints
+            if (printerService != null && printable != null)
+            {
+                await printerService.DispatchReceiptAsync(
+                    printable,
+                    organizationId: null,
+                    branchId: branchId,
+                    terminalId: terminalId,
+                    isReprint: true,
+                    reprintCount: reprintCount,
+                    reprintReason: "Print Last Receipt Action",
+                    jobId: reprintJob.JobId,
+                    copyType: ReceiptCopyType.Reprint,
+                    customSettings: settings);
+            }
 
             using var preview = new ReceiptPreviewForm(receiptText);
+            preview.Text = $"Last Receipt Reprint (Copy #{reprintCount}) - #{lastOrder.OrderNumber}";
             preview.ShowDialog(this);
 
             await LogActivityAsync("Receipt Reprinted", $"Order #{lastOrder.OrderNumber} reprinted (Copy #{reprintCount}) for Shift #{_activeShift.ShiftNumber}");

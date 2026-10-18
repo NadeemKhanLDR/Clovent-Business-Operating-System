@@ -15,20 +15,32 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
     private readonly string[] _lines;
     private readonly PaperWidth _paperWidth;
     private readonly bool _containsComplexScript;
+    private readonly int _marginMm;
+    private readonly string? _logoPath;
     private int _nextLineIndex;
+    private bool _logoDrawn;
 
     /// <summary>
-    /// Constructs an enhanced receipt print document.
+    /// Constructs an enhanced receipt print document with physical logo and custom margin support.
     /// </summary>
     /// <param name="receiptText">The formatted plain text to render.</param>
     /// <param name="paperWidth">Target paper roll width (58mm, 80mm, A4).</param>
     /// <param name="containsComplexScript">Whether the text includes Urdu/Arabic Unicode characters.</param>
-    public EnhancedReceiptPrintDocument(string receiptText, PaperWidth paperWidth = PaperWidth.Width80mm, bool containsComplexScript = false)
+    /// <param name="marginMm">Physical page margin in millimeters.</param>
+    /// <param name="logoPath">Optional path to store logo image to physically render via GDI+.</param>
+    public EnhancedReceiptPrintDocument(
+        string receiptText,
+        PaperWidth paperWidth = PaperWidth.Width80mm,
+        bool containsComplexScript = false,
+        int marginMm = 2,
+        string? logoPath = null)
     {
         DocumentName = "CBOS Receipt";
         _lines = (receiptText ?? string.Empty).Replace("\r\n", "\n").Split('\n');
         _paperWidth = paperWidth;
         _containsComplexScript = containsComplexScript;
+        _marginMm = Math.Clamp(marginMm, 0, 25);
+        _logoPath = logoPath;
 
         ConfigureDefaultPageSettings();
     }
@@ -37,7 +49,11 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
     {
         try
         {
-            DefaultPageSettings.Margins = new Margins(8, 8, 8, 8);
+            // Convert margin in millimeters to hundredths of an inch (1 mm = 3.937 / 100 in)
+            int marginHundreds = (int)Math.Round(_marginMm * 3.93701);
+            marginHundreds = Math.Clamp(marginHundreds, 0, 100);
+
+            DefaultPageSettings.Margins = new Margins(marginHundreds, marginHundreds, marginHundreds, marginHundreds);
 
             int widthHundreds = _paperWidth switch
             {
@@ -61,6 +77,7 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
     {
         base.OnBeginPrint(e);
         _nextLineIndex = 0;
+        _logoDrawn = false;
     }
 
     /// <inheritdoc/>
@@ -86,6 +103,29 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
         using var brush = new SolidBrush(Color.Black);
         using var rtlFormat = new StringFormat(StringFormatFlags.DirectionRightToLeft) { Alignment = StringAlignment.Near, LineAlignment = StringAlignment.Center };
 
+        // 1. Physically render header logo image at top of first page if configured
+        if (!_logoDrawn && !string.IsNullOrWhiteSpace(_logoPath) && File.Exists(_logoPath))
+        {
+            try
+            {
+                using var logoImg = Image.FromFile(_logoPath);
+                float maxLogoWidth = Math.Min(width, 160f); // Max ~40mm
+                float maxLogoHeight = 70f;
+                float scale = Math.Min(maxLogoWidth / logoImg.Width, maxLogoHeight / logoImg.Height);
+                float destWidth = logoImg.Width * scale;
+                float destHeight = logoImg.Height * scale;
+                float destX = left + (width - destWidth) / 2f; // Centered
+
+                graphics.DrawImage(logoImg, destX, y, destWidth, destHeight);
+                y += destHeight + 6f; // Spacing after logo
+            }
+            catch
+            {
+                // Fallback gracefully if logo file fails to load
+            }
+            _logoDrawn = true;
+        }
+
         while (_nextLineIndex < _lines.Length)
         {
             if (y + lineHeight > e.MarginBounds.Bottom)
@@ -95,6 +135,14 @@ public sealed class EnhancedReceiptPrintDocument : PrintDocument
             }
 
             var line = _lines[_nextLineIndex];
+
+            // If the physical logo was rendered above, suppress the text placeholder notice
+            if (_logoDrawn && line.Trim().StartsWith("[") && line.Trim().EndsWith("LOGO]"))
+            {
+                _nextLineIndex++;
+                continue;
+            }
+
             var rect = new RectangleF(left, y, width, lineHeight);
 
             if (ReceiptSnapshotFormatter.HasComplexScript(line))

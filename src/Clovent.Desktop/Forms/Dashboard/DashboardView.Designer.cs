@@ -381,6 +381,7 @@ partial class DashboardView
         // 
         lblOrganizationValue.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         lblOrganizationValue.Appearance.Options.UseFont = true;
+        lblOrganizationValue.AutoEllipsis = true;
         lblOrganizationValue.Dock = DockStyle.Fill;
         lblOrganizationValue.Location = new Point(3, 35);
         lblOrganizationValue.Name = "lblOrganizationValue";
@@ -392,6 +393,7 @@ partial class DashboardView
         // 
         lblCompanyValue.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         lblCompanyValue.Appearance.Options.UseFont = true;
+        lblCompanyValue.AutoEllipsis = true;
         lblCompanyValue.Dock = DockStyle.Fill;
         lblCompanyValue.Location = new Point(409, 35);
         lblCompanyValue.Name = "lblCompanyValue";
@@ -403,6 +405,7 @@ partial class DashboardView
         // 
         lblBranchValue.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         lblBranchValue.Appearance.Options.UseFont = true;
+        lblBranchValue.AutoEllipsis = true;
         lblBranchValue.Dock = DockStyle.Fill;
         lblBranchValue.Location = new Point(815, 35);
         lblBranchValue.Name = "lblBranchValue";
@@ -414,6 +417,7 @@ partial class DashboardView
         // 
         lblFiscalYearValue.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         lblFiscalYearValue.Appearance.Options.UseFont = true;
+        lblFiscalYearValue.AutoEllipsis = true;
         lblFiscalYearValue.Dock = DockStyle.Fill;
         lblFiscalYearValue.Location = new Point(1221, 35);
         lblFiscalYearValue.Name = "lblFiscalYearValue";
@@ -425,6 +429,7 @@ partial class DashboardView
         // 
         lblCurrentUserValue.Appearance.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
         lblCurrentUserValue.Appearance.Options.UseFont = true;
+        lblCurrentUserValue.AutoEllipsis = true;
         lblCurrentUserValue.Dock = DockStyle.Fill;
         lblCurrentUserValue.Location = new Point(1627, 35);
         lblCurrentUserValue.Name = "lblCurrentUserValue";

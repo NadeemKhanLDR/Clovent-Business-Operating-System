@@ -18,6 +18,12 @@ public sealed class PrinterConfiguration
     /// <summary>Global default receipt printer profile identifier if no scope match is found.</summary>
     public Guid? DefaultReceiptProfileId { get; set; }
 
+    /// <summary>Per-terminal receipt copy and layout settings keyed by terminal ID string.</summary>
+    public Dictionary<string, TerminalReceiptSettings> TerminalReceiptSettings { get; set; } = new();
+
+    /// <summary>Global fallback receipt copy and layout settings.</summary>
+    public TerminalReceiptSettings DefaultReceiptSettings { get; set; } = new();
+
     /// <summary>Finds a profile by its unique identifier.</summary>
     public PrinterProfile? FindProfile(Guid profileId) =>
         Profiles.FirstOrDefault(p => p.Id == profileId);
@@ -36,5 +42,24 @@ public sealed class PrinterConfiguration
 
         return Profiles.FirstOrDefault(p => p.Role == PrinterRole.Receipt && p.IsEnabled)
             ?? Profiles.FirstOrDefault(p => p.IsEnabled);
+    }
+
+    /// <summary>Gets receipt copy and layout settings for a specific terminal, falling back to default.</summary>
+    public TerminalReceiptSettings GetSettingsForTerminal(Guid? terminalId)
+    {
+        if (terminalId.HasValue && TerminalReceiptSettings.TryGetValue(terminalId.Value.ToString(), out var settings))
+        {
+            return settings;
+        }
+
+        return DefaultReceiptSettings ?? new TerminalReceiptSettings();
+    }
+
+    /// <summary>Sets or updates receipt copy and layout settings for a specific terminal.</summary>
+    public void SetSettingsForTerminal(Guid terminalId, TerminalReceiptSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        settings.TerminalId = terminalId;
+        TerminalReceiptSettings[terminalId.ToString()] = settings;
     }
 }

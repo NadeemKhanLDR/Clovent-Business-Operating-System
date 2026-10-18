@@ -132,23 +132,99 @@ partial class CustomerEditForm
         row++;
 
         // Customer Code & Customer Name
-        ConfigureField(label1, "Customer Code *:", _codeEdit, 0, row);
-        ConfigureField(label2, "Customer Name *:", _nameEdit, 2, row);
+        label1.AutoSize = false;
+        label1.Dock = DockStyle.Fill;
+        label1.Text = "Customer Code *:";
+        label1.TextAlign = ContentAlignment.MiddleLeft;
+        label1.Padding = new Padding(0, 0, 6, 0);
+        label1.Margin = new Padding(0, 6, 6, 6);
+        _codeEdit.Dock = DockStyle.Fill;
+        _codeEdit.Margin = new Padding(0, 6, 16, 6);
+        _contentPanel.Controls.Add(label1, 0, row);
+        _contentPanel.Controls.Add(_codeEdit, 1, row);
+
+        label2.AutoSize = false;
+        label2.Dock = DockStyle.Fill;
+        label2.Text = "Customer Name *:";
+        label2.TextAlign = ContentAlignment.MiddleLeft;
+        label2.Padding = new Padding(0, 0, 6, 0);
+        label2.Margin = new Padding(0, 6, 6, 6);
+        _nameEdit.Dock = DockStyle.Fill;
+        _nameEdit.Margin = new Padding(0, 6, 0, 6);
+        _contentPanel.Controls.Add(label2, 2, row);
+        _contentPanel.Controls.Add(_nameEdit, 3, row);
         row++;
 
         // Mobile Number & Mobile 2
-        ConfigureField(label3, "Mobile Number *:", _mobileEdit, 0, row);
-        ConfigureField(labelMobile2, "Mobile 2:", _mobile2Edit, 2, row);
+        label3.AutoSize = false;
+        label3.Dock = DockStyle.Fill;
+        label3.Text = "Mobile Number *:";
+        label3.TextAlign = ContentAlignment.MiddleLeft;
+        label3.Padding = new Padding(0, 0, 6, 0);
+        label3.Margin = new Padding(0, 6, 6, 6);
+        _mobileEdit.Dock = DockStyle.Fill;
+        _mobileEdit.Margin = new Padding(0, 6, 16, 6);
+        _contentPanel.Controls.Add(label3, 0, row);
+        _contentPanel.Controls.Add(_mobileEdit, 1, row);
+
+        labelMobile2.AutoSize = false;
+        labelMobile2.Dock = DockStyle.Fill;
+        labelMobile2.Text = "Mobile 2:";
+        labelMobile2.TextAlign = ContentAlignment.MiddleLeft;
+        labelMobile2.Padding = new Padding(0, 0, 6, 0);
+        labelMobile2.Margin = new Padding(0, 6, 6, 6);
+        _mobile2Edit.Dock = DockStyle.Fill;
+        _mobile2Edit.Margin = new Padding(0, 6, 0, 6);
+        _contentPanel.Controls.Add(labelMobile2, 2, row);
+        _contentPanel.Controls.Add(_mobile2Edit, 3, row);
         row++;
 
         // Phone & Shop No
-        ConfigureField(labelPhone, "Phone:", _phoneEdit, 0, row);
-        ConfigureField(labelShopNo, "Shop No:", _shopNoEdit, 2, row);
+        labelPhone.AutoSize = false;
+        labelPhone.Dock = DockStyle.Fill;
+        labelPhone.Text = "Phone:";
+        labelPhone.TextAlign = ContentAlignment.MiddleLeft;
+        labelPhone.Padding = new Padding(0, 0, 6, 0);
+        labelPhone.Margin = new Padding(0, 6, 6, 6);
+        _phoneEdit.Dock = DockStyle.Fill;
+        _phoneEdit.Margin = new Padding(0, 6, 16, 6);
+        _contentPanel.Controls.Add(labelPhone, 0, row);
+        _contentPanel.Controls.Add(_phoneEdit, 1, row);
+
+        labelShopNo.AutoSize = false;
+        labelShopNo.Dock = DockStyle.Fill;
+        labelShopNo.Text = "Shop No:";
+        labelShopNo.TextAlign = ContentAlignment.MiddleLeft;
+        labelShopNo.Padding = new Padding(0, 0, 6, 0);
+        labelShopNo.Margin = new Padding(0, 6, 6, 6);
+        _shopNoEdit.Dock = DockStyle.Fill;
+        _shopNoEdit.Margin = new Padding(0, 6, 0, 6);
+        _contentPanel.Controls.Add(labelShopNo, 2, row);
+        _contentPanel.Controls.Add(_shopNoEdit, 3, row);
         row++;
 
         // Address & Email
-        ConfigureField(label4, "Address *:", _addressEdit, 0, row);
-        ConfigureField(label5, "Email:", _emailEdit, 2, row);
+        label4.AutoSize = false;
+        label4.Dock = DockStyle.Fill;
+        label4.Text = "Address *:";
+        label4.TextAlign = ContentAlignment.MiddleLeft;
+        label4.Padding = new Padding(0, 0, 6, 0);
+        label4.Margin = new Padding(0, 6, 6, 6);
+        _addressEdit.Dock = DockStyle.Fill;
+        _addressEdit.Margin = new Padding(0, 6, 16, 6);
+        _contentPanel.Controls.Add(label4, 0, row);
+        _contentPanel.Controls.Add(_addressEdit, 1, row);
+
+        label5.AutoSize = false;
+        label5.Dock = DockStyle.Fill;
+        label5.Text = "Email:";
+        label5.TextAlign = ContentAlignment.MiddleLeft;
+        label5.Padding = new Padding(0, 0, 6, 0);
+        label5.Margin = new Padding(0, 6, 6, 6);
+        _emailEdit.Dock = DockStyle.Fill;
+        _emailEdit.Margin = new Padding(0, 6, 0, 6);
+        _contentPanel.Controls.Add(label5, 2, row);
+        _contentPanel.Controls.Add(_emailEdit, 3, row);
         row++;
 
         // --- [ ACCOUNT OPENING ] SECTION HEADER (spans 4 cols) ---
@@ -164,7 +240,16 @@ partial class CustomerEditForm
         row++;
 
         // Opening Balance
-        ConfigureField(label6, "Opening Balance:", _openingBalanceEdit, 0, row);
+        label6.AutoSize = false;
+        label6.Dock = DockStyle.Fill;
+        label6.Text = "Opening Balance:";
+        label6.TextAlign = ContentAlignment.MiddleLeft;
+        label6.Padding = new Padding(0, 0, 6, 0);
+        label6.Margin = new Padding(0, 6, 6, 6);
+        _openingBalanceEdit.Dock = DockStyle.Fill;
+        _openingBalanceEdit.Margin = new Padding(0, 6, 16, 6);
+        _contentPanel.Controls.Add(label6, 0, row);
+        _contentPanel.Controls.Add(_openingBalanceEdit, 1, row);
         row++;
 
         // --- [ CREDIT / ACCOUNT SETTINGS ] SECTION HEADER (spans 4 cols) ---
@@ -180,14 +265,12 @@ partial class CustomerEditForm
         row++;
 
         // Credit Limit + Helper text in Col 0,1 & Credit Allowed in Col 2,3
-        var pnlCreditLimit = new TableLayoutPanel
-        {
-            AutoSize = true,
-            Dock = DockStyle.Top,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0, 3, 16, 6)
-        };
+        TableLayoutPanel pnlCreditLimit = new TableLayoutPanel();
+        pnlCreditLimit.AutoSize = true;
+        pnlCreditLimit.Dock = DockStyle.Top;
+        pnlCreditLimit.ColumnCount = 1;
+        pnlCreditLimit.RowCount = 2;
+        pnlCreditLimit.Margin = new Padding(0, 3, 16, 6);
         pnlCreditLimit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         pnlCreditLimit.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         pnlCreditLimit.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -315,22 +398,6 @@ partial class CustomerEditForm
         ClientSize = new Size(820, 620);
         MinimumSize = new Size(760, 540);
         ResumeLayout(false);
-    }
-
-    private void ConfigureField(System.Windows.Forms.Label label, string labelText, Control editor, int col, int row)
-    {
-        label.AutoSize = false;
-        label.Dock = DockStyle.Fill;
-        label.Text = labelText;
-        label.TextAlign = ContentAlignment.MiddleLeft;
-        label.Padding = new Padding(0, 0, 6, 0);
-        label.Margin = new Padding(0, 6, 6, 6);
-
-        editor.Dock = DockStyle.Fill;
-        editor.Margin = new Padding(0, 6, col == 0 ? 16 : 0, 6);
-
-        _contentPanel.Controls.Add(label, col, row);
-        _contentPanel.Controls.Add(editor, col + 1, row);
     }
 
     private TableLayoutPanel _pnlHeader;

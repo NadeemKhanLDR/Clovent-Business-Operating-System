@@ -58,6 +58,7 @@ public static class PosSettingsStore
         public bool RushModeEnabled { get; set; } = false;
         public Guid? TerminalId { get; set; }
         public Guid? BranchId { get; set; }
+        public Guid? OrganizationId { get; set; }
         public string DefaultOrderMode { get; set; } = "DineIn";
     }
 
@@ -230,6 +231,45 @@ public static class PosSettingsStore
         var data = LoadData();
         data.BranchId = branchId;
         SaveData(data);
+    }
+
+    /// <summary>Gets the configured workstation organization ID, or null if unconfigured.</summary>
+    public static Guid? LoadOrganizationId() => LoadData().OrganizationId;
+
+    /// <summary>Persists the configured workstation organization ID.</summary>
+    public static void SaveOrganizationId(Guid? organizationId)
+    {
+        var data = LoadData();
+        data.OrganizationId = organizationId;
+        SaveData(data);
+    }
+
+    /// <summary>
+    /// Validates that target scope identifiers match this workstation's configured ownership scope.
+    /// Invariant: Manager/Admin status cannot bypass company/branch/terminal scope ownership.
+    /// </summary>
+    public static void EnsureWorkstationScopeOwnership(Guid? organizationId, Guid? branchId, Guid? terminalId, string resourceDescription)
+    {
+        var activeOrgId = LoadOrganizationId();
+        if (organizationId.HasValue && activeOrgId.HasValue && organizationId.Value != activeOrgId.Value)
+        {
+            throw new UnauthorizedAccessException(
+                $"Access Denied: Scope ownership mismatch for organization. Active workstation organization ({activeOrgId}) does not match target organization ({organizationId}) for {resourceDescription}. Manager/Admin status cannot bypass ownership boundaries.");
+        }
+
+        var activeBranchId = LoadBranchId();
+        if (branchId.HasValue && activeBranchId.HasValue && branchId.Value != activeBranchId.Value)
+        {
+            throw new UnauthorizedAccessException(
+                $"Access Denied: Scope ownership mismatch for branch. Active workstation branch ({activeBranchId}) does not match target branch ({branchId}) for {resourceDescription}. Manager/Admin status cannot bypass ownership boundaries.");
+        }
+
+        var activeTerminalId = LoadTerminalId();
+        if (terminalId.HasValue && activeTerminalId.HasValue && terminalId.Value != activeTerminalId.Value)
+        {
+            throw new UnauthorizedAccessException(
+                $"Access Denied: Scope ownership mismatch for terminal. Active workstation terminal ({activeTerminalId}) does not match target terminal ({terminalId}) for {resourceDescription}. Manager/Admin status cannot bypass ownership boundaries.");
+        }
     }
 
     /// <summary>Returns the configured default order mode (DineIn, TakeAway, Delivery), defaulting to "DineIn".</summary>

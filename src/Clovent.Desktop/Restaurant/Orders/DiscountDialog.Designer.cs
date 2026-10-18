@@ -77,7 +77,7 @@ partial class DiscountDialog
         // _typeCombo
         //
         _typeCombo.Name = "_typeCombo";
-        _typeCombo.Properties.Items.AddRange(["Percentage", "FixedAmount"]);
+        _typeCombo.Properties.Items.AddRange(new object[] { "Percentage", "FixedAmount" });
         _typeCombo.SelectedIndex = 0;
         //
         // _valueEdit
