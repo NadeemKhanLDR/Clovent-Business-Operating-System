@@ -80,7 +80,7 @@ partial class ProductPriceEditForm
         // _priceTypeCombo
         //
         _priceTypeCombo.Name = "_priceTypeCombo";
-        _priceTypeCombo.Properties.Items.AddRange(["Cost", "Selling"]);
+        _priceTypeCombo.Properties.Items.AddRange(new object[] { "Cost", "Selling" });
         //
         // _currencyCombo
         //

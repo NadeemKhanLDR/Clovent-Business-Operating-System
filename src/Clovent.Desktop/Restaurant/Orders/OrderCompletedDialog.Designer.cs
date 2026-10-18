@@ -62,18 +62,23 @@ partial class OrderCompletedDialog
         // 
         // lblInvoiceNumber
         // 
+        this.lblInvoiceNumber.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.lblInvoiceNumber.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         this.lblInvoiceNumber.Appearance.ForeColor = System.Drawing.Color.Gray;
         this.lblInvoiceNumber.Appearance.Options.UseFont = true;
         this.lblInvoiceNumber.Appearance.Options.UseForeColor = true;
-        this.lblInvoiceNumber.Location = new System.Drawing.Point(250, 50);
+        this.lblInvoiceNumber.Appearance.Options.UseTextOptions = true;
+        this.lblInvoiceNumber.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+        this.lblInvoiceNumber.Location = new System.Drawing.Point(340, 50);
         this.lblInvoiceNumber.Name = "lblInvoiceNumber";
-        this.lblInvoiceNumber.Size = new System.Drawing.Size(95, 15);
+        this.lblInvoiceNumber.Size = new System.Drawing.Size(200, 15);
         this.lblInvoiceNumber.TabIndex = 2;
         this.lblInvoiceNumber.Text = "Sale / Invoice #: --";
         // 
         // grpSummary
         // 
+        this.grpSummary.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
         this.grpSummary.Controls.Add(this.lblGrandTotal);
         this.grpSummary.Controls.Add(this.lblTendered);
         this.grpSummary.Controls.Add(this.lblChangeDue);
@@ -117,6 +122,8 @@ partial class OrderCompletedDialog
         // 
         // grpPrintStatus
         // 
+        this.grpPrintStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
         this.grpPrintStatus.Controls.Add(this.lblReprintInfo);
         this.grpPrintStatus.Controls.Add(this.lblSpoolerNotice);
         this.grpPrintStatus.Controls.Add(this.lblPrintStatus);
@@ -190,6 +197,7 @@ partial class OrderCompletedDialog
         // 
         // btnDone
         // 
+        this.btnDone.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnDone.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
         this.btnDone.Appearance.Options.UseFont = true;
         this.btnDone.DialogResult = System.Windows.Forms.DialogResult.OK;

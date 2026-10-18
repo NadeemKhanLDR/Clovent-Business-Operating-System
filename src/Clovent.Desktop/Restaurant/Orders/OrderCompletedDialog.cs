@@ -21,7 +21,6 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// change due, spooler status, and providing authorized receipt printing and reprint auditing.
 /// Never alters or recalculates immutable snapshot data.
 /// </summary>
-[System.ComponentModel.DesignerCategory("Code")]
 public partial class OrderCompletedDialog : XtraForm
 {
     private readonly OrderDto? _order;
@@ -37,6 +36,7 @@ public partial class OrderCompletedDialog : XtraForm
     private readonly ILogger? _logger;
 
     /// <summary>Parameterless constructor for Visual Studio WinForms Designer.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public OrderCompletedDialog() : this(null, 0, 0, 0, null, null, null, null, null, null, null)
     {
     }

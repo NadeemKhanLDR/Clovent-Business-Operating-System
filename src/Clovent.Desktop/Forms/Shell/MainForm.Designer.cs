@@ -51,7 +51,7 @@ public sealed partial class MainForm
     private readonly Dictionary<string, RibbonPage> _pagesByName = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Every navigation <see cref="BarButtonItem"/> paired with its navigation key for permission gating.</summary>
-    private readonly List<(string Key, BarButtonItem Button)> _allNavigationButtons = [];
+    private readonly List<(string Key, BarButtonItem Button)> _allNavigationButtons = new List<(string Key, BarButtonItem Button)>();
 
     /// <summary>Ribbon page groups built from <see cref="NavigationRegistry"/>, keyed by <c>"{Page}_{Group}"</c>.</summary>
     private readonly Dictionary<string, RibbonPageGroup> _navigationGroupsByKey = new(StringComparer.OrdinalIgnoreCase);
@@ -229,7 +229,7 @@ public sealed partial class MainForm
         appearanceGroup.ItemLinks.Add(_themeEditItem);
 
         var languageCombo = new RepositoryItemComboBox();
-        languageCombo.Items.AddRange(["English (United States)", "Español", "Français"]);
+        languageCombo.Items.AddRange(new object[] { "English (United States)", "Español", "Français" });
         var languageEditItem = new BarEditItem { Caption = "Language", Edit = languageCombo, EditValue = "English (United States)" };
         _ribbon.Items.Add(languageEditItem);
         appearanceGroup.ItemLinks.Add(languageEditItem);
@@ -286,6 +286,6 @@ public sealed partial class MainForm
         _documentManager.ContainerControl = this;
         _documentManager.MenuManager = _ribbon;
         _documentManager.View = _tabbedView;
-        _documentManager.ViewCollection.AddRange([_tabbedView]);
+        _documentManager.ViewCollection.AddRange(new DevExpress.XtraBars.Docking2010.Views.BaseView[] { _tabbedView });
     }
 }

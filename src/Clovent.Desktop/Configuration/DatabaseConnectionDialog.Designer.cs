@@ -239,8 +239,6 @@ partial class DatabaseConnectionDialog
         // DatabaseConnectionDialog
         // 
         this.AcceptButton = this.btnSave;
-        this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.CancelButton = this.btnCancel;
         this.ClientSize = new System.Drawing.Size(540, 444);
         this.Controls.Add(this.panelBottom);

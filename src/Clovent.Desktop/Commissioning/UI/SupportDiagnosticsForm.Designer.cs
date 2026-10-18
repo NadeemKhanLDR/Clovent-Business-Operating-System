@@ -151,8 +151,6 @@ partial class SupportDiagnosticsForm
         // 
         // SupportDiagnosticsForm
         // 
-        this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.ClientSize = new System.Drawing.Size(784, 561);
         this.Controls.Add(this.panelContent);
         this.Controls.Add(this.panelBottom);

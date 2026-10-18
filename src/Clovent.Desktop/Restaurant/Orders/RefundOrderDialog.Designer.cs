@@ -229,48 +229,56 @@ partial class RefundOrderDialog
         _summaryLabel.Dock = DockStyle.Top;
         actionsPanel.Controls.Add(_summaryLabel, 0, 0);
 
-        var quickSelectFlow = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            AutoSize = true,
-            Margin = new Padding(0, 6, 0, 0)
-        };
+        TableLayoutPanel quickSelectTable = new TableLayoutPanel();
+        quickSelectTable.Dock = DockStyle.Fill;
+        quickSelectTable.ColumnCount = 3;
+        quickSelectTable.RowCount = 1;
+        quickSelectTable.AutoSize = true;
+        quickSelectTable.Margin = new Padding(0, 6, 0, 0);
+        quickSelectTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        quickSelectTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        quickSelectTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         _refundRemainingButton.Text = "Refund Full Remaining";
         _refundRemainingButton.AutoSize = true;
         _refundRemainingButton.MinimumSize = new Size(155, 30);
+        _refundRemainingButton.Margin = new Padding(6, 0, 0, 0);
 
         _clearQuantitiesButton.Text = "Clear Quantities";
         _clearQuantitiesButton.AutoSize = true;
         _clearQuantitiesButton.MinimumSize = new Size(120, 30);
+        _clearQuantitiesButton.Margin = new Padding(0, 0, 0, 0);
 
-        quickSelectFlow.Controls.Add(_refundRemainingButton);
-        quickSelectFlow.Controls.Add(_clearQuantitiesButton);
-        actionsPanel.Controls.Add(quickSelectFlow, 0, 1);
+        quickSelectTable.Controls.Add(_clearQuantitiesButton, 1, 0);
+        quickSelectTable.Controls.Add(_refundRemainingButton, 2, 0);
+        actionsPanel.Controls.Add(quickSelectTable, 0, 1);
 
-        var buttonFlow = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            AutoSize = true,
-            Margin = new Padding(0, 8, 0, 0)
-        };
+        TableLayoutPanel buttonTable = new TableLayoutPanel();
+        buttonTable.Dock = DockStyle.Fill;
+        buttonTable.ColumnCount = 3;
+        buttonTable.RowCount = 1;
+        buttonTable.AutoSize = true;
+        buttonTable.Margin = new Padding(0, 8, 0, 0);
+        buttonTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        buttonTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        buttonTable.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
         _submitRefundButton.Text = "Submit Refund";
         _submitRefundButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         _submitRefundButton.Appearance.Options.UseFont = true;
         _submitRefundButton.AutoSize = true;
         _submitRefundButton.MinimumSize = new Size(130, 36);
+        _submitRefundButton.Margin = new Padding(8, 0, 0, 0);
 
         _cancelButton.Text = "Cancel";
         _cancelButton.DialogResult = DialogResult.Cancel;
         _cancelButton.AutoSize = true;
         _cancelButton.MinimumSize = new Size(100, 36);
+        _cancelButton.Margin = new Padding(0, 0, 0, 0);
 
-        buttonFlow.Controls.Add(_submitRefundButton);
-        buttonFlow.Controls.Add(_cancelButton);
-        actionsPanel.Controls.Add(buttonFlow, 0, 2);
+        buttonTable.Controls.Add(_cancelButton, 1, 0);
+        buttonTable.Controls.Add(_submitRefundButton, 2, 0);
+        actionsPanel.Controls.Add(buttonTable, 0, 2);
 
         bottomPanel.Controls.Add(actionsPanel, 1, 0);
         root.Controls.Add(bottomPanel, 0, 2);

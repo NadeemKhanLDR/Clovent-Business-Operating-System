@@ -242,40 +242,40 @@ partial class PrinterSettingsForm
         // 
         this.lstProfiles.Location = new System.Drawing.Point(10, 26);
         this.lstProfiles.Name = "lstProfiles";
-        this.lstProfiles.Size = new System.Drawing.Size(245, 355);
+        this.lstProfiles.Size = new System.Drawing.Size(245, 330);
         this.lstProfiles.TabIndex = 0;
         // 
         // btnAddProfile
         // 
-        this.btnAddProfile.Location = new System.Drawing.Point(10, 390);
+        this.btnAddProfile.Location = new System.Drawing.Point(10, 362);
         this.btnAddProfile.Name = "btnAddProfile";
-        this.btnAddProfile.Size = new System.Drawing.Size(55, 26);
+        this.btnAddProfile.Size = new System.Drawing.Size(118, 28);
         this.btnAddProfile.TabIndex = 1;
         this.btnAddProfile.Text = "+ New";
         // 
         // btnDeleteProfile
         // 
-        this.btnDeleteProfile.Location = new System.Drawing.Point(70, 390);
+        this.btnDeleteProfile.Location = new System.Drawing.Point(137, 362);
         this.btnDeleteProfile.Name = "btnDeleteProfile";
-        this.btnDeleteProfile.Size = new System.Drawing.Size(55, 26);
+        this.btnDeleteProfile.Size = new System.Drawing.Size(118, 28);
         this.btnDeleteProfile.TabIndex = 2;
         this.btnDeleteProfile.Text = "Delete";
         // 
         // btnSetDefault
         // 
-        this.btnSetDefault.Location = new System.Drawing.Point(130, 390);
+        this.btnSetDefault.Location = new System.Drawing.Point(10, 395);
         this.btnSetDefault.Name = "btnSetDefault";
-        this.btnSetDefault.Size = new System.Drawing.Size(58, 26);
+        this.btnSetDefault.Size = new System.Drawing.Size(118, 28);
         this.btnSetDefault.TabIndex = 3;
-        this.btnSetDefault.Text = "Global";
+        this.btnSetDefault.Text = "Global Default";
         // 
         // btnSetTerminalDefault
         // 
-        this.btnSetTerminalDefault.Location = new System.Drawing.Point(193, 390);
+        this.btnSetTerminalDefault.Location = new System.Drawing.Point(137, 395);
         this.btnSetTerminalDefault.Name = "btnSetTerminalDefault";
-        this.btnSetTerminalDefault.Size = new System.Drawing.Size(62, 26);
+        this.btnSetTerminalDefault.Size = new System.Drawing.Size(118, 28);
         this.btnSetTerminalDefault.TabIndex = 4;
-        this.btnSetTerminalDefault.Text = "Terminal";
+        this.btnSetTerminalDefault.Text = "Terminal Default";
         // 
         // grpProfileDetails
         // 
@@ -817,6 +817,8 @@ partial class PrinterSettingsForm
         // 
         // lblStatus
         // 
+        this.lblStatus.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
         this.lblStatus.Location = new System.Drawing.Point(24, 20);
         this.lblStatus.Name = "lblStatus";
         this.lblStatus.Size = new System.Drawing.Size(35, 13);
@@ -825,6 +827,7 @@ partial class PrinterSettingsForm
         // 
         // btnPreviewTest
         // 
+        this.btnPreviewTest.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnPreviewTest.Location = new System.Drawing.Point(430, 12);
         this.btnPreviewTest.Name = "btnPreviewTest";
         this.btnPreviewTest.Size = new System.Drawing.Size(130, 30);
@@ -833,6 +836,7 @@ partial class PrinterSettingsForm
         // 
         // btnTestPrint
         // 
+        this.btnTestPrint.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnTestPrint.Location = new System.Drawing.Point(570, 12);
         this.btnTestPrint.Name = "btnTestPrint";
         this.btnTestPrint.Size = new System.Drawing.Size(150, 30);
@@ -841,6 +845,7 @@ partial class PrinterSettingsForm
         // 
         // btnClose
         // 
+        this.btnClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnClose.DialogResult = System.Windows.Forms.DialogResult.OK;
         this.btnClose.Location = new System.Drawing.Point(730, 12);
         this.btnClose.Name = "btnClose";

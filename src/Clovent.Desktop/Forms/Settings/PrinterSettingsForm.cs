@@ -15,7 +15,6 @@ namespace Clovent.Desktop.Forms.Settings;
 /// and executing authorized diagnostic test prints.
 /// Strictly Designer-loadable and DPI-aware under PerMonitorV2.
 /// </summary>
-[System.ComponentModel.DesignerCategory("Code")]
 public partial class PrinterSettingsForm : XtraForm
 {
     private readonly PrinterManagementService? _service;
@@ -26,6 +25,7 @@ public partial class PrinterSettingsForm : XtraForm
     private sealed record PrinterProfileOption(Guid? Id, string DisplayName);
 
     /// <summary>Parameterless constructor for Visual Studio WinForms Designer.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public PrinterSettingsForm() : this(null)
     {
     }
@@ -43,7 +43,7 @@ public partial class PrinterSettingsForm : XtraForm
         }
 
         Load += PrinterSettingsForm_Load;
-        btnRefreshQueues.Click += (s, e) => LoadSystemQueues();
+        btnRefreshQueues.Click += BtnRefreshQueues_Click;
         cmbInstalledPrinters.SelectedIndexChanged += CmbInstalledPrinters_SelectedIndexChanged;
         lstProfiles.SelectedIndexChanged += LstProfiles_SelectedIndexChanged;
         btnAddProfile.Click += BtnAddProfile_Click;
@@ -129,6 +129,8 @@ public partial class PrinterSettingsForm : XtraForm
         var branchStr = branchId.HasValue ? branchId.Value.ToString() : "Default Store Branch";
         lblScopeInfo.Text = $"Scope: Terminal [{termStr}] | Branch [{branchStr}]";
     }
+
+    private void BtnRefreshQueues_Click(object? sender, EventArgs e) => LoadSystemQueues();
 
     private void LoadSystemQueues()
     {
