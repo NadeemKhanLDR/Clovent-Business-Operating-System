@@ -50,6 +50,7 @@ For step-by-step procedures, consult the dedicated support runbooks:
 6. **[Schema Mismatch](runbooks/schema-mismatch.md)** — Running the database provisioner to reconcile migration histories.
 7. **[Installer Failure](runbooks/installer-failure.md)** — Resolving Inno Setup permission blocks and rollback conditions.
 8. **[SQL Installation Slow](runbooks/sql-installation-slow.md)** — Resolving hanging SQL Server Express unattended deployments.
+9. **[Customer Database Support](runbooks/customer-database-support.md)** — Authorized backup, bundle packaging, isolated restoration, and reviewed corrective-script workflows.
 
 ---
 

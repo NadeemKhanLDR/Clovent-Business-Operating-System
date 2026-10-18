@@ -1,0 +1,25 @@
+{
+  "Version": "1.0",
+  "LastUpdatedUtc": "2026-10-17T16:05:00Z",
+  "Policy": "CBOS Support Corrective Script Whitelist. Only scripts registered in this catalog with matching SHA-256 digests may execute in customer environments. Any unlisted or modified script requires -AllowUnapprovedScript and is restricted to non-production environments.",
+  "ApprovedScripts": [
+    {
+      "ScriptId": "FIX_20261017_01_QuarantineStuckOutbox",
+      "FileName": "FIX_20261017_01_QuarantineStuckOutbox.sql",
+      "Sha256": "1BFD122C68069CB6B60871DF116DEEF8ACEBBF855A762E2F23F428D011B3AC63",
+      "TargetDatabasePattern": "(?i)^CBOS_Support_.*_(?:Isolated|Disposable)$|(?i)^Clovent_BusinessOperatingSystem$",
+      "TargetSchema": "Restaurant",
+      "Description": "Quarantine stuck outbox message causing background processor retry loops",
+      "ApprovedBy": "CBOS Support Engineering & Lead Architect"
+    },
+    {
+      "ScriptId": "FIX_20261017_02_CompensatingLedgerAdjustment",
+      "FileName": "FIX_20261017_02_CompensatingLedgerAdjustment.sql",
+      "Sha256": "23BF4AD907CC001AF12167BE00949C532738DDA602A54C0F8330EE7E39DEC415",
+      "TargetDatabasePattern": "(?i)^CBOS_Support_Diag_.*_(?:Isolated|Disposable)$|(?i)^CBOS_Client_.*_(?:Isolated|Disposable)$|(?i)^Clovent_BusinessOperatingSystem$",
+      "TargetSchema": "Restaurant",
+      "Description": "Post approved compensating credit entry for billing dispute resolution under PDR-0003",
+      "ApprovedBy": "CBOS Support Engineering & Lead Architect"
+    }
+  ]
+}

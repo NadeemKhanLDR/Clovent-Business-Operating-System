@@ -222,6 +222,7 @@ If you are new to CBOS, start with your role's onboarding path:
 | **Runbook: Schema Compatibility Mismatch**| [`docs/support/runbooks/schema-mismatch.md`](support/runbooks/schema-mismatch.md)| Support, DBAs | VALIDATED |
 | **Runbook: Installer Execution Failure**| [`docs/support/runbooks/installer-failure.md`](support/runbooks/installer-failure.md)| Support, Ops | VALIDATED |
 | **Runbook: SQL Express Setup Stalled**| [`docs/support/runbooks/sql-installation-slow.md`](support/runbooks/sql-installation-slow.md)| Support, Ops | VALIDATED |
+| **Runbook: Customer Database Support**| [`docs/support/runbooks/customer-database-support.md`](support/runbooks/customer-database-support.md)| Support, DBAs | VALIDATED |
 
 ### 3.16 Enterprise Governance, Roadmap & Audit
 | Document | Path | Audience | Status |
