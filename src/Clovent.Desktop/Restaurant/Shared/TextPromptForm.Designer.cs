@@ -29,26 +29,24 @@ partial class TextPromptForm
         ((System.ComponentModel.ISupportInitialize)_textEdit.Properties).BeginInit();
         SuspendLayout();
         _contentPanel.SuspendLayout();
-        _contentPanel.RowCount = 1;
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowCount = 2;
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         _contentPanel.Controls.Add(label1, 0, 0);
-        _contentPanel.Controls.Add(_textEdit, 1, 0);
+        _contentPanel.SetColumnSpan(label1, 2);
+        _contentPanel.Controls.Add(_textEdit, 0, 1);
+        _contentPanel.SetColumnSpan(_textEdit, 2);
         // label1
         label1.AutoSize = true;
         label1.Text = "Value:";
-        label1.Dock = System.Windows.Forms.DockStyle.Left;
+        label1.Dock = System.Windows.Forms.DockStyle.Top;
         label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 8);
         // _textEdit
-        _textEdit.Height = 90;
+        _textEdit.Name = "_textEdit";
         _textEdit.Dock = System.Windows.Forms.DockStyle.Fill;
         _contentPanel.ResumeLayout(false);
         _contentPanel.PerformLayout();
-        //
-        // _textEdit
-        //
-        _textEdit.Name = "_textEdit";
-        _textEdit.Height = 80;
         //
         // TextPromptForm
         //

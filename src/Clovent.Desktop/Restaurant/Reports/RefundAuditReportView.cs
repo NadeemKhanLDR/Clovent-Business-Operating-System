@@ -21,7 +21,6 @@ namespace Clovent.Desktop.Restaurant.Reports;
 /// Tracks compensating refund transactions, business justifications, approving authorities,
 /// settlement method breakdowns, and provides direct reprint access to refund credit notes.
 /// </summary>
-[DesignerCategory("Code")]
 public sealed partial class RefundAuditReportView : XtraUserControl
 {
     private readonly IServiceScope _scope;
@@ -70,9 +69,19 @@ public sealed partial class RefundAuditReportView : XtraUserControl
         if (DesignModeHelper.IsInDesignMode)
             return;
 
+        ApplyDpiScaling();
         ConfigurePeriods();
         await LoadWarehousesAsync();
         await GenerateReportAsync();
+    }
+
+    private void ApplyDpiScaling()
+    {
+        _warehouseCombo.Width = DesktopDpi.Scale(240, this);
+        _periodCombo.Width = DesktopDpi.Scale(160, this);
+        _fromDateEdit.Width = DesktopDpi.Scale(140, this);
+        _toDateEdit.Width = DesktopDpi.Scale(140, this);
+        _refreshButton.MinimumSize = new Size(DesktopDpi.Scale(140, this), DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this));
     }
 
     private void ConfigurePeriods()

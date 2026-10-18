@@ -135,6 +135,8 @@ partial class RefundAuditReportView
         _refreshButton.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _refreshButton.Appearance.Options.UseFont = true;
         _refreshButton.Margin = new Padding(16, 0, 0, 0);
+        _refreshButton.AutoSize = true;
+        _refreshButton.MinimumSize = new Size(130, 30);
         _refreshButton.Size = new Size(130, 30);
 
         filterFlow.Controls.Add(_warehouseLabel);

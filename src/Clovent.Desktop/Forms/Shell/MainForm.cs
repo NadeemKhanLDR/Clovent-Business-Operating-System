@@ -605,6 +605,17 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
 
         var content = contentFactory();
+        if (content is Form form)
+        {
+            using (form)
+            {
+                form.StartPosition = FormStartPosition.CenterParent;
+                LocalizationHelper.LocalizeControl(form);
+                form.ShowDialog(this);
+            }
+            return;
+        }
+
         content.Dock = DockStyle.Fill;
         LocalizationHelper.LocalizeControl(content);
         var document = _tabbedView.AddDocument(content, PosStrings.Get(caption));
