@@ -855,6 +855,7 @@ partial class PrinterSettingsForm
         // 
         // PrinterSettingsForm
         // 
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
         this.ClientSize = new System.Drawing.Size(840, 690);
         this.Controls.Add(this.panelBottom);
         this.Controls.Add(this.tabControl);

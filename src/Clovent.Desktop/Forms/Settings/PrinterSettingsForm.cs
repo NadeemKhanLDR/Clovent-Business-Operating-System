@@ -43,6 +43,7 @@ public partial class PrinterSettingsForm : XtraForm
         }
 
         Load += PrinterSettingsForm_Load;
+        Resize += (s, e) => ApplyResponsiveLayout();
         btnRefreshQueues.Click += BtnRefreshQueues_Click;
         cmbInstalledPrinters.SelectedIndexChanged += CmbInstalledPrinters_SelectedIndexChanged;
         lstProfiles.SelectedIndexChanged += LstProfiles_SelectedIndexChanged;
@@ -93,10 +94,285 @@ public partial class PrinterSettingsForm : XtraForm
 
     private void ApplyDpiScaling()
     {
-        ClientSize = new Size(
-            DesktopDpi.Scale(840, this),
-            DesktopDpi.Scale(690, this));
-        MinimumSize = ClientSize;
+        var workArea = (Screen.FromControl(this) ?? Screen.PrimaryScreen)?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
+        int targetW = Math.Min(DesktopDpi.Scale(920, this), workArea.Width - 40);
+        int targetH = Math.Min(DesktopDpi.Scale(720, this), workArea.Height - 60);
+        ClientSize = new Size(targetW, targetH);
+        MinimumSize = new Size(DesktopDpi.Scale(780, this), DesktopDpi.Scale(580, this));
+        ApplyResponsiveLayout();
+    }
+
+    private void ApplyResponsiveLayout()
+    {
+        if (IsDisposed || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+        {
+            return;
+        }
+
+        SuspendLayout();
+        try
+        {
+            int padX = DesktopDpi.Scale(20, this);
+
+            // Title & Subtitle
+            lblTitle.Location = new Point(padX, DesktopDpi.Scale(12, this));
+            lblSubtitle.Location = new Point(padX, lblTitle.Bottom + DesktopDpi.Scale(4, this));
+
+            // Bottom Panel layout
+            panelBottom.Height = DesktopDpi.Scale(50, this);
+            int btnH = DesktopDpi.Scale(30, this);
+            int btnY = (panelBottom.ClientSize.Height - btnH) / 2;
+            int rightX = panelBottom.ClientSize.Width - padX;
+
+            btnClose.Size = new Size(DesktopDpi.Scale(90, this), btnH);
+            rightX -= btnClose.Width;
+            btnClose.Location = new Point(rightX, btnY);
+
+            btnTestPrint.Size = new Size(DesktopDpi.Scale(150, this), btnH);
+            rightX -= (btnTestPrint.Width + DesktopDpi.Scale(10, this));
+            btnTestPrint.Location = new Point(rightX, btnY);
+
+            btnPreviewTest.Size = new Size(DesktopDpi.Scale(130, this), btnH);
+            rightX -= (btnPreviewTest.Width + DesktopDpi.Scale(10, this));
+            btnPreviewTest.Location = new Point(rightX, btnY);
+
+            lblStatus.Location = new Point(padX, (panelBottom.ClientSize.Height - lblStatus.Height) / 2);
+            lblStatus.Width = Math.Max(100, rightX - padX - DesktopDpi.Scale(10, this));
+
+            // Top Group: grpInstalled
+            int installedTop = lblSubtitle.Bottom + DesktopDpi.Scale(8, this);
+            grpInstalled.Location = new Point(padX, installedTop);
+            grpInstalled.Width = ClientSize.Width - (padX * 2);
+
+            int grpPadX = DesktopDpi.Scale(14, this);
+            int qBtnW = DesktopDpi.Scale(130, this);
+            int qBtnH = DesktopDpi.Scale(26, this);
+            btnRefreshQueues.Size = new Size(qBtnW, qBtnH);
+            btnRefreshQueues.Location = new Point(grpInstalled.ClientSize.Width - grpPadX - qBtnW, DesktopDpi.Scale(24, this));
+
+            lblInstalled.Location = new Point(grpPadX, btnRefreshQueues.Top + DesktopDpi.Scale(4, this));
+            int cmbInstalledX = lblInstalled.Right + DesktopDpi.Scale(10, this);
+            cmbInstalledPrinters.Location = new Point(cmbInstalledX, btnRefreshQueues.Top);
+            cmbInstalledPrinters.Size = new Size(Math.Max(120, btnRefreshQueues.Left - cmbInstalledX - DesktopDpi.Scale(10, this)), qBtnH);
+
+            lblCapabilityInfo.Location = new Point(grpPadX, btnRefreshQueues.Bottom + DesktopDpi.Scale(8, this));
+            lblCapabilityInfo.Width = grpInstalled.ClientSize.Width - (grpPadX * 2);
+            grpInstalled.Height = lblCapabilityInfo.Bottom + DesktopDpi.Scale(12, this);
+
+            // TabControl
+            int tabTop = grpInstalled.Bottom + DesktopDpi.Scale(10, this);
+            int tabBottom = panelBottom.Top - DesktopDpi.Scale(10, this);
+            tabControl.Location = new Point(padX, tabTop);
+            tabControl.Size = new Size(ClientSize.Width - (padX * 2), Math.Max(200, tabBottom - tabTop));
+
+            // Tab 1: tabProfiles
+            LayoutProfilesTab();
+
+            // Tab 2: tabTerminalReceipts
+            LayoutTerminalReceiptsTab();
+        }
+        finally
+        {
+            ResumeLayout(true);
+        }
+    }
+
+    private void LayoutProfilesTab()
+    {
+        int pad = DesktopDpi.Scale(10, this);
+        int pageW = tabProfiles.ClientSize.Width;
+        int pageH = tabProfiles.ClientSize.Height;
+
+        int listW = Math.Max(DesktopDpi.Scale(260, this), (int)(pageW * 0.32));
+        grpProfiles.Location = new Point(pad, pad);
+        grpProfiles.Size = new Size(listW, Math.Max(150, pageH - (pad * 2)));
+
+        int pBtnH = DesktopDpi.Scale(28, this);
+        int pPad = DesktopDpi.Scale(8, this);
+        int halfW = (grpProfiles.ClientSize.Width - (pPad * 3)) / 2;
+
+        int row2Y = grpProfiles.ClientSize.Height - pPad - pBtnH;
+        int row1Y = row2Y - DesktopDpi.Scale(6, this) - pBtnH;
+
+        btnAddProfile.Location = new Point(pPad, row1Y);
+        btnAddProfile.Size = new Size(halfW, pBtnH);
+
+        btnDeleteProfile.Location = new Point(btnAddProfile.Right + pPad, row1Y);
+        btnDeleteProfile.Size = new Size(halfW, pBtnH);
+
+        btnSetDefault.Location = new Point(pPad, row2Y);
+        btnSetDefault.Size = new Size(halfW, pBtnH);
+
+        btnSetTerminalDefault.Location = new Point(btnSetDefault.Right + pPad, row2Y);
+        btnSetTerminalDefault.Size = new Size(halfW, pBtnH);
+
+        lstProfiles.Location = new Point(pPad, DesktopDpi.Scale(26, this));
+        lstProfiles.Size = new Size(grpProfiles.ClientSize.Width - (pPad * 2), Math.Max(50, row1Y - DesktopDpi.Scale(6, this) - lstProfiles.Top));
+
+        int detX = grpProfiles.Right + pad;
+        int detW = pageW - detX - pad;
+        grpProfileDetails.Location = new Point(detX, pad);
+        grpProfileDetails.Size = new Size(Math.Max(200, detW), Math.Max(150, pageH - (pad * 2)));
+
+        int dPadX = DesktopDpi.Scale(14, this);
+        int lblW = DesktopDpi.Scale(125, this);
+        int editX = dPadX + lblW + DesktopDpi.Scale(8, this);
+        int editW = Math.Max(140, grpProfileDetails.ClientSize.Width - editX - dPadX);
+        int rowStep = DesktopDpi.Scale(36, this);
+        int curY = DesktopDpi.Scale(30, this);
+
+        lblProfileName.Location = new Point(dPadX, curY + DesktopDpi.Scale(4, this));
+        txtProfileName.Location = new Point(editX, curY);
+        txtProfileName.Size = new Size(editW, txtProfileName.Height);
+
+        curY += rowStep;
+        lblQueue.Location = new Point(dPadX, curY + DesktopDpi.Scale(4, this));
+        txtQueueName.Location = new Point(editX, curY);
+        txtQueueName.Size = new Size(editW, txtQueueName.Height);
+
+        curY += rowStep;
+        lblRole.Location = new Point(dPadX, curY + DesktopDpi.Scale(4, this));
+        cmbRole.Location = new Point(editX, curY);
+        cmbRole.Size = new Size(editW, cmbRole.Height);
+
+        curY += rowStep;
+        lblPaperWidth.Location = new Point(dPadX, curY + DesktopDpi.Scale(4, this));
+        cmbPaperWidth.Location = new Point(editX, curY);
+        cmbPaperWidth.Size = new Size(editW, cmbPaperWidth.Height);
+
+        curY += rowStep;
+        lblColumns.Location = new Point(dPadX, curY + DesktopDpi.Scale(4, this));
+        int spinW = DesktopDpi.Scale(90, this);
+        spinColumns.Location = new Point(editX, curY);
+        spinColumns.Size = new Size(spinW, spinColumns.Height);
+
+        int copiesLblX = spinColumns.Right + DesktopDpi.Scale(16, this);
+        lblCopies.Location = new Point(copiesLblX, curY + DesktopDpi.Scale(4, this));
+        spinCopies.Location = new Point(lblCopies.Right + DesktopDpi.Scale(8, this), curY);
+        spinCopies.Size = new Size(spinW, spinCopies.Height);
+
+        curY += rowStep;
+        chkCutter.Location = new Point(editX, curY);
+        chkCutter.Size = new Size(DesktopDpi.Scale(210, this), chkCutter.Height);
+        chkDrawer.Location = new Point(chkCutter.Right + DesktopDpi.Scale(10, this), curY);
+        chkDrawer.Size = new Size(DesktopDpi.Scale(210, this), chkDrawer.Height);
+
+        curY += rowStep;
+        lblHardwareNotes.Location = new Point(dPadX, curY);
+        lblHardwareNotes.Size = new Size(grpProfileDetails.ClientSize.Width - (dPadX * 2), DesktopDpi.Scale(36, this));
+        lblHardwareNotes.AutoSizeMode = LabelAutoSizeMode.Vertical;
+
+        btnSaveProfile.Size = new Size(DesktopDpi.Scale(160, this), DesktopDpi.Scale(30, this));
+        btnSaveProfile.Location = new Point(editX, grpProfileDetails.ClientSize.Height - dPadX - btnSaveProfile.Height);
+    }
+
+    private void LayoutTerminalReceiptsTab()
+    {
+        tabTerminalReceipts.AutoScroll = true;
+
+        int pad = DesktopDpi.Scale(10, this);
+        int pageW = tabTerminalReceipts.ClientSize.Width - (pad * 2);
+        int curY = pad;
+
+        grpScope.Location = new Point(pad, curY);
+        grpScope.Width = pageW;
+
+        int sPad = DesktopDpi.Scale(12, this);
+        lblScopeInfo.Location = new Point(sPad, DesktopDpi.Scale(26, this));
+        lblTerminalDefault.Location = new Point(sPad, lblScopeInfo.Bottom + DesktopDpi.Scale(8, this));
+        cmbTerminalDefaultReceipt.Location = new Point(lblTerminalDefault.Right + DesktopDpi.Scale(10, this), lblTerminalDefault.Top - DesktopDpi.Scale(3, this));
+        cmbTerminalDefaultReceipt.Size = new Size(DesktopDpi.Scale(260, this), cmbTerminalDefaultReceipt.Height);
+        lblScopeNotice.Location = new Point(cmbTerminalDefaultReceipt.Right + DesktopDpi.Scale(10, this), lblTerminalDefault.Top);
+        grpScope.Height = lblTerminalDefault.Bottom + DesktopDpi.Scale(14, this);
+
+        curY = grpScope.Bottom + DesktopDpi.Scale(8, this);
+
+        grpCopies.Location = new Point(pad, curY);
+        grpCopies.Width = pageW;
+
+        int cStep = DesktopDpi.Scale(34, this);
+        int cY = DesktopDpi.Scale(26, this);
+
+        chkCustomerCopy.Location = new Point(sPad, cY);
+        chkCustomerCopy.Size = new Size(DesktopDpi.Scale(170, this), chkCustomerCopy.Height);
+        lblCustomerPrinter.Location = new Point(chkCustomerCopy.Right + DesktopDpi.Scale(8, this), cY + DesktopDpi.Scale(3, this));
+        cmbCustomerPrinter.Location = new Point(lblCustomerPrinter.Right + DesktopDpi.Scale(6, this), cY);
+        cmbCustomerPrinter.Size = new Size(DesktopDpi.Scale(240, this), cmbCustomerPrinter.Height);
+        lblCustomerCopies.Location = new Point(cmbCustomerPrinter.Right + DesktopDpi.Scale(10, this), cY + DesktopDpi.Scale(3, this));
+        spinCustomerCopies.Location = new Point(lblCustomerCopies.Right + DesktopDpi.Scale(6, this), cY);
+        spinCustomerCopies.Size = new Size(DesktopDpi.Scale(60, this), spinCustomerCopies.Height);
+
+        cY += cStep;
+        chkMerchantCopy.Location = new Point(sPad, cY);
+        chkMerchantCopy.Size = new Size(DesktopDpi.Scale(170, this), chkMerchantCopy.Height);
+        lblMerchantPrinter.Location = new Point(chkMerchantCopy.Right + DesktopDpi.Scale(8, this), cY + DesktopDpi.Scale(3, this));
+        cmbMerchantPrinter.Location = new Point(lblMerchantPrinter.Right + DesktopDpi.Scale(6, this), cY);
+        cmbMerchantPrinter.Size = new Size(DesktopDpi.Scale(240, this), cmbMerchantPrinter.Height);
+        lblMerchantCopies.Location = new Point(cmbMerchantPrinter.Right + DesktopDpi.Scale(10, this), cY + DesktopDpi.Scale(3, this));
+        spinMerchantCopies.Location = new Point(lblMerchantCopies.Right + DesktopDpi.Scale(6, this), cY);
+        spinMerchantCopies.Size = new Size(DesktopDpi.Scale(60, this), spinMerchantCopies.Height);
+
+        grpCopies.Height = chkMerchantCopy.Bottom + DesktopDpi.Scale(14, this);
+        curY = grpCopies.Bottom + DesktopDpi.Scale(8, this);
+
+        grpLayoutAndBranding.Location = new Point(pad, curY);
+        grpLayoutAndBranding.Width = pageW;
+
+        int bY = DesktopDpi.Scale(26, this);
+        int bStep = DesktopDpi.Scale(34, this);
+
+        lblTerminalPaperWidth.Location = new Point(sPad, bY + DesktopDpi.Scale(3, this));
+        cmbTerminalPaperWidth.Location = new Point(lblTerminalPaperWidth.Right + DesktopDpi.Scale(6, this), bY);
+        cmbTerminalPaperWidth.Size = new Size(DesktopDpi.Scale(150, this), cmbTerminalPaperWidth.Height);
+
+        lblMarginMm.Location = new Point(cmbTerminalPaperWidth.Right + DesktopDpi.Scale(12, this), bY + DesktopDpi.Scale(3, this));
+        spinMarginMm.Location = new Point(lblMarginMm.Right + DesktopDpi.Scale(6, this), bY);
+        spinMarginMm.Size = new Size(DesktopDpi.Scale(60, this), spinMarginMm.Height);
+
+        lblTerminalColumns.Location = new Point(spinMarginMm.Right + DesktopDpi.Scale(12, this), bY + DesktopDpi.Scale(3, this));
+        spinTerminalColumns.Location = new Point(lblTerminalColumns.Right + DesktopDpi.Scale(6, this), bY);
+        spinTerminalColumns.Size = new Size(DesktopDpi.Scale(70, this), spinTerminalColumns.Height);
+
+        bY += bStep;
+        chkTerminalCutter.Location = new Point(sPad, bY);
+        chkTerminalCutter.Size = new Size(DesktopDpi.Scale(270, this), chkTerminalCutter.Height);
+        chkTerminalDrawer.Location = new Point(chkTerminalCutter.Right + DesktopDpi.Scale(10, this), bY);
+        chkTerminalDrawer.Size = new Size(DesktopDpi.Scale(330, this), chkTerminalDrawer.Height);
+
+        bY += bStep;
+        int tLblW = DesktopDpi.Scale(85, this);
+        int tEditX = sPad + tLblW + DesktopDpi.Scale(6, this);
+        int tEditW = grpLayoutAndBranding.ClientSize.Width - tEditX - sPad;
+
+        lblHeaderText.Location = new Point(sPad, bY + DesktopDpi.Scale(3, this));
+        txtHeaderText.Location = new Point(tEditX, bY);
+        txtHeaderText.Size = new Size(tEditW, txtHeaderText.Height);
+
+        bY += bStep;
+        lblFooterText.Location = new Point(sPad, bY + DesktopDpi.Scale(3, this));
+        txtFooterText.Location = new Point(tEditX, bY);
+        txtFooterText.Size = new Size(tEditW, txtFooterText.Height);
+
+        bY += bStep;
+        chkEnableLogo.Location = new Point(sPad, bY);
+        chkEnableLogo.Size = new Size(tLblW, chkEnableLogo.Height);
+        btnBrowseLogo.Size = new Size(DesktopDpi.Scale(80, this), DesktopDpi.Scale(24, this));
+        btnBrowseLogo.Location = new Point(grpLayoutAndBranding.ClientSize.Width - sPad - btnBrowseLogo.Width, bY);
+        txtLogoPath.Location = new Point(tEditX, bY);
+        txtLogoPath.Size = new Size(btnBrowseLogo.Left - tEditX - DesktopDpi.Scale(8, this), txtLogoPath.Height);
+
+        grpLayoutAndBranding.Height = txtLogoPath.Bottom + DesktopDpi.Scale(14, this);
+        curY = grpLayoutAndBranding.Bottom + DesktopDpi.Scale(10, this);
+
+        int aBtnH = DesktopDpi.Scale(30, this);
+        btnSaveTerminalSettings.Size = new Size(DesktopDpi.Scale(230, this), aBtnH);
+        btnPreviewMerchant.Size = new Size(DesktopDpi.Scale(180, this), aBtnH);
+        btnPreviewCustomer.Size = new Size(DesktopDpi.Scale(180, this), aBtnH);
+
+        int btnRight = pageW + pad;
+        btnSaveTerminalSettings.Location = new Point(btnRight - btnSaveTerminalSettings.Width, curY);
+        btnPreviewMerchant.Location = new Point(btnSaveTerminalSettings.Left - DesktopDpi.Scale(10, this) - btnPreviewMerchant.Width, curY);
+        btnPreviewCustomer.Location = new Point(btnPreviewMerchant.Left - DesktopDpi.Scale(10, this) - btnPreviewCustomer.Width, curY);
     }
 
     private void PopulateDropdowns()
