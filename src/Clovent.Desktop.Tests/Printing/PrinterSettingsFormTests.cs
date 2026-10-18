@@ -121,4 +121,43 @@ public class PrinterSettingsFormTests
         Assert.Equal(expectedStatus, profile.HardwareVerificationStatus);
         Assert.Contains(expectedStatus == "Unverified" ? "Unverified" : "disabled", profile.ModelDescription);
     }
+
+    [Theory]
+    [InlineData(920, 720)]
+    [InlineData(1440, 900)]
+    [InlineData(2300, 1800)]
+    public void ResponsiveLayout_ProfilesTab_HasNoCollisionsOrOverlaps(int width, int height)
+    {
+        using var form = new PrinterSettingsForm();
+        form.ClientSize = new System.Drawing.Size(width, height);
+        // Force layout pass via reflection or resizing
+        form.Size = new System.Drawing.Size(width + 16, height + 39);
+
+        var grpProfiles = Assert.Single(form.Controls.Find("grpProfiles", searchAllChildren: true));
+        var grpDetails = Assert.Single(form.Controls.Find("grpProfileDetails", searchAllChildren: true));
+
+        // Group boxes must be side-by-side without horizontal overlap
+        Assert.True(grpProfiles.Right <= grpDetails.Left, $"grpProfiles.Right ({grpProfiles.Right}) should be <= grpDetails.Left ({grpDetails.Left})");
+
+        var lblProfileName = Assert.Single(form.Controls.Find("lblProfileName", searchAllChildren: true));
+        var txtProfileName = Assert.Single(form.Controls.Find("txtProfileName", searchAllChildren: true));
+        var lblQueue = Assert.Single(form.Controls.Find("lblQueue", searchAllChildren: true));
+        var txtQueue = Assert.Single(form.Controls.Find("txtQueueName", searchAllChildren: true));
+        var lblRole = Assert.Single(form.Controls.Find("lblRole", searchAllChildren: true));
+        var cmbRole = Assert.Single(form.Controls.Find("cmbRole", searchAllChildren: true));
+
+        // Labels must not overlap their corresponding editors horizontally
+        Assert.True(lblProfileName.Right <= txtProfileName.Left, "lblProfileName must not overlap txtProfileName");
+        Assert.True(lblQueue.Right <= txtQueue.Left, "lblQueue must not overlap txtQueueName");
+        Assert.True(lblRole.Right <= cmbRole.Left, "lblRole must not overlap cmbRole");
+
+        // Vertical rows must have positive separation (no vertical collisions)
+        Assert.True(lblProfileName.Bottom <= lblQueue.Top, $"lblProfileName.Bottom ({lblProfileName.Bottom}) must be <= lblQueue.Top ({lblQueue.Top})");
+        Assert.True(lblQueue.Bottom <= lblRole.Top, $"lblQueue.Bottom ({lblQueue.Bottom}) must be <= lblRole.Top ({lblRole.Top})");
+
+        // Profiles list action buttons must be stacked cleanly without overlap
+        var btnAdd = Assert.Single(form.Controls.Find("btnAddProfile", searchAllChildren: true));
+        var btnSetDefault = Assert.Single(form.Controls.Find("btnSetDefault", searchAllChildren: true));
+        Assert.True(btnAdd.Bottom <= btnSetDefault.Top, "btnAddProfile must be above btnSetDefault without overlap");
+    }
 }
