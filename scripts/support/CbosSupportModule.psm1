@@ -958,7 +958,11 @@ function Invoke-CbosCorrectiveScript {
     }
 
     $scriptContent = Get-Content -Path $ScriptFilePath -Raw -Encoding UTF8
-    $scriptHash = (Get-FileHash -Path $ScriptFilePath -Algorithm SHA256).Hash
+    $rawHash = (Get-FileHash -Path $ScriptFilePath -Algorithm SHA256).Hash
+    $normalizedBytes = [System.Text.Encoding]::UTF8.GetBytes($scriptContent.Replace("`r`n", "`n"))
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $normalizedHash = [System.BitConverter]::ToString($sha.ComputeHash($normalizedBytes)).Replace('-', '')
+    $scriptHash = $normalizedHash
 
     # 1. Parse Metadata Headers
     $scriptId = if ($scriptContent -match "(?im)^--\s*SCRIPT_ID:\s*([^\r\n]+)") { $matches[1].Trim() } else { [System.IO.Path]::GetFileNameWithoutExtension($ScriptFilePath) }
@@ -986,7 +990,7 @@ function Invoke-CbosCorrectiveScript {
             foreach ($entry in $catalog.ApprovedScripts) {
                 if ($entry.ScriptId -eq $scriptId) {
                     $approvedEntry = $entry
-                    if ($entry.Sha256.ToUpperInvariant() -eq $scriptHash.ToUpperInvariant()) {
+                    if ($entry.Sha256.ToUpperInvariant() -eq $scriptHash.ToUpperInvariant() -or $entry.Sha256.ToUpperInvariant() -eq $rawHash.ToUpperInvariant()) {
                         $isApproved = $true
                     }
                     break

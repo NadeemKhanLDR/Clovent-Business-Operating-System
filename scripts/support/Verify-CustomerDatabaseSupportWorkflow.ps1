@@ -88,7 +88,13 @@ $upgradeConnStr = "Server=$Server;Database=$upgradeDb;Integrated Security=True;T
 $clientConnStr = "Server=$Server;Database=$clientDb;Integrated Security=True;TrustServerCertificate=True;"
 
 $provisionerExe = Join-Path $repoRoot "Tools\Clovent.Installer.Provisioner\bin\Debug\net10.0-windows\win-x64\Clovent.Installer.Provisioner.exe"
+if (-not (Test-Path $provisionerExe)) {
+    $provisionerExe = Join-Path $repoRoot "Tools\Clovent.Installer.Provisioner\bin\Release\net10.0-windows\win-x64\Clovent.Installer.Provisioner.exe"
+}
 $fixtureRunnerExe = Join-Path $repoRoot "Tools\SupportFixtureRunner\bin\Debug\net10.0-windows\Clovent.SupportFixtureRunner.exe"
+if (-not (Test-Path $fixtureRunnerExe)) {
+    $fixtureRunnerExe = Join-Path $repoRoot "Tools\SupportFixtureRunner\bin\Release\net10.0-windows\Clovent.SupportFixtureRunner.exe"
+}
 
 function Log-Message([string]$msg, [string]$color = "White") {
     $timestamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff UTC")
@@ -194,6 +200,7 @@ Log-Message "===================================================================
 $dispCashierPassPlain = $null
 $dispBackupOpPassPlain = $null
 $dispSupportPassPlain = $null
+$script:createdLogins = [System.Collections.Generic.List[string]]::new()
 
 try {
     # --------------------------------------------------------------------------
