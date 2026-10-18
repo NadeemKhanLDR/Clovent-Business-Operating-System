@@ -703,6 +703,8 @@ partial class LoginForm
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Sign in - Clovent Business Operating System";
         Load += LoginForm_Load;
+        AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScaleDimensions = new SizeF(96F, 96F);
         ((System.ComponentModel.ISupportInitialize)pnlBranding).EndInit();
         pnlBranding.ResumeLayout(false);
         tlpBranding.ResumeLayout(false);
