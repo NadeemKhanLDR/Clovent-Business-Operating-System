@@ -59,11 +59,11 @@ $pkcsDll = Join-Path $relDir "System.Security.Cryptography.Pkcs.dll"
 $pkcsFvi = if (Test-Path $pkcsDll) { [System.Diagnostics.FileVersionInfo]::GetVersionInfo($pkcsDll) } else { $null }
 $pkcsHash = if (Test-Path $pkcsDll) { (Get-FileHash $pkcsDll -Algorithm SHA256).Hash } else { "N/A" }
 
-$gitCommit = (git rev-parse HEAD).Trim()
-$gitShort = (git rev-parse --short HEAD).Trim()
-$gitBranch = (git branch --show-current).Trim()
-$gitStatus = (git status --porcelain).Trim()
-$isClean = [string]::IsNullOrEmpty($gitStatus)
+$gitCommit = (git rev-parse HEAD).ToString().Trim()
+$gitShort = (git rev-parse --short HEAD).ToString().Trim()
+$gitBranch = (git branch --show-current).ToString().Trim()
+$rawGitStatus = git status --porcelain
+$isClean = ($null -eq $rawGitStatus -or [string]::IsNullOrWhiteSpace(($rawGitStatus | Out-String)))
 
 # 6. Generate Package Provenance Manifest & Checksums
 Write-Host "`n=== 6. Generating Package Provenance Manifest ==="
