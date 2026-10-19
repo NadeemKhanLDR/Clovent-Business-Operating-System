@@ -57,6 +57,7 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     private readonly IReadOnlyList<MasterDataListAction<TDto>> _extraActions;
     private readonly List<SimpleButton> _extraActionButtons = [];
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly CancellationTokenSource _disposeCts = new();
     private bool _hasQueuedRefresh;
 
     private IReadOnlyList<TDto> _allItems = [];
@@ -359,7 +360,7 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     /// <summary>Reloads every row via <see cref="LoadItemsAsync"/>, re-applies the current search filter, and re-evaluates feature permissions.</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (LoadItemsAsync is null || IsDisposed || Disposing)
+        if (LoadItemsAsync is null || IsDisposed || Disposing || _disposeCts.IsCancellationRequested)
         {
             return;
         }
@@ -370,18 +371,27 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             return;
         }
 
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _disposeCts.Token);
         try
         {
             do
             {
                 _hasQueuedRefresh = false;
-                await ExecuteRefreshCoreAsync(cancellationToken);
+                await ExecuteRefreshCoreAsync(linkedCts.Token);
             }
-            while (_hasQueuedRefresh && !IsDisposed && !Disposing);
+            while (_hasQueuedRefresh && !IsDisposed && !Disposing && !linkedCts.IsCancellationRequested);
+        }
+        catch (OperationCanceledException) when (linkedCts.IsCancellationRequested || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+        {
+            // Canceled during refresh or disposal; exit cleanly.
         }
         finally
         {
-            _refreshLock.Release();
+            try
+            {
+                _refreshLock.Release();
+            }
+            catch (ObjectDisposedException) { }
         }
     }
 
@@ -436,6 +446,11 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
                 }
             }
 
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
             if (IsHandleCreated && InvokeRequired)
             {
                 Invoke(ApplyResult);
@@ -445,7 +460,17 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
                 ApplyResult();
             }
 
-            await UpdateFeaturePermissionsAsync();
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await UpdateFeaturePermissionsAsync(cancellationToken);
+
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+            {
+                return;
+            }
 
             if (IsHandleCreated && InvokeRequired)
             {
@@ -494,27 +519,47 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         UpdateButtonStates();
     }
 
-    private async Task UpdateFeaturePermissionsAsync()
+    private async Task UpdateFeaturePermissionsAsync(CancellationToken cancellationToken = default)
     {
-        if (CanUseFeatureAsync is null)
+        if (CanUseFeatureAsync is null || IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
         {
             return;
         }
 
-        _newButton.Enabled = await CanUseFeatureAsync("create");
-        var canEdit = await CanUseFeatureAsync("edit");
-        var canActivate = await CanUseFeatureAsync("activate");
-        var canDeactivate = await CanUseFeatureAsync("deactivate");
-
-        _editButton.Tag = canEdit;
-        _activateButton.Tag = canActivate;
-        _deactivateButton.Tag = canDeactivate;
-
-        for (var i = 0; i < _extraActions.Count; i++)
+        try
         {
-            _extraActionButtons[i].Tag = _extraActions[i].FeatureOperation is { } operation
-                ? await CanUseFeatureAsync(operation)
-                : (bool?)null;
+            _newButton.Enabled = await CanUseFeatureAsync("create");
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested) return;
+
+            var canEdit = await CanUseFeatureAsync("edit");
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested) return;
+
+            var canActivate = await CanUseFeatureAsync("activate");
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested) return;
+
+            var canDeactivate = await CanUseFeatureAsync("deactivate");
+            if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested) return;
+
+            _editButton.Tag = canEdit;
+            _activateButton.Tag = canActivate;
+            _deactivateButton.Tag = canDeactivate;
+
+            for (var i = 0; i < _extraActions.Count; i++)
+            {
+                if (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested) return;
+
+                _extraActionButtons[i].Tag = _extraActions[i].FeatureOperation is { } operation
+                    ? await CanUseFeatureAsync(operation)
+                    : (bool?)null;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+        {
+            // Canceled during permissions check; safe to exit
+        }
+        catch (ObjectDisposedException) when (IsDisposed || Disposing || cancellationToken.IsCancellationRequested || _disposeCts.IsCancellationRequested)
+        {
+            // View or scope disposed during permissions check; safe to exit
         }
     }
 
@@ -779,7 +824,24 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     {
         if (disposing)
         {
+            try
+            {
+                _disposeCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+
+            try
+            {
+                _refreshLock.Wait(TimeSpan.FromMilliseconds(200));
+            }
+            catch (ObjectDisposedException) { }
+
             _refreshLock.Dispose();
+            try
+            {
+                _disposeCts.Dispose();
+            }
+            catch (ObjectDisposedException) { }
         }
         base.Dispose(disposing);
     }

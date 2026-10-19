@@ -29,6 +29,7 @@ public sealed partial class StockTransferManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
+    private readonly CancellationTokenSource _lifecycleCts = new();
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
     private Dictionary<Guid, string> _warehouseNamesById = [];
@@ -49,25 +50,49 @@ public sealed partial class StockTransferManagementView : XtraUserControl
     {
         if (disposing)
         {
+            try
+            {
+                _lifecycleCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+
+            _gate.Drain(TimeSpan.FromMilliseconds(500));
             _scope.Dispose();
             _gate.Dispose();
+            try
+            {
+                _lifecycleCts.Dispose();
+            }
+            catch (ObjectDisposedException) { }
+
             components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
 
-    private async void StockTransferManagementView_Load(object? sender, EventArgs e) => await _listView.RefreshAsync();
+    private async void StockTransferManagementView_Load(object? sender, EventArgs e)
+    {
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        await _listView.RefreshAsync(_lifecycleCts.Token);
+    }
 
     private async Task<IReadOnlyList<StockTransferRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {
-        var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), cancellationToken);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
+        var token = linked.Token;
+
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), token);
         _warehouseNamesById = warehouses.ToDictionary(w => w.WarehouseId, w => w.Name);
 
-        var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
+        var variants = await _mediator.Send(new ListProductVariantsQuery(), token);
         _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
 
-        var items = await _mediator.Send(new ListStockTransfersQuery(), cancellationToken);
+        var items = await _mediator.Send(new ListStockTransfersQuery(), token);
         return
         [
             .. items.Select(dto =>

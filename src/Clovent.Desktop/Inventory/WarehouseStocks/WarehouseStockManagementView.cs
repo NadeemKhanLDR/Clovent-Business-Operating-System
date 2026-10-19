@@ -32,6 +32,7 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
+    private readonly CancellationTokenSource _lifecycleCts = new();
 
     private IReadOnlyList<(Guid Id, string Display)> _warehouseOptions = [];
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
@@ -53,8 +54,21 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     {
         if (disposing)
         {
+            try
+            {
+                _lifecycleCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+
+            _gate.Drain(TimeSpan.FromMilliseconds(500));
             _scope.Dispose();
             _gate.Dispose();
+            try
+            {
+                _lifecycleCts.Dispose();
+            }
+            catch (ObjectDisposedException) { }
+
             components?.Dispose();
         }
 
@@ -63,12 +77,12 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
 
     private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e)
     {
-        if (_isLoadingLookups)
+        if (_isLoadingLookups || _lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
         {
             return;
         }
 
-        await _listView.RefreshAsync();
+        await _listView.RefreshAsync(_lifecycleCts.Token);
     }
 
     private async void ReceiveInventoryButton_Click(object? sender, EventArgs e) => await ReceiveInventoryAsync();
@@ -80,23 +94,31 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
         _isLoadingLookups = true;
         try
         {
-            await LoadVariantsAsync();
+            await LoadVariantsAsync(_lifecycleCts.Token);
 
-            var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+            var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), _lifecycleCts.Token);
             _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
             _warehousePicker.LoadItems(_warehouseOptions);
+        }
+        catch (OperationCanceledException) when (_lifecycleCts.IsCancellationRequested)
+        {
+            return;
         }
         finally
         {
             _isLoadingLookups = false;
         }
 
-        await _listView.RefreshAsync();
+        if (!_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing)
+        {
+            await _listView.RefreshAsync(_lifecycleCts.Token);
+        }
     }
 
     private async Task LoadVariantsAsync(CancellationToken cancellationToken = default)
     {
-        var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
+        var variants = await _mediator.Send(new ListProductVariantsQuery(), linked.Token);
         _variantsById = variants.ToDictionary(v => v.ProductVariantId, v =>
         {
             var displayName = !string.IsNullOrWhiteSpace(v.ProductName)
@@ -115,12 +137,15 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
             return [];
         }
 
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
+        var token = linked.Token;
+
         if (_variantsById.Count == 0)
         {
-            await LoadVariantsAsync(cancellationToken);
+            await LoadVariantsAsync(token);
         }
 
-        var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), cancellationToken);
+        var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), token);
         return
         [
             .. items.Select(dto =>
@@ -133,8 +158,8 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
-        _currentSession.UserId is { } userId
-            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
+        _currentSession.UserId is { } userId && !_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing
+            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}", _lifecycleCts.Token)
             : Task.FromResult(false);
 
     private async Task CreateAsync()

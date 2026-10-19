@@ -433,4 +433,43 @@ public class WarehouseStockManagementViewTests
             Assert.Equal(1, racyScope.MaxConcurrent);
         }
     }
+
+    [Fact]
+    public async Task WarehouseStockManagementView_DisposalDuringActiveRefresh_CancelsAndDrainsSafelyWithoutScopeDisposedExceptions()
+    {
+        var session = new FakeCurrentSession();
+        var racyScope = new RacyScopeTracker();
+        var mediator = new RacyStockMediator(racyScope);
+        var provider = new FakeServiceProvider();
+        provider.Register<IMediator>(mediator);
+        provider.Register<IFeatureAuthorizationPolicy>(new AllowAllFeaturePolicy());
+
+        var view = new WarehouseStockManagementView(new FakeServiceScopeFactory(provider), session);
+
+        var warehouseId = Guid.NewGuid();
+        var variantId = Guid.NewGuid();
+        var productId = Guid.NewGuid();
+
+        mediator.Warehouses.Add(new WarehouseDto(warehouseId, Guid.NewGuid(), "Main Warehouse", "MW", "Active", DateTimeOffset.UtcNow));
+        mediator.Variants.Add(new ProductVariantDto(variantId, productId, "Standard", "NAAN-STD", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, null, "Active", true, "Prepared", "Naan"));
+        mediator.Stocks.Add(new WarehouseStockDto(Guid.NewGuid(), warehouseId, variantId, 100m, 0m, 100m, 10m, 200m, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+
+        var loadMethod = typeof(WarehouseStockManagementView).GetMethod("LoadLookupsAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(loadMethod);
+        await (Task)loadMethod.Invoke(view, null)!;
+
+        var listViewField = typeof(WarehouseStockManagementView).GetField("_listView", BindingFlags.Instance | BindingFlags.NonPublic);
+        Assert.NotNull(listViewField);
+        var listView = listViewField.GetValue(view)!;
+        var refreshMethod = listView.GetType().GetMethod("RefreshAsync", [typeof(CancellationToken)]);
+        Assert.NotNull(refreshMethod);
+
+        // Start refresh
+        var refreshTask = (Task)refreshMethod.Invoke(listView, [CancellationToken.None])!;
+
+        // Dispose view while refresh is in flight; should drain and dispose cleanly
+        view.Dispose();
+
+        await refreshTask;
+    }
 }

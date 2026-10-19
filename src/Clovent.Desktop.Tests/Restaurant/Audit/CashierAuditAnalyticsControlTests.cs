@@ -103,8 +103,11 @@ public sealed class CashierAuditAnalyticsControlTests
                     using var bmp = new System.Drawing.Bitmap(size.Width, size.Height);
                     form.DrawToBitmap(bmp, new System.Drawing.Rectangle(System.Drawing.Point.Empty, size));
 
-                    var path = System.IO.Path.Combine(outDir, $"audit_analytics_{size.Width}x{size.Height}.png");
-                    bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+                    if (!string.IsNullOrEmpty(outDir) && System.IO.Directory.Exists(outDir))
+                    {
+                        var path = System.IO.Path.Combine(outDir, $"audit_analytics_{size.Width}x{size.Height}.png");
+                        bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
+                    }
 
                     var refreshBtn = (DevExpress.XtraEditors.SimpleButton)typeof(CashierAuditAnalyticsControl)
                         .GetField("_btnRefresh", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(control)!;

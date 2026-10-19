@@ -33,6 +33,7 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
+    private readonly CancellationTokenSource _lifecycleCts = new();
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
     private bool _isLoadingPickers;
@@ -53,8 +54,21 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     {
         if (disposing)
         {
+            try
+            {
+                _lifecycleCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+
+            _gate.Drain(TimeSpan.FromMilliseconds(500));
             _scope.Dispose();
             _gate.Dispose();
+            try
+            {
+                _lifecycleCts.Dispose();
+            }
+            catch (ObjectDisposedException) { }
+
             components?.Dispose();
         }
 
@@ -63,22 +77,22 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
 
     private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e)
     {
-        if (_isLoadingPickers)
+        if (_isLoadingPickers || _lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
         {
             return;
         }
 
-        await _listView.RefreshAsync();
+        await _listView.RefreshAsync(_lifecycleCts.Token);
     }
 
     private async void ProductPicker_SelectionChanged(object? sender, EventArgs e)
     {
-        if (_isLoadingPickers)
+        if (_isLoadingPickers || _lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
         {
             return;
         }
 
-        await _listView.RefreshAsync();
+        await _listView.RefreshAsync(_lifecycleCts.Token);
     }
 
     private async void InventoryTransactionsView_Load(object? sender, EventArgs e) => await LoadPickersAsync();
@@ -88,32 +102,41 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
         _isLoadingPickers = true;
         try
         {
-            var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+            var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), _lifecycleCts.Token);
             _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
 
-            var variants = await _mediator.Send(new ListProductVariantsQuery());
+            var variants = await _mediator.Send(new ListProductVariantsQuery(), _lifecycleCts.Token);
             _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
             _productPicker.LoadItems([.. variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}"))]);
+        }
+        catch (OperationCanceledException) when (_lifecycleCts.IsCancellationRequested)
+        {
+            return;
         }
         finally
         {
             _isLoadingPickers = false;
         }
 
-        await _listView.RefreshAsync();
+        if (!_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing)
+        {
+            await _listView.RefreshAsync(_lifecycleCts.Token);
+        }
     }
 
     private async Task<IReadOnlyList<InventoryTransactionRow>> LoadItemsAsync(CancellationToken cancellationToken)
     {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
+        var token = linked.Token;
         IReadOnlyCollection<InventoryTransactionDto> items;
 
         if (_productPicker.SelectedId is { } productId)
         {
-            items = await _mediator.Send(new ListInventoryTransactionsByProductQuery(productId), cancellationToken);
+            items = await _mediator.Send(new ListInventoryTransactionsByProductQuery(productId), token);
         }
         else if (_warehousePicker.SelectedId is { } warehouseId)
         {
-            items = await _mediator.Send(new ListInventoryTransactionsByWarehouseQuery(warehouseId), cancellationToken);
+            items = await _mediator.Send(new ListInventoryTransactionsByWarehouseQuery(warehouseId), token);
         }
         else
         {
@@ -133,8 +156,8 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
-        _currentSession.UserId is { } userId
-            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
+        _currentSession.UserId is { } userId && !_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing
+            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}", _lifecycleCts.Token)
             : Task.FromResult(false);
 
     /// <summary>Grid row shape: <see cref="InventoryTransactionDto"/> enriched with the product's SKU/Name, resolved client-side (same reasoning as <c>WarehouseStockManagementView.WarehouseStockRow</c>).</summary>

@@ -41,8 +41,9 @@ partial class TaxSummaryReportView
         if (disposing)
         {
             AppearanceManager.Changed -= AppearanceManager_Changed;
-            _gate.Dispose();
+            _gate.Drain(TimeSpan.FromMilliseconds(500));
             _scope.Dispose();
+            _gate.Dispose();
             components?.Dispose();
         }
 

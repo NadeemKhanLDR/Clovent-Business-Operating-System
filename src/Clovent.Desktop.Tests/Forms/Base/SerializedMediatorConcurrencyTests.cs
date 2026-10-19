@@ -162,4 +162,56 @@ public class SerializedMediatorConcurrencyTests
             await Task.WhenAll(permissionLoop, buttonClick);
         }
     }
+
+    [Fact]
+    public async Task ScreenOperationGate_NestedCallsOnSameAsyncContext_DoNotDeadlock()
+    {
+        using var gate = new ScreenOperationGate();
+
+        var outerCompleted = false;
+        var innerCompleted = false;
+
+        await gate.RunAsync(async () =>
+        {
+            outerCompleted = true;
+            // Nested call on same async flow
+            await gate.RunAsync(() =>
+            {
+                innerCompleted = true;
+                return Task.CompletedTask;
+            });
+        });
+
+        Assert.True(outerCompleted);
+        Assert.True(innerCompleted);
+    }
+
+    [Fact]
+    public async Task ScreenOperationGate_Drain_WaitsForInFlightOperationBeforeDisposal()
+    {
+        var gate = new ScreenOperationGate();
+        var operationRunning = false;
+        var operationFinished = false;
+
+        var task = gate.RunAsync(async () =>
+        {
+            operationRunning = true;
+            await Task.Delay(50);
+            operationFinished = true;
+        });
+
+        // Spin until operation has started inside the gate
+        while (!operationRunning)
+        {
+            await Task.Yield();
+        }
+
+        // Drain should block until operation finishes
+        var drained = gate.Drain(TimeSpan.FromSeconds(2));
+        Assert.True(drained);
+        Assert.True(operationFinished);
+
+        gate.Dispose();
+        await task;
+    }
 }
