@@ -8,31 +8,17 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
+    <SelfContained>false</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>
-    <Reference Include="C:\CloventClient106\Clovent.Platform.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Domain.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Identity.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Identity.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Identity.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.MasterData.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.MasterData.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.MasterData.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Catalog.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Catalog.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Catalog.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Inventory.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Inventory.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Inventory.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Restaurant.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Restaurant.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Restaurant.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Authentication.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Authentication.Application.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Authentication.Infrastructure.dll" />
-    <Reference Include="C:\CloventClient106\Clovent.Desktop.dll" />
+    <ProjectReference Include="..\..\src\Clovent.Desktop\Clovent.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Restaurant.Infrastructure\Clovent.Restaurant.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.MasterData.Infrastructure\Clovent.MasterData.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Catalog.Infrastructure\Clovent.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Inventory.Infrastructure\Clovent.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Authentication.Infrastructure\Clovent.Authentication.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Clovent.Identity.Infrastructure\Clovent.Identity.Infrastructure.csproj" />
     <Reference Include="C:\CloventClient106\DevExpress.Data.v26.1.dll" />
     <Reference Include="C:\CloventClient106\DevExpress.Utils.v26.1.dll" />
     <Reference Include="C:\CloventClient106\DevExpress.XtraBars.v26.1.dll" />

@@ -66,19 +66,18 @@ public sealed partial class TaxSummaryReportView : XtraUserControl
         if (DesignModeHelper.IsInDesignMode)
             return;
 
-        ApplyDpiScaling();
+        ScaleLayoutAtRuntime();
+        DpiChangedAfterParent += (_, _) => ScaleLayoutAtRuntime();
         ConfigurePeriods();
         await LoadWarehousesAsync();
         await GenerateReportAsync();
     }
 
-    private void ApplyDpiScaling()
+    /// <inheritdoc/>
+    protected override void OnDpiChangedAfterParent(EventArgs e)
     {
-        _warehouseCombo.Width = DesktopDpi.Scale(240, this);
-        _periodCombo.Width = DesktopDpi.Scale(160, this);
-        _fromDateEdit.Width = DesktopDpi.Scale(140, this);
-        _toDateEdit.Width = DesktopDpi.Scale(140, this);
-        _refreshButton.MinimumSize = new Size(DesktopDpi.Scale(140, this), DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this));
+        base.OnDpiChangedAfterParent(e);
+        ScaleLayoutAtRuntime();
     }
 
     private void ConfigurePeriods()

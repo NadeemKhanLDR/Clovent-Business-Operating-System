@@ -9,6 +9,7 @@ using Clovent.Desktop.Restaurant.Customers;
 using Clovent.Desktop.Restaurant.Orders;
 using DevExpress.Utils;
 using DevExpress.XtraEditors;
+using Clovent.Desktop.Restaurant.Reports;
 using MediatR;
 using Xunit;
 
@@ -219,5 +220,189 @@ public sealed class UiLayoutRegressionTests
             Assert.Equal(0, label.Padding.Bottom);
             Assert.Equal(VertAlignment.Center, label.Appearance.TextOptions.VAlignment);
         }
+    }
+
+    [Fact]
+    public void TaxSummaryReportView_LayoutAndHighDpiScaling_AreResponsiveAndCentered()
+    {
+        using var view = (TaxSummaryReportView)Activator.CreateInstance(typeof(TaxSummaryReportView), true)!;
+        view.Size = new Size(1200, 700);
+        view.PerformLayout();
+
+        var warehouseCombo = GetField<ComboBoxEdit>(view, "_warehouseCombo");
+        var periodCombo = GetField<ComboBoxEdit>(view, "_periodCombo");
+        var fromDateEdit = GetField<DateEdit>(view, "_fromDateEdit");
+        var toDateEdit = GetField<DateEdit>(view, "_toDateEdit");
+        var refreshButton = GetField<SimpleButton>(view, "_refreshButton");
+
+        var warehouseLabel = GetField<LabelControl>(view, "_warehouseLabel");
+        var periodLabel = GetField<LabelControl>(view, "_periodLabel");
+        var fromLabel = GetField<LabelControl>(view, "_fromLabel");
+        var toLabel = GetField<LabelControl>(view, "_toLabel");
+
+        var filterFlow = GetField<FlowLayoutPanel>(view, "_filterFlow");
+        var kpiFlow = GetField<FlowLayoutPanel>(view, "_kpiFlow");
+
+        // 1. Minimum dimensions & AutoHeight
+        Assert.False(warehouseCombo.Properties.AutoHeight, "Warehouse combo must have AutoHeight = false");
+        Assert.False(periodCombo.Properties.AutoHeight, "Period combo must have AutoHeight = false");
+        Assert.False(fromDateEdit.Properties.AutoHeight, "From date edit must have AutoHeight = false");
+        Assert.False(toDateEdit.Properties.AutoHeight, "To date edit must have AutoHeight = false");
+
+        Assert.True(warehouseCombo.MinimumSize.Width >= 260, $"Warehouse min width {warehouseCombo.MinimumSize.Width} must be >= 260");
+        Assert.True(periodCombo.MinimumSize.Width >= 140, $"Period min width {periodCombo.MinimumSize.Width} must be >= 140");
+        Assert.True(fromDateEdit.MinimumSize.Width >= 130, $"From date min width {fromDateEdit.MinimumSize.Width} must be >= 130");
+        Assert.True(toDateEdit.MinimumSize.Width >= 130, $"To date min width {toDateEdit.MinimumSize.Width} must be >= 130");
+        Assert.True(refreshButton.MinimumSize.Width >= 140, $"Refresh button min width {refreshButton.MinimumSize.Width} must be >= 140");
+
+        Assert.True(warehouseCombo.MinimumSize.Height >= 28, $"Warehouse min height {warehouseCombo.MinimumSize.Height} must be >= 28");
+        Assert.True(periodCombo.MinimumSize.Height >= 28, $"Period min height {periodCombo.MinimumSize.Height} must be >= 28");
+        Assert.True(fromDateEdit.MinimumSize.Height >= 28, $"From date min height {fromDateEdit.MinimumSize.Height} must be >= 28");
+        Assert.True(toDateEdit.MinimumSize.Height >= 28, $"To date min height {toDateEdit.MinimumSize.Height} must be >= 28");
+        Assert.True(refreshButton.MinimumSize.Height >= 28, $"Refresh button min height {refreshButton.MinimumSize.Height} must be >= 28");
+
+        // 2. Vertical Centering
+        Assert.Equal(VertAlignment.Center, warehouseCombo.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, periodCombo.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, fromDateEdit.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, toDateEdit.Properties.Appearance.TextOptions.VAlignment);
+
+        Assert.Equal(VertAlignment.Center, warehouseLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, periodLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, fromLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, toLabel.Appearance.TextOptions.VAlignment);
+
+        Assert.Equal(0, warehouseLabel.Padding.Top);
+        Assert.Equal(0, periodLabel.Padding.Top);
+        Assert.Equal(0, fromLabel.Padding.Top);
+        Assert.Equal(0, toLabel.Padding.Top);
+
+        // 3. Dropdown Rows and Date Formatting
+        Assert.True(warehouseCombo.Properties.DropDownRows >= 8);
+        Assert.True(periodCombo.Properties.DropDownRows >= 8);
+        Assert.Equal("dd-MMM-yyyy", fromDateEdit.Properties.DisplayFormat.FormatString);
+        Assert.Equal("dd-MMM-yyyy", toDateEdit.Properties.DisplayFormat.FormatString);
+
+        // 4. Paired TableLayoutPanel structure
+        var warehousePair = GetField<TableLayoutPanel>(view, "_warehousePair");
+        var periodPair = GetField<TableLayoutPanel>(view, "_periodPair");
+        var fromPair = GetField<TableLayoutPanel>(view, "_fromPair");
+        var toPair = GetField<TableLayoutPanel>(view, "_toPair");
+
+        Assert.Same(warehousePair, warehouseCombo.Parent);
+        Assert.Same(warehousePair, warehouseLabel.Parent);
+        Assert.Same(periodPair, periodCombo.Parent);
+        Assert.Same(periodPair, periodLabel.Parent);
+        Assert.Same(fromPair, fromDateEdit.Parent);
+        Assert.Same(fromPair, fromLabel.Parent);
+        Assert.Same(toPair, toDateEdit.Parent);
+        Assert.Same(toPair, toLabel.Parent);
+
+        // 5. Responsive wrapping containers
+        Assert.True(filterFlow.WrapContents, "Filter flow must allow wrapping to additional rows");
+        Assert.True(kpiFlow.WrapContents, "KPI flow must allow wrapping to additional rows");
+
+        // 6. Responsive narrow width wrapping test
+        view.Size = new Size(500, 600);
+        view.PerformLayout();
+        filterFlow.PerformLayout();
+        kpiFlow.PerformLayout();
+
+        Assert.True(filterFlow.Height > 40, "Filter flow must expand height when wrapping occurs");
+
+        // 7. Refresh button caption intact
+        Assert.Equal("Generate Report", refreshButton.Text);
+    }
+
+    [Fact]
+    public void RefundAuditReportView_LayoutAndHighDpiScaling_AreResponsiveAndCentered()
+    {
+        using var view = (RefundAuditReportView)Activator.CreateInstance(typeof(RefundAuditReportView), true)!;
+        view.Size = new Size(1200, 700);
+        view.PerformLayout();
+
+        var warehouseCombo = GetField<ComboBoxEdit>(view, "_warehouseCombo");
+        var periodCombo = GetField<ComboBoxEdit>(view, "_periodCombo");
+        var fromDateEdit = GetField<DateEdit>(view, "_fromDateEdit");
+        var toDateEdit = GetField<DateEdit>(view, "_toDateEdit");
+        var refreshButton = GetField<SimpleButton>(view, "_refreshButton");
+
+        var warehouseLabel = GetField<LabelControl>(view, "_warehouseLabel");
+        var periodLabel = GetField<LabelControl>(view, "_periodLabel");
+        var fromLabel = GetField<LabelControl>(view, "_fromLabel");
+        var toLabel = GetField<LabelControl>(view, "_toLabel");
+
+        var filterFlow = GetField<FlowLayoutPanel>(view, "_filterFlow");
+        var kpiFlow = GetField<FlowLayoutPanel>(view, "_kpiFlow");
+
+        // 1. Minimum dimensions & AutoHeight
+        Assert.False(warehouseCombo.Properties.AutoHeight, "Warehouse combo must have AutoHeight = false");
+        Assert.False(periodCombo.Properties.AutoHeight, "Period combo must have AutoHeight = false");
+        Assert.False(fromDateEdit.Properties.AutoHeight, "From date edit must have AutoHeight = false");
+        Assert.False(toDateEdit.Properties.AutoHeight, "To date edit must have AutoHeight = false");
+
+        Assert.True(warehouseCombo.MinimumSize.Width >= 260, $"Warehouse min width {warehouseCombo.MinimumSize.Width} must be >= 260");
+        Assert.True(periodCombo.MinimumSize.Width >= 140, $"Period min width {periodCombo.MinimumSize.Width} must be >= 140");
+        Assert.True(fromDateEdit.MinimumSize.Width >= 130, $"From date min width {fromDateEdit.MinimumSize.Width} must be >= 130");
+        Assert.True(toDateEdit.MinimumSize.Width >= 130, $"To date min width {toDateEdit.MinimumSize.Width} must be >= 130");
+        Assert.True(refreshButton.MinimumSize.Width >= 140, $"Refresh button min width {refreshButton.MinimumSize.Width} must be >= 140");
+
+        Assert.True(warehouseCombo.MinimumSize.Height >= 28, $"Warehouse min height {warehouseCombo.MinimumSize.Height} must be >= 28");
+        Assert.True(periodCombo.MinimumSize.Height >= 28, $"Period min height {periodCombo.MinimumSize.Height} must be >= 28");
+        Assert.True(fromDateEdit.MinimumSize.Height >= 28, $"From date min height {fromDateEdit.MinimumSize.Height} must be >= 28");
+        Assert.True(toDateEdit.MinimumSize.Height >= 28, $"To date min height {toDateEdit.MinimumSize.Height} must be >= 28");
+        Assert.True(refreshButton.MinimumSize.Height >= 28, $"Refresh button min height {refreshButton.MinimumSize.Height} must be >= 28");
+
+        // 2. Vertical Centering
+        Assert.Equal(VertAlignment.Center, warehouseCombo.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, periodCombo.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, fromDateEdit.Properties.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, toDateEdit.Properties.Appearance.TextOptions.VAlignment);
+
+        Assert.Equal(VertAlignment.Center, warehouseLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, periodLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, fromLabel.Appearance.TextOptions.VAlignment);
+        Assert.Equal(VertAlignment.Center, toLabel.Appearance.TextOptions.VAlignment);
+
+        Assert.Equal(0, warehouseLabel.Padding.Top);
+        Assert.Equal(0, periodLabel.Padding.Top);
+        Assert.Equal(0, fromLabel.Padding.Top);
+        Assert.Equal(0, toLabel.Padding.Top);
+
+        // 3. Dropdown Rows and Date Formatting
+        Assert.True(warehouseCombo.Properties.DropDownRows >= 8);
+        Assert.True(periodCombo.Properties.DropDownRows >= 8);
+        Assert.Equal("dd-MMM-yyyy", fromDateEdit.Properties.DisplayFormat.FormatString);
+        Assert.Equal("dd-MMM-yyyy", toDateEdit.Properties.DisplayFormat.FormatString);
+
+        // 4. Paired TableLayoutPanel structure
+        var warehousePair = GetField<TableLayoutPanel>(view, "_warehousePair");
+        var periodPair = GetField<TableLayoutPanel>(view, "_periodPair");
+        var fromPair = GetField<TableLayoutPanel>(view, "_fromPair");
+        var toPair = GetField<TableLayoutPanel>(view, "_toPair");
+
+        Assert.Same(warehousePair, warehouseCombo.Parent);
+        Assert.Same(warehousePair, warehouseLabel.Parent);
+        Assert.Same(periodPair, periodCombo.Parent);
+        Assert.Same(periodPair, periodLabel.Parent);
+        Assert.Same(fromPair, fromDateEdit.Parent);
+        Assert.Same(fromPair, fromLabel.Parent);
+        Assert.Same(toPair, toDateEdit.Parent);
+        Assert.Same(toPair, toLabel.Parent);
+
+        // 5. Responsive wrapping containers
+        Assert.True(filterFlow.WrapContents, "Filter flow must allow wrapping to additional rows");
+        Assert.True(kpiFlow.WrapContents, "KPI flow must allow wrapping to additional rows");
+
+        // 6. Responsive narrow width wrapping test
+        view.Size = new Size(500, 600);
+        view.PerformLayout();
+        filterFlow.PerformLayout();
+        kpiFlow.PerformLayout();
+
+        Assert.True(filterFlow.Height > 40, "Filter flow must expand height when wrapping occurs");
+
+        // 7. Refresh button caption intact
+        Assert.Equal("Generate Report", refreshButton.Text);
     }
 }
