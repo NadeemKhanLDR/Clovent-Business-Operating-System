@@ -18,7 +18,6 @@ namespace Clovent.Desktop.Restaurant.Reports;
 /// Aggregates gross sales, discounts, taxable bases, statutory classifications,
 /// sales tax charged, tax refunded from credit notes, and net tax payable by tax authority.
 /// </summary>
-[DesignerCategory("Code")]
 public sealed partial class TaxSummaryReportView : XtraUserControl
 {
     private readonly IServiceScope _scope;
@@ -57,19 +56,44 @@ public sealed partial class TaxSummaryReportView : XtraUserControl
         _scope = scopeFactory.CreateScope();
         _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
         _currentSession = currentSession;
+
+        DpiChangedAfterParent += (_, _) => ApplyDpiScaling();
     }
 
-    private void AppearanceManager_Changed(object? sender, EventArgs e) =>
+    private void AppearanceManager_Changed(object? sender, EventArgs e)
+    {
         AppearanceManager.Apply(this, "Restaurant", nameof(TaxSummaryReportView));
+        ApplyDpiScaling();
+    }
 
     private async void TaxSummaryReportView_Load(object? sender, EventArgs e)
     {
         if (DesignModeHelper.IsInDesignMode)
             return;
 
+        ApplyDpiScaling();
         ConfigurePeriods();
         await LoadWarehousesAsync();
         await GenerateReportAsync();
+    }
+
+    /// <summary>Applies High-DPI runtime scaling to filter controls and action button.</summary>
+    public void ApplyDpiScaling()
+    {
+        if (DesignModeHelper.IsInDesignMode)
+            return;
+
+        int controlHeight = DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this);
+        _warehouseCombo.Width = DesktopDpi.Scale(240, this);
+        _warehouseCombo.Height = controlHeight;
+        _periodCombo.Width = DesktopDpi.Scale(160, this);
+        _periodCombo.Height = controlHeight;
+        _fromDateEdit.Width = DesktopDpi.Scale(140, this);
+        _fromDateEdit.Height = controlHeight;
+        _toDateEdit.Width = DesktopDpi.Scale(140, this);
+        _toDateEdit.Height = controlHeight;
+        _refreshButton.Size = new Size(DesktopDpi.Scale(140, this), controlHeight);
+        _refreshButton.MinimumSize = new Size(DesktopDpi.Scale(140, this), controlHeight);
     }
 
     private void ConfigurePeriods()
