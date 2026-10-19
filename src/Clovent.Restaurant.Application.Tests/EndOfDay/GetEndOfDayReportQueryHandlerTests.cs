@@ -202,5 +202,6 @@ public class GetEndOfDayReportQueryHandlerTests
         Assert.Equal(order.OrderNumber.Value, bill.OrderNumber);
         Assert.Equal(25m, bill.Total);
         Assert.Equal(method.Name.Value, bill.PaymentMethodSummary);
+        Assert.Equal(order.UpdatedAtUtc, bill.CompletedAtUtc);
     }
 }

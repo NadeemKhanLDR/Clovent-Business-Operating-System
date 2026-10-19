@@ -73,4 +73,39 @@ public class SeedConfigurationTests
         Assert.True(options.SeedDevelopmentRestaurantData);
         Assert.Equal("Development", BuildConfiguration("Development")["Platform:EnvironmentName"]);
     }
+
+    [Fact]
+    public async Task DevelopmentUserSeedStartupTask_WhenEnvironmentIsProduction_DoesNotSeedUser()
+    {
+        var desktopOptions = Microsoft.Extensions.Options.Options.Create(new DesktopOptions
+        {
+            DefaultSkin = "The Bezier",
+            DefaultLanguage = "en-US",
+            SeedDevelopmentUser = true,
+            SeedDevelopmentMasterData = false,
+            SeedDevelopmentCatalogData = false,
+            SeedDevelopmentRestaurantData = false
+        });
+
+        var platformOptions = Microsoft.Extensions.Options.Options.Create(new Clovent.Platform.Configuration.PlatformOptions
+        {
+            EnvironmentName = "Production",
+            DefaultCulture = "en-US",
+            DefaultTimeZone = "UTC",
+            DefaultCurrency = "PKR"
+        });
+
+        var task = new Clovent.Desktop.Seed.DevelopmentUserSeedStartupTask(
+            userRepository: null!,
+            identityDbContext: null!,
+            credentialsRepository: null!,
+            authenticationDbContext: null!,
+            passwordHasher: null!,
+            timeProvider: TimeProvider.System,
+            options: desktopOptions,
+            platformOptions: platformOptions);
+
+        // When environment is Production, ExecuteAsync must immediately exit without attempting any repository or DB calls
+        await task.ExecuteAsync(CancellationToken.None);
+    }
 }

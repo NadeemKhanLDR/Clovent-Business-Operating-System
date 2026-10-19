@@ -314,4 +314,22 @@ public class PosEntryGateCoordinatorTests
         Assert.False(result);
         Assert.Equal(0, _navigator.OpenPosCallCount);
     }
+
+    [Fact]
+    public async Task EnsureShiftAndOpenPosAsync_WhenUserNotAuthenticated_ReturnsFalse_AndDoesNotOpenPos()
+    {
+        var unauthenticatedSession = new FakeCurrentSession { UserId = null, DisplayName = null };
+        var coordinator = new PosEntryGateCoordinator(
+            _terminalService,
+            _shiftAccessService,
+            _navigator,
+            _mediator,
+            unauthenticatedSession,
+            _attendanceService);
+
+        var result = await coordinator.EnsureShiftAndOpenPosAsync();
+
+        Assert.False(result);
+        Assert.Equal(0, _navigator.OpenPosCallCount);
+    }
 }

@@ -61,10 +61,23 @@ public class CompleteOrderCommandHandlerTests
                 GetWarehouseStockByWarehouseAndVariantQuery q => ResolveStock(q),
                 ListInventoryTransactionsByReferenceQuery q => ResolveLedger(q),
                 IssueStockCommand c => Issue(c),
+                Clovent.Catalog.Application.Variants.Queries.GetProductVariantByIdQuery q => ResolveVariant(q),
                 _ => throw new NotSupportedException(request.GetType().Name),
             };
             return Task.FromResult(response);
         });
+
+        private object? ResolveVariant(Clovent.Catalog.Application.Variants.Queries.GetProductVariantByIdQuery query) =>
+            new Clovent.Catalog.Application.Variants.Dtos.ProductVariantDto(
+                query.ProductVariantId,
+                Guid.NewGuid(),
+                "Full Pot",
+                "PAK-KARAHI-FULL",
+                Guid.NewGuid(),
+                "Active",
+                1,
+                DateTimeOffset.UtcNow,
+                ProductName: "Karahi");
 
         private object? ResolveStock(GetWarehouseStockByWarehouseAndVariantQuery query) =>
             _stockByVariant.TryGetValue(query.ProductVariantId, out var row)
@@ -485,5 +498,29 @@ public class CompleteOrderCommandHandlerTests
 
         Assert.Equal("Completed", result.Status);
         Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
+
+    [Fact]
+    public async Task Handle_PopulatesReceiptSnapshot_WithValidSkuAndNonEmptyItemNames()
+    {
+        var fixture = new Fixture();
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        fixture.Orders.Add(order);
+        var variantId = fixture.AddLine(order, quantity: 2, unitPrice: 2000m);
+        fixture.Inventory.AddStock(variantId, quantityOnHand: 50);
+        fixture.PayInFull(order, 4000m);
+
+        var result = await fixture.CreateHandler().Handle(new CompleteOrderCommand(order.Id.Value), CancellationToken.None);
+
+        Assert.Equal("Completed", result.Status);
+        Assert.NotNull(order.ReceiptSnapshotJson);
+
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<Clovent.Restaurant.Orders.ReceiptSnapshot>(order.ReceiptSnapshotJson!);
+        Assert.NotNull(snapshot);
+        Assert.True(snapshot.IsValid(out var validationError), $"Snapshot validation failed: {validationError}");
+        var line = Assert.Single(snapshot.Items);
+        Assert.Equal("PAK-KARAHI-FULL", line.Sku);
+        Assert.Equal("Karahi - Full Pot", line.Name);
+        Assert.Equal(2, line.Quantity);
     }
 }

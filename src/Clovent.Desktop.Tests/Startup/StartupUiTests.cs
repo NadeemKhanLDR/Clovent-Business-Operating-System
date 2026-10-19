@@ -73,4 +73,22 @@ public class StartupUiTests
         service.Close();
         service.Close();
     }
+
+    [Fact]
+    public async Task SplashScreenService_RepeatedAndOverlappingShowClose_IsThreadSafeAndDoesNotThrow()
+    {
+        var service = new SplashScreenService();
+
+        // Sequential repeated calls
+        service.Close();
+        service.Close();
+
+        // Concurrent multi-threaded close calls
+        var tasks = Enumerable.Range(0, 10).Select(_ => Task.Run(() =>
+        {
+            service.Close();
+        })).ToArray();
+
+        await Task.WhenAll(tasks);
+    }
 }

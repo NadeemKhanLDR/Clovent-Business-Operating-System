@@ -6,9 +6,13 @@ namespace Clovent.Desktop.Tests.TestSupport;
 internal sealed class FakeSessionRepository : ISessionRepository
 {
     private readonly Dictionary<SessionId, Session> _sessions = [];
+    public bool ThrowOnGetById { get; set; }
 
-    public Task<Session?> GetByIdAsync(SessionId id, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_sessions.GetValueOrDefault(id));
+    public Task<Session?> GetByIdAsync(SessionId id, CancellationToken cancellationToken = default)
+    {
+        if (ThrowOnGetById) throw new InvalidOperationException("Simulated session persistence cleanup failure.");
+        return Task.FromResult(_sessions.GetValueOrDefault(id));
+    }
 
     public Task<IReadOnlyCollection<Session>> GetActiveByUserIdAsync(UserId userId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyCollection<Session>>(_sessions.Values

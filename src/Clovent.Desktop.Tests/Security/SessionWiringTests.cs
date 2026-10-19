@@ -187,6 +187,34 @@ public class SessionWiringTests
     }
 
     [Fact]
+    public async Task SignOutAsync_WhenServerCleanupFails_ClearsIdentityAndScope_WithoutThrowing()
+    {
+        var fixture = BuildFixture();
+        var (user, _) = CreateActiveUserWithPassword(fixture, "alice", "Correct123!", Guid.NewGuid(), Guid.NewGuid());
+        fixture.ScopeResolver.ResultToReturn = ScopeResolutionResult.Success(new PlatformExecutionContext
+        {
+            UserId = user.Id.Value,
+            OrganizationId = Guid.NewGuid(),
+            CompanyId = Guid.NewGuid(),
+            BranchId = Guid.NewGuid()
+        });
+
+        await fixture.LoginService.LoginAsync(new LoginRequest("alice", "Correct123!", null, RememberMe: false));
+        Assert.True(fixture.CurrentSession.IsAuthenticated);
+        Assert.NotNull(fixture.InteractiveScopeProvider.GetCurrentContext());
+
+        // Simulate server-side session cleanup failure
+        fixture.Sessions.ThrowOnGetById = true;
+
+        // SignOutAsync must complete cleanly without propagating exceptions
+        await fixture.LoginService.SignOutAsync();
+
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+        Assert.Null(fixture.CurrentSession.UserId);
+        Assert.Null(fixture.InteractiveScopeProvider.GetCurrentContext());
+    }
+
+    [Fact]
     public async Task FailedLogin_CannotRetainPreviousUsersScope()
     {
         var fixture = BuildFixture();
