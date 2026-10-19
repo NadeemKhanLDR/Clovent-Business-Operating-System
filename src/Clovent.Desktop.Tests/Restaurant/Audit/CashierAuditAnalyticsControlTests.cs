@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Clovent.Desktop.Restaurant.Audit;
 using Clovent.Desktop.Sessions;
 using MediatR;
