@@ -125,7 +125,7 @@ public sealed class CashierAuditAnalyticsControl : XtraUserControl
         _mainLayout.Dock = DockStyle.Fill;
         _mainLayout.ColumnCount = 1;
         _mainLayout.RowCount = 3;
-        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(56, this)));
+        _mainLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, DesktopDpi.Scale(104, this)));
         _mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100f));
         Controls.Add(_mainLayout);
@@ -137,78 +137,167 @@ public sealed class CashierAuditAnalyticsControl : XtraUserControl
         _mainLayout.Controls.Add(_headerPanel, 0, 0);
         _mainLayout.Controls.Add(_kpiCardLayout, 0, 1);
         _mainLayout.Controls.Add(_tabControl, 0, 2);
+
+        HandleCreated += (_, _) => ScaleLayoutAtRuntime();
+        Resize += (_, _) => ScaleLayoutAtRuntime();
+        DpiChangedAfterParent += (_, _) => ScaleLayoutAtRuntime();
     }
 
     private void BuildHeaderBar()
     {
         _headerPanel.Dock = DockStyle.Fill;
+        _headerPanel.AutoSize = true;
+        _headerPanel.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _headerPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
         _headerPanel.BackColor = Color.White;
 
         var headerLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 8,
-            RowCount = 1,
-            Padding = new Padding(DesktopDpi.Scale(12, this), DesktopDpi.Scale(8, this), DesktopDpi.Scale(12, this), DesktopDpi.Scale(8, this))
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Padding = new Padding(DesktopDpi.Scale(16, this), DesktopDpi.Scale(8, this), DesktopDpi.Scale(16, this), DesktopDpi.Scale(8, this))
         };
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f)); // Title
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // Period
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // From
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // To
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // Refresh
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // Scan
-        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));      // Forecast
+        headerLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        headerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        headerLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        // Row 0: Title Bar
+        var titleRow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, DesktopDpi.Scale(6, this))
+        };
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var lblTitle = new LabelControl
         {
             Text = "Cashier Audit Anomaly & Predictive Inventory Engine",
+            UseMnemonic = false,
             Dock = DockStyle.Fill,
-            Anchor = AnchorStyles.Left,
             Font = new Font("Segoe UI", 12f, FontStyle.Bold),
             ForeColor = Color.FromArgb(33, 37, 41)
         };
         lblTitle.Appearance.TextOptions.VAlignment = VertAlignment.Center;
-        headerLayout.Controls.Add(lblTitle, 0, 0);
+        titleRow.Controls.Add(lblTitle, 0, 0);
+
+        var lblSubtitle = new LabelControl
+        {
+            Text = "Forensic Anomaly Scanner • Shrinkage Risk Scoring • Predictive Burn-Rate",
+            UseMnemonic = false,
+            Dock = DockStyle.Fill,
+            Font = new Font("Segoe UI", 8.5f),
+            ForeColor = Color.FromArgb(108, 117, 125)
+        };
+        lblSubtitle.Appearance.TextOptions.HAlignment = HorzAlignment.Far;
+        lblSubtitle.Appearance.TextOptions.VAlignment = VertAlignment.Center;
+        titleRow.Controls.Add(lblSubtitle, 1, 0);
+
+        headerLayout.Controls.Add(titleRow, 0, 0);
+
+        // Row 1: Filter & Action Toolbar
+        var toolbarFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = Padding.Empty
+        };
 
         _cboPeriod.Properties.Items.AddRange(["Today", "Yesterday", "Last 7 Days", "Last 30 Days"]);
         _cboPeriod.SelectedIndex = 2; // Last 7 Days
-        _cboPeriod.Width = DesktopDpi.Scale(120, this);
-        _cboPeriod.Height = DesktopStyle.ToolbarControlHeight;
         _cboPeriod.SelectedIndexChanged += (_, _) => OnPeriodChanged();
-        headerLayout.Controls.Add(_cboPeriod, 1, 0);
+        toolbarFlow.Controls.Add(_cboPeriod);
 
-        _dtFrom.Width = DesktopDpi.Scale(105, this);
-        _dtFrom.Height = DesktopStyle.ToolbarControlHeight;
         _dtFrom.DateTime = DateTime.Today.AddDays(-7);
-        headerLayout.Controls.Add(_dtFrom, 2, 0);
+        toolbarFlow.Controls.Add(_dtFrom);
 
-        _dtTo.Width = DesktopDpi.Scale(105, this);
-        _dtTo.Height = DesktopStyle.ToolbarControlHeight;
         _dtTo.DateTime = DateTime.Today;
-        headerLayout.Controls.Add(_dtTo, 3, 0);
+        toolbarFlow.Controls.Add(_dtTo);
 
         _btnRefresh.Text = "Refresh";
-        _btnRefresh.Width = DesktopDpi.Scale(90, this);
-        _btnRefresh.Height = DesktopStyle.ToolbarControlHeight;
         _btnRefresh.Click += async (_, _) => await LoadAllDataAsync();
-        headerLayout.Controls.Add(_btnRefresh, 4, 0);
+        toolbarFlow.Controls.Add(_btnRefresh);
 
         _btnRunScan.Text = "Run Anomaly Scan";
-        _btnRunScan.Width = DesktopDpi.Scale(140, this);
-        _btnRunScan.Height = DesktopStyle.ToolbarControlHeight;
-        _btnRunScan.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
         _btnRunScan.Appearance.ForeColor = Color.DarkRed;
         _btnRunScan.Click += async (_, _) => await RunAnomalyScanAsync();
-        headerLayout.Controls.Add(_btnRunScan, 5, 0);
+        toolbarFlow.Controls.Add(_btnRunScan);
 
         _btnRunForecast.Text = "Run Inventory Forecast";
-        _btnRunForecast.Width = DesktopDpi.Scale(150, this);
-        _btnRunForecast.Height = DesktopStyle.ToolbarControlHeight;
+        _btnRunForecast.Appearance.ForeColor = Color.FromArgb(13, 110, 253);
         _btnRunForecast.Click += async (_, _) => await LoadInventoryForecastAsync();
-        headerLayout.Controls.Add(_btnRunForecast, 6, 0);
+        toolbarFlow.Controls.Add(_btnRunForecast);
 
+        headerLayout.Controls.Add(toolbarFlow, 0, 1);
         _headerPanel.Controls.Add(headerLayout);
+
+        ScaleLayoutAtRuntime();
+    }
+
+    private bool _isScaling;
+
+    private void ScaleLayoutAtRuntime()
+    {
+        if (DesignModeHelper.IsInDesignMode || _isScaling) return;
+
+        _isScaling = true;
+        try
+        {
+            var editH = DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this);
+            var btnH = DesktopDpi.Scale(DesktopStyle.ToolbarControlHeight, this);
+            var margin = new Padding(0, 0, DesktopDpi.Scale(8, this), 0);
+
+            _cboPeriod.Size = new Size(DesktopDpi.Scale(125, this), editH);
+            _cboPeriod.MinimumSize = new Size(DesktopDpi.Scale(125, this), editH);
+            _cboPeriod.Margin = margin;
+
+            _dtFrom.Size = new Size(DesktopDpi.Scale(125, this), editH);
+            _dtFrom.MinimumSize = new Size(DesktopDpi.Scale(125, this), editH);
+            _dtFrom.Margin = margin;
+
+            _dtTo.Size = new Size(DesktopDpi.Scale(125, this), editH);
+            _dtTo.MinimumSize = new Size(DesktopDpi.Scale(125, this), editH);
+            _dtTo.Margin = margin;
+
+            _btnRefresh.Size = new Size(DesktopDpi.Scale(90, this), btnH);
+            _btnRefresh.MinimumSize = new Size(DesktopDpi.Scale(90, this), btnH);
+            _btnRefresh.Appearance.Font = new Font("Segoe UI", 9f);
+            _btnRefresh.Cursor = Cursors.Hand;
+            _btnRefresh.Margin = margin;
+
+            _btnRunScan.Size = new Size(DesktopDpi.Scale(150, this), btnH);
+            _btnRunScan.MinimumSize = new Size(DesktopDpi.Scale(150, this), btnH);
+            _btnRunScan.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            _btnRunScan.Cursor = Cursors.Hand;
+            _btnRunScan.Margin = margin;
+
+            _btnRunForecast.Size = new Size(DesktopDpi.Scale(170, this), btnH);
+            _btnRunForecast.MinimumSize = new Size(DesktopDpi.Scale(170, this), btnH);
+            _btnRunForecast.Appearance.Font = new Font("Segoe UI", 9f, FontStyle.Bold);
+            _btnRunForecast.Cursor = Cursors.Hand;
+            _btnRunForecast.Margin = Padding.Empty;
+
+            _btnMarkReviewed.Size = new Size(DesktopDpi.Scale(120, this), btnH);
+            _btnMarkReviewed.MinimumSize = new Size(DesktopDpi.Scale(120, this), btnH);
+
+            _btnDismissAlert.Size = new Size(DesktopDpi.Scale(130, this), btnH);
+            _btnDismissAlert.MinimumSize = new Size(DesktopDpi.Scale(130, this), btnH);
+        }
+        finally
+        {
+            _isScaling = false;
+        }
     }
 
     private void BuildKpiCards()
@@ -249,6 +338,7 @@ public sealed class CashierAuditAnalyticsControl : XtraUserControl
         var lblCaption = new LabelControl
         {
             Text = caption,
+            UseMnemonic = false,
             Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
             ForeColor = Color.FromArgb(108, 117, 125),
             Dock = DockStyle.Fill
@@ -269,6 +359,7 @@ public sealed class CashierAuditAnalyticsControl : XtraUserControl
     {
         _tabControl.Dock = DockStyle.Fill;
         _tabControl.Padding = new Padding(DesktopDpi.Scale(12, this), DesktopDpi.Scale(4, this), DesktopDpi.Scale(12, this), DesktopDpi.Scale(12, this));
+        _tabControl.AppearancePage.Header.TextOptions.HotkeyPrefix = DevExpress.Utils.HKeyPrefix.None;
 
         // Tab 1: Cashier Risk Scores & Heatmap
         var pageRisk = new XtraTabPage { Text = "Cashier Risk Scores & Heatmap" };
