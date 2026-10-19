@@ -480,45 +480,77 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private async Task SignOutAsync()
     {
         var outgoingUserDisplayName = _currentSession.DisplayName ?? "Unknown";
-
         var outgoingSessionId = _currentSession.SessionId;
 
-        using (var logScope = _scopeFactory.CreateScope())
+        // 1. Immediately clear session identity and update UI to unauthenticated state
+        // so UI remains consistent even if downstream cleanup or re-login throws.
+        try
+        {
+            _currentSession.SignOut();
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Error clearing current session identity during sign-out.");
+        }
+
+        _profileMenu.Caption = "Account";
+        _userStatusItem.Caption = "Not signed in";
+        _attendanceStatusItem.Caption = "Attendance: --";
+        Hide();
+
+        // 2. Best-effort server-side session termination and audit logging
+        if (_scopeFactory != null)
         {
             try
             {
-                var mediator = logScope.ServiceProvider.GetRequiredService<IMediator>();
-                if (outgoingSessionId is { } activeSessionId)
+                using var logScope = _scopeFactory.CreateScope();
+                var mediator = logScope.ServiceProvider.GetService<IMediator>();
+                if (mediator != null)
                 {
-                    await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
-                }
+                    if (outgoingSessionId is { } activeSessionId)
+                    {
+                        await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
+                    }
 
-                await mediator.Send(new RecordActivityCommand("Logout", null, outgoingUserDisplayName, Environment.MachineName));
+                    await mediator.Send(new RecordActivityCommand("Logout", null, outgoingUserDisplayName, Environment.MachineName));
+                }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                // Best-effort - see RestaurantPosView.LogActivityAsync's
-                // identical reasoning; a logging hiccup shouldn't block
-                // signing out.
+                _logger?.LogWarning(ex, "Failed to log out session on server or record logout activity for user {User}.", outgoingUserDisplayName);
             }
         }
 
-        _currentSession.SignOut();
-        Hide();
-
-        using var scope = _scopeFactory.CreateScope();
-        var loginForm = scope.ServiceProvider.GetRequiredService<LoginForm>();
+        // 3. Re-prompt authentication via LoginForm
         var signedIn = false;
-        loginForm.LoginSucceeded += (_, _) => signedIn = true;
-        loginForm.ShowDialog(this);
+        string? selectedModuleKey = null;
 
-        if (!signedIn)
+        if (_scopeFactory == null)
         {
             Close();
             return;
         }
 
-        if (string.Equals(loginForm.SelectedModuleKey, "pos", StringComparison.OrdinalIgnoreCase))
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var loginForm = scope.ServiceProvider.GetRequiredService<LoginForm>();
+            loginForm.LoginSucceeded += (_, _) => signedIn = true;
+            loginForm.ShowDialog(this);
+            selectedModuleKey = loginForm.SelectedModuleKey;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            _logger?.LogError(ex, "Failed to display LoginForm during sign-out re-authentication.");
+        }
+
+        if (!signedIn || !_currentSession.IsAuthenticated)
+        {
+            Close();
+            return;
+        }
+
+        if (string.Equals(selectedModuleKey, "pos", StringComparison.OrdinalIgnoreCase))
         {
             var opened = await OpenRestaurantPosWithGateAsync();
             if (opened) return;

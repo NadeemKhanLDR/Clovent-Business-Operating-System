@@ -3386,6 +3386,13 @@ public sealed partial class RestaurantPosForm : XtraForm
             _changeNotifier.Changed -= MenuItemsChangeNotifier_Changed;
         }
 
+        try
+        {
+            _lifecycleCts.Cancel();
+        }
+        catch (ObjectDisposedException) { }
+        _initializationTcs.TrySetCanceled();
+
         AppearanceManager.Changed -= AppearanceManager_Changed;
         _scope?.Dispose();
         _gate?.Dispose();
@@ -3407,6 +3414,11 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         _operationsMenu?.Dispose();
+        try
+        {
+            _lifecycleCts.Dispose();
+        }
+        catch (ObjectDisposedException) { }
     }
 
     /// <summary>
@@ -3434,12 +3446,25 @@ public sealed partial class RestaurantPosForm : XtraForm
         source.Dispose();
     }
 
+    private readonly CancellationTokenSource _lifecycleCts = new();
+    private readonly TaskCompletionSource<bool> _initializationTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private Task? _initializationTask;
+
+    /// <summary>Task that completes when initial screen loading completes, fails, or is cancelled.</summary>
+    public Task InitializationTask => _initializationTcs.Task;
+
+    /// <summary>Optional hook to intercept startup failure dialog in testing scenarios.</summary>
+    [System.ComponentModel.Browsable(false)]
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    internal Func<string, Exception, DialogResult>? StartupFailureDialogHandler { get; set; }
 
     private async void RestaurantPosForm_Load(object? sender, EventArgs e)
     {
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode || _currentSession is null)
+        {
+            _initializationTcs.TrySetResult(true);
             return;
+        }
         
         _logger?.LogInformation("POS_FORM_LOAD: RestaurantPosForm loaded event fired.");
         WindowState = FormWindowState.Maximized;
@@ -3448,7 +3473,14 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _initializationTask = LoadAsync();
             await _initializationTask;
-            await CheckAndPromptCrashRecoveryAsync();
+            if (!_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing)
+            {
+                await CheckAndPromptCrashRecoveryAsync();
+            }
+        }
+        catch (OperationCanceledException) when (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            // Expected cancellation on form closing/navigation
         }
         catch (Exception ex)
         {
@@ -3636,6 +3668,16 @@ public sealed partial class RestaurantPosForm : XtraForm
             }
 
             _closeInitiator = PosCloseInitiator.UserWindowClose;
+        }
+
+        if (!e.Cancel)
+        {
+            try
+            {
+                _lifecycleCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+            _initializationTcs.TrySetCanceled();
         }
     }
 
@@ -4207,18 +4249,49 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task LoadAsync()
     {
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            _initializationTcs.TrySetCanceled(_lifecycleCts.Token);
+            return;
+        }
+
         _logger?.LogInformation("POS_INIT_STARTED: Starting Restaurant POS initialization...");
         UseWaitCursor = true;
         SetPosLoading(true, "Initializing POS...");
         try
         {
             await LoadCoreAsync();
+            if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+            {
+                _logger?.LogInformation("POS_INIT_CANCELLED: Restaurant POS initialization was cancelled due to form closing/disposal.");
+                _initializationTcs.TrySetCanceled(_lifecycleCts.Token);
+                return;
+            }
             IsInitialLoadComplete = true;
+            _initializationTcs.TrySetResult(true);
             _logger?.LogInformation("POS_INIT_READY: Restaurant POS core initialization completed successfully.");
+        }
+        catch (OperationCanceledException oce) when (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            _initializationTcs.TrySetCanceled(oce.CancellationToken);
+            _logger?.LogInformation("POS_INIT_CANCELLED: Restaurant POS initialization cancelled.");
+        }
+        catch (ObjectDisposedException ex) when (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            _initializationTcs.TrySetCanceled(_lifecycleCts.Token);
+            _logger?.LogInformation(ex, "POS_INIT_ABORTED: Restaurant POS initialization aborted because form or scope was disposed during navigation/close.");
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+            {
+                _initializationTcs.TrySetCanceled(_lifecycleCts.Token);
+                _logger?.LogInformation(ex, "POS_INIT_ABORTED: Restaurant POS initialization exception ignored because form is closing/disposed.");
+                return;
+            }
+
             IsInitialLoadComplete = false;
+            _initializationTcs.TrySetException(ex);
             _logger?.LogError(ex, "POS_INIT_FAILED: Restaurant POS failed to load.");
             SetPosLoading(false);
 
@@ -4226,20 +4299,30 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
         finally
         {
-            UseWaitCursor = false;
-            SetPosLoading(false);
+            if (!IsDisposed && !Disposing)
+            {
+                UseWaitCursor = false;
+                SetPosLoading(false);
+            }
         }
     }
 
     private async Task HandleStartupFailureAsync(Exception ex)
     {
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            return;
+        }
+
         var message = $"Unable to load the Restaurant POS screen.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nWould you like to retry initialization, or return to Back Office?";
-        var result = XtraMessageBox.Show(
-            this,
-            message,
-            "Restaurant POS Load Failed",
-            MessageBoxButtons.RetryCancel,
-            MessageBoxIcon.Warning);
+        var result = StartupFailureDialogHandler != null
+            ? StartupFailureDialogHandler(message, ex)
+            : XtraMessageBox.Show(
+                this,
+                message,
+                "Restaurant POS Load Failed",
+                MessageBoxButtons.RetryCancel,
+                MessageBoxIcon.Warning);
 
         if (result == DialogResult.Retry)
         {
@@ -4263,9 +4346,11 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task LoadCoreAsync()
     {
-        _logger.LogInformation("POS_INIT_01: Starting Restaurant POS core initialization...");
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_01: Starting Restaurant POS core initialization...");
         await CurrencyDisplayLoader.ConfigureAsync(_mediator);
-        _logger.LogInformation("POS_INIT_02: Currency display configured.");
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_02: Currency display configured.");
 
         // Inline cart editors: Price shows the configured currency precision
         // (50.00, not 50.0000) and Qty edits whole numbers (2, not 2.0000).
@@ -4287,36 +4372,45 @@ public sealed partial class RestaurantPosForm : XtraForm
         _lineGridColumnQuantity.ColumnEdit = quantityEditor;
 
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
         _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
         _warehousePicker.Visible = warehouses.Count > 1;
-        _logger.LogInformation("POS_INIT_03: Warehouses loaded ({Count}).", warehouses.Count);
+        _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}).", warehouses.Count);
 
         // Once per screen, before the first RefreshOrderAsync below needs them.
         await UpdatePermissionsAsync();
         ApplySmartFeaturePermissions();
-        _logger.LogInformation("POS_INIT_04: Permissions and smart features updated. CanAccessBackOffice={CanAccessBackOffice}", _canAccessBackOffice);
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_04: Permissions and smart features updated. CanAccessBackOffice={CanAccessBackOffice}", _canAccessBackOffice);
 
         await ReloadMenuItemsAsync();
-        _logger.LogInformation("POS_INIT_05: Menu items loaded ({Count} variants).", _variantsById.Count);
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_05: Menu items loaded ({Count} variants).", _variantsById.Count);
 
         await ReloadQuickOrderTemplatesAsync();
         await ReloadTablesAsync();
-        _logger.LogInformation("POS_INIT_06: Tables and quick order templates loaded.");
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_06: Tables and quick order templates loaded.");
 
         await ReloadCustomersAsync();
         await RefreshOrderAsync();
-        _logger.LogInformation("POS_INIT_07: Active order refreshed.");
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_07: Active order refreshed.");
 
         await RefreshActiveOrdersAsync();
-        _logger.LogInformation("POS_INIT_08: Active orders rail refreshed.");
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        _logger?.LogInformation("POS_INIT_08: Active orders rail refreshed.");
 
         AppearanceManager.Apply(this, "Restaurant", nameof(RestaurantPosForm));
         UpdateCategoryButtonSelection();
-        _logger.LogInformation("POS_INIT_READY: Restaurant POS core initialization completed successfully.");
+        _logger?.LogInformation("POS_INIT_READY: Restaurant POS core initialization completed successfully.");
     }
 
     private async Task ReloadMenuItemsAsync()
     {
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+            return;
+
         if (_continuityCoordinator?.IsContinuityModeActive == true)
         {
             LoadMenuFromOperationalCache();
@@ -4326,6 +4420,9 @@ public sealed partial class RestaurantPosForm : XtraForm
         try
         {
             var variants = await _mediator.Send(new ListProductVariantsQuery());
+            if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+                return;
+
             _variantsById.Clear();
             foreach (var variant in variants)
             {
@@ -4334,6 +4431,9 @@ public sealed partial class RestaurantPosForm : XtraForm
             _activeVariants = [.. variants.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active")).OrderBy(v => v.SortOrder).ThenBy(v => v.Name)];
 
             var products = await _mediator.Send(new ListProductsQuery());
+            if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+                return;
+
             _productNamesById.Clear();
             foreach (var product in products)
             {
@@ -9066,7 +9166,13 @@ public sealed partial class RestaurantPosForm : XtraForm
             return true;
         }
 
-        var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        if (_currentSession?.UserId is null || !_currentSession.IsAuthenticated)
+        {
+            _logger?.LogWarning("Cannot verify shift status: No authenticated cashier session found.");
+            return false;
+        }
+
+        var cashierId = _currentSession.UserId.Value;
         var active = await _mediator.Send(new Clovent.Restaurant.Application.Shifts.Queries.GetActiveShiftQuery(CashierId: cashierId));
         if (active != null)
         {
@@ -9947,8 +10053,11 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (!Permit("quickorders"))
         {
             _quickOrderTemplates = [];
-            _quickOrdersStrip.Visible = false;
-            ApplyQuickOrdersStripState();
+            if (_quickOrdersStrip != null)
+            {
+                _quickOrdersStrip.Visible = false;
+                ApplyQuickOrdersStripState();
+            }
             return;
         }
 

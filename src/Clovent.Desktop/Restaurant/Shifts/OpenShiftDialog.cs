@@ -330,7 +330,13 @@ public sealed class OpenShiftDialog : XtraForm
             return;
         }
 
-        var cashierId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        if (_currentSession?.UserId is null || !_currentSession.IsAuthenticated)
+        {
+            XtraMessageBox.Show(this, "No authenticated cashier session found.", "Authentication Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var cashierId = _currentSession.UserId.Value;
         var cashierName = UserDisplayNameHelper.FormatCashierName(_lblCashierVal.Text);
 
         _btnOpen.Enabled = false;

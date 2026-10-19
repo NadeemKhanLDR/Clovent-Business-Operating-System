@@ -354,13 +354,19 @@ public sealed class EndOfDayCloseDialog : XtraForm
         if (confirm != DialogResult.Yes)
             return;
 
+        if (_currentSession?.UserId is null || !_currentSession.IsAuthenticated)
+        {
+            XtraMessageBox.Show(this, "No authenticated manager session found to perform Day Close.", "Authentication Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         _btnCloseDay.Enabled = false;
         try
         {
             var command = new CloseBusinessDayCommand(
                 _branchId,
                 _businessDate,
-                _currentSession.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                _currentSession.UserId.Value,
                 UserDisplayNameHelper.GetCurrentCashierDisplayName(_currentSession, "Manager"),
                 _txtNotes.Text.Trim());
 

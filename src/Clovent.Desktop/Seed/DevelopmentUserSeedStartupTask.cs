@@ -36,7 +36,8 @@ public sealed class DevelopmentUserSeedStartupTask(
     AuthenticationDbContext authenticationDbContext,
     IPasswordHasher passwordHasher,
     TimeProvider timeProvider,
-    IOptions<DesktopOptions> options) : IStartupTask
+    IOptions<DesktopOptions> options,
+    IOptions<Clovent.Platform.Configuration.PlatformOptions>? platformOptions = null) : IStartupTask
 {
     private const string DemoUserName = "admin";
     private const string DemoPassword = "Admin123!";
@@ -44,7 +45,8 @@ public sealed class DevelopmentUserSeedStartupTask(
     /// <inheritdoc/>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
-        if (!options.Value.SeedDevelopmentUser)
+        if (!options.Value.SeedDevelopmentUser ||
+            string.Equals(platformOptions?.Value?.EnvironmentName, "Production", StringComparison.OrdinalIgnoreCase))
         {
             return;
         }

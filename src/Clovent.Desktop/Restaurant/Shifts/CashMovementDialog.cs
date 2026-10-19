@@ -169,8 +169,14 @@ public sealed class CashMovementDialog : XtraForm
             return;
         }
 
+        if (_currentSession?.UserId is null || !_currentSession.IsAuthenticated)
+        {
+            XtraMessageBox.Show(this, "No authenticated user session found.", "Authentication Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var userId = _currentSession.UserId.Value;
         var type = (CashMovementType)_rgType.EditValue;
-        var userId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
 
         _btnSave.Enabled = false;
         try

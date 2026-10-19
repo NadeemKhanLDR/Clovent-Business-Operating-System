@@ -191,8 +191,14 @@ public sealed class PunchInDialog : XtraForm
 
     private async void BtnPunchIn_Click(object? sender, EventArgs e)
     {
-        var userId = _currentSession?.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var userName = _currentSession?.DisplayName ?? "Administrator";
+        if (_currentSession?.UserId is null || !_currentSession.IsAuthenticated)
+        {
+            XtraMessageBox.Show("No authenticated user identity found. Please sign in to punch in.", "Authentication Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var userId = _currentSession.UserId.Value;
+        var userName = _currentSession.DisplayName ?? "Cashier";
 
         _btnPunchIn.Enabled = false;
         _btnCancel.Enabled = false;

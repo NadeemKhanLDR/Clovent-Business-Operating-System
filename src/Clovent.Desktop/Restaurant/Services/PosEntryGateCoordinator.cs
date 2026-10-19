@@ -99,7 +99,13 @@ public sealed class PosEntryGateCoordinator(
                 _ = Task.Run(() => continuityCoordinator.RefreshCacheAsync());
             }
 
-            var cashierId = currentSession.UserId ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+            if (!currentSession.IsAuthenticated || currentSession.UserId == null)
+            {
+                ShowWarning(owner, "No authenticated user session found. Please sign in before accessing Restaurant POS.", "Authentication Required");
+                return false;
+            }
+
+            var cashierId = currentSession.UserId.Value;
             var cashierName = Clovent.Desktop.Forms.Base.UserDisplayNameHelper.GetCurrentCashierDisplayName(currentSession);
 
             // 2. ATTENDANCE GATE: Cashier MUST be punched in before accessing Restaurant POS

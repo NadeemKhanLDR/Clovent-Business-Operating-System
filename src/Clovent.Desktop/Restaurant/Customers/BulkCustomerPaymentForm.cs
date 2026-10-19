@@ -308,13 +308,8 @@ public sealed partial class BulkCustomerPaymentForm : XtraForm
         var isCash = string.Equals(method, "Cash", StringComparison.OrdinalIgnoreCase);
         if (isCash)
         {
-            var cashierId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-            var activeShift = await _mediator.Send(new GetActiveShiftQuery(CashierId: cashierId));
-            if (activeShift == null)
-            {
-                var openShifts = await _mediator.Send(new ListShiftsQuery(Status: ShiftStatus.Open));
-                activeShift = openShifts.FirstOrDefault();
-            }
+            var openShifts = await _mediator.Send(new ListShiftsQuery(Status: ShiftStatus.Open));
+            var activeShift = openShifts.FirstOrDefault();
 
             if (activeShift == null)
             {

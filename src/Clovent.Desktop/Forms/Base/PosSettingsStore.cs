@@ -58,6 +58,7 @@ public static class PosSettingsStore
         public bool RushModeEnabled { get; set; } = false;
         public Guid? TerminalId { get; set; }
         public Guid? BranchId { get; set; }
+        public Guid? WarehouseId { get; set; }
         public Guid? OrganizationId { get; set; }
         public string DefaultOrderMode { get; set; } = "DineIn";
     }
@@ -230,6 +231,17 @@ public static class PosSettingsStore
     {
         var data = LoadData();
         data.BranchId = branchId;
+        SaveData(data);
+    }
+
+    /// <summary>Gets the configured workstation default warehouse ID, or null if unconfigured.</summary>
+    public static Guid? LoadWarehouseId() => LoadData().WarehouseId;
+
+    /// <summary>Persists the configured workstation default warehouse ID.</summary>
+    public static void SaveWarehouseId(Guid? warehouseId)
+    {
+        var data = LoadData();
+        data.WarehouseId = warehouseId;
         SaveData(data);
     }
 

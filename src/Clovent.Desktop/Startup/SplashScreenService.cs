@@ -9,42 +9,68 @@ namespace Clovent.Desktop.Startup;
 /// </summary>
 public sealed class SplashScreenService : ISplashScreenService
 {
-    private bool _isOpen;
+    private static readonly object _syncLock = new();
+    private static volatile bool _isFormDisplayed;
 
     /// <inheritdoc/>
     public void Show(string caption, string description)
     {
-        if (!_isOpen)
+        lock (_syncLock)
         {
-            SplashScreenManager.ShowForm(typeof(StartupWaitForm), useFadeIn: true, useFadeOut: true);
-            _isOpen = true;
-        }
+            var isAlreadyShowing = _isFormDisplayed
+                || (SplashScreenManager.Default != null && SplashScreenManager.Default.IsSplashFormVisible)
+                || SplashScreenManager.FormInPendingState;
 
-        SplashScreenManager.Default?.SetWaitFormCaption(caption);
-        SplashScreenManager.Default?.SetWaitFormDescription(description);
+            if (!isAlreadyShowing)
+            {
+                try
+                {
+                    SplashScreenManager.ShowForm(typeof(StartupWaitForm), useFadeIn: true, useFadeOut: true);
+                    _isFormDisplayed = true;
+                }
+                catch (InvalidOperationException ex) when (ex.Message.Contains("already been displayed", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Overlapping display request: splash is already displayed
+                    _isFormDisplayed = true;
+                }
+            }
+
+            SplashScreenManager.Default?.SetWaitFormCaption(caption);
+            SplashScreenManager.Default?.SetWaitFormDescription(description);
+        }
     }
 
     /// <inheritdoc/>
-    public void SetDescription(string description) =>
-        SplashScreenManager.Default?.SetWaitFormDescription(description);
+    public void SetDescription(string description)
+    {
+        lock (_syncLock)
+        {
+            SplashScreenManager.Default?.SetWaitFormDescription(description);
+        }
+    }
 
     /// <inheritdoc/>
     public void Close()
     {
-        // Closing is idempotent: a close with no splash open is a no-op.
-        if (!_isOpen)
+        lock (_syncLock)
         {
-            return;
-        }
+            var isShowing = _isFormDisplayed
+                || (SplashScreenManager.Default != null && SplashScreenManager.Default.IsSplashFormVisible);
 
-        _isOpen = false;
-        try
-        {
-            SplashScreenManager.CloseForm(throwExceptionIfAlreadyClosed: false);
-        }
-        catch (InvalidOperationException)
-        {
-            // Safeguard against any internal DevExpress state discrepancy
+            if (!isShowing)
+            {
+                return;
+            }
+
+            _isFormDisplayed = false;
+            try
+            {
+                SplashScreenManager.CloseForm(throwExceptionIfAlreadyClosed: false);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not displayed", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("already closed", StringComparison.OrdinalIgnoreCase))
+            {
+                // Already closed or not displayed
+            }
         }
     }
 }

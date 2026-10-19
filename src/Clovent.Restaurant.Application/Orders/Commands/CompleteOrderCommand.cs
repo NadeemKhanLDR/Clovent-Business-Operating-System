@@ -108,14 +108,40 @@ public sealed class CompleteOrderCommandHandler(
             }
         }
 
+        // Resolve item names and SKUs from catalog for durable snapshot and inventory posting
+        var variantIds = lineDtos.Where(l => !l.IsVoided).Select(l => l.ProductVariantId).Distinct().ToList();
+        var variantMap = new Dictionary<Guid, (string Sku, string Name)>();
+        foreach (var vid in variantIds)
+        {
+            try
+            {
+                var variant = await mediator.Send(new Clovent.Catalog.Application.Variants.Queries.GetProductVariantByIdQuery(vid), cancellationToken);
+                if (variant is not null)
+                {
+                    var displayName = !string.IsNullOrWhiteSpace(variant.ProductName)
+                        ? (!string.IsNullOrWhiteSpace(variant.Name) ? $"{variant.ProductName} - {variant.Name}" : variant.ProductName)
+                        : (!string.IsNullOrWhiteSpace(variant.Name) ? variant.Name : (variant.Sku ?? "Item"));
+                    variantMap[vid] = (variant.Sku ?? "", displayName);
+                }
+            }
+            catch (Exception)
+            {
+                // Variant not found or catalog unavailable
+            }
+        }
+
         // Freeze receipt snapshot immutably on the order
         var snapshotItems = lineDtos.Where(l => !l.IsVoided).Select(l =>
         {
             lineSnapMap.TryGetValue(l.Id, out var snap);
+            variantMap.TryGetValue(l.ProductVariantId, out var vInfo);
+            var sku = !string.IsNullOrWhiteSpace(vInfo.Sku) ? vInfo.Sku : "";
+            var name = !string.IsNullOrWhiteSpace(vInfo.Name) ? vInfo.Name : $"Item {l.ProductVariantId.ToString()[..8]}";
+
             return new ReceiptSnapshotItem(
                 l.ProductVariantId,
-                "",
-                "",
+                sku,
+                name,
                 l.Quantity,
                 l.UnitPrice,
                 l.LineTotal,
@@ -154,7 +180,10 @@ public sealed class CompleteOrderCommandHandler(
             "1.3.0-AwayFromZero-v1",
             totals.TaxableBaseTotal,
             totals.ExclusiveTaxTotal,
-            totals.InclusiveTaxTotal);
+            totals.InclusiveTaxTotal,
+            request.OrganizationId,
+            request.BranchId,
+            request.TerminalId);
 
         var snapshotJson = JsonSerializer.Serialize(snapshot);
         order.SetReceiptSnapshot(snapshotJson);
@@ -163,7 +192,13 @@ public sealed class CompleteOrderCommandHandler(
         {
             // Transactional Outbox: decouple secondary work into atomic outbox messages
             var activeItems = lineDtos.Where(l => !l.IsVoided)
-                .Select(l => new InventoryPostingLineItem(l.ProductVariantId, "", "", l.Quantity))
+                .Select(l =>
+                {
+                    variantMap.TryGetValue(l.ProductVariantId, out var vInfo);
+                    var sku = !string.IsNullOrWhiteSpace(vInfo.Sku) ? vInfo.Sku : "";
+                    var name = !string.IsNullOrWhiteSpace(vInfo.Name) ? vInfo.Name : $"Item {l.ProductVariantId.ToString()[..8]}";
+                    return new InventoryPostingLineItem(l.ProductVariantId, sku, name, l.Quantity);
+                })
                 .ToList();
 
             var invPayload = new InventoryPostingPayload(

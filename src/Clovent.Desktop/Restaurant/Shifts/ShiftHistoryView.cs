@@ -543,9 +543,9 @@ public sealed class ShiftHistoryView : XtraUserControl
 
     private async void BtnOpenShift_Click(object? sender, EventArgs e)
     {
-        var branchId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var terminalId = Guid.Parse("00000000-0000-0000-0000-000000000001");
-        var warehouseId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var branchId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadBranchId() ?? Guid.Empty;
+        var terminalId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadTerminalId() ?? Guid.Empty;
+        var warehouseId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadWarehouseId() ?? Guid.Empty;
 
         using var dialog = new OpenShiftDialog(_mediator, _currentSession, branchId, warehouseId, terminalId);
         if (dialog.ShowDialog(this) == DialogResult.OK)
