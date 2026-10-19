@@ -1,4 +1,5 @@
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.Transactions.Dtos;
@@ -28,18 +29,20 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     private const string FeatureCode = "inventorytransactions";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
 
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
+    private bool _isLoadingPickers;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public InventoryTransactionsView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
         InitializeComponent();
@@ -51,26 +54,53 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            _gate.Dispose();
             components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
 
-    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingPickers)
+        {
+            return;
+        }
 
-    private async void ProductPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+        await _listView.RefreshAsync();
+    }
+
+    private async void ProductPicker_SelectionChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingPickers)
+        {
+            return;
+        }
+
+        await _listView.RefreshAsync();
+    }
 
     private async void InventoryTransactionsView_Load(object? sender, EventArgs e) => await LoadPickersAsync();
 
     private async Task LoadPickersAsync()
     {
-        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
+        _isLoadingPickers = true;
+        try
+        {
+            var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+            _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
 
-        var variants = await _mediator.Send(new ListProductVariantsQuery());
-        _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
-        _productPicker.LoadItems([.. variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}"))]);
+            var variants = await _mediator.Send(new ListProductVariantsQuery());
+            _variantsById = variants.ToDictionary(v => v.ProductVariantId, v => (v.Sku, v.Name));
+            _productPicker.LoadItems([.. variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}"))]);
+        }
+        finally
+        {
+            _isLoadingPickers = false;
+        }
+
+        await _listView.RefreshAsync();
     }
 
     private async Task<IReadOnlyList<InventoryTransactionRow>> LoadItemsAsync(CancellationToken cancellationToken)

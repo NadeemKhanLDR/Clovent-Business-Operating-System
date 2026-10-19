@@ -1,4 +1,5 @@
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
@@ -27,19 +28,21 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     private const string FeatureCode = "warehousestocks";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
 
     private IReadOnlyList<(Guid Id, string Display)> _warehouseOptions = [];
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
+    private bool _isLoadingLookups;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public WarehouseStockManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
         InitializeComponent();
@@ -51,13 +54,22 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            _gate.Dispose();
             components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
 
-    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingLookups)
+        {
+            return;
+        }
+
+        await _listView.RefreshAsync();
+    }
 
     private async void ReceiveInventoryButton_Click(object? sender, EventArgs e) => await ReceiveInventoryAsync();
 
@@ -65,11 +77,21 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
 
     private async Task LoadLookupsAsync()
     {
-        await LoadVariantsAsync();
+        _isLoadingLookups = true;
+        try
+        {
+            await LoadVariantsAsync();
 
-        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
-        _warehousePicker.LoadItems(_warehouseOptions);
+            var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+            _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
+            _warehousePicker.LoadItems(_warehouseOptions);
+        }
+        finally
+        {
+            _isLoadingLookups = false;
+        }
+
+        await _listView.RefreshAsync();
     }
 
     private async Task LoadVariantsAsync(CancellationToken cancellationToken = default)

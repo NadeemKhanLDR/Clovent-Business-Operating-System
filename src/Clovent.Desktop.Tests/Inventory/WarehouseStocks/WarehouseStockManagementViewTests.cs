@@ -300,4 +300,137 @@ public class WarehouseStockManagementViewTests
             Assert.Equal("Naan - Standard", name);
         }
     }
+
+    private sealed class RacyScopeTracker
+    {
+        private int _inFlight;
+        public int MaxConcurrent { get; private set; }
+
+        public async Task EnterAsync()
+        {
+            var count = Interlocked.Increment(ref _inFlight);
+            lock (this)
+            {
+                if (count > MaxConcurrent)
+                {
+                    MaxConcurrent = count;
+                }
+            }
+
+            if (count > 1)
+            {
+                Interlocked.Decrement(ref _inFlight);
+                throw new InvalidOperationException("A second operation was started on this context instance before a previous operation completed.");
+            }
+
+            try
+            {
+                await Task.Delay(10);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlight);
+            }
+        }
+    }
+
+    private sealed class RacyStockMediator(RacyScopeTracker scope) : IMediator
+    {
+        public List<WarehouseDto> Warehouses { get; set; } = [];
+        public List<ProductVariantDto> Variants { get; set; } = [];
+        public List<WarehouseStockDto> Stocks { get; set; } = [];
+
+        public async Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
+        {
+            await scope.EnterAsync();
+
+            if (request is ListAllWarehousesQuery)
+            {
+                return (TResponse)(object)Warehouses.AsReadOnly();
+            }
+
+            if (request is ListProductVariantsQuery)
+            {
+                return (TResponse)(object)Variants.AsReadOnly();
+            }
+
+            if (request is ListWarehouseStocksByWarehouseQuery wq)
+            {
+                var matching = Stocks.Where(s => s.WarehouseId == wq.WarehouseId).ToList();
+                return (TResponse)(object)matching.AsReadOnly();
+            }
+
+            return default!;
+        }
+
+        public async Task Send<TRequest>(TRequest request, CancellationToken cancellationToken = default) where TRequest : IRequest =>
+            await scope.EnterAsync();
+
+        public async Task<object?> Send(object request, CancellationToken cancellationToken = default)
+        {
+            await scope.EnterAsync();
+            return null;
+        }
+
+        public async Task Publish(object notification, CancellationToken cancellationToken = default) =>
+            await scope.EnterAsync();
+
+        public async Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default) where TNotification : INotification =>
+            await scope.EnterAsync();
+
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(IStreamRequest<TResponse> request, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+
+        public IAsyncEnumerable<object?> CreateStream(object request, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+    }
+
+    [Fact]
+    public async Task WarehouseStockManagementView_ConcurrentOperations_NeverRaceOnScopedMediator()
+    {
+        var session = new FakeCurrentSession();
+        var racyScope = new RacyScopeTracker();
+        var mediator = new RacyStockMediator(racyScope);
+        var provider = new FakeServiceProvider();
+        provider.Register<IMediator>(mediator);
+        provider.Register<IFeatureAuthorizationPolicy>(new AllowAllFeaturePolicy());
+
+        var view = new WarehouseStockManagementView(new FakeServiceScopeFactory(provider), session);
+        using (view)
+        {
+            var warehouseId1 = Guid.NewGuid();
+            var warehouseId2 = Guid.NewGuid();
+            var variantId = Guid.NewGuid();
+            var productId = Guid.NewGuid();
+
+            mediator.Warehouses.Add(new WarehouseDto(warehouseId1, Guid.NewGuid(), "Main Warehouse", "MW", "Active", DateTimeOffset.UtcNow));
+            mediator.Warehouses.Add(new WarehouseDto(warehouseId2, Guid.NewGuid(), "Kitchen Backup Warehouse", "KBW", "Active", DateTimeOffset.UtcNow));
+            mediator.Variants.Add(new ProductVariantDto(variantId, productId, "Standard", "NAAN-STD", Guid.NewGuid(), "Active", 1, DateTimeOffset.UtcNow, null, "Active", true, "Prepared", "Naan"));
+            mediator.Stocks.Add(new WarehouseStockDto(Guid.NewGuid(), warehouseId1, variantId, 100m, 0m, 100m, 10m, 200m, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+            mediator.Stocks.Add(new WarehouseStockDto(Guid.NewGuid(), warehouseId2, variantId, 50m, 0m, 50m, 10m, 200m, false, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+
+            // Load lookups
+            var loadMethod = typeof(WarehouseStockManagementView).GetMethod("LoadLookupsAsync", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(loadMethod);
+            await (Task)loadMethod.Invoke(view, null)!;
+
+            // Trigger multiple concurrent refreshes simulating UI events and rapid selection changes
+            var listViewField = typeof(WarehouseStockManagementView).GetField("_listView", BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(listViewField);
+            var listView = listViewField.GetValue(view)!;
+            var refreshMethod = listView.GetType().GetMethod("RefreshAsync", [typeof(CancellationToken)]);
+            Assert.NotNull(refreshMethod);
+
+            var tasks = new List<Task>
+            {
+                (Task)refreshMethod.Invoke(listView, [CancellationToken.None])!,
+                (Task)refreshMethod.Invoke(listView, [CancellationToken.None])!,
+                (Task)refreshMethod.Invoke(listView, [CancellationToken.None])!
+            };
+
+            // Completes without throwing InvalidOperationException: A second operation was started on this context instance
+            await Task.WhenAll(tasks);
+            Assert.Equal(1, racyScope.MaxConcurrent);
+        }
+    }
 }

@@ -56,6 +56,8 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     private readonly LabelControl _statusLabel = new() { Text = string.Empty };
     private readonly IReadOnlyList<MasterDataListAction<TDto>> _extraActions;
     private readonly List<SimpleButton> _extraActionButtons = [];
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private bool _hasQueuedRefresh;
 
     private IReadOnlyList<TDto> _allItems = [];
 
@@ -357,45 +359,116 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     /// <summary>Reloads every row via <see cref="LoadItemsAsync"/>, re-applies the current search filter, and re-evaluates feature permissions.</summary>
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
-        if (LoadItemsAsync is null)
+        if (LoadItemsAsync is null || IsDisposed || Disposing)
         {
             return;
         }
 
-        var selectedId = GetDtoId(GetFocusedItem());
+        if (!_refreshLock.Wait(0))
+        {
+            _hasQueuedRefresh = true;
+            return;
+        }
 
-        SetBusy(true);
         try
         {
-            _allItems = await LoadItemsAsync(cancellationToken);
-            
-            var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector).ToList();
-            _gridControl.DataSource = visible;
-            _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
-            
-            if (selectedId is { } id)
+            do
             {
-                var newIndex = -1;
-                for (int i = 0; i < visible.Count; i++)
-                {
-                    if (GetDtoId(visible[i]) == id)
-                    {
-                        newIndex = i;
-                        break;
-                    }
-                }
-                if (newIndex >= 0)
-                {
-                    _gridView.FocusedRowHandle = newIndex;
-                }
+                _hasQueuedRefresh = false;
+                await ExecuteRefreshCoreAsync(cancellationToken);
             }
-
-            await UpdateFeaturePermissionsAsync();
-            UpdateButtonStates();
+            while (_hasQueuedRefresh && !IsDisposed && !Disposing);
         }
         finally
         {
-            SetBusy(false);
+            _refreshLock.Release();
+        }
+    }
+
+    private async Task ExecuteRefreshCoreAsync(CancellationToken cancellationToken)
+    {
+        var selectedId = GetDtoId(GetFocusedItem());
+
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(() => SetBusy(true));
+        }
+        else
+        {
+            SetBusy(true);
+        }
+
+        try
+        {
+            _allItems = await LoadItemsAsync!(cancellationToken);
+
+            if (IsDisposed || Disposing)
+            {
+                return;
+            }
+
+            void ApplyResult()
+            {
+                if (IsDisposed || Disposing)
+                {
+                    return;
+                }
+
+                var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector).ToList();
+                _gridControl.DataSource = visible;
+                _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
+
+                if (selectedId is { } id)
+                {
+                    var newIndex = -1;
+                    for (int i = 0; i < visible.Count; i++)
+                    {
+                        if (GetDtoId(visible[i]) == id)
+                        {
+                            newIndex = i;
+                            break;
+                        }
+                    }
+                    if (newIndex >= 0)
+                    {
+                        _gridView.FocusedRowHandle = newIndex;
+                    }
+                }
+            }
+
+            if (IsHandleCreated && InvokeRequired)
+            {
+                Invoke(ApplyResult);
+            }
+            else
+            {
+                ApplyResult();
+            }
+
+            await UpdateFeaturePermissionsAsync();
+
+            if (IsHandleCreated && InvokeRequired)
+            {
+                Invoke(UpdateButtonStates);
+            }
+            else
+            {
+                UpdateButtonStates();
+            }
+        }
+        finally
+        {
+            if (!IsDisposed && !Disposing)
+            {
+                if (IsHandleCreated && InvokeRequired)
+                {
+                    Invoke(() => SetBusy(false));
+                }
+                else
+                {
+                    SetBusy(false);
+                }
+            }
         }
     }
 
@@ -700,4 +773,14 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         fieldName.Equals("OnHand", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Equals("Reserved", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Equals("Available", StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _refreshLock.Dispose();
+        }
+        base.Dispose(disposing);
+    }
 }
