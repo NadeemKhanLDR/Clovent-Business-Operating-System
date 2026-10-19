@@ -4237,6 +4237,11 @@ public sealed partial class RestaurantPosForm : XtraForm
     private void SetPosLoading(bool loading, string? message = null)
     {
         if (IsDisposed || Disposing) return;
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(() => SetPosLoading(loading, message));
+            return;
+        }
 
         if (loading)
         {
@@ -4245,6 +4250,31 @@ public sealed partial class RestaurantPosForm : XtraForm
                 _orderStatusLabel.Text = message;
             }
         }
+    }
+
+    private async Task EnsureUiThreadAsync()
+    {
+        if (IsDisposed || Disposing || !IsHandleCreated || !InvokeRequired)
+        {
+            return;
+        }
+
+        if (_lifecycleCts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            BeginInvoke(new Action(() => tcs.TrySetResult()));
+        }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+
+        await tcs.Task;
     }
 
     private async Task LoadAsync()
@@ -4314,6 +4344,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             return;
         }
 
+        await EnsureUiThreadAsync();
         var message = $"Unable to load the Restaurant POS screen.\n\nReason:\n{FriendlyErrorText.Summarize(ex)}\n\nWould you like to retry initialization, or return to Back Office?";
         var result = StartupFailureDialogHandler != null
             ? StartupFailureDialogHandler(message, ex)
@@ -4356,6 +4387,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         // (50.00, not 50.0000) and Qty edits whole numbers (2, not 2.0000).
         // Persistence still goes through the same commands as the buttons -
         // see LineGridView_CellValueChanged.
+        await EnsureUiThreadAsync();
         var priceEditor = new DevExpress.XtraEditors.Repository.RepositoryItemTextEdit();
         priceEditor.Mask.MaskType = DevExpress.XtraEditors.Mask.MaskType.Numeric;
         priceEditor.Mask.EditMask = "F" + CurrencyDisplay.DecimalPlaces;
@@ -4373,32 +4405,38 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
         _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
         _warehousePicker.Visible = warehouses.Count > 1;
         _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}).", warehouses.Count);
 
         // Once per screen, before the first RefreshOrderAsync below needs them.
         await UpdatePermissionsAsync();
-        ApplySmartFeaturePermissions();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
+        ApplySmartFeaturePermissions();
         _logger?.LogInformation("POS_INIT_04: Permissions and smart features updated. CanAccessBackOffice={CanAccessBackOffice}", _canAccessBackOffice);
 
         await ReloadMenuItemsAsync();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
         _logger?.LogInformation("POS_INIT_05: Menu items loaded ({Count} variants).", _variantsById.Count);
 
         await ReloadQuickOrderTemplatesAsync();
         await ReloadTablesAsync();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
         _logger?.LogInformation("POS_INIT_06: Tables and quick order templates loaded.");
 
         await ReloadCustomersAsync();
         await RefreshOrderAsync();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
         _logger?.LogInformation("POS_INIT_07: Active order refreshed.");
 
         await RefreshActiveOrdersAsync();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
         _logger?.LogInformation("POS_INIT_08: Active orders rail refreshed.");
 
         AppearanceManager.Apply(this, "Restaurant", nameof(RestaurantPosForm));
@@ -4467,6 +4505,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             var categories = await _mediator.Send(new ListProductCategoriesQuery());
             _loadedCategories = [.. categories.Where(c => c.Status == "Active")];
+            await EnsureUiThreadAsync();
             BuildCategoryButtons();
             ApplyProductFilter();
 
@@ -4565,6 +4604,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void BuildCategoryButtons()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(BuildCategoryButtons);
+            return;
+        }
+
         if (_categoryButtonsPanel is null) return;
 
         if (_selectedCategoryId.HasValue && _selectedCategoryId.Value != Guid.Empty)
@@ -4857,6 +4902,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void UpdateCategoryButtonSelection()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(UpdateCategoryButtonSelection);
+            return;
+        }
+
         if (_categoryButtonsPanel is null) return;
 
         foreach (Control control in _categoryButtonsPanel.Controls)
@@ -4886,6 +4937,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void ApplyProductFilter()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(ApplyProductFilter);
+            return;
+        }
+
         var searchText = _productSearchEdit.Text?.Trim();
 
         IEnumerable<ProductVariantDto> filtered = _variantsById.Values.Where(v => v.Status == "Active" && (v.ProductStatus is null || v.ProductStatus == "Active"));
@@ -5553,6 +5610,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         try
         {
             var tables = await _mediator.Send(new ListAllTablesQuery());
+            await EnsureUiThreadAsync();
             _tablePicker.LoadItems([.. tables.Select(t => (t.TableId, $"{t.Code} ({t.OccupancyStatus})"))]);
             if (_currentOrder != null && _currentOrder.OrderType == "TakeAway")
             {
@@ -6938,6 +6996,12 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private void UpdateOrderStatusBadge()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(UpdateOrderStatusBadge);
+            return;
+        }
+
         var isContinuity = _continuityCoordinator?.IsContinuityModeActive ?? false;
         var isRush = QueueRushModeStore.IsEnabled();
 
@@ -7077,6 +7141,12 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// </summary>
     public void BuildOperationsMenu()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(BuildOperationsMenu);
+            return;
+        }
+
         _operationsMenu.Items.Clear();
 
         // 1. Shift Submenu
@@ -7992,6 +8062,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         try
         {
             var customers = await _mediator.Send(new ListCustomersQuery());
+            await EnsureUiThreadAsync();
             var activeCustomers = customers.Where(c => c.IsActive).ToList();
 
             var defaultCustomer = activeCustomers.FirstOrDefault(c => c.IsDefault) ?? activeCustomers.FirstOrDefault();
@@ -10100,11 +10171,18 @@ public sealed partial class RestaurantPosForm : XtraForm
             _quickOrderTemplates = [];
         }
 
+        await EnsureUiThreadAsync();
         RebuildQuickOrderButtons();
     }
 
     private void RebuildQuickOrderButtons()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(RebuildQuickOrderButtons);
+            return;
+        }
+
         if (_quickOrdersFlowPanel is null)
         {
             return;
@@ -10862,6 +10940,12 @@ public sealed partial class RestaurantPosForm : XtraForm
     /// <summary>Hides smart menu entries the current user has no permission for. Never throws.</summary>
     private void ApplySmartFeaturePermissions()
     {
+        if (IsHandleCreated && InvokeRequired)
+        {
+            Invoke(ApplySmartFeaturePermissions);
+            return;
+        }
+
         try
         {
             var smartInsights = Permit("smartinsights");
