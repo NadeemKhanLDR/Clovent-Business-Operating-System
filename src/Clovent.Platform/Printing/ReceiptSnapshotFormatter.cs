@@ -52,7 +52,7 @@ public static class ReceiptSnapshotFormatter
         var doubleDivider = new string('=', charsPerLine);
 
         // 1. Reprint / Copy Banner
-        if (options.IsReprint || options.CopyType == ReceiptCopyType.Reprint)
+        if (options.IsReprint)
         {
             AppendLineAndScan(doubleDivider);
             AppendLineAndScan(Center($"*** REPRINT (COPY #{options.ReprintCount}) ***"));
@@ -63,30 +63,17 @@ public static class ReceiptSnapshotFormatter
             AppendLineAndScan(Center($"Reprinted: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
             AppendLineAndScan(doubleDivider);
         }
-        else if (options.CopyType == ReceiptCopyType.Merchant)
+        else if (options.CopyType == ReceiptCopyType.MerchantCopy)
         {
             AppendLineAndScan(doubleDivider);
-            AppendLineAndScan(Center("*** MERCHANT / STORE COPY ***"));
+            AppendLineAndScan(Center("*** MERCHANT COPY ***"));
             AppendLineAndScan(doubleDivider);
         }
-        else if (options.CopyType == ReceiptCopyType.Draft)
+        else if (options.CopyType == ReceiptCopyType.CustomerCopy)
         {
-            AppendLineAndScan(doubleDivider);
-            AppendLineAndScan(Center("*** DRAFT BILL / NOT A FINAL RECEIPT ***"));
-            AppendLineAndScan(doubleDivider);
-        }
-        else
-        {
-            AppendLineAndScan(doubleDivider);
+            AppendLineAndScan(divider);
             AppendLineAndScan(Center("*** CUSTOMER COPY ***"));
-            AppendLineAndScan(doubleDivider);
-        }
-
-        // 1.1 Header Logo (if enabled)
-        if (options.EnableLogo && !string.IsNullOrWhiteSpace(options.LogoPath))
-        {
-            var logoName = Path.GetFileNameWithoutExtension(options.LogoPath);
-            AppendLineAndScan(Center($"[{logoName.ToUpperInvariant()} LOGO]"));
+            AppendLineAndScan(divider);
         }
 
         // 2. Header Information
@@ -209,6 +196,16 @@ public static class ReceiptSnapshotFormatter
             AppendLineAndScan(Center(options.FooterText));
         }
 
+        if (options.CopyType == ReceiptCopyType.MerchantCopy && options.IncludeSignatureLine)
+        {
+            AppendLineAndScan(divider);
+            AppendLineAndScan(Center("CUSTOMER / CARDHOLDER SIGNATURE"));
+            sb.AppendLine();
+            AppendLineAndScan("X ________________________________________");
+            AppendLineAndScan(Center("I agree to pay the above total amount"));
+            AppendLineAndScan(Center("according to card issuer agreement."));
+        }
+
         var text = sb.ToString();
         var lineCount = text.Split('\n').Length;
 
@@ -255,6 +252,9 @@ public static class ReceiptSnapshotFormatter
         sb.AppendLine(TwoColumn("Columns:", profile.CharactersPerLine.ToString()));
         sb.AppendLine(TwoColumn("Cutter:", profile.SupportsCutter ? "Supported" : "None"));
         sb.AppendLine(TwoColumn("Drawer:", profile.SupportsCashDrawer ? "Supported" : "None"));
+        sb.AppendLine(TwoColumn("Customer Copy:", profile.PrintCustomerCopy ? $"{profile.CustomerCopies} Copy" : "Disabled"));
+        sb.AppendLine(TwoColumn("Merchant Copy:", profile.PrintMerchantCopy ? $"{profile.MerchantCopies} Copy ({profile.MerchantCopyTrigger})" : "Disabled"));
+        sb.AppendLine(TwoColumn("Signature Line:", profile.MerchantIncludeSignature ? "Enabled" : "Disabled"));
         sb.AppendLine(TwoColumn("Requested By:", operatorName));
         sb.AppendLine(TwoColumn("Test Time:", DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " UTC"));
         sb.AppendLine(subDivider);
@@ -303,20 +303,4 @@ public static class ReceiptSnapshotFormatter
 
         return false;
     }
-
-    /// <summary>
-    /// Formats a draft bill or pre-settlement proforma check.
-    /// Strictly labeled as a draft bill, never producing a finalized sales receipt.
-    /// </summary>
-    public static ReceiptFormattingResult FormatDraftBill(PrintableReceiptData data, ReceiptRenderOptions? options = null)
-    {
-        var draftOptions = (options ?? new ReceiptRenderOptions()) with
-        {
-            CopyType = ReceiptCopyType.Draft,
-            IsReprint = false
-        };
-
-        return Format(data, draftOptions);
-    }
 }
-

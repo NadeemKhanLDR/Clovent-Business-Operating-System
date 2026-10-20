@@ -31,6 +31,33 @@ public static class NavigationPage
     public const string Settings = "Settings";
 
     /// <summary>
+    /// DevExpress SVG icon URIs for each top-level Ribbon page header.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> PageIcons = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [Masters] = "svgimages/icon%20builder/actions_database.svg",
+        [Inventory] = "svgimages/icon%20builder/shopping_box.svg",
+        [Purchases] = "svgimages/icon%20builder/shopping_delivery.svg",
+        [Pos] = "svgimages/icon%20builder/shopping_shoppingcart.svg",
+        [ManagerPanel] = "svgimages/icon%20builder/business_briefcase.svg",
+        [Users] = "svgimages/business%20objects/bo_user.svg",
+        [Reports] = "svgimages/business%20objects/bo_report.svg",
+        [Settings] = "svgimages/icon%20builder/actions_settings.svg"
+    };
+
+    /// <summary>
+    /// Recommended compact SVG image dimensions (14x14) for Ribbon page headers to match 9.5pt typography.
+    /// Prevents high-DPI scaling inflation and maintains standard ribbon tab proportions.
+    /// </summary>
+    public static readonly System.Drawing.Size PageIconSize = new(14, 14);
+
+    /// <summary>
+    /// Returns the DevExpress SVG icon URI for the given ribbon page caption.
+    /// </summary>
+    public static string GetIconUri(string pageName) =>
+        PageIcons.TryGetValue(pageName, out var uri) ? uri : "svgimages/icon%20builder/actions_settings.svg";
+
+    /// <summary>
     /// The canonical list of all top-level ribbon pages in strictly ordered sequence.
     /// </summary>
     public static readonly IReadOnlyList<string> OrderedPages =

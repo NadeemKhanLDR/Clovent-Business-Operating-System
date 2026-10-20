@@ -323,10 +323,15 @@ internal static class Program
 
             string? selectedModule = null;
 #if DEBUG
+            var currentMachineId = Clovent.Desktop.Licensing.MachineFingerprint.GetCurrentMachineId();
+            var isDevelopmentMachine = string.Equals(currentMachineId, "0712-7CA3-8171-7B34", StringComparison.OrdinalIgnoreCase);
+            var devUser = isDevelopmentMachine ? "admin_acceptance" : "Admin";
+            var devPass = isDevelopmentMachine ? "Password@2026!" : "Admin123!";
+
             if (args.Any(a => string.Equals(a, "--pos", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-pos", StringComparison.OrdinalIgnoreCase)))
             {
                 var loginService = host.Services.GetRequiredService<ILoginService>();
-                var result = loginService.LoginAsync(new LoginRequest("Admin", "Admin123!", null, false)).GetAwaiter().GetResult();
+                var result = loginService.LoginAsync(new LoginRequest(devUser, devPass, null, false)).GetAwaiter().GetResult();
                 if (result.Succeeded)
                 {
                     selectedModule = "pos";
@@ -335,7 +340,7 @@ internal static class Program
             else if (args.Any(a => string.Equals(a, "--backoffice", StringComparison.OrdinalIgnoreCase) || string.Equals(a, "-backoffice", StringComparison.OrdinalIgnoreCase)))
             {
                 var loginService = host.Services.GetRequiredService<ILoginService>();
-                var result = loginService.LoginAsync(new LoginRequest("Admin", "Admin123!", null, false)).GetAwaiter().GetResult();
+                var result = loginService.LoginAsync(new LoginRequest(devUser, devPass, null, false)).GetAwaiter().GetResult();
                 if (result.Succeeded)
                 {
                     selectedModule = "backoffice";

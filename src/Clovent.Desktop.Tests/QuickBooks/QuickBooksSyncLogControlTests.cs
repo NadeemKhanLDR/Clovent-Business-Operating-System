@@ -51,4 +51,27 @@ public sealed class QuickBooksSyncLogControlTests
         Assert.NotNull(view.LogControl);
         Assert.Equal(DockStyle.Fill, view.LogControl.Dock);
     }
+
+    [Fact]
+    public void QuickBooksSyncLogView_Layout_EnforcesNonOverlappingSections()
+    {
+        using var form = new Form { Size = new System.Drawing.Size(1200, 700) };
+        using var view = new QuickBooksSyncLogView(null, null, null, null, null) { Dock = DockStyle.Fill };
+        form.Controls.Add(view);
+        form.Show();
+
+        var control = view.LogControl;
+        var header = (DevExpress.XtraEditors.PanelControl)typeof(QuickBooksSyncLogControl).GetField("_headerPanel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(control)!;
+        var kpis = (TableLayoutPanel)typeof(QuickBooksSyncLogControl).GetField("_kpiCardLayout", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(control)!;
+        var toolbar = (DevExpress.XtraEditors.PanelControl)typeof(QuickBooksSyncLogControl).GetField("_toolbarPanel", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(control)!;
+        var grid = (DevExpress.XtraGrid.GridControl)typeof(QuickBooksSyncLogControl).GetField("_gridControl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(control)!;
+
+        Assert.True(header.Height >= 50, $"Header height {header.Height} should be at least 50");
+        Assert.True(kpis.Height >= 80, $"KPI cards height {kpis.Height} should be at least 80");
+        Assert.True(toolbar.Height >= 38, $"Toolbar height {toolbar.Height} should be at least 38");
+
+        Assert.True(header.Bottom <= kpis.Top, "Header should not overlap with KPI cards");
+        Assert.True(kpis.Bottom <= toolbar.Top, "KPI cards should not overlap with Toolbar");
+        Assert.True(toolbar.Bottom <= grid.Top, "Toolbar should not overlap with Grid");
+    }
 }

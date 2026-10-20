@@ -192,4 +192,39 @@ public sealed class NavigationRegistryTests
         Assert.Equal(NavigationPage.Masters, menuItems.RibbonPage);
         Assert.True(categories.Order < menuItems.Order, $"Categories order ({categories.Order}) must be less than Menu Items order ({menuItems.Order})");
     }
+
+    [Fact]
+    public void PageIcons_ContainsAllOrderedPages_WithValidDevExpressSvgUris()
+    {
+        var cache = DevExpress.Images.ImageResourceCache.Default;
+        foreach (var page in NavigationPage.OrderedPages)
+        {
+            Assert.True(NavigationPage.PageIcons.ContainsKey(page), $"Page '{page}' is missing an icon URI in NavigationPage.PageIcons.");
+            var uri = NavigationPage.GetIconUri(page);
+            Assert.False(string.IsNullOrWhiteSpace(uri), $"Page '{page}' icon URI is empty.");
+
+            var svg = cache.GetSvgImage(uri);
+            Assert.NotNull(svg);
+
+            var regUri = NavigationRegistry.GetPageIconUri(page);
+            Assert.Equal(uri, regUri);
+        }
+    }
+
+    [Fact]
+    public void MainForm_RibbonPages_HaveSvgImagesAssigned()
+    {
+        using var form = (Clovent.Desktop.Forms.Shell.MainForm)Activator.CreateInstance(typeof(Clovent.Desktop.Forms.Shell.MainForm), nonPublic: true)!;
+        var ribbon = form.Ribbon;
+        Assert.NotNull(ribbon);
+        Assert.NotEmpty(ribbon.Pages);
+
+        foreach (DevExpress.XtraBars.Ribbon.RibbonPage page in ribbon.Pages)
+        {
+            Assert.True(page.ImageOptions.HasSvgImage, $"Ribbon page '{page.Text}' does not have an SVG image assigned.");
+            Assert.NotNull(page.ImageOptions.SvgImage);
+            Assert.Equal(NavigationPage.PageIconSize, page.ImageOptions.SvgImageSize);
+            Assert.Equal(4, page.ImageOptions.ImageToTextIndent);
+        }
+    }
 }

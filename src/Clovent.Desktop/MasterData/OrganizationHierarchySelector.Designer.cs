@@ -45,7 +45,10 @@ partial class OrganizationHierarchySelector
         //
         _organizationCombo.Name = "_organizationCombo";
         _organizationCombo.Width = 260;
+        _organizationCombo.Properties.AutoHeight = false;
         _organizationCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _organizationCombo.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        _organizationCombo.Properties.Appearance.Options.UseFont = true;
         _organizationCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _organizationCombo.Properties.Appearance.Options.UseTextOptions = true;
         _organizationCombo.Properties.AppearanceDropDown.Font = new System.Drawing.Font("Segoe UI", 9.5F);
@@ -59,7 +62,10 @@ partial class OrganizationHierarchySelector
         //
         _companyCombo.Name = "_companyCombo";
         _companyCombo.Width = 260;
+        _companyCombo.Properties.AutoHeight = false;
         _companyCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _companyCombo.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        _companyCombo.Properties.Appearance.Options.UseFont = true;
         _companyCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _companyCombo.Properties.Appearance.Options.UseTextOptions = true;
         _companyCombo.Properties.AppearanceDropDown.Font = new System.Drawing.Font("Segoe UI", 9.5F);
@@ -73,7 +79,10 @@ partial class OrganizationHierarchySelector
         //
         _branchCombo.Name = "_branchCombo";
         _branchCombo.Width = 260;
+        _branchCombo.Properties.AutoHeight = false;
         _branchCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        _branchCombo.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        _branchCombo.Properties.Appearance.Options.UseFont = true;
         _branchCombo.Properties.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         _branchCombo.Properties.Appearance.Options.UseTextOptions = true;
         _branchCombo.Properties.AppearanceDropDown.Font = new System.Drawing.Font("Segoe UI", 9.5F);
@@ -94,7 +103,7 @@ partial class OrganizationHierarchySelector
         _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        _layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _layout.AutoSize = true;
         _layout.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         _layout.Name = "_layout";
@@ -107,6 +116,8 @@ partial class OrganizationHierarchySelector
             Margin = new Padding(0, 0, 4, 0),
             AutoSizeMode = LabelAutoSizeMode.Horizontal
         };
+        lblOrg.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        lblOrg.Appearance.Options.UseFont = true;
         lblOrg.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
         lblOrg.Appearance.Options.UseTextOptions = true;
         _layout.Controls.Add(lblOrg, 0, 0);
@@ -121,6 +132,8 @@ partial class OrganizationHierarchySelector
                 Margin = new Padding(0, 0, 4, 0),
                 AutoSizeMode = LabelAutoSizeMode.Horizontal
             };
+            lblComp.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            lblComp.Appearance.Options.UseFont = true;
             lblComp.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             lblComp.Appearance.Options.UseTextOptions = true;
             _layout.Controls.Add(lblComp, 2, 0);
@@ -136,6 +149,8 @@ partial class OrganizationHierarchySelector
                 Margin = new Padding(0, 0, 4, 0),
                 AutoSizeMode = LabelAutoSizeMode.Horizontal
             };
+            lblBranch.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            lblBranch.Appearance.Options.UseFont = true;
             lblBranch.Appearance.TextOptions.VAlignment = DevExpress.Utils.VertAlignment.Center;
             lblBranch.Appearance.Options.UseTextOptions = true;
             _layout.Controls.Add(lblBranch, 4, 0);

@@ -652,6 +652,9 @@ public static class NavigationRegistry
         return item?.IconUri ?? "svgimages/business%20objects/bo_order.svg";
     }
 
+    /// <summary>Retrieves the DevExpress SVG image URI for a top-level ribbon page.</summary>
+    public static string GetPageIconUri(string pageName) => NavigationPage.GetIconUri(pageName);
+
     /// <summary>
     /// Gets the canonical primary <see cref="NavigationItemDefinition.RibbonPage"/> for a given navigation key.
     /// Non-shortcut items take precedence over shortcuts.

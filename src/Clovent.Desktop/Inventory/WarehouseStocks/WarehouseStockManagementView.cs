@@ -32,11 +32,9 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
-    private readonly CancellationTokenSource _lifecycleCts = new();
 
     private IReadOnlyList<(Guid Id, string Display)> _warehouseOptions = [];
     private Dictionary<Guid, (string Sku, string Name)> _variantsById = [];
-    private bool _isLoadingLookups;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public WarehouseStockManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
@@ -54,36 +52,15 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     {
         if (disposing)
         {
-            try
-            {
-                _lifecycleCts.Cancel();
-            }
-            catch (ObjectDisposedException) { }
-
-            _gate.Drain(TimeSpan.FromMilliseconds(500));
             _scope.Dispose();
             _gate.Dispose();
-            try
-            {
-                _lifecycleCts.Dispose();
-            }
-            catch (ObjectDisposedException) { }
-
             components?.Dispose();
         }
 
         base.Dispose(disposing);
     }
 
-    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e)
-    {
-        if (_isLoadingLookups || _lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
-        {
-            return;
-        }
-
-        await _listView.RefreshAsync(_lifecycleCts.Token);
-    }
+    private async void WarehousePicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
 
     private async void ReceiveInventoryButton_Click(object? sender, EventArgs e) => await ReceiveInventoryAsync();
 
@@ -91,34 +68,16 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
 
     private async Task LoadLookupsAsync()
     {
-        _isLoadingLookups = true;
-        try
-        {
-            await LoadVariantsAsync(_lifecycleCts.Token);
+        await LoadVariantsAsync();
 
-            var warehouses = await _mediator.Send(new ListAllWarehousesQuery(), _lifecycleCts.Token);
-            _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
-            _warehousePicker.LoadItems(_warehouseOptions);
-        }
-        catch (OperationCanceledException) when (_lifecycleCts.IsCancellationRequested)
-        {
-            return;
-        }
-        finally
-        {
-            _isLoadingLookups = false;
-        }
-
-        if (!_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing)
-        {
-            await _listView.RefreshAsync(_lifecycleCts.Token);
-        }
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        _warehouseOptions = [.. warehouses.Select(w => (w.WarehouseId, w.Name))];
+        _warehousePicker.LoadItems(_warehouseOptions);
     }
 
     private async Task LoadVariantsAsync(CancellationToken cancellationToken = default)
     {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
-        var variants = await _mediator.Send(new ListProductVariantsQuery(), linked.Token);
+        var variants = await _mediator.Send(new ListProductVariantsQuery(), cancellationToken);
         _variantsById = variants.ToDictionary(v => v.ProductVariantId, v =>
         {
             var displayName = !string.IsNullOrWhiteSpace(v.ProductName)
@@ -137,15 +96,12 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
             return [];
         }
 
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
-        var token = linked.Token;
-
         if (_variantsById.Count == 0)
         {
-            await LoadVariantsAsync(token);
+            await LoadVariantsAsync(cancellationToken);
         }
 
-        var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), token);
+        var items = await _mediator.Send(new ListWarehouseStocksByWarehouseQuery(warehouseId), cancellationToken);
         return
         [
             .. items.Select(dto =>
@@ -158,8 +114,8 @@ public sealed partial class WarehouseStockManagementView : XtraUserControl
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
-        _currentSession.UserId is { } userId && !_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing
-            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}", _lifecycleCts.Token)
+        _currentSession.UserId is { } userId
+            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
             : Task.FromResult(false);
 
     private async Task CreateAsync()

@@ -237,17 +237,21 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         form.ShowDialog(this);
     }
 
-    private void DatabaseSettingsButton_ItemClick(object? sender, ItemClickEventArgs e)
+    private async void DatabaseSettingsButton_ItemClick(object? sender, ItemClickEventArgs e)
     {
-        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue && !Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivileges())
+        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue)
         {
-            DevExpress.XtraEditors.XtraMessageBox.Show(
-                this,
-                "Access Denied: Administrative privileges are required to configure database connection settings.",
-                "Access Denied",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
+            var hasPrivileges = await Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivilegesAsync();
+            if (!hasPrivileges)
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    this,
+                    "Access Denied: Administrative privileges are required to configure database connection settings.",
+                    "Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
         }
 
         using var dlg = new Clovent.Desktop.Configuration.DatabaseConnectionDialog();
@@ -480,77 +484,45 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
     private async Task SignOutAsync()
     {
         var outgoingUserDisplayName = _currentSession.DisplayName ?? "Unknown";
+
         var outgoingSessionId = _currentSession.SessionId;
 
-        // 1. Immediately clear session identity and update UI to unauthenticated state
-        // so UI remains consistent even if downstream cleanup or re-login throws.
-        try
-        {
-            _currentSession.SignOut();
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            _logger?.LogError(ex, "Error clearing current session identity during sign-out.");
-        }
-
-        _profileMenu.Caption = "Account";
-        _userStatusItem.Caption = "Not signed in";
-        _attendanceStatusItem.Caption = "Attendance: --";
-        Hide();
-
-        // 2. Best-effort server-side session termination and audit logging
-        if (_scopeFactory != null)
+        using (var logScope = _scopeFactory.CreateScope())
         {
             try
             {
-                using var logScope = _scopeFactory.CreateScope();
-                var mediator = logScope.ServiceProvider.GetService<IMediator>();
-                if (mediator != null)
+                var mediator = logScope.ServiceProvider.GetRequiredService<IMediator>();
+                if (outgoingSessionId is { } activeSessionId)
                 {
-                    if (outgoingSessionId is { } activeSessionId)
-                    {
-                        await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
-                    }
-
-                    await mediator.Send(new RecordActivityCommand("Logout", null, outgoingUserDisplayName, Environment.MachineName));
+                    await mediator.Send(new Clovent.Authentication.Application.Sessions.Commands.LogOutSessionCommand(activeSessionId));
                 }
+
+                await mediator.Send(new RecordActivityCommand("Logout", null, outgoingUserDisplayName, Environment.MachineName));
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
-                _logger?.LogWarning(ex, "Failed to log out session on server or record logout activity for user {User}.", outgoingUserDisplayName);
+                // Best-effort - see RestaurantPosView.LogActivityAsync's
+                // identical reasoning; a logging hiccup shouldn't block
+                // signing out.
             }
         }
 
-        // 3. Re-prompt authentication via LoginForm
+        _currentSession.SignOut();
+        Hide();
+
+        using var scope = _scopeFactory.CreateScope();
+        var loginForm = scope.ServiceProvider.GetRequiredService<LoginForm>();
         var signedIn = false;
-        string? selectedModuleKey = null;
+        loginForm.LoginSucceeded += (_, _) => signedIn = true;
+        loginForm.ShowDialog(this);
 
-        if (_scopeFactory == null)
+        if (!signedIn)
         {
             Close();
             return;
         }
 
-        try
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var loginForm = scope.ServiceProvider.GetRequiredService<LoginForm>();
-            loginForm.LoginSucceeded += (_, _) => signedIn = true;
-            loginForm.ShowDialog(this);
-            selectedModuleKey = loginForm.SelectedModuleKey;
-        }
-        catch (Exception ex) when (ex is not OutOfMemoryException)
-        {
-            _logger?.LogError(ex, "Failed to display LoginForm during sign-out re-authentication.");
-        }
-
-        if (!signedIn || !_currentSession.IsAuthenticated)
-        {
-            Close();
-            return;
-        }
-
-        if (string.Equals(selectedModuleKey, "pos", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(loginForm.SelectedModuleKey, "pos", StringComparison.OrdinalIgnoreCase))
         {
             var opened = await OpenRestaurantPosWithGateAsync();
             if (opened) return;
@@ -639,13 +611,10 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         var content = contentFactory();
         if (content is Form form)
         {
-            using (form)
-            {
-                form.StartPosition = FormStartPosition.CenterParent;
-                LocalizationHelper.LocalizeControl(form);
-                form.ShowDialog(this);
-            }
-            return;
+            throw new InvalidOperationException(
+                $"Cannot host '{form.GetType().Name}' as a DocumentManager document. " +
+                $"In non-MDI mode, documents must inherit from UserControl/XtraUserControl or BaseForm, not Form/XtraForm. " +
+                $"Alternatively, open '{form.GetType().Name}' via Show() or ShowDialog().");
         }
 
         content.Dock = DockStyle.Fill;
@@ -662,6 +631,20 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         if (content is BaseForm baseForm)
         {
             _ = RunInitialRefreshAsync(baseForm);
+        }
+    }
+
+    /// <summary>
+    /// Closes the document containing the specified control, if currently open.
+    /// </summary>
+    public void CloseDocument(Control control)
+    {
+        ArgumentNullException.ThrowIfNull(control);
+
+        var doc = _tabbedView.Documents.FirstOrDefault(d => ReferenceEquals(d.Control, control) || (d.Control is Control c && c.Contains(control)));
+        if (doc != null)
+        {
+            _tabbedView.Controller.Close(doc);
         }
     }
 

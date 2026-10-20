@@ -33,6 +33,24 @@ public sealed class PrinterProfile
     /// <summary>Number of physical copies to produce per print request.</summary>
     public int PrintCopies { get; set; } = 1;
 
+    /// <summary>Whether to automatically print a customer copy upon completed sale.</summary>
+    public bool PrintCustomerCopy { get; set; } = true;
+
+    /// <summary>Number of customer receipt copies to print (default 1).</summary>
+    public int CustomerCopies { get; set; } = 1;
+
+    /// <summary>Whether to print a merchant / store audit copy upon completed sale.</summary>
+    public bool PrintMerchantCopy { get; set; } = false;
+
+    /// <summary>Number of merchant receipt copies to print (default 1).</summary>
+    public int MerchantCopies { get; set; } = 1;
+
+    /// <summary>Payment condition that triggers the merchant copy.</summary>
+    public MerchantCopyTrigger MerchantCopyTrigger { get; set; } = MerchantCopyTrigger.CardAndDigitalOnly;
+
+    /// <summary>Whether to include a customer signature line on the merchant copy.</summary>
+    public bool MerchantIncludeSignature { get; set; } = true;
+
     /// <summary>Whether this device supports an automatic paper cutter command.</summary>
     public bool SupportsCutter { get; set; } = true;
 

@@ -11,10 +11,8 @@ public sealed record ReceiptRenderOptions(
     string? ReprintReason = null,
     string? HeaderText = "Clovent Business Operating System",
     string? FooterText = "Thank you for your visit!",
-    ReceiptCopyType CopyType = ReceiptCopyType.Customer,
-    int MarginMm = 2,
-    string? LogoPath = null,
-    bool EnableLogo = false);
+    ReceiptCopyType CopyType = ReceiptCopyType.Standard,
+    bool IncludeSignatureLine = false);
 
 /// <summary>
 /// Result of a receipt formatting execution, indicating layout and script properties.

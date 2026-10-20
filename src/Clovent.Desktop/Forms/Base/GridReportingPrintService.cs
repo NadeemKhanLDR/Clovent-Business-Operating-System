@@ -159,7 +159,7 @@ public static class GridReportingPrintService
             Component = grid,
             Landscape = landscape,
             PaperKind = DXPaperKind.A4,
-            Margins = new System.Drawing.Printing.Margins(30, 30, 45, 45)
+            Margins = new System.Drawing.Printing.Margins(30, 30, 85, 50)
         };
 
         if (link.PageHeaderFooter is PageHeaderFooter phf)
@@ -175,6 +175,7 @@ public static class GridReportingPrintService
                 headerRight
             ]);
             phf.Header.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            phf.Header.LineAlignment = BrickAlignment.Center;
 
             phf.Footer.Content.Clear();
             phf.Footer.Content.AddRange([

@@ -28,11 +28,11 @@ public static class AdministrativePrivilegeChecker
     }
 
     /// <summary>
-    /// Verifies whether the current user has administrative privileges.
+    /// Verifies whether the current user has administrative privileges asynchronously.
     /// If no user session is active (e.g. initial setup / pre-login bootstrapping), checks for Windows Administrator elevation.
     /// If a session is active, verifies administrator role or administrative permissions.
     /// </summary>
-    public static bool HasAdministrativePrivileges(IServiceProvider? services = null)
+    public static async Task<bool> HasAdministrativePrivilegesAsync(IServiceProvider? services = null)
     {
         services ??= Program.Services;
         if (services == null)
@@ -56,15 +56,15 @@ public static class AdministrativePrivilegeChecker
             var authService = scope.ServiceProvider.GetService<IAuthorizationService>();
             if (authService != null)
             {
-                if (authService.HasRoleAsync(userId, "Administrator").GetAwaiter().GetResult() ||
-                    authService.HasRoleAsync(userId, "Admin").GetAwaiter().GetResult() ||
-                    authService.HasRoleAsync(userId, "SuperAdmin").GetAwaiter().GetResult())
+                if (await authService.HasRoleAsync(userId, "Administrator").ConfigureAwait(false) ||
+                    await authService.HasRoleAsync(userId, "Admin").ConfigureAwait(false) ||
+                    await authService.HasRoleAsync(userId, "SuperAdmin").ConfigureAwait(false))
                 {
                     return true;
                 }
 
-                if (authService.HasPermissionAsync(userId, "feature.businesssettings.edit").GetAwaiter().GetResult() ||
-                    authService.HasPermissionAsync(userId, "feature.users.create").GetAwaiter().GetResult())
+                if (await authService.HasPermissionAsync(userId, "feature.businesssettings.edit").ConfigureAwait(false) ||
+                    await authService.HasPermissionAsync(userId, "feature.users.create").ConfigureAwait(false))
                 {
                     return true;
                 }
@@ -77,5 +77,14 @@ public static class AdministrativePrivilegeChecker
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Verifies whether the current user has administrative privileges.
+    /// Executes the evaluation off the synchronization context to prevent UI-thread deadlocks.
+    /// </summary>
+    public static bool HasAdministrativePrivileges(IServiceProvider? services = null)
+    {
+        return Task.Run(() => HasAdministrativePrivilegesAsync(services)).GetAwaiter().GetResult();
     }
 }
