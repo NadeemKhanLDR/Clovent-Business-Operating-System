@@ -93,7 +93,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     // crashed the screen on load with NullReferenceException. Anything the
     // Designer cannot round-trip has to live in this hand-written half of the
     // partial class, where it is safe from regeneration.
-    private readonly Clovent.Desktop.MasterData.EntityPicker _warehousePicker = new("Warehouse:");
+    private readonly Clovent.Desktop.MasterData.EntityPicker _warehousePicker = new("Location:", comboWidth: 200, customPadding: Padding.Empty);
     private readonly TablePickerEdit _tablePicker = new();
 
     private static readonly Color PageBackColor = Color.FromArgb(241, 245, 249);
@@ -358,6 +358,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
             _logger = _scope.ServiceProvider.GetService<ILogger<RestaurantPosForm>>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
             _currentSession = currentSession;
+            _currentSession.Changed += CurrentSession_Changed;
             _changeNotifier = changeNotifier;
             _splashScreenService = splashScreenService;
             _applicationModeNavigator = applicationModeNavigator ?? _scope.ServiceProvider.GetService<IApplicationModeNavigator>();
@@ -417,14 +418,12 @@ public sealed partial class RestaurantPosForm : XtraForm
     private void AttachPickers()
     {
         _warehousePicker.Name = nameof(_warehousePicker);
-        _warehousePicker.Margin = new Padding(8);
+        _warehousePicker.Dock = DockStyle.Fill;
+        _warehousePicker.Margin = new Padding(0, 2, 0, 2);
 
         _tablePicker.Name = nameof(_tablePicker);
         _tablePicker.Margin = new Padding(0, 1, 4, 1);
         _tablePicker.SelectionChanged += TablePicker_SelectionChanged;
-
-        _warehousePicker.Dock = DockStyle.Fill;
-        tlpOrderContext.Controls.Add(_warehousePicker, 0, 2);
     }
 
     private static void LogDesignerException(Exception ex, string context)
@@ -1854,7 +1853,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         int sepRowH = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, this);
 
         pnlOrderContext.Dock = DockStyle.Fill;
-        pnlOrderContext.AutoSize = false;
+        pnlOrderContext.AutoSize = true;
+        pnlOrderContext.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         pnlOrderContext.Margin = new Padding(0);
         pnlOrderContext.Padding = new Padding(0);
         pnlOrderContext.BackColor = Color.White;
@@ -1870,11 +1870,13 @@ public sealed partial class RestaurantPosForm : XtraForm
         tlpOrderContext.ColumnStyles.Clear();
         tlpOrderContext.RowStyles.Clear();
         tlpOrderContext.ColumnCount = 1;
-        tlpOrderContext.RowCount = 2;
-        tlpOrderContext.AutoSize = false;
+        tlpOrderContext.RowCount = 3;
+        tlpOrderContext.AutoSize = true;
+        tlpOrderContext.AutoSizeMode = AutoSizeMode.GrowAndShrink;
         tlpOrderContext.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-        tlpOrderContext.RowStyles.Add(new RowStyle(SizeType.Absolute, customerRowH));
-        tlpOrderContext.RowStyles.Add(new RowStyle(SizeType.Absolute, sepRowH));
+        tlpOrderContext.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpOrderContext.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        tlpOrderContext.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         // Customer row: Percent column for picker + fixed-width column for "+ New"
         _customerContainer.SuspendLayout();
@@ -1984,7 +1986,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         };
 
         tlpOrderContext.Controls.Add(_customerContainer, 0, 0);
-        tlpOrderContext.Controls.Add(customerSeparator, 0, 1);
+        tlpOrderContext.Controls.Add(_warehousePicker, 0, 1);
+        tlpOrderContext.Controls.Add(customerSeparator, 0, 2);
         tlpOrderContext.ResumeLayout(true);
 
         _lblCartTableNo.Parent = null;
@@ -2360,7 +2363,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         int row6H = cashModuleH + Clovent.Desktop.Forms.Base.DesktopDpi.Scale(2, this);
         int row7H = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(66, this);
 
-        _tlpRightRows.RowStyles.Add(new RowStyle(SizeType.Absolute, row0H));  // Row 0: Customer context + separator
+        _tlpRightRows.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Row 0: Customer context + location picker + separator
         _tlpRightRows.RowStyles.Add(new RowStyle(SizeType.Absolute, row1H));  // Row 1: Cart header combined
         _tlpRightRows.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));   // Row 2: Ordered Items viewport (flexible)
         _tlpRightRows.RowStyles.Add(new RowStyle(SizeType.Absolute, row3H));  // Row 3: Payment Summary (60px)
@@ -3385,6 +3388,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         {
             _changeNotifier.Changed -= MenuItemsChangeNotifier_Changed;
         }
+        if (_currentSession is not null)
+        {
+            _currentSession.Changed -= CurrentSession_Changed;
+        }
 
         try
         {
@@ -4403,12 +4410,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         _lineGrid.RepositoryItems.Add(quantityEditor);
         _lineGridColumnQuantity.ColumnEdit = quantityEditor;
 
-        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        await PopulateWarehousesAsync();
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
-        await EnsureUiThreadAsync();
-        _warehousePicker.LoadItems([.. warehouses.Select(w => (w.WarehouseId, w.Name))]);
-        _warehousePicker.Visible = warehouses.Count > 1;
-        _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}).", warehouses.Count);
 
         // Once per screen, before the first RefreshOrderAsync below needs them.
         await UpdatePermissionsAsync();
@@ -5783,21 +5786,88 @@ public sealed partial class RestaurantPosForm : XtraForm
         RefreshOfflineOrder(null);
     }
 
+    private async Task PopulateWarehousesAsync()
+    {
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
+        await EnsureUiThreadAsync();
+
+        var authorizedWhIds = warehouses.Select(w => w.WarehouseId).ToHashSet();
+
+        // Determine authorized configured default warehouse:
+        // Priority 1: PosSettingsStore.LoadWarehouseId() if authorized
+        // Priority 2: Continuity coordinator active cache warehouse if authorized
+        Guid? authorizedDefaultId = null;
+        var configuredWhId = PosSettingsStore.LoadWarehouseId();
+        if (configuredWhId.HasValue && authorizedWhIds.Contains(configuredWhId.Value))
+        {
+            authorizedDefaultId = configuredWhId.Value;
+        }
+        else if (_continuityCoordinator?.ActiveCache?.Metadata.WarehouseId is { } coordWhId && coordWhId != Guid.Empty && authorizedWhIds.Contains(coordWhId))
+        {
+            authorizedDefaultId = coordWhId;
+        }
+
+        // If current selection is still authorized, keep it; otherwise use authorized default or clear
+        var targetSelectedId = _warehousePicker.SelectedId.HasValue && authorizedWhIds.Contains(_warehousePicker.SelectedId.Value)
+            ? _warehousePicker.SelectedId.Value
+            : authorizedDefaultId;
+
+        // Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose index 0!
+        _warehousePicker.LoadItems(
+            [.. warehouses.Select(w => (w.WarehouseId, w.Name))],
+            autoSelectFirst: false,
+            initialSelectedId: targetSelectedId);
+
+        _warehousePicker.Visible = warehouses.Count > 1;
+        _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}), selected: {SelectedWarehouseId}.", warehouses.Count, _warehousePicker.SelectedId);
+    }
+
+    private void CurrentSession_Changed(object? sender, EventArgs e)
+    {
+        if (IsHandleCreated && !IsDisposed && !Disposing)
+        {
+            BeginInvoke(async () =>
+            {
+                try
+                {
+                    await PopulateWarehousesAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to revalidate warehouse selection on session change.");
+                }
+            });
+        }
+    }
+
     private async Task<Guid?> EnsureWarehouseSelectedAsync()
     {
-        if (_warehousePicker.SelectedId is { } id)
+        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+        var authorizedWhIds = warehouses.Select(w => w.WarehouseId).ToHashSet();
+
+        // 1. If currently selected ID is valid and authorized, return it
+        if (_warehousePicker.SelectedId is { } id && authorizedWhIds.Contains(id))
         {
             return id;
         }
 
-        var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        if (warehouses.Count > 0)
+        // 2. If configured default warehouse is authorized, select and return it
+        var configuredWhId = PosSettingsStore.LoadWarehouseId();
+        if (configuredWhId.HasValue && authorizedWhIds.Contains(configuredWhId.Value))
         {
-            var firstId = warehouses.First().WarehouseId;
-            _warehousePicker.SelectId(firstId);
-            return _warehousePicker.SelectedId ?? firstId;
+            _warehousePicker.SelectId(configuredWhId.Value);
+            return configuredWhId.Value;
         }
 
+        if (_continuityCoordinator?.ActiveCache?.Metadata.WarehouseId is { } coordWhId && coordWhId != Guid.Empty && authorizedWhIds.Contains(coordWhId))
+        {
+            _warehousePicker.SelectId(coordWhId);
+            return coordWhId;
+        }
+
+        // 3. Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose index 0!
+        _warehousePicker.ClearSelection();
         return null;
     }
 

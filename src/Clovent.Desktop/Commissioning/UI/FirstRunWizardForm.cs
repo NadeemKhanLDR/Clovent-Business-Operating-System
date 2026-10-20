@@ -69,6 +69,7 @@ public partial class FirstRunWizardForm : XtraForm
         btnTestConnection.Click += BtnTestConnection_Click;
         cmbAuth.SelectedIndexChanged += CmbAuth_SelectedIndexChanged;
         txtServer.TextChanged += ConnectionField_Changed;
+        txtDatabase.QueryPopUp += TxtDatabase_QueryPopUp;
         txtDatabase.TextChanged += ConnectionField_Changed;
         txtUsername.TextChanged += ConnectionField_Changed;
         txtPassword.TextChanged += ConnectionField_Changed;
@@ -443,6 +444,56 @@ public partial class FirstRunWizardForm : XtraForm
         }
 
         UpdateAuthControlState();
+
+        txtDatabase.Properties.Items.Clear();
+        txtDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+        if (!string.Equals(txtDatabase.Text, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(txtDatabase.Text))
+        {
+            txtDatabase.Properties.Items.Add(txtDatabase.Text);
+        }
+    }
+
+    private void TxtDatabase_QueryPopUp(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        PopulateAvailableDatabasesForStep2();
+    }
+
+    private void PopulateAvailableDatabasesForStep2()
+    {
+        var currentText = txtDatabase.Text;
+        var databases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        databases.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+        if (!string.IsNullOrWhiteSpace(currentText))
+        {
+            databases.Add(currentText.Trim());
+        }
+
+        var settings = BuildSettingsFromUi();
+        var discovered = DatabaseSecretStore.EnumerateDatabases(settings);
+        foreach (var db in discovered)
+        {
+            databases.Add(db);
+        }
+
+        txtDatabase.Properties.Items.BeginUpdate();
+        try
+        {
+            txtDatabase.Properties.Items.Clear();
+            foreach (var db in databases.OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
+            {
+                txtDatabase.Properties.Items.Add(db);
+            }
+        }
+        finally
+        {
+            txtDatabase.Properties.Items.EndUpdate();
+        }
+
+        if (!string.IsNullOrEmpty(currentText))
+        {
+            txtDatabase.Text = currentText;
+        }
     }
 
     private void CmbAuth_SelectedIndexChanged(object? sender, EventArgs e)
@@ -501,6 +552,7 @@ public partial class FirstRunWizardForm : XtraForm
                 _isConnectionTested = true;
                 lblConnectionStatus.Text = "Connection successful!";
                 lblConnectionStatus.Appearance.ForeColor = Color.ForestGreen;
+                PopulateAvailableDatabasesForStep2();
             }
             else
             {

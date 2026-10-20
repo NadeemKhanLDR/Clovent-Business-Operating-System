@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Clovent.Domain\Clovent.Domain.csproj" />
+    <ProjectReference Include="..\Clovent.Identity\Clovent.Identity.csproj" />
     <ProjectReference Include="..\Clovent.MasterData\Clovent.MasterData.csproj" />
+    <ProjectReference Include="..\Clovent.Platform\Clovent.Platform.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -96,8 +96,17 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
         _combo.MinimumSize = new System.Drawing.Size(targetWidth, targetHeight);
     }
 
-    /// <summary>Replaces the picker's options. Selects the first item, if any, or clears the selection otherwise.</summary>
-    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items)
+    /// <summary>Clears the current selection, setting <see cref="SelectedId"/> to <see langword="null"/>.</summary>
+    public void ClearSelection()
+    {
+        _combo.SelectedIndex = -1;
+        _combo.EditValue = null;
+        SelectedId = null;
+        SelectionChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Replaces the picker's options. Optionally selects the initial id or first item.</summary>
+    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items, bool autoSelectFirst = true, Guid? initialSelectedId = null)
     {
         _isLoadingItems = true;
         try
@@ -112,9 +121,18 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
                 _combo.Properties.Items.Add(display);
             }
 
-            if (_combo.Properties.Items.Count > 0)
+            if (initialSelectedId.HasValue)
+            {
+                SelectId(initialSelectedId.Value);
+            }
+            else if (autoSelectFirst && _combo.Properties.Items.Count > 0)
             {
                 _combo.SelectedIndex = 0;
+            }
+            else
+            {
+                _combo.SelectedIndex = -1;
+                _combo.EditValue = null;
             }
         }
         finally

@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
 
 namespace Clovent.Desktop.Configuration;
 
@@ -298,5 +299,51 @@ public static class DatabaseSecretStore
             errorMessage = ex.Message;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Attempts to enumerate online user databases from the specified SQL Server instance.
+    /// Gracefully returns an empty list if the server cannot be reached or permissions are insufficient.
+    /// </summary>
+    public static IReadOnlyList<string> EnumerateDatabases(DatabaseConnectionSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var masterSettings = settings.Clone();
+            masterSettings.Database = "master";
+            masterSettings.ConnectionTimeout = 3;
+
+            var builder = new SqlConnectionStringBuilder(masterSettings.BuildConnectionString())
+            {
+                ConnectTimeout = 3
+            };
+
+            using var connection = new SqlConnection(builder.ConnectionString);
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandTimeout = 3;
+            command.CommandText = "SELECT name FROM sys.databases WHERE state_desc = 'ONLINE' AND name NOT IN ('master', 'tempdb', 'model', 'msdb') ORDER BY name;";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                if (!reader.IsDBNull(0))
+                {
+                    var name = reader.GetString(0);
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        result.Add(name);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Fallback: server may be unreachable, offline, or user lacks VIEW ANY DATABASE permissions on master
+        }
+
+        return result.OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }

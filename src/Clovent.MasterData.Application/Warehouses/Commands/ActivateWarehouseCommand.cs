@@ -1,21 +1,21 @@
 using Clovent.MasterData.Application.Warehouses.Dtos;
-using Clovent.MasterData.Warehouses;
+using Clovent.MasterData.Application.Warehouses.Security;
+using Clovent.Platform.Execution;
 using MediatR;
 
 namespace Clovent.MasterData.Application.Warehouses.Commands;
 
-/// <summary>Activates a warehouse.</summary>
-public sealed record ActivateWarehouseCommand(Guid WarehouseId) : IRequest<WarehouseDto>;
+/// <summary>Activates an authorized warehouse.</summary>
+public sealed record ActivateWarehouseCommand(Guid WarehouseId) : IRequest<WarehouseDto>, IRequireCompanyScope;
 
 /// <summary>Handles <see cref="ActivateWarehouseCommand"/>.</summary>
-public sealed class ActivateWarehouseCommandHandler(IWarehouseRepository warehouseRepository)
+public sealed class ActivateWarehouseCommandHandler(IWarehouseScopeValidator warehouseScopeValidator)
     : IRequestHandler<ActivateWarehouseCommand, WarehouseDto>
 {
     /// <inheritdoc/>
     public async Task<WarehouseDto> Handle(ActivateWarehouseCommand request, CancellationToken cancellationToken)
     {
-        var warehouse = await warehouseRepository.GetByIdAsync(new WarehouseId(request.WarehouseId), cancellationToken)
-            ?? throw new NotFoundException(nameof(Warehouse), request.WarehouseId);
+        var warehouse = await warehouseScopeValidator.ValidateAndGetWarehouseAsync(request.WarehouseId, cancellationToken);
 
         warehouse.Activate();
 

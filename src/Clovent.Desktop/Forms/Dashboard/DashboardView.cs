@@ -25,6 +25,7 @@ using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Queries;
 using Clovent.Restaurant.Application.Orders.Queries;
 using Clovent.Restaurant.Application.Tables.Queries;
+using Clovent.Platform.Execution;
 using DevExpress.XtraEditors;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -253,49 +254,117 @@ public sealed partial class DashboardView : BaseForm
     {
         lblCurrentUserValue.Text = _currentSession.DisplayName ?? "Not signed in";
 
-        var organizations = await _mediator.Send(new ListOrganizationsQuery());
-        var organization = organizations.FirstOrDefault();
-        if (organization is null)
+        // 1. Resolve trusted active execution context from InteractiveScopeProvider or ExecutionContextAccessor
+        var activeContext = _scope?.ServiceProvider.GetService<IInteractiveScopeProvider>()?.GetCurrentContext()
+            ?? _scope?.ServiceProvider.GetService<IExecutionContextAccessor>()?.Current;
+
+        Guid? organizationId = activeContext?.OrganizationId;
+        Guid? companyId = activeContext?.CompanyId;
+        Guid? branchId = activeContext?.BranchId;
+
+        // If interactive scope context is not populated, resolve through authenticated user record
+        if ((!organizationId.HasValue || !companyId.HasValue) && _currentSession.UserId.HasValue)
         {
-            lblOrganizationValue.Text = "None configured";
-            lblCompanyValue.Text = "-";
-            lblBranchValue.Text = "-";
-            lblFiscalYearValue.Text = "-";
-            return;
+            try
+            {
+                var user = await _mediator.Send(new Clovent.Identity.Application.Users.Queries.GetUserByIdQuery(_currentSession.UserId.Value));
+                if (user != null)
+                {
+                    companyId ??= user.CompanyId;
+                    branchId ??= user.BranchId;
+
+                    if (user.CompanyId.HasValue)
+                    {
+                        var compDto = await _mediator.Send(new Clovent.Identity.Application.Companies.Queries.GetCompanyByIdQuery(user.CompanyId.Value));
+                        organizationId ??= compDto.OrganizationId;
+                    }
+                }
+            }
+            catch
+            {
+                // Unauthenticated or user not found
+            }
         }
 
-        lblOrganizationValue.Text = organization.Name;
-
-        var companies = await _mediator.Send(new ListCompaniesByOrganizationQuery(organization.OrganizationId));
-        var company = companies.FirstOrDefault();
-        lblCompanyValue.Text = company?.Name ?? "None configured";
-
-        if (company is not null)
+        // 2. Organization label
+        if (organizationId.HasValue && organizationId.Value != Guid.Empty)
         {
-            var branches = await _mediator.Send(new ListBranchesByCompanyQuery(company.CompanyId));
-            lblBranchValue.Text = branches.FirstOrDefault()?.Name ?? "None configured";
+            try
+            {
+                var org = await _mediator.Send(new Clovent.Identity.Application.Organizations.Queries.GetOrganizationByIdQuery(organizationId.Value));
+                lblOrganizationValue.Text = org.Name;
+            }
+            catch
+            {
+                lblOrganizationValue.Text = "Unknown Organization";
+            }
+        }
+        else
+        {
+            lblOrganizationValue.Text = "None configured";
+        }
+
+        // 3. Company label - bind strictly to verified active company; NEVER fall back to unrelated first company
+        if (companyId.HasValue && companyId.Value != Guid.Empty)
+        {
+            try
+            {
+                var comp = await _mediator.Send(new Clovent.Identity.Application.Companies.Queries.GetCompanyByIdQuery(companyId.Value));
+                lblCompanyValue.Text = comp.Name;
+                organizationId ??= comp.OrganizationId;
+            }
+            catch
+            {
+                lblCompanyValue.Text = "Unknown Company";
+            }
+        }
+        else
+        {
+            lblCompanyValue.Text = "-";
+        }
+
+        // 4. Branch label - bind strictly to verified active branch; NEVER fall back to unrelated first branch
+        if (branchId.HasValue && branchId.Value != Guid.Empty)
+        {
+            try
+            {
+                var br = await _mediator.Send(new Clovent.Identity.Application.Branches.Queries.GetBranchByIdQuery(branchId.Value));
+                lblBranchValue.Text = br.Name;
+            }
+            catch
+            {
+                lblBranchValue.Text = "Unknown Branch";
+            }
         }
         else
         {
             lblBranchValue.Text = "-";
         }
 
-        try
+        // 5. Fiscal Year label - query business settings for the validated organization only
+        if (organizationId.HasValue && organizationId.Value != Guid.Empty)
         {
-            var settings = await _mediator.Send(new GetBusinessSettingsByOrganizationQuery(organization.OrganizationId));
-            if (settings.DefaultFiscalYearId is { } fiscalYearId)
+            try
             {
-                var fiscalYear = await _mediator.Send(new GetFiscalYearByIdQuery(fiscalYearId));
-                lblFiscalYearValue.Text = $"{fiscalYear.Name} ({fiscalYear.Status})";
+                var settings = await _mediator.Send(new GetBusinessSettingsByOrganizationQuery(organizationId.Value));
+                if (settings?.DefaultFiscalYearId is { } fiscalYearId)
+                {
+                    var fiscalYear = await _mediator.Send(new GetFiscalYearByIdQuery(fiscalYearId));
+                    lblFiscalYearValue.Text = fiscalYear != null ? $"{fiscalYear.Name} ({fiscalYear.Status})" : "Not set";
+                }
+                else
+                {
+                    lblFiscalYearValue.Text = "Not set";
+                }
             }
-            else
+            catch (Clovent.MasterData.Application.NotFoundException)
             {
-                lblFiscalYearValue.Text = "Not set";
+                lblFiscalYearValue.Text = "Not configured";
             }
         }
-        catch (Clovent.MasterData.Application.NotFoundException)
+        else
         {
-            lblFiscalYearValue.Text = "Not configured";
+            lblFiscalYearValue.Text = "-";
         }
     }
 
