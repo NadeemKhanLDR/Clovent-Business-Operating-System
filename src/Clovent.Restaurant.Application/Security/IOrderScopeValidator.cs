@@ -22,4 +22,13 @@ public interface IOrderScopeValidator
     /// <see cref="Clovent.Platform.Execution.ScopeMismatchException"/> if company mismatch occurs.
     /// </summary>
     Task ValidateWarehouseCompanyAccessAsync(Guid warehouseId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Validates that a warehouse's owning company and branch match the caller's active execution scope.
+    /// If caller is branch-restricted, warehouse must belong to that branch.
+    /// Throws <see cref="Clovent.Platform.Execution.ScopeUnresolvedException"/> if scope is missing,
+    /// <see cref="NotFoundException"/> if warehouse is not found, or
+    /// <see cref="Clovent.Platform.Execution.ScopeMismatchException"/> if company or branch mismatch occurs.
+    /// </summary>
+    Task ValidateWarehouseAccessAsync(Guid warehouseId, CancellationToken cancellationToken = default);
 }

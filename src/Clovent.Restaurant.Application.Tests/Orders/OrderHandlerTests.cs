@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Security;
 using Clovent.MasterData.Shared.ValueObjects;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.Application.Orders.Commands;
@@ -486,4 +487,80 @@ public class OrderHandlerTests
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new GetOrderByIdQuery(Guid.NewGuid()), CancellationToken.None));
     }
+
+    [Fact]
+    public async Task CreateOrderCommandHandler_ForeignWarehouse_ThrowsScopeMismatchException()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var authorizedWhId = Guid.NewGuid();
+        var foreignWhId = Guid.NewGuid();
+
+        var scopeValidator = new FakeOrderScopeValidator { AuthorizedWarehouseId = authorizedWhId };
+        var handler = new CreateOrderCommandHandler(
+            orderRepository,
+            tableRepository,
+            new FakeOrderNumberSequenceRepository(),
+            orderScopeValidator: scopeValidator);
+
+        await Assert.ThrowsAsync<Clovent.Platform.Execution.ScopeMismatchException>(() =>
+            handler.Handle(new CreateOrderCommand(OrderType.TakeAway, foreignWhId), CancellationToken.None));
+
+        // Invariant: Rejection must never persist an order to storage
+        Assert.Empty(await orderRepository.GetOpenAsync(CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task CreateOrderCommandHandler_AuthorizedWarehouse_Succeeds()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var authorizedWhId = Guid.NewGuid();
+
+        var scopeValidator = new FakeOrderScopeValidator { AuthorizedWarehouseId = authorizedWhId };
+        var handler = new CreateOrderCommandHandler(
+            orderRepository,
+            tableRepository,
+            new FakeOrderNumberSequenceRepository(),
+            orderScopeValidator: scopeValidator);
+
+        var result = await handler.Handle(new CreateOrderCommand(OrderType.TakeAway, authorizedWhId), CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal(authorizedWhId, result.WarehouseId);
+        Assert.Equal("Open", result.Status);
+    }
+
+    private sealed class FakeOrderScopeValidator : IOrderScopeValidator
+    {
+        public Guid? AuthorizedWarehouseId { get; set; }
+
+        public Task ValidateOrderAccessAsync(Order order, CancellationToken cancellationToken = default)
+        {
+            if (AuthorizedWarehouseId.HasValue && order.WarehouseId.Value != AuthorizedWarehouseId.Value)
+            {
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Order warehouse is outside authorized scope.");
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task ValidateWarehouseCompanyAccessAsync(Guid warehouseId, CancellationToken cancellationToken = default)
+        {
+            if (AuthorizedWarehouseId.HasValue && warehouseId != AuthorizedWarehouseId.Value)
+            {
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Warehouse is outside authorized company scope.");
+            }
+            return Task.CompletedTask;
+        }
+
+        public Task ValidateWarehouseAccessAsync(Guid warehouseId, CancellationToken cancellationToken = default)
+        {
+            if (AuthorizedWarehouseId.HasValue && warehouseId != AuthorizedWarehouseId.Value)
+            {
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Warehouse is outside authorized scope.");
+            }
+            return Task.CompletedTask;
+        }
+    }
 }
+

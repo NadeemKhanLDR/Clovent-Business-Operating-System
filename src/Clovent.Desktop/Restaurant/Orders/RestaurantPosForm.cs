@@ -217,6 +217,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     private int _pageSize = 50;
 
     private OrderDto? _currentOrder;
+    private Guid? _activeCashierSessionUserId;
     private OrderTotals? _currentTotals;
     private bool _isRefreshingOrder;
     private Guid? _defaultCustomerId;
@@ -358,6 +359,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
             _logger = _scope.ServiceProvider.GetService<ILogger<RestaurantPosForm>>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
             _currentSession = currentSession;
+            _activeCashierSessionUserId = currentSession.UserId;
             _currentSession.Changed += CurrentSession_Changed;
             _changeNotifier = changeNotifier;
             _splashScreenService = splashScreenService;
@@ -2874,7 +2876,15 @@ public sealed partial class RestaurantPosForm : XtraForm
                 orders.AddRange(await _mediator.Send(new ListHeldOrdersQuery()));
             }
 
-            orders = [.. orders.Where(o => o.OrderLineIds.Count > 0).DistinctBy(o => o.OrderId).OrderByDescending(o => o.CreatedAtUtc)];
+            var activeContext = _scope?.ServiceProvider.GetService<Clovent.Platform.Execution.IInteractiveScopeProvider>()?.GetCurrentContext();
+            var restrictedBranchId = activeContext?.BranchId ?? _activeShift?.BranchId;
+            var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
+            var candidateWarehouses = restrictedBranchId.HasValue && restrictedBranchId.Value != Guid.Empty
+                ? warehouses.Where(w => w.BranchId == restrictedBranchId.Value).ToList()
+                : warehouses.ToList();
+            var authorizedWhIds = candidateWarehouses.Select(w => w.WarehouseId).ToHashSet();
+
+            orders = [.. orders.Where(o => o.OrderLineIds.Count > 0 && authorizedWhIds.Contains(o.WarehouseId)).DistinctBy(o => o.OrderId).OrderByDescending(o => o.CreatedAtUtc)];
 
             // Prefetch summaries asynchronously before touching UI controls
             var orderSummaries = new Dictionary<Guid, OrderTotals>();
@@ -4180,6 +4190,14 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         _currentSession.SignOut();
+        _currentOrder = null;
+        _currentOrderLines = [];
+        _tablePicker.SelectId(null);
+        _hasUnsavedEdits = false;
+        if (_checkpointStore != null)
+        {
+            await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+        }
         Hide();
 
         string? selectedModuleKey;
@@ -5792,20 +5810,40 @@ public sealed partial class RestaurantPosForm : XtraForm
         if (_lifecycleCts.IsCancellationRequested || IsDisposed || Disposing) return;
         await EnsureUiThreadAsync();
 
-        var authorizedWhIds = warehouses.Select(w => w.WarehouseId).ToHashSet();
+        var activeContext = _scope?.ServiceProvider.GetService<Clovent.Platform.Execution.IInteractiveScopeProvider>()?.GetCurrentContext();
+        var restrictedBranchId = activeContext?.BranchId ?? _activeShift?.BranchId;
+
+        var candidateWarehouses = restrictedBranchId.HasValue && restrictedBranchId.Value != Guid.Empty
+            ? warehouses.Where(w => w.BranchId == restrictedBranchId.Value).ToList()
+            : warehouses.ToList();
+
+        var authorizedWhIds = candidateWarehouses.Select(w => w.WarehouseId).ToHashSet();
 
         // Determine authorized configured default warehouse:
-        // Priority 1: PosSettingsStore.LoadWarehouseId() if authorized
-        // Priority 2: Continuity coordinator active cache warehouse if authorized
+        // Priority 1: Active shift warehouse if authorized
+        // Priority 2: PosSettingsStore.LoadWarehouseId() if authorized
+        // Priority 3: Continuity coordinator active cache warehouse if authorized
+        // Priority 4: Single candidate warehouse auto-selection
         Guid? authorizedDefaultId = null;
-        var configuredWhId = PosSettingsStore.LoadWarehouseId();
-        if (configuredWhId.HasValue && authorizedWhIds.Contains(configuredWhId.Value))
+        if (_activeShift?.WarehouseId is { } shiftWhId && shiftWhId != Guid.Empty && authorizedWhIds.Contains(shiftWhId))
         {
-            authorizedDefaultId = configuredWhId.Value;
+            authorizedDefaultId = shiftWhId;
         }
-        else if (_continuityCoordinator?.ActiveCache?.Metadata.WarehouseId is { } coordWhId && coordWhId != Guid.Empty && authorizedWhIds.Contains(coordWhId))
+        else
         {
-            authorizedDefaultId = coordWhId;
+            var configuredWhId = PosSettingsStore.LoadWarehouseId();
+            if (configuredWhId.HasValue && authorizedWhIds.Contains(configuredWhId.Value))
+            {
+                authorizedDefaultId = configuredWhId.Value;
+            }
+            else if (_continuityCoordinator?.ActiveCache?.Metadata.WarehouseId is { } coordWhId && coordWhId != Guid.Empty && authorizedWhIds.Contains(coordWhId))
+            {
+                authorizedDefaultId = coordWhId;
+            }
+            else if (candidateWarehouses.Count == 1)
+            {
+                authorizedDefaultId = candidateWarehouses[0].WarehouseId;
+            }
         }
 
         // If current selection is still authorized, keep it; otherwise use authorized default or clear
@@ -5813,46 +5851,81 @@ public sealed partial class RestaurantPosForm : XtraForm
             ? _warehousePicker.SelectedId.Value
             : authorizedDefaultId;
 
-        // Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose index 0!
+        // Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose foreign warehouse!
         _warehousePicker.LoadItems(
-            [.. warehouses.Select(w => (w.WarehouseId, w.Name))],
+            [.. candidateWarehouses.Select(w => (w.WarehouseId, w.Name))],
             autoSelectFirst: false,
             initialSelectedId: targetSelectedId);
 
-        _warehousePicker.Visible = warehouses.Count > 1;
-        _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}), selected: {SelectedWarehouseId}.", warehouses.Count, _warehousePicker.SelectedId);
+        _warehousePicker.Visible = candidateWarehouses.Count > 1;
+        _logger?.LogInformation("POS_INIT_03: Warehouses loaded ({Count}), selected: {SelectedWarehouseId}.", candidateWarehouses.Count, _warehousePicker.SelectedId);
     }
 
     private void CurrentSession_Changed(object? sender, EventArgs e)
     {
-        if (IsHandleCreated && !IsDisposed && !Disposing)
+        if (IsDisposed || Disposing) return;
+
+        async Task HandleSessionChangedAsync()
         {
-            BeginInvoke(async () =>
+            try
             {
-                try
+                if (_currentSession is null || !_currentSession.IsAuthenticated || (_activeCashierSessionUserId.HasValue && _activeCashierSessionUserId.Value != _currentSession.UserId))
                 {
-                    await PopulateWarehousesAsync();
+                    _currentOrder = null;
+                    _currentOrderLines = [];
+                    _tablePicker?.SelectId(null);
+                    _hasUnsavedEdits = false;
+                    if (_checkpointStore != null)
+                    {
+                        await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning(ex, "Failed to revalidate warehouse selection on session change.");
-                }
-            });
+                _activeCashierSessionUserId = _currentSession?.UserId;
+                await PopulateWarehousesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Failed to revalidate warehouse selection on session change.");
+            }
+        }
+
+        if (IsHandleCreated && InvokeRequired)
+        {
+            BeginInvoke(async () => await HandleSessionChangedAsync());
+        }
+        else
+        {
+            _ = HandleSessionChangedAsync();
         }
     }
 
     private async Task<Guid?> EnsureWarehouseSelectedAsync()
     {
         var warehouses = await _mediator.Send(new ListAllWarehousesQuery());
-        var authorizedWhIds = warehouses.Select(w => w.WarehouseId).ToHashSet();
 
-        // 1. If currently selected ID is valid and authorized, return it
+        var activeContext = _scope?.ServiceProvider.GetService<Clovent.Platform.Execution.IInteractiveScopeProvider>()?.GetCurrentContext();
+        var restrictedBranchId = activeContext?.BranchId ?? _activeShift?.BranchId;
+
+        var candidateWarehouses = restrictedBranchId.HasValue && restrictedBranchId.Value != Guid.Empty
+            ? warehouses.Where(w => w.BranchId == restrictedBranchId.Value).ToList()
+            : warehouses.ToList();
+
+        var authorizedWhIds = candidateWarehouses.Select(w => w.WarehouseId).ToHashSet();
+
+        // 1. If currently selected ID is valid and authorized for current scope, return it
         if (_warehousePicker.SelectedId is { } id && authorizedWhIds.Contains(id))
         {
             return id;
         }
 
-        // 2. If configured default warehouse is authorized, select and return it
+        // 2. If active shift has an authorized warehouse, return it
+        if (_activeShift?.WarehouseId is { } shiftWhId && shiftWhId != Guid.Empty && authorizedWhIds.Contains(shiftWhId))
+        {
+            _warehousePicker.SelectId(shiftWhId);
+            return shiftWhId;
+        }
+
+        // 3. If configured default warehouse is authorized, select and return it
         var configuredWhId = PosSettingsStore.LoadWarehouseId();
         if (configuredWhId.HasValue && authorizedWhIds.Contains(configuredWhId.Value))
         {
@@ -5866,7 +5939,15 @@ public sealed partial class RestaurantPosForm : XtraForm
             return coordWhId;
         }
 
-        // 3. Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose index 0!
+        // 4. If exactly one authorized warehouse exists for the branch, auto-select it
+        if (candidateWarehouses.Count == 1)
+        {
+            var singleWhId = candidateWarehouses[0].WarehouseId;
+            _warehousePicker.SelectId(singleWhId);
+            return singleWhId;
+        }
+
+        // 5. Invariant: Missing or invalid defaults require explicit authorized selection; NEVER silently choose index 0!
         _warehousePicker.ClearSelection();
         return null;
     }
@@ -6817,39 +6898,58 @@ public sealed partial class RestaurantPosForm : XtraForm
 
             await BindOrderPaymentAsync(_currentOrder?.OrderId, _currentSession.DisplayName ?? "Unknown");
 
+            void ApplyEmptyOrderUi()
+            {
+                _currentOrderLines = [];
+                _lineGrid.DataSource = null;
+                RenderOrderedItemsList([]);
+                if (_lblCartTableNo is not null) _lblCartTableNo.Text = "No Table selected";
+                if (_tablePicker.SelectedId == null)
+                {
+                    _tablePicker.SelectId(null);
+                }
+                _tablePicker.Enabled = true;
+                if (_lblCartOrderNo is not null) _lblCartOrderNo.Text = "No active order";
+                UpdateBillEmptyState(isEmpty: true);
+                SetTotals(null);
+                _orderStatusLabel.Text = PosStrings.NoOrderSelected;
+                UpdateOrderStatusBadge();
+                UpdateButtonStates();
+
+                SetSelectedCustomerId(Guid.Empty);
+                _customerPicker.Enabled = false;
+                _newCustomerButton.Enabled = false;
+                _customerDetailsLabel.Text = string.Empty;
+            }
+
             if (_currentOrder is null)
             {
-                void ApplyEmptyOrderUi()
-                {
-                    _currentOrderLines = [];
-                    _lineGrid.DataSource = null;
-                    RenderOrderedItemsList([]);
-                    if (_lblCartTableNo is not null) _lblCartTableNo.Text = "No Table selected";
-                    if (_tablePicker.SelectedId == null)
-                    {
-                        _tablePicker.SelectId(null);
-                    }
-                    _tablePicker.Enabled = true;
-                    if (_lblCartOrderNo is not null) _lblCartOrderNo.Text = "No active order";
-                    UpdateBillEmptyState(isEmpty: true);
-                    SetTotals(null);
-                    _orderStatusLabel.Text = PosStrings.NoOrderSelected;
-                    UpdateOrderStatusBadge();
-                    UpdateButtonStates();
-
-                    SetSelectedCustomerId(Guid.Empty);
-                    _customerPicker.Enabled = false;
-                    _newCustomerButton.Enabled = false;
-                    _customerDetailsLabel.Text = string.Empty;
-                }
-
                 if (InvokeRequired) Invoke(ApplyEmptyOrderUi); else ApplyEmptyOrderUi();
                 await RefreshActiveOrdersAsync();
                 await CheckpointActiveCartAsync();
                 return;
             }
 
-            _currentOrder = await _mediator.Send(new GetOrderByIdQuery(_currentOrder.OrderId));
+            try
+            {
+                _currentOrder = await _mediator.Send(new GetOrderByIdQuery(_currentOrder.OrderId));
+            }
+            catch (Exception ex) when (ex is Clovent.Platform.Execution.ScopeMismatchException
+                                     or Clovent.Platform.Execution.ScopeUnresolvedException
+                                     or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "Active order reference {OrderId} is outside authorized scope. Discarding local cart state without modifying business record.", _currentOrder?.OrderId);
+                _currentOrder = null;
+                _currentOrderLines = [];
+                _hasUnsavedEdits = false;
+                if (_checkpointStore != null)
+                {
+                    await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+                }
+                if (InvokeRequired) Invoke(ApplyEmptyOrderUi); else ApplyEmptyOrderUi();
+                await RefreshActiveOrdersAsync();
+                return;
+            }
 
             var isEditable = _currentOrder.Status is "Open" or "Held";
 
@@ -9200,6 +9300,14 @@ public sealed partial class RestaurantPosForm : XtraForm
             var checkpoint = await _checkpointStore.LoadCheckpointAsync(Environment.MachineName);
             if (checkpoint != null && checkpoint.Lines.Count > 0)
             {
+                // Reject foreign or mismatched cashier checkpoints without mutating business record
+                if (checkpoint.CashierId.HasValue && _currentSession.UserId.HasValue && checkpoint.CashierId.Value != _currentSession.UserId.Value)
+                {
+                    _logger?.LogWarning("Discarding foreign checkpoint {CheckpointId}: belongs to cashier {CheckpointCashierId}, current cashier is {CurrentUserId}.",
+                        checkpoint.CheckpointId, checkpoint.CashierId, _currentSession.UserId);
+                    await _checkpointStore.ClearCheckpointAsync(Environment.MachineName);
+                    return;
+                }
                 var prompt = $"An uncommitted cart with {checkpoint.Lines.Count} item(s) from {checkpoint.SavedAtUtc.ToLocalTime():g} was recovered.\n\n" +
                              "Would you like to restore this in-progress order?";
 

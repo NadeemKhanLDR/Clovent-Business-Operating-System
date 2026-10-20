@@ -26,12 +26,18 @@ public sealed class CreateOrderCommandHandler(
     IOrderRepository orderRepository,
     ITableRepository tableRepository,
     IOrderNumberSequenceRepository orderNumberSequenceRepository,
-    Clovent.Restaurant.ServiceCharges.IServiceChargeRepository? serviceChargeRepository = null)
+    Clovent.Restaurant.ServiceCharges.IServiceChargeRepository? serviceChargeRepository = null,
+    Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null)
     : IRequestHandler<CreateOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(CreateOrderCommand request, CancellationToken cancellationToken)
     {
+        if (orderScopeValidator != null)
+        {
+            await orderScopeValidator.ValidateWarehouseAccessAsync(request.WarehouseId, cancellationToken).ConfigureAwait(false);
+        }
+
         var tableId = request.TableId is { } rawTableId ? new TableId(rawTableId) : (TableId?)null;
 
         if (tableId is { } requestedTableId)

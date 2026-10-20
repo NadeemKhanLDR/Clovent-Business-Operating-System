@@ -1,3 +1,7 @@
+using Clovent.Desktop.Restaurant.Services;
+using Clovent.Restaurant.Application.Orders.Commands;
+using Clovent.Restaurant.Application.Orders.Dtos;
+using Clovent.Restaurant.Application.Orders.Queries;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -194,17 +198,276 @@ public sealed class PosWarehouseIsolationTests : IDisposable
         Assert.Equal("Branch Beta", lblBranch.Text);
     }
 
-    private static RestaurantPosForm CreateMockPosForm(IMediator mediator)
+
+    [Fact]
+    public async Task CrashRecovery_ForeignCashierCheckpoint_DiscardedWithoutRecordMutation()
+    {
+        var cashierA = Guid.NewGuid();
+        var cashierB = Guid.NewGuid();
+        var session = new CurrentSession();
+        session.SignIn(cashierA, Guid.NewGuid(), "Cashier Alpha");
+
+        var checkpointStore = new MockCheckpointStore
+        {
+            Checkpoint = new CartCheckpoint(
+                Guid.NewGuid(),
+                Environment.MachineName,
+                cashierB, // Foreign cashier!
+                "Cashier Beta",
+                "TakeAway",
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                [new CartCheckpointLine(Guid.NewGuid(), "SKU-1", "Product 1", "Regular", 2m, 10m, null)],
+                null,
+                null)
+        };
+
+        var mediator = new MockWarehouseMediator();
+        using var form = CreateMockPosForm(mediator, session, checkpointStore);
+
+        var method = typeof(RestaurantPosForm).GetMethod("CheckAndPromptCrashRecoveryAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)method.Invoke(form, null)!;
+
+        // Invariant: checkpoint belonging to foreign cashier must be cleared without mutating order records
+        Assert.Null(checkpointStore.Checkpoint);
+        Assert.Equal(1, checkpointStore.ClearCallCount);
+
+        var currentOrderField = typeof(RestaurantPosForm).GetField("_currentOrder", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        Assert.Null(currentOrderField.GetValue(form));
+    }
+
+    [Fact]
+    public async Task Pos_SameScopeOrder_RefreshesAndRestoresSuccessfully()
+    {
+        var branchId = Guid.NewGuid();
+        var warehouseId = Guid.NewGuid();
+        var orderId = Guid.NewGuid();
+
+        var scopeProvider = new DesktopInteractiveScopeProvider();
+        scopeProvider.SetCurrentContext(new PlatformExecutionContext
+        {
+            UserId = Guid.NewGuid(),
+            CompanyId = Guid.NewGuid(),
+            BranchId = branchId
+        });
+
+        var session = new CurrentSession();
+        session.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Cashier Alpha");
+
+        var orderDto = new OrderDto(
+            orderId,
+            "ORD-001",
+            1,
+            "TakeAway",
+            "Open",
+            null,
+            warehouseId,
+            null,
+            null,
+            [],
+            [],
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            null);
+
+        var mediator = new MockWarehouseMediator
+        {
+            Warehouses = [new WarehouseDto(warehouseId, branchId, "Main Warehouse", "WH-01", "Active", DateTimeOffset.UtcNow)],
+            Orders = { [orderId] = orderDto }
+        };
+
+        using var form = CreateMockPosForm(mediator, session, null, scopeProvider);
+
+        var currentOrderField = typeof(RestaurantPosForm).GetField("_currentOrder", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        currentOrderField.SetValue(form, orderDto);
+
+        var refreshMethod = typeof(RestaurantPosForm).GetMethod("RefreshOrderAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)refreshMethod.Invoke(form, null)!;
+
+        var restored = (OrderDto?)currentOrderField.GetValue(form);
+        Assert.NotNull(restored);
+        Assert.Equal(orderId, restored.OrderId);
+        Assert.Equal(warehouseId, restored.WarehouseId);
+    }
+
+    [Fact]
+    public async Task Pos_UserSwitchingOrLogout_ClearsActiveCartAndCheckpoint()
+    {
+        var cashierA = Guid.NewGuid();
+        var cashierB = Guid.NewGuid();
+        var session = new CurrentSession();
+        session.SignIn(cashierA, Guid.NewGuid(), "Cashier Alpha");
+
+        var checkpointStore = new MockCheckpointStore
+        {
+            Checkpoint = new CartCheckpoint(
+                Guid.NewGuid(),
+                Environment.MachineName,
+                cashierA,
+                "Cashier Alpha",
+                "TakeAway",
+                null,
+                null,
+                DateTimeOffset.UtcNow,
+                [new CartCheckpointLine(Guid.NewGuid(), "SKU-1", "Product 1", "Regular", 1m, 15m, null)],
+                null,
+                null)
+        };
+
+        var mediator = new MockWarehouseMediator();
+        using var form = CreateMockPosForm(mediator, session, checkpointStore);
+
+        var orderDto = new OrderDto(
+            Guid.NewGuid(),
+            "ORD-001",
+            1,
+            "TakeAway",
+            "Open",
+            null,
+            Guid.NewGuid(),
+            null,
+            null,
+            [],
+            [],
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            null);
+
+        var currentOrderField = typeof(RestaurantPosForm).GetField("_currentOrder", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        currentOrderField.SetValue(form, orderDto);
+
+        // Act 1: Cashier A logs out
+        session.SignOut();
+
+        // Cart and checkpoint must be discarded
+        Assert.Null(currentOrderField.GetValue(form));
+        Assert.Null(checkpointStore.Checkpoint);
+
+        // Act 2: Cashier B signs in
+        session.SignIn(cashierB, Guid.NewGuid(), "Cashier Beta");
+
+        // Invariant: Cashier B cannot inherit Cashier A's cart
+        Assert.Null(currentOrderField.GetValue(form));
+    }
+
+    [Fact]
+    public async Task Pos_NewTakeAway_WorksAfterUnauthorizedReferenceRejected()
+    {
+        var branchA = Guid.NewGuid();
+        var branchB = Guid.NewGuid();
+        var authorizedWhId = Guid.NewGuid();
+        var foreignWhId = Guid.NewGuid();
+        var foreignOrderId = Guid.NewGuid();
+
+        var scopeProvider = new DesktopInteractiveScopeProvider();
+        scopeProvider.SetCurrentContext(new PlatformExecutionContext
+        {
+            UserId = Guid.NewGuid(),
+            CompanyId = Guid.NewGuid(),
+            BranchId = branchA
+        });
+
+        var session = new CurrentSession();
+        session.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Cashier Alpha");
+
+        MockWarehouseMediator mediator = null!;
+        mediator = new MockWarehouseMediator
+        {
+            Warehouses =
+            [
+                new WarehouseDto(authorizedWhId, branchA, "Main Warehouse", "WH-01", "Active", DateTimeOffset.UtcNow),
+                new WarehouseDto(foreignWhId, branchB, "Foreign Warehouse", "WH-B2", "Active", DateTimeOffset.UtcNow)
+            ],
+            OnGetOrderById = q =>
+            {
+                if (q.OrderId == foreignOrderId)
+                {
+                    throw new ScopeMismatchException($"Access denied: Order '{q.OrderId}' belongs to foreign branch.");
+                }
+                if (mediator.Orders.TryGetValue(q.OrderId, out var order))
+                {
+                    return Task.FromResult(order);
+                }
+                throw new Clovent.Restaurant.Application.NotFoundException("Order", q.OrderId);
+            }
+        };
+
+        var checkpointStore = new MockCheckpointStore();
+        using var form = CreateMockPosForm(mediator, session, checkpointStore, scopeProvider);
+
+        var currentOrderField = typeof(RestaurantPosForm).GetField("_currentOrder", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        var foreignOrderDto = new OrderDto(
+            foreignOrderId,
+            "ORD-FOREIGN",
+            1,
+            "TakeAway",
+            "Open",
+            null,
+            foreignWhId,
+            null,
+            null,
+            [],
+            [],
+            [],
+            [],
+            DateTimeOffset.UtcNow,
+            DateTimeOffset.UtcNow,
+            null);
+
+        // Step 1: Simulate foreign order reference arriving in cart
+        currentOrderField.SetValue(form, foreignOrderDto);
+
+        // Step 2: Refresh order authoritatively validates scope and rejects foreign order safely
+        var refreshMethod = typeof(RestaurantPosForm).GetMethod("RefreshOrderAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)refreshMethod.Invoke(form, null)!;
+
+        // Invariant: Foreign order safely discarded to null without throwing or mutating foreign record
+        Assert.Null(currentOrderField.GetValue(form));
+
+        // Step 3: Cashier starts a New Take Away order
+        var newTakeAwayMethod = typeof(RestaurantPosForm).GetMethod("NewTakeAwayAsync", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        await (Task)newTakeAwayMethod.Invoke(form, null)!;
+
+        // Invariant: New order created under authorized warehouse for branch A
+        var newOrder = (OrderDto?)currentOrderField.GetValue(form);
+        Assert.NotNull(newOrder);
+        Assert.Equal(authorizedWhId, newOrder.WarehouseId);
+        Assert.Equal("TakeAway", newOrder.OrderType);
+        Assert.Equal("Open", newOrder.Status);
+    }
+
+    private static RestaurantPosForm CreateMockPosForm(
+        IMediator mediator,
+        ICurrentSession? session = null,
+        IActiveOrderCheckpointStore? checkpointStore = null,
+        IInteractiveScopeProvider? scopeProvider = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IMediator>(mediator);
         var authMock = new MockFeaturePolicy();
         services.AddSingleton<IFeatureAuthorizationPolicy>(authMock);
+        if (checkpointStore != null)
+        {
+            services.AddSingleton<IActiveOrderCheckpointStore>(checkpointStore);
+        }
+        if (scopeProvider != null)
+        {
+            services.AddSingleton<IInteractiveScopeProvider>(scopeProvider);
+        }
         var sp = services.BuildServiceProvider();
         var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
 
-        var session = new CurrentSession();
-        session.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Test Cashier");
+        if (session == null)
+        {
+            var defaultSession = new CurrentSession();
+            defaultSession.SignIn(Guid.NewGuid(), Guid.NewGuid(), "Test Cashier");
+            session = defaultSession;
+        }
 
         return new RestaurantPosForm(
             scopeFactory,
@@ -214,15 +477,80 @@ public sealed class PosWarehouseIsolationTests : IDisposable
             new MockSplash());
     }
 
+    private sealed class MockCheckpointStore : IActiveOrderCheckpointStore
+    {
+        public CartCheckpoint? Checkpoint { get; set; }
+        public int ClearCallCount { get; private set; }
+
+        public Task SaveCheckpointAsync(CartCheckpoint checkpoint, CancellationToken cancellationToken = default)
+        {
+            Checkpoint = checkpoint;
+            return Task.CompletedTask;
+        }
+
+        public Task<CartCheckpoint?> LoadCheckpointAsync(string terminalId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Checkpoint);
+
+        public Task ClearCheckpointAsync(string terminalId, CancellationToken cancellationToken = default)
+        {
+            ClearCallCount++;
+            Checkpoint = null;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class MockWarehouseMediator : IMediator
     {
         public List<WarehouseDto> Warehouses { get; set; } = [];
+        public Dictionary<Guid, OrderDto> Orders { get; set; } = [];
+        public Func<GetOrderByIdQuery, Task<OrderDto>>? OnGetOrderById { get; set; }
+        public Func<CreateOrderCommand, Task<OrderDto>>? OnCreateOrder { get; set; }
 
         public Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
         {
             if (request is ListAllWarehousesQuery)
             {
                 return Task.FromResult((TResponse)(object)(IReadOnlyCollection<WarehouseDto>)Warehouses);
+            }
+
+            if (request is GetOrderByIdQuery gq)
+            {
+                if (OnGetOrderById != null)
+                {
+                    return (Task<TResponse>)(object)OnGetOrderById(gq);
+                }
+                if (Orders.TryGetValue(gq.OrderId, out var order))
+                {
+                    return Task.FromResult((TResponse)(object)order);
+                }
+                throw new Clovent.Restaurant.Application.NotFoundException("Order", gq.OrderId);
+            }
+
+            if (request is CreateOrderCommand cc)
+            {
+                if (OnCreateOrder != null)
+                {
+                    return (Task<TResponse>)(object)OnCreateOrder(cc);
+                }
+                var order = new OrderDto(
+                    Guid.NewGuid(),
+                    "ORD-NEW",
+                    1,
+                    cc.OrderType.ToString(),
+                    "Open",
+                    cc.TableId,
+                    cc.WarehouseId,
+                    null,
+                    null,
+                    [],
+                    [],
+                    [],
+                    [],
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow,
+                    null);
+                Orders[order.OrderId] = order;
+                return Task.FromResult((TResponse)(object)order);
             }
 
             var type = typeof(TResponse);

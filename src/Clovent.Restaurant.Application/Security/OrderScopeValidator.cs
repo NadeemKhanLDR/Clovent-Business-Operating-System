@@ -76,4 +76,43 @@ public sealed class OrderScopeValidator(
                 $"but caller scope is restricted to company '{current.CompanyId.Value}'.");
         }
     }
+
+    /// <inheritdoc />
+    public async Task ValidateWarehouseAccessAsync(Guid warehouseId, CancellationToken cancellationToken = default)
+    {
+        if (warehouseId == Guid.Empty)
+        {
+            throw new ScopeUnresolvedException("Warehouse identifier cannot be empty.");
+        }
+
+        var current = _contextAccessor.Current
+            ?? throw new ScopeUnresolvedException("Execution context is not established. Null scope never grants global access.");
+
+        if (!current.CompanyId.HasValue || current.CompanyId.Value == Guid.Empty)
+        {
+            throw new ScopeUnresolvedException(
+                $"Company scope is required to access warehouse '{warehouseId}', but current company scope is unresolved.");
+        }
+
+        var warehouse = await _warehouseRepository.GetByIdAsync(new WarehouseId(warehouseId), cancellationToken).ConfigureAwait(false)
+            ?? throw new NotFoundException(nameof(Warehouse), warehouseId);
+
+        var branch = await _branchRepository.GetByIdAsync(warehouse.BranchId, cancellationToken).ConfigureAwait(false)
+            ?? throw new ScopeMismatchException(
+                $"Owning branch '{warehouse.BranchId.Value}' for warehouse '{warehouseId}' was not found.");
+
+        if (branch.CompanyId.Value != current.CompanyId.Value)
+        {
+            throw new ScopeMismatchException(
+                $"Access denied: Warehouse '{warehouseId}' belongs to company '{branch.CompanyId.Value}' (via branch '{branch.Id.Value}'), " +
+                $"but caller scope is restricted to company '{current.CompanyId.Value}'.");
+        }
+
+        if (current.BranchId.HasValue && current.BranchId.Value != Guid.Empty && warehouse.BranchId.Value != current.BranchId.Value)
+        {
+            throw new ScopeMismatchException(
+                $"Access denied: Warehouse '{warehouseId}' belongs to branch '{warehouse.BranchId.Value}', " +
+                $"but caller scope is restricted to branch '{current.BranchId.Value}'.");
+        }
+    }
 }
