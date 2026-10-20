@@ -10,7 +10,9 @@ public sealed record ReceiptRenderOptions(
     int ReprintCount = 1,
     string? ReprintReason = null,
     string? HeaderText = "Clovent Business Operating System",
-    string? FooterText = "Thank you for your visit!");
+    string? FooterText = "Thank you for your visit!",
+    ReceiptCopyType CopyType = ReceiptCopyType.Standard,
+    bool IncludeSignatureLine = false);
 
 /// <summary>
 /// Result of a receipt formatting execution, indicating layout and script properties.

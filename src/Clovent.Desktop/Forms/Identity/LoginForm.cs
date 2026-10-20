@@ -161,8 +161,16 @@ public sealed partial class LoginForm : XtraForm
 
         if ((isDebugBuild || isDevelopmentMachine) && string.IsNullOrWhiteSpace(txtUsername.Text))
         {
-            txtUsername.Text = "Admin";
-            txtPassword.Text = "Admin123!";
+            if (isDevelopmentMachine)
+            {
+                txtUsername.Text = "admin_acceptance";
+                txtPassword.Text = "Password@2026!";
+            }
+            else
+            {
+                txtUsername.Text = "Admin";
+                txtPassword.Text = "Admin123!";
+            }
         }
 
         cmbLanguage.SelectedIndexChanged += CmbLanguage_SelectedIndexChanged;

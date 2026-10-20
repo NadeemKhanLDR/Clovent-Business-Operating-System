@@ -71,4 +71,40 @@ public sealed class DatabaseConnectionSettingsTests
         var decrypted = DatabaseSecretStore.Unprotect(encrypted);
         Assert.Equal(original, decrypted);
     }
+
+    [Fact]
+    public void DatabaseSecretStore_EnumerateDatabases_NullSettings_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() => DatabaseSecretStore.EnumerateDatabases(null!));
+    }
+
+    [Fact]
+    public void DatabaseSecretStore_EnumerateDatabases_UnreachableServer_ReturnsEmptyGracefullyWithoutException()
+    {
+        var settings = new DatabaseConnectionSettings
+        {
+            Server = "127.0.0.1,65530",
+            ConnectionTimeout = 1
+        };
+
+        var databases = DatabaseSecretStore.EnumerateDatabases(settings);
+
+        Assert.NotNull(databases);
+        Assert.Empty(databases);
+    }
+
+    [Fact]
+    public void BuildConnectionString_ManualDatabaseName_PreservesEnteredDatabase()
+    {
+        var settings = new DatabaseConnectionSettings
+        {
+            Server = "localhost",
+            Database = "Clovent_CustomTenant_Branch01",
+            UseWindowsAuthentication = true
+        };
+
+        var connStr = settings.BuildConnectionString();
+
+        Assert.Contains("Database=Clovent_CustomTenant_Branch01;", connStr);
+    }
 }

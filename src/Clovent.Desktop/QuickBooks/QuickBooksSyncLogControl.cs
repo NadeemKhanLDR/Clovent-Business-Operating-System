@@ -146,16 +146,20 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
     private void InitializeLayout()
     {
         SuspendLayout();
+        AutoScaleMode = AutoScaleMode.None;
         Dock = DockStyle.Fill;
         BackColor = Color.FromArgb(248, 249, 250);
 
         _mainLayout.Dock = DockStyle.Fill;
         _mainLayout.ColumnCount = 1;
         _mainLayout.RowCount = 4;
-        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60)); // Header
-        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90)); // KPIs
-        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45)); // Toolbar
-        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Grid
+        _mainLayout.ColumnStyles.Clear();
+        _mainLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        _mainLayout.RowStyles.Clear();
+        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 56)); // Header
+        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 85)); // KPIs
+        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 48)); // Toolbar
+        _mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F)); // Grid
 
         BuildHeaderPanel();
         BuildKpiCards();
@@ -176,15 +180,16 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
         _headerPanel.Dock = DockStyle.Fill;
         _headerPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
         _headerPanel.BackColor = Color.FromArgb(33, 37, 41);
-        _headerPanel.Padding = new Padding(16, 8, 16, 8);
+        _headerPanel.Padding = new Padding(16, 10, 16, 10);
+        _headerPanel.MinimumSize = new Size(0, 56);
+        _headerPanel.Height = 56;
 
         var titleLabel = new LabelControl
         {
-            Text = "QuickBooks Accounting Synchronization & Outbox Reconciliation",
-            Appearance = { Font = new Font("Segoe UI", 13.5f, FontStyle.Bold), ForeColor = Color.White },
+            Text = "QuickBooks Accounting Synchronization",
+            Appearance = { Font = new Font("Segoe UI", 12.0f, FontStyle.Bold), ForeColor = Color.White },
             Dock = DockStyle.Left,
-            AutoSizeMode = LabelAutoSizeMode.None,
-            Width = 600
+            AutoSizeMode = LabelAutoSizeMode.Horizontal
         };
 
         var subtitleLabel = new LabelControl
@@ -192,8 +197,8 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
             Text = "Durable Reference Mapping | Idempotent TxnID Registry | Manager Override",
             Appearance = { Font = new Font("Segoe UI", 8.5f, FontStyle.Regular), ForeColor = Color.FromArgb(173, 181, 189) },
             Dock = DockStyle.Right,
-            AutoSizeMode = LabelAutoSizeMode.None,
-            Width = 450
+            AutoSizeMode = LabelAutoSizeMode.Horizontal,
+            Padding = new Padding(0, 4, 0, 0)
         };
 
         _headerPanel.Controls.Add(titleLabel);
@@ -205,6 +210,8 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
         _kpiCardLayout.Dock = DockStyle.Fill;
         _kpiCardLayout.ColumnCount = 4;
         _kpiCardLayout.RowCount = 1;
+        _kpiCardLayout.MinimumSize = new Size(0, 85);
+        _kpiCardLayout.Height = 85;
         _kpiCardLayout.Padding = new Padding(8, 4, 8, 4);
 
         for (int i = 0; i < 4; i++)
@@ -225,24 +232,32 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
             Dock = DockStyle.Fill,
             BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.Simple,
             BackColor = Color.White,
-            Padding = new Padding(12, 8, 12, 8),
+            Padding = new Padding(12, 6, 12, 6),
             Margin = new Padding(4)
         };
 
         var lblCap = new LabelControl
         {
             Text = caption,
-            Appearance = { Font = new Font("Segoe UI", 8.0f, FontStyle.Bold), ForeColor = Color.FromArgb(108, 117, 125) },
-            Dock = DockStyle.Top
+            Appearance = { Font = new Font("Segoe UI", 8.5f, FontStyle.Bold), ForeColor = Color.FromArgb(108, 117, 125) },
+            Dock = DockStyle.Top,
+            Padding = new Padding(2)
         };
+        lblCap.Appearance.Options.UseFont = true;
+        lblCap.Appearance.Options.UseForeColor = true;
 
         valueLabel.Text = "-";
-        valueLabel.Appearance.Font = new Font("Segoe UI", 15.0f, FontStyle.Bold);
+        valueLabel.Appearance.Font = new Font("Segoe UI", 16.0f, FontStyle.Bold);
         valueLabel.Appearance.ForeColor = accentColor;
-        valueLabel.Dock = DockStyle.Bottom;
+        valueLabel.Appearance.Options.UseFont = true;
+        valueLabel.Appearance.Options.UseForeColor = true;
+        valueLabel.Appearance.TextOptions.HAlignment = HorzAlignment.Near;
+        valueLabel.Appearance.TextOptions.VAlignment = VertAlignment.Center;
+        valueLabel.Dock = DockStyle.Fill;
+        valueLabel.Padding = new Padding(2);
 
-        panel.Controls.Add(lblCap);
         panel.Controls.Add(valueLabel);
+        panel.Controls.Add(lblCap);
         return panel;
     }
 
@@ -250,52 +265,74 @@ public sealed class QuickBooksSyncLogControl : XtraUserControl
     {
         _toolbarPanel.Dock = DockStyle.Fill;
         _toolbarPanel.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-        _toolbarPanel.Padding = new Padding(8, 4, 8, 4);
+        _toolbarPanel.MinimumSize = new Size(0, 48);
+        _toolbarPanel.Height = 48;
+        _toolbarPanel.Padding = new Padding(8, 6, 8, 6);
+
+        var toolbarFlow = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            AutoSize = true,
+            Padding = Padding.Empty,
+            Margin = Padding.Empty
+        };
 
         _btnRetry.Text = "Retry Selected";
         _btnRetry.Appearance.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
-        _btnRetry.Size = new Size(130, 32);
-        _btnRetry.Location = new Point(8, 6);
+        _btnRetry.Appearance.Options.UseFont = true;
+        _btnRetry.Size = new Size(130, 34);
+        _btnRetry.Margin = new Padding(0, 2, 8, 2);
         _btnRetry.Click += async (_, _) => await HandleRetryAsync();
 
         _btnInspectPayload.Text = "Inspect Payload";
         _btnInspectPayload.Appearance.Font = new Font("Segoe UI", 9.0f);
-        _btnInspectPayload.Size = new Size(130, 32);
-        _btnInspectPayload.Location = new Point(144, 6);
+        _btnInspectPayload.Appearance.Options.UseFont = true;
+        _btnInspectPayload.Size = new Size(130, 34);
+        _btnInspectPayload.Margin = new Padding(0, 2, 8, 2);
         _btnInspectPayload.Click += (_, _) => HandleInspectPayload();
 
         _btnManagerOverride.Text = "Manager Override";
         _btnManagerOverride.Appearance.Font = new Font("Segoe UI", 9.0f, FontStyle.Bold);
         _btnManagerOverride.Appearance.ForeColor = Color.DarkRed;
-        _btnManagerOverride.Size = new Size(140, 32);
-        _btnManagerOverride.Location = new Point(280, 6);
+        _btnManagerOverride.Appearance.Options.UseFont = true;
+        _btnManagerOverride.Appearance.Options.UseForeColor = true;
+        _btnManagerOverride.Size = new Size(145, 34);
+        _btnManagerOverride.Margin = new Padding(0, 2, 8, 2);
         _btnManagerOverride.Click += async (_, _) => await HandleManagerOverrideAsync();
 
         _btnRefresh.Text = "Refresh";
         _btnRefresh.Appearance.Font = new Font("Segoe UI", 9.0f);
-        _btnRefresh.Size = new Size(90, 32);
-        _btnRefresh.Location = new Point(426, 6);
+        _btnRefresh.Appearance.Options.UseFont = true;
+        _btnRefresh.Size = new Size(90, 34);
+        _btnRefresh.Margin = new Padding(0, 2, 16, 2);
         _btnRefresh.Click += (_, _) => LoadDataAsync();
 
         var lblFilter = new LabelControl
         {
             Text = "Filter Status:",
-            Appearance = { Font = new Font("Segoe UI", 9.0f) },
-            Location = new Point(530, 14)
+            Appearance = { Font = new Font("Segoe UI", 9.0f, FontStyle.Bold) },
+            Margin = new Padding(0, 8, 6, 2)
         };
+        lblFilter.Appearance.Options.UseFont = true;
 
+        _cmbStatusFilter.Properties.Items.Clear();
         _cmbStatusFilter.Properties.Items.AddRange(new object[] { "All", "Pending", "Synchronized", "Failed", "ManualReview" });
         _cmbStatusFilter.SelectedIndex = 0;
-        _cmbStatusFilter.Size = new Size(130, 30);
-        _cmbStatusFilter.Location = new Point(610, 8);
+        _cmbStatusFilter.Properties.AutoHeight = false;
+        _cmbStatusFilter.Size = new Size(140, 34);
+        _cmbStatusFilter.Margin = new Padding(0, 2, 8, 2);
         _cmbStatusFilter.SelectedIndexChanged += (_, _) => LoadDataAsync();
 
-        _toolbarPanel.Controls.Add(_btnRetry);
-        _toolbarPanel.Controls.Add(_btnInspectPayload);
-        _toolbarPanel.Controls.Add(_btnManagerOverride);
-        _toolbarPanel.Controls.Add(_btnRefresh);
-        _toolbarPanel.Controls.Add(lblFilter);
-        _toolbarPanel.Controls.Add(_cmbStatusFilter);
+        toolbarFlow.Controls.Add(_btnRetry);
+        toolbarFlow.Controls.Add(_btnInspectPayload);
+        toolbarFlow.Controls.Add(_btnManagerOverride);
+        toolbarFlow.Controls.Add(_btnRefresh);
+        toolbarFlow.Controls.Add(lblFilter);
+        toolbarFlow.Controls.Add(_cmbStatusFilter);
+
+        _toolbarPanel.Controls.Add(toolbarFlow);
     }
 
     private void BuildGrid()

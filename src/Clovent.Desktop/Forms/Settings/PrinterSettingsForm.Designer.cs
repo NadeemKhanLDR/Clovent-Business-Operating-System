@@ -42,11 +42,20 @@ partial class PrinterSettingsForm
         this.spinCopies = new DevExpress.XtraEditors.SpinEdit();
         this.chkCutter = new DevExpress.XtraEditors.CheckEdit();
         this.chkDrawer = new DevExpress.XtraEditors.CheckEdit();
+        this.chkCustomerCopy = new DevExpress.XtraEditors.CheckEdit();
+        this.lblCustomerCopies = new DevExpress.XtraEditors.LabelControl();
+        this.spinCustomerCopies = new DevExpress.XtraEditors.SpinEdit();
+        this.chkMerchantCopy = new DevExpress.XtraEditors.CheckEdit();
+        this.lblMerchantCopies = new DevExpress.XtraEditors.LabelControl();
+        this.spinMerchantCopies = new DevExpress.XtraEditors.SpinEdit();
+        this.lblMerchantTrigger = new DevExpress.XtraEditors.LabelControl();
+        this.cmbMerchantTrigger = new DevExpress.XtraEditors.ComboBoxEdit();
+        this.chkMerchantSignature = new DevExpress.XtraEditors.CheckEdit();
         this.btnSaveProfile = new DevExpress.XtraEditors.SimpleButton();
-        this.panelBottom = new System.Windows.Forms.Panel();
-        this.lblStatus = new DevExpress.XtraEditors.LabelControl();
         this.btnPreviewTest = new DevExpress.XtraEditors.SimpleButton();
         this.btnTestPrint = new DevExpress.XtraEditors.SimpleButton();
+        this.panelBottom = new System.Windows.Forms.Panel();
+        this.lblStatus = new DevExpress.XtraEditors.LabelControl();
         this.btnClose = new DevExpress.XtraEditors.SimpleButton();
         ((System.ComponentModel.ISupportInitialize)(this.grpInstalled)).BeginInit();
         this.grpInstalled.SuspendLayout();
@@ -64,45 +73,51 @@ partial class PrinterSettingsForm
         ((System.ComponentModel.ISupportInitialize)(this.spinCopies.Properties)).BeginInit();
         ((System.ComponentModel.ISupportInitialize)(this.chkCutter.Properties)).BeginInit();
         ((System.ComponentModel.ISupportInitialize)(this.chkDrawer.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkCustomerCopy.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.spinCustomerCopies.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkMerchantCopy.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.spinMerchantCopies.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.cmbMerchantTrigger.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkMerchantSignature.Properties)).BeginInit();
         this.panelBottom.SuspendLayout();
         this.SuspendLayout();
         // 
         // lblTitle
         // 
-        this.lblTitle.Appearance.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+        this.lblTitle.Appearance.Font = new System.Drawing.Font("Segoe UI", 11.5F, System.Drawing.FontStyle.Bold);
         this.lblTitle.Appearance.Options.UseFont = true;
-        this.lblTitle.Location = new System.Drawing.Point(24, 16);
+        this.lblTitle.Location = new System.Drawing.Point(18, 10);
         this.lblTitle.Name = "lblTitle";
-        this.lblTitle.Size = new System.Drawing.Size(262, 21);
+        this.lblTitle.Size = new System.Drawing.Size(248, 20);
         this.lblTitle.TabIndex = 0;
         this.lblTitle.Text = "Printer & Hardware Management";
         // 
         // lblSubtitle
         // 
-        this.lblSubtitle.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.lblSubtitle.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.5F);
         this.lblSubtitle.Appearance.ForeColor = System.Drawing.Color.Gray;
         this.lblSubtitle.Appearance.Options.UseFont = true;
         this.lblSubtitle.Appearance.Options.UseForeColor = true;
-        this.lblSubtitle.Location = new System.Drawing.Point(24, 40);
+        this.lblSubtitle.Location = new System.Drawing.Point(18, 30);
         this.lblSubtitle.Name = "lblSubtitle";
-        this.lblSubtitle.Size = new System.Drawing.Size(425, 15);
+        this.lblSubtitle.Size = new System.Drawing.Size(430, 13);
         this.lblSubtitle.TabIndex = 1;
-        this.lblSubtitle.Text = "Configure thermal receipt printers, kitchen routing, paper widths, and print roles.";
+        this.lblSubtitle.Text = "Configure thermal receipt printers, customer/merchant copies, paper widths, and roles.";
         // 
         // grpInstalled
         // 
         this.grpInstalled.Controls.Add(this.lblInstalled);
         this.grpInstalled.Controls.Add(this.cmbInstalledPrinters);
         this.grpInstalled.Controls.Add(this.btnRefreshQueues);
-        this.grpInstalled.Location = new System.Drawing.Point(24, 65);
+        this.grpInstalled.Location = new System.Drawing.Point(18, 48);
         this.grpInstalled.Name = "grpInstalled";
-        this.grpInstalled.Size = new System.Drawing.Size(736, 75);
+        this.grpInstalled.Size = new System.Drawing.Size(748, 54);
         this.grpInstalled.TabIndex = 2;
         this.grpInstalled.Text = "System Print Queues";
         // 
         // lblInstalled
         // 
-        this.lblInstalled.Location = new System.Drawing.Point(16, 38);
+        this.lblInstalled.Location = new System.Drawing.Point(14, 26);
         this.lblInstalled.Name = "lblInstalled";
         this.lblInstalled.Size = new System.Drawing.Size(123, 13);
         this.lblInstalled.TabIndex = 0;
@@ -110,19 +125,19 @@ partial class PrinterSettingsForm
         // 
         // cmbInstalledPrinters
         // 
-        this.cmbInstalledPrinters.Location = new System.Drawing.Point(155, 34);
+        this.cmbInstalledPrinters.Location = new System.Drawing.Point(150, 23);
         this.cmbInstalledPrinters.Name = "cmbInstalledPrinters";
         this.cmbInstalledPrinters.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
         this.cmbInstalledPrinters.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-        this.cmbInstalledPrinters.Size = new System.Drawing.Size(440, 20);
+        this.cmbInstalledPrinters.Size = new System.Drawing.Size(470, 20);
         this.cmbInstalledPrinters.TabIndex = 1;
         // 
         // btnRefreshQueues
         // 
-        this.btnRefreshQueues.Location = new System.Drawing.Point(610, 32);
+        this.btnRefreshQueues.Location = new System.Drawing.Point(630, 21);
         this.btnRefreshQueues.Name = "btnRefreshQueues";
-        this.btnRefreshQueues.Size = new System.Drawing.Size(110, 24);
+        this.btnRefreshQueues.Size = new System.Drawing.Size(106, 24);
         this.btnRefreshQueues.TabIndex = 2;
         this.btnRefreshQueues.Text = "Refresh Queues";
         // 
@@ -132,40 +147,40 @@ partial class PrinterSettingsForm
         this.grpProfiles.Controls.Add(this.btnAddProfile);
         this.grpProfiles.Controls.Add(this.btnDeleteProfile);
         this.grpProfiles.Controls.Add(this.btnSetDefault);
-        this.grpProfiles.Location = new System.Drawing.Point(24, 150);
+        this.grpProfiles.Location = new System.Drawing.Point(18, 108);
         this.grpProfiles.Name = "grpProfiles";
-        this.grpProfiles.Size = new System.Drawing.Size(260, 330);
+        this.grpProfiles.Size = new System.Drawing.Size(232, 288);
         this.grpProfiles.TabIndex = 3;
         this.grpProfiles.Text = "Configured Profiles";
         // 
         // lstProfiles
         // 
-        this.lstProfiles.Location = new System.Drawing.Point(12, 30);
+        this.lstProfiles.Location = new System.Drawing.Point(8, 24);
         this.lstProfiles.Name = "lstProfiles";
-        this.lstProfiles.Size = new System.Drawing.Size(236, 250);
+        this.lstProfiles.Size = new System.Drawing.Size(216, 222);
         this.lstProfiles.TabIndex = 0;
         // 
         // btnAddProfile
         // 
-        this.btnAddProfile.Location = new System.Drawing.Point(12, 290);
+        this.btnAddProfile.Location = new System.Drawing.Point(8, 252);
         this.btnAddProfile.Name = "btnAddProfile";
-        this.btnAddProfile.Size = new System.Drawing.Size(65, 26);
+        this.btnAddProfile.Size = new System.Drawing.Size(58, 26);
         this.btnAddProfile.TabIndex = 1;
         this.btnAddProfile.Text = "+ New";
         // 
         // btnDeleteProfile
         // 
-        this.btnDeleteProfile.Location = new System.Drawing.Point(83, 290);
+        this.btnDeleteProfile.Location = new System.Drawing.Point(70, 252);
         this.btnDeleteProfile.Name = "btnDeleteProfile";
-        this.btnDeleteProfile.Size = new System.Drawing.Size(65, 26);
+        this.btnDeleteProfile.Size = new System.Drawing.Size(58, 26);
         this.btnDeleteProfile.TabIndex = 2;
         this.btnDeleteProfile.Text = "Delete";
         // 
         // btnSetDefault
         // 
-        this.btnSetDefault.Location = new System.Drawing.Point(154, 290);
+        this.btnSetDefault.Location = new System.Drawing.Point(132, 252);
         this.btnSetDefault.Name = "btnSetDefault";
-        this.btnSetDefault.Size = new System.Drawing.Size(94, 26);
+        this.btnSetDefault.Size = new System.Drawing.Size(92, 26);
         this.btnSetDefault.TabIndex = 3;
         this.btnSetDefault.Text = "Set Default";
         // 
@@ -185,16 +200,27 @@ partial class PrinterSettingsForm
         this.grpProfileDetails.Controls.Add(this.spinCopies);
         this.grpProfileDetails.Controls.Add(this.chkCutter);
         this.grpProfileDetails.Controls.Add(this.chkDrawer);
+        this.grpProfileDetails.Controls.Add(this.chkCustomerCopy);
+        this.grpProfileDetails.Controls.Add(this.lblCustomerCopies);
+        this.grpProfileDetails.Controls.Add(this.spinCustomerCopies);
+        this.grpProfileDetails.Controls.Add(this.chkMerchantCopy);
+        this.grpProfileDetails.Controls.Add(this.lblMerchantCopies);
+        this.grpProfileDetails.Controls.Add(this.spinMerchantCopies);
+        this.grpProfileDetails.Controls.Add(this.lblMerchantTrigger);
+        this.grpProfileDetails.Controls.Add(this.cmbMerchantTrigger);
+        this.grpProfileDetails.Controls.Add(this.chkMerchantSignature);
         this.grpProfileDetails.Controls.Add(this.btnSaveProfile);
-        this.grpProfileDetails.Location = new System.Drawing.Point(295, 150);
+        this.grpProfileDetails.Controls.Add(this.btnPreviewTest);
+        this.grpProfileDetails.Controls.Add(this.btnTestPrint);
+        this.grpProfileDetails.Location = new System.Drawing.Point(256, 108);
         this.grpProfileDetails.Name = "grpProfileDetails";
-        this.grpProfileDetails.Size = new System.Drawing.Size(465, 330);
+        this.grpProfileDetails.Size = new System.Drawing.Size(510, 288);
         this.grpProfileDetails.TabIndex = 4;
         this.grpProfileDetails.Text = "Profile Configuration";
         // 
         // lblProfileName
         // 
-        this.lblProfileName.Location = new System.Drawing.Point(16, 35);
+        this.lblProfileName.Location = new System.Drawing.Point(12, 27);
         this.lblProfileName.Name = "lblProfileName";
         this.lblProfileName.Size = new System.Drawing.Size(64, 13);
         this.lblProfileName.TabIndex = 0;
@@ -202,14 +228,14 @@ partial class PrinterSettingsForm
         // 
         // txtProfileName
         // 
-        this.txtProfileName.Location = new System.Drawing.Point(120, 32);
+        this.txtProfileName.Location = new System.Drawing.Point(90, 24);
         this.txtProfileName.Name = "txtProfileName";
-        this.txtProfileName.Size = new System.Drawing.Size(325, 20);
+        this.txtProfileName.Size = new System.Drawing.Size(155, 20);
         this.txtProfileName.TabIndex = 1;
         // 
         // lblQueue
         // 
-        this.lblQueue.Location = new System.Drawing.Point(16, 68);
+        this.lblQueue.Location = new System.Drawing.Point(255, 27);
         this.lblQueue.Name = "lblQueue";
         this.lblQueue.Size = new System.Drawing.Size(73, 13);
         this.lblQueue.TabIndex = 2;
@@ -217,14 +243,14 @@ partial class PrinterSettingsForm
         // 
         // txtQueueName
         // 
-        this.txtQueueName.Location = new System.Drawing.Point(120, 65);
+        this.txtQueueName.Location = new System.Drawing.Point(340, 24);
         this.txtQueueName.Name = "txtQueueName";
-        this.txtQueueName.Size = new System.Drawing.Size(325, 20);
+        this.txtQueueName.Size = new System.Drawing.Size(158, 20);
         this.txtQueueName.TabIndex = 3;
         // 
         // lblRole
         // 
-        this.lblRole.Location = new System.Drawing.Point(16, 102);
+        this.lblRole.Location = new System.Drawing.Point(12, 53);
         this.lblRole.Name = "lblRole";
         this.lblRole.Size = new System.Drawing.Size(25, 13);
         this.lblRole.TabIndex = 4;
@@ -232,17 +258,17 @@ partial class PrinterSettingsForm
         // 
         // cmbRole
         // 
-        this.cmbRole.Location = new System.Drawing.Point(120, 99);
+        this.cmbRole.Location = new System.Drawing.Point(90, 50);
         this.cmbRole.Name = "cmbRole";
         this.cmbRole.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
         this.cmbRole.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-        this.cmbRole.Size = new System.Drawing.Size(325, 20);
+        this.cmbRole.Size = new System.Drawing.Size(155, 20);
         this.cmbRole.TabIndex = 5;
         // 
         // lblPaperWidth
         // 
-        this.lblPaperWidth.Location = new System.Drawing.Point(16, 136);
+        this.lblPaperWidth.Location = new System.Drawing.Point(255, 53);
         this.lblPaperWidth.Name = "lblPaperWidth";
         this.lblPaperWidth.Size = new System.Drawing.Size(63, 13);
         this.lblPaperWidth.TabIndex = 6;
@@ -250,17 +276,17 @@ partial class PrinterSettingsForm
         // 
         // cmbPaperWidth
         // 
-        this.cmbPaperWidth.Location = new System.Drawing.Point(120, 133);
+        this.cmbPaperWidth.Location = new System.Drawing.Point(340, 50);
         this.cmbPaperWidth.Name = "cmbPaperWidth";
         this.cmbPaperWidth.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
         this.cmbPaperWidth.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
-        this.cmbPaperWidth.Size = new System.Drawing.Size(325, 20);
+        this.cmbPaperWidth.Size = new System.Drawing.Size(158, 20);
         this.cmbPaperWidth.TabIndex = 7;
         // 
         // lblColumns
         // 
-        this.lblColumns.Location = new System.Drawing.Point(16, 170);
+        this.lblColumns.Location = new System.Drawing.Point(12, 79);
         this.lblColumns.Name = "lblColumns";
         this.lblColumns.Size = new System.Drawing.Size(69, 13);
         this.lblColumns.TabIndex = 8;
@@ -273,7 +299,7 @@ partial class PrinterSettingsForm
             0,
             0,
             0});
-        this.spinColumns.Location = new System.Drawing.Point(120, 167);
+        this.spinColumns.Location = new System.Drawing.Point(90, 76);
         this.spinColumns.Name = "spinColumns";
         this.spinColumns.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
@@ -289,16 +315,17 @@ partial class PrinterSettingsForm
             0,
             0,
             0});
-        this.spinColumns.Size = new System.Drawing.Size(100, 20);
+        this.spinColumns.Size = new System.Drawing.Size(60, 20);
         this.spinColumns.TabIndex = 9;
         // 
         // lblCopies
         // 
-        this.lblCopies.Location = new System.Drawing.Point(240, 170);
+        this.lblCopies.Location = new System.Drawing.Point(400, 79);
         this.lblCopies.Name = "lblCopies";
         this.lblCopies.Size = new System.Drawing.Size(36, 13);
         this.lblCopies.TabIndex = 10;
         this.lblCopies.Text = "Copies:";
+        this.lblCopies.Visible = false;
         // 
         // spinCopies
         // 
@@ -307,7 +334,7 @@ partial class PrinterSettingsForm
             0,
             0,
             0});
-        this.spinCopies.Location = new System.Drawing.Point(295, 167);
+        this.spinCopies.Location = new System.Drawing.Point(445, 76);
         this.spinCopies.Name = "spinCopies";
         this.spinCopies.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
@@ -322,95 +349,206 @@ partial class PrinterSettingsForm
             0,
             0,
             0});
-        this.spinCopies.Size = new System.Drawing.Size(150, 20);
+        this.spinCopies.Size = new System.Drawing.Size(50, 20);
         this.spinCopies.TabIndex = 11;
+        this.spinCopies.Visible = false;
         // 
         // chkCutter
         // 
         this.chkCutter.EditValue = true;
-        this.chkCutter.Location = new System.Drawing.Point(120, 205);
+        this.chkCutter.Location = new System.Drawing.Point(165, 76);
         this.chkCutter.Name = "chkCutter";
         this.chkCutter.Properties.Caption = "Auto Paper Cutter";
-        this.chkCutter.Size = new System.Drawing.Size(150, 20);
+        this.chkCutter.Size = new System.Drawing.Size(120, 20);
         this.chkCutter.TabIndex = 12;
         // 
         // chkDrawer
         // 
         this.chkDrawer.EditValue = true;
-        this.chkDrawer.Location = new System.Drawing.Point(280, 205);
+        this.chkDrawer.Location = new System.Drawing.Point(295, 76);
         this.chkDrawer.Name = "chkDrawer";
         this.chkDrawer.Properties.Caption = "Cash Drawer Kick";
-        this.chkDrawer.Size = new System.Drawing.Size(150, 20);
+        this.chkDrawer.Size = new System.Drawing.Size(120, 20);
         this.chkDrawer.TabIndex = 13;
+        // 
+        // chkCustomerCopy
+        // 
+        this.chkCustomerCopy.EditValue = true;
+        this.chkCustomerCopy.Location = new System.Drawing.Point(12, 104);
+        this.chkCustomerCopy.Name = "chkCustomerCopy";
+        this.chkCustomerCopy.Properties.Caption = "Customer Copy";
+        this.chkCustomerCopy.Size = new System.Drawing.Size(110, 20);
+        this.chkCustomerCopy.TabIndex = 14;
+        // 
+        // lblCustomerCopies
+        // 
+        this.lblCustomerCopies.Location = new System.Drawing.Point(128, 107);
+        this.lblCustomerCopies.Name = "lblCustomerCopies";
+        this.lblCustomerCopies.Size = new System.Drawing.Size(36, 13);
+        this.lblCustomerCopies.TabIndex = 15;
+        this.lblCustomerCopies.Text = "Copies:";
+        // 
+        // spinCustomerCopies
+        // 
+        this.spinCustomerCopies.EditValue = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+        this.spinCustomerCopies.Location = new System.Drawing.Point(170, 104);
+        this.spinCustomerCopies.Name = "spinCustomerCopies";
+        this.spinCustomerCopies.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        this.spinCustomerCopies.Properties.IsFloatValue = false;
+        this.spinCustomerCopies.Properties.MaxValue = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
+        this.spinCustomerCopies.Properties.MinValue = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+        this.spinCustomerCopies.Size = new System.Drawing.Size(50, 20);
+        this.spinCustomerCopies.TabIndex = 16;
+        // 
+        // chkMerchantCopy
+        // 
+        this.chkMerchantCopy.EditValue = false;
+        this.chkMerchantCopy.Location = new System.Drawing.Point(240, 104);
+        this.chkMerchantCopy.Name = "chkMerchantCopy";
+        this.chkMerchantCopy.Properties.Caption = "Merchant Copy";
+        this.chkMerchantCopy.Size = new System.Drawing.Size(110, 20);
+        this.chkMerchantCopy.TabIndex = 17;
+        // 
+        // lblMerchantCopies
+        // 
+        this.lblMerchantCopies.Location = new System.Drawing.Point(356, 107);
+        this.lblMerchantCopies.Name = "lblMerchantCopies";
+        this.lblMerchantCopies.Size = new System.Drawing.Size(36, 13);
+        this.lblMerchantCopies.TabIndex = 18;
+        this.lblMerchantCopies.Text = "Copies:";
+        // 
+        // spinMerchantCopies
+        // 
+        this.spinMerchantCopies.EditValue = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+        this.spinMerchantCopies.Location = new System.Drawing.Point(398, 104);
+        this.spinMerchantCopies.Name = "spinMerchantCopies";
+        this.spinMerchantCopies.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        this.spinMerchantCopies.Properties.IsFloatValue = false;
+        this.spinMerchantCopies.Properties.MaxValue = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
+        this.spinMerchantCopies.Properties.MinValue = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+        this.spinMerchantCopies.Size = new System.Drawing.Size(50, 20);
+        this.spinMerchantCopies.TabIndex = 19;
+        // 
+        // lblMerchantTrigger
+        // 
+        this.lblMerchantTrigger.Location = new System.Drawing.Point(12, 133);
+        this.lblMerchantTrigger.Name = "lblMerchantTrigger";
+        this.lblMerchantTrigger.Size = new System.Drawing.Size(80, 13);
+        this.lblMerchantTrigger.TabIndex = 20;
+        this.lblMerchantTrigger.Text = "Merchant Policy:";
+        // 
+        // cmbMerchantTrigger
+        // 
+        this.cmbMerchantTrigger.Location = new System.Drawing.Point(98, 130);
+        this.cmbMerchantTrigger.Name = "cmbMerchantTrigger";
+        this.cmbMerchantTrigger.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        this.cmbMerchantTrigger.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
+        this.cmbMerchantTrigger.Size = new System.Drawing.Size(150, 20);
+        this.cmbMerchantTrigger.TabIndex = 21;
+        // 
+        // chkMerchantSignature
+        // 
+        this.chkMerchantSignature.EditValue = true;
+        this.chkMerchantSignature.Location = new System.Drawing.Point(260, 130);
+        this.chkMerchantSignature.Name = "chkMerchantSignature";
+        this.chkMerchantSignature.Properties.Caption = "Customer Signature Line";
+        this.chkMerchantSignature.Size = new System.Drawing.Size(160, 20);
+        this.chkMerchantSignature.TabIndex = 22;
         // 
         // btnSaveProfile
         // 
-        this.btnSaveProfile.Location = new System.Drawing.Point(120, 280);
+        this.btnSaveProfile.Location = new System.Drawing.Point(12, 162);
         this.btnSaveProfile.Name = "btnSaveProfile";
-        this.btnSaveProfile.Size = new System.Drawing.Size(160, 30);
-        this.btnSaveProfile.TabIndex = 14;
+        this.btnSaveProfile.Size = new System.Drawing.Size(115, 30);
+        this.btnSaveProfile.TabIndex = 23;
         this.btnSaveProfile.Text = "Save Profile";
+        // 
+        // btnPreviewTest
+        // 
+        this.btnPreviewTest.Location = new System.Drawing.Point(135, 162);
+        this.btnPreviewTest.Name = "btnPreviewTest";
+        this.btnPreviewTest.Size = new System.Drawing.Size(120, 30);
+        this.btnPreviewTest.TabIndex = 24;
+        this.btnPreviewTest.Text = "Preview Test Slip";
+        // 
+        // btnTestPrint
+        // 
+        this.btnTestPrint.Location = new System.Drawing.Point(263, 162);
+        this.btnTestPrint.Name = "btnTestPrint";
+        this.btnTestPrint.Size = new System.Drawing.Size(130, 30);
+        this.btnTestPrint.TabIndex = 25;
+        this.btnTestPrint.Text = "Execute Test Print";
         // 
         // panelBottom
         // 
         this.panelBottom.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(245)))), ((int)(((byte)(245)))), ((int)(((byte)(247)))));
         this.panelBottom.Controls.Add(this.lblStatus);
-        this.panelBottom.Controls.Add(this.btnPreviewTest);
-        this.panelBottom.Controls.Add(this.btnTestPrint);
         this.panelBottom.Controls.Add(this.btnClose);
         this.panelBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
-        this.panelBottom.Location = new System.Drawing.Point(0, 495);
+        this.panelBottom.Location = new System.Drawing.Point(0, 404);
         this.panelBottom.Name = "panelBottom";
-        this.panelBottom.Size = new System.Drawing.Size(784, 55);
+        this.panelBottom.Size = new System.Drawing.Size(784, 32);
         this.panelBottom.TabIndex = 5;
         // 
         // lblStatus
         // 
-        this.lblStatus.Location = new System.Drawing.Point(24, 20);
+        this.lblStatus.Location = new System.Drawing.Point(18, 9);
         this.lblStatus.Name = "lblStatus";
         this.lblStatus.Size = new System.Drawing.Size(35, 13);
         this.lblStatus.TabIndex = 0;
         this.lblStatus.Text = "Ready.";
         // 
-        // btnPreviewTest
-        // 
-        this.btnPreviewTest.Location = new System.Drawing.Point(390, 12);
-        this.btnPreviewTest.Name = "btnPreviewTest";
-        this.btnPreviewTest.Size = new System.Drawing.Size(120, 30);
-        this.btnPreviewTest.TabIndex = 1;
-        this.btnPreviewTest.Text = "Preview Test Slip";
-        // 
-        // btnTestPrint
-        // 
-        this.btnTestPrint.Location = new System.Drawing.Point(520, 12);
-        this.btnTestPrint.Name = "btnTestPrint";
-        this.btnTestPrint.Size = new System.Drawing.Size(140, 30);
-        this.btnTestPrint.TabIndex = 2;
-        this.btnTestPrint.Text = "Execute Test Print";
-        // 
         // btnClose
         // 
+        this.btnClose.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
         this.btnClose.DialogResult = System.Windows.Forms.DialogResult.OK;
-        this.btnClose.Location = new System.Drawing.Point(670, 12);
+        this.btnClose.Location = new System.Drawing.Point(700, 4);
         this.btnClose.Name = "btnClose";
-        this.btnClose.Size = new System.Drawing.Size(90, 30);
+        this.btnClose.Size = new System.Drawing.Size(74, 24);
         this.btnClose.TabIndex = 3;
         this.btnClose.Text = "Close";
+        this.btnClose.Visible = false;
         // 
         // PrinterSettingsForm
         // 
-        this.ClientSize = new System.Drawing.Size(784, 550);
+        this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.AutoScroll = true;
+        this.Size = new System.Drawing.Size(784, 436);
         this.Controls.Add(this.panelBottom);
         this.Controls.Add(this.grpProfileDetails);
         this.Controls.Add(this.grpProfiles);
         this.Controls.Add(this.grpInstalled);
         this.Controls.Add(this.lblSubtitle);
         this.Controls.Add(this.lblTitle);
-        this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-        this.MaximizeBox = false;
-        this.MinimizeBox = false;
         this.Name = "PrinterSettingsForm";
-        this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
         this.Text = "Printer & Hardware Settings";
         ((System.ComponentModel.ISupportInitialize)(this.grpInstalled)).EndInit();
         this.grpInstalled.ResumeLayout(false);
@@ -430,6 +568,12 @@ partial class PrinterSettingsForm
         ((System.ComponentModel.ISupportInitialize)(this.spinCopies.Properties)).EndInit();
         ((System.ComponentModel.ISupportInitialize)(this.chkCutter.Properties)).EndInit();
         ((System.ComponentModel.ISupportInitialize)(this.chkDrawer.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkCustomerCopy.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.spinCustomerCopies.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkMerchantCopy.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.spinMerchantCopies.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.cmbMerchantTrigger.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.chkMerchantSignature.Properties)).EndInit();
         this.panelBottom.ResumeLayout(false);
         this.panelBottom.PerformLayout();
         this.ResumeLayout(false);
@@ -462,10 +606,19 @@ partial class PrinterSettingsForm
     private DevExpress.XtraEditors.SpinEdit spinCopies;
     private DevExpress.XtraEditors.CheckEdit chkCutter;
     private DevExpress.XtraEditors.CheckEdit chkDrawer;
+    private DevExpress.XtraEditors.CheckEdit chkCustomerCopy;
+    private DevExpress.XtraEditors.LabelControl lblCustomerCopies;
+    private DevExpress.XtraEditors.SpinEdit spinCustomerCopies;
+    private DevExpress.XtraEditors.CheckEdit chkMerchantCopy;
+    private DevExpress.XtraEditors.LabelControl lblMerchantCopies;
+    private DevExpress.XtraEditors.SpinEdit spinMerchantCopies;
+    private DevExpress.XtraEditors.LabelControl lblMerchantTrigger;
+    private DevExpress.XtraEditors.ComboBoxEdit cmbMerchantTrigger;
+    private DevExpress.XtraEditors.CheckEdit chkMerchantSignature;
     private DevExpress.XtraEditors.SimpleButton btnSaveProfile;
-    private System.Windows.Forms.Panel panelBottom;
-    private DevExpress.XtraEditors.LabelControl lblStatus;
     private DevExpress.XtraEditors.SimpleButton btnPreviewTest;
     private DevExpress.XtraEditors.SimpleButton btnTestPrint;
+    private System.Windows.Forms.Panel panelBottom;
+    private DevExpress.XtraEditors.LabelControl lblStatus;
     private DevExpress.XtraEditors.SimpleButton btnClose;
 }

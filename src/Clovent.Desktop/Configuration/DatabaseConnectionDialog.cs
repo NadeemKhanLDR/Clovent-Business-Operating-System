@@ -17,6 +17,9 @@ public partial class DatabaseConnectionDialog : XtraForm
     /// <summary>Gets the configured database connection settings upon dialog completion.</summary>
     public DatabaseConnectionSettings ResultSettings => _currentSettings;
 
+    /// <summary>Backwards-compatible alias for the database dropdown control.</summary>
+    private DevExpress.XtraEditors.ComboBoxEdit txtDatabase => cmbDatabase;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="DatabaseConnectionDialog"/> class.
     /// </summary>
@@ -31,6 +34,7 @@ public partial class DatabaseConnectionDialog : XtraForm
             return;
         }
 
+        cmbDatabase.QueryPopUp += CmbDatabase_QueryPopUp;
         cmbAuth.SelectedIndexChanged += CmbAuth_SelectedIndexChanged;
         btnTest.Click += BtnTest_Click;
         btnSave.Click += BtnSave_Click;
@@ -44,7 +48,18 @@ public partial class DatabaseConnectionDialog : XtraForm
     private void DatabaseConnectionDialog_Load(object? sender, EventArgs e)
     {
         txtServer.Text = _currentSettings.Server;
-        txtDatabase.Text = _currentSettings.Database;
+
+        var initialDb = string.IsNullOrWhiteSpace(_currentSettings.Database)
+            ? DatabaseConnectionSettings.DefaultDatabaseName
+            : _currentSettings.Database;
+
+        cmbDatabase.Properties.Items.Clear();
+        cmbDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+        if (!string.Equals(initialDb, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
+        {
+            cmbDatabase.Properties.Items.Add(initialDb);
+        }
+        cmbDatabase.Text = initialDb;
 
         if (_currentSettings.UseWindowsAuthentication)
         {
@@ -70,7 +85,7 @@ public partial class DatabaseConnectionDialog : XtraForm
             {
                 btnSave.Enabled = false;
                 txtServer.Properties.ReadOnly = true;
-                txtDatabase.Properties.ReadOnly = true;
+                cmbDatabase.Properties.ReadOnly = true;
                 cmbAuth.Properties.ReadOnly = true;
                 txtUsername.Properties.ReadOnly = true;
                 txtPassword.Properties.ReadOnly = true;
@@ -86,7 +101,7 @@ public partial class DatabaseConnectionDialog : XtraForm
             // Post-login scenario: require application administrator privileges
             btnSave.Enabled = false;
             txtServer.Properties.ReadOnly = true;
-            txtDatabase.Properties.ReadOnly = true;
+            cmbDatabase.Properties.ReadOnly = true;
             cmbAuth.Properties.ReadOnly = true;
             txtUsername.Properties.ReadOnly = true;
             txtPassword.Properties.ReadOnly = true;
@@ -108,6 +123,60 @@ public partial class DatabaseConnectionDialog : XtraForm
         UpdateAuthControlState();
     }
 
+    private void CmbDatabase_QueryPopUp(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        PopulateAvailableDatabases();
+    }
+
+    private void PopulateAvailableDatabases()
+    {
+        var currentText = cmbDatabase.Text;
+        var databases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // 1. Always include default canonical database
+        databases.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+
+        // 2. Include previously saved database if present
+        if (!string.IsNullOrWhiteSpace(_currentSettings.Database))
+        {
+            databases.Add(_currentSettings.Database.Trim());
+        }
+
+        // 3. Include user's current manual input if present
+        if (!string.IsNullOrWhiteSpace(currentText))
+        {
+            databases.Add(currentText.Trim());
+        }
+
+        // 4. Enumerate online databases from SQL Server if reachable
+        var settings = BuildSettingsFromUi();
+        var discovered = DatabaseSecretStore.EnumerateDatabases(settings);
+        foreach (var db in discovered)
+        {
+            databases.Add(db);
+        }
+
+        // 5. Update ComboBox items while preserving user's current manual entry
+        cmbDatabase.Properties.Items.BeginUpdate();
+        try
+        {
+            cmbDatabase.Properties.Items.Clear();
+            foreach (var db in databases.OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
+            {
+                cmbDatabase.Properties.Items.Add(db);
+            }
+        }
+        finally
+        {
+            cmbDatabase.Properties.Items.EndUpdate();
+        }
+
+        if (!string.IsNullOrEmpty(currentText))
+        {
+            cmbDatabase.Text = currentText;
+        }
+    }
+
     private void UpdateAuthControlState()
     {
         var isSqlAuth = cmbAuth.SelectedIndex == 1;
@@ -123,7 +192,7 @@ public partial class DatabaseConnectionDialog : XtraForm
         return new DatabaseConnectionSettings
         {
             Server = string.IsNullOrWhiteSpace(txtServer.Text) ? DatabaseConnectionSettings.DefaultServer : txtServer.Text.Trim(),
-            Database = string.IsNullOrWhiteSpace(txtDatabase.Text) ? DatabaseConnectionSettings.DefaultDatabaseName : txtDatabase.Text.Trim(),
+            Database = string.IsNullOrWhiteSpace(cmbDatabase.Text) ? DatabaseConnectionSettings.DefaultDatabaseName : cmbDatabase.Text.Trim(),
             UseWindowsAuthentication = isWindowsAuth,
             UserId = isWindowsAuth ? null : txtUsername.Text.Trim(),
             PlainTextPassword = isWindowsAuth ? null : txtPassword.Text,
@@ -146,6 +215,7 @@ public partial class DatabaseConnectionDialog : XtraForm
         {
             lblStatus.Text = "Connection successful!";
             lblStatus.ForeColor = Color.ForestGreen;
+            PopulateAvailableDatabases();
             XtraMessageBox.Show(
                 this,
                 $"Successfully connected to database '{settings.Database}' on SQL Server '{settings.Server}'.",

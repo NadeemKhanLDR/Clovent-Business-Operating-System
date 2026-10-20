@@ -64,6 +64,7 @@ To prevent fragmentation and duplicate hardcoded dictionaries across `Program.cs
 Defines canonical page constant strings and page collections:
 - `OrderedPages`: Ordered sequence of the 9 official pages.
 - `PermissionGatedPages`: Pages requiring explicit role-based access control (RBAC). `Home` and `Purchases` are ungated.
+- `PageIcons`: DevExpress SVG vector icon mappings for each RibbonPage tab header (`GetIconUri(pageName)`).
 
 ### 2.2 NavigationItemDefinition (`NavigationItemDefinition.cs`)
 

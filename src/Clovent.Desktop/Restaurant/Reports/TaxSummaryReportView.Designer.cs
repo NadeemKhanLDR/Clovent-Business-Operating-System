@@ -102,7 +102,8 @@ partial class TaxSummaryReportView
         // 1. Filter Strip
         _filterPanel.Dock = DockStyle.Fill;
         _filterPanel.AutoSize = true;
-        _filterPanel.Padding = new Padding(10);
+        _filterPanel.MinimumSize = new Size(0, 56);
+        _filterPanel.Padding = new Padding(10, 8, 10, 8);
         _filterPanel.Margin = new Padding(0, 0, 0, 10);
 
         var filterFlow = new FlowLayoutPanel
@@ -114,30 +115,50 @@ partial class TaxSummaryReportView
         };
 
         _warehouseLabel.Text = "Warehouse:";
-        _warehouseLabel.Padding = new Padding(0, 6, 6, 0);
-        _warehouseCombo.Width = 160;
+        _warehouseLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _warehouseLabel.Appearance.Options.UseFont = true;
+        _warehouseLabel.Padding = new Padding(0, 7, 6, 0);
+        _warehouseCombo.Width = 220;
+        _warehouseCombo.Font = new Font("Segoe UI", 9.5F);
+        _warehouseCombo.Properties.AutoHeight = false;
+        _warehouseCombo.Height = 32;
         _warehouseCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
 
         _periodLabel.Text = "Period:";
-        _periodLabel.Padding = new Padding(12, 6, 6, 0);
-        _periodCombo.Width = 120;
+        _periodLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _periodLabel.Appearance.Options.UseFont = true;
+        _periodLabel.Padding = new Padding(12, 7, 6, 0);
+        _periodCombo.Width = 140;
+        _periodCombo.Font = new Font("Segoe UI", 9.5F);
+        _periodCombo.Properties.AutoHeight = false;
+        _periodCombo.Height = 32;
         _periodCombo.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.DisableTextEditor;
 
         _fromLabel.Text = "From:";
-        _fromLabel.Padding = new Padding(12, 6, 6, 0);
-        _fromDateEdit.Width = 110;
+        _fromLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _fromLabel.Appearance.Options.UseFont = true;
+        _fromLabel.Padding = new Padding(12, 7, 6, 0);
+        _fromDateEdit.Width = 135;
+        _fromDateEdit.Font = new Font("Segoe UI", 9.5F);
+        _fromDateEdit.Properties.AutoHeight = false;
+        _fromDateEdit.Height = 32;
 
         _toLabel.Text = "To:";
-        _toLabel.Padding = new Padding(12, 6, 6, 0);
-        _toDateEdit.Width = 110;
+        _toLabel.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _toLabel.Appearance.Options.UseFont = true;
+        _toLabel.Padding = new Padding(12, 7, 6, 0);
+        _toDateEdit.Width = 135;
+        _toDateEdit.Font = new Font("Segoe UI", 9.5F);
+        _toDateEdit.Properties.AutoHeight = false;
+        _toDateEdit.Height = 32;
 
         _refreshButton.Text = "Generate Report";
-        _refreshButton.Appearance.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _refreshButton.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
         _refreshButton.Appearance.Options.UseFont = true;
-        _refreshButton.Margin = new Padding(16, 0, 0, 0);
         _refreshButton.AutoSize = true;
-        _refreshButton.MinimumSize = new Size(130, 30);
-        _refreshButton.Size = new Size(130, 30);
+        _refreshButton.Margin = new Padding(16, 0, 0, 0);
+        _refreshButton.Size = new Size(140, 32);
+        _refreshButton.MinimumSize = new Size(140, 32);
 
         filterFlow.Controls.Add(_warehouseLabel);
         filterFlow.Controls.Add(_warehouseCombo);
@@ -155,6 +176,7 @@ partial class TaxSummaryReportView
         // 2. KPI Summary Strip
         _kpiPanel.Dock = DockStyle.Fill;
         _kpiPanel.AutoSize = true;
+        _kpiPanel.MinimumSize = new Size(0, 42);
         _kpiPanel.Padding = new Padding(10);
         _kpiPanel.Margin = new Padding(0, 0, 0, 10);
 

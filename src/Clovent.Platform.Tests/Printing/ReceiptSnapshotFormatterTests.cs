@@ -139,4 +139,54 @@ public class ReceiptSnapshotFormatterTests
         Assert.Contains("URDU SCRIPT TEST:", testSlip);
         Assert.Contains("HARDWARE TEST SUCCESSFUL", testSlip);
     }
+
+    [Fact]
+    public void Format_CustomerCopy_IncludesCustomerCopyBanner()
+    {
+        var data = CreateSampleData();
+        var options = new ReceiptRenderOptions(CopyType: ReceiptCopyType.CustomerCopy);
+
+        var result = ReceiptSnapshotFormatter.Format(data, options);
+
+        Assert.Contains("*** CUSTOMER COPY ***", result.FormattedText);
+    }
+
+    [Fact]
+    public void Format_MerchantCopy_IncludesMerchantCopyBannerAndSignatureLine()
+    {
+        var data = CreateSampleData();
+        var options = new ReceiptRenderOptions(CopyType: ReceiptCopyType.MerchantCopy, IncludeSignatureLine: true);
+
+        var result = ReceiptSnapshotFormatter.Format(data, options);
+
+        Assert.Contains("*** MERCHANT COPY ***", result.FormattedText);
+        Assert.Contains("CUSTOMER / CARDHOLDER SIGNATURE", result.FormattedText);
+        Assert.Contains("I agree to pay the above total amount", result.FormattedText);
+    }
+
+    [Fact]
+    public void FormatTestPrintSlip_IncludesCopyPolicies()
+    {
+        var profile = new PrinterProfile
+        {
+            ProfileName = "Front Counter 80mm",
+            SystemPrinterName = "POS-80",
+            Role = PrinterRole.Receipt,
+            PrintCustomerCopy = true,
+            CustomerCopies = 2,
+            PrintMerchantCopy = true,
+            MerchantCopies = 1,
+            MerchantCopyTrigger = MerchantCopyTrigger.CardAndDigitalOnly,
+            MerchantIncludeSignature = true
+        };
+
+        var testSlip = ReceiptSnapshotFormatter.FormatTestPrintSlip(profile, "Admin");
+
+        Assert.Contains("Customer Copy:", testSlip);
+        Assert.Contains("2 Copy", testSlip);
+        Assert.Contains("Merchant Copy:", testSlip);
+        Assert.Contains("1 Copy (CardAndDigitalOnly)", testSlip);
+        Assert.Contains("Signature Line:", testSlip);
+        Assert.Contains("Enabled", testSlip);
+    }
 }

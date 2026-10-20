@@ -106,6 +106,14 @@ public sealed partial class MainForm
             }
 
             var page = new RibbonPage(pageName);
+            var pageSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage(NavigationPage.GetIconUri(pageName));
+            if (pageSvg != null)
+            {
+                page.ImageOptions.SvgImage = pageSvg;
+                page.ImageOptions.SvgImageSize = NavigationPage.PageIconSize;
+                page.ImageOptions.ImageToTextIndent = 4;
+            }
+
             _ribbon.Pages.Add(page);
             _pagesByName[pageName] = page;
         }
@@ -238,21 +246,33 @@ public sealed partial class MainForm
 
         // 5. System & Registration Group on Settings
         var systemGroup = new RibbonPageGroup("System & Registration");
-        var dbSettingsButton = new BarButtonItem { Caption = "Database Settings" };
-        var dbSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/data/database.svg")
-            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/properties.svg");
+        var dbSettingsButton = new BarButtonItem
+        {
+            Caption = "Database Settings",
+            RibbonStyle = RibbonItemStyles.SmallWithText
+        };
+        var dbSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/icon%20builder/actions_database.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/setup/properties.svg");
         if (dbSvg != null) dbSettingsButton.ImageOptions.SvgImage = dbSvg;
         dbSettingsButton.ItemClick += DatabaseSettingsButton_ItemClick;
 
-        var licenseButton = new BarButtonItem { Caption = "Registration & License" };
+        var licenseButton = new BarButtonItem
+        {
+            Caption = "Registration & License",
+            RibbonStyle = RibbonItemStyles.Large
+        };
         var licSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/business%20objects/bo_security_permission.svg")
-            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/about.svg");
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/icon%20builder/security_lock.svg");
         if (licSvg != null) licenseButton.ImageOptions.SvgImage = licSvg;
         licenseButton.ItemClick += LicenseButton_ItemClick;
 
-        var diagnosticsButton = new BarButtonItem { Caption = "System Diagnostics" };
-        var diagSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/support.svg")
-            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/actions/about.svg");
+        var diagnosticsButton = new BarButtonItem
+        {
+            Caption = "System Diagnostics",
+            RibbonStyle = RibbonItemStyles.SmallWithText
+        };
+        var diagSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("devav/actions/support.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/icon%20builder/security_bug.svg");
         if (diagSvg != null) diagnosticsButton.ImageOptions.SvgImage = diagSvg;
         diagnosticsButton.ItemClick += DiagnosticsButton_ItemClick;
 

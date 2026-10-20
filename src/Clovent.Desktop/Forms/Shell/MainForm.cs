@@ -237,17 +237,21 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         form.ShowDialog(this);
     }
 
-    private void DatabaseSettingsButton_ItemClick(object? sender, ItemClickEventArgs e)
+    private async void DatabaseSettingsButton_ItemClick(object? sender, ItemClickEventArgs e)
     {
-        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue && !Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivileges())
+        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue)
         {
-            DevExpress.XtraEditors.XtraMessageBox.Show(
-                this,
-                "Access Denied: Administrative privileges are required to configure database connection settings.",
-                "Access Denied",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
+            var hasPrivileges = await Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivilegesAsync();
+            if (!hasPrivileges)
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    this,
+                    "Access Denied: Administrative privileges are required to configure database connection settings.",
+                    "Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
         }
 
         using var dlg = new Clovent.Desktop.Configuration.DatabaseConnectionDialog();
@@ -605,6 +609,14 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         }
 
         var content = contentFactory();
+        if (content is Form form)
+        {
+            throw new InvalidOperationException(
+                $"Cannot host '{form.GetType().Name}' as a DocumentManager document. " +
+                $"In non-MDI mode, documents must inherit from UserControl/XtraUserControl or BaseForm, not Form/XtraForm. " +
+                $"Alternatively, open '{form.GetType().Name}' via Show() or ShowDialog().");
+        }
+
         content.Dock = DockStyle.Fill;
         LocalizationHelper.LocalizeControl(content);
         var document = _tabbedView.AddDocument(content, PosStrings.Get(caption));
@@ -619,6 +631,20 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         if (content is BaseForm baseForm)
         {
             _ = RunInitialRefreshAsync(baseForm);
+        }
+    }
+
+    /// <summary>
+    /// Closes the document containing the specified control, if currently open.
+    /// </summary>
+    public void CloseDocument(Control control)
+    {
+        ArgumentNullException.ThrowIfNull(control);
+
+        var doc = _tabbedView.Documents.FirstOrDefault(d => ReferenceEquals(d.Control, control) || (d.Control is Control c && c.Contains(control)));
+        if (doc != null)
+        {
+            _tabbedView.Controller.Close(doc);
         }
     }
 

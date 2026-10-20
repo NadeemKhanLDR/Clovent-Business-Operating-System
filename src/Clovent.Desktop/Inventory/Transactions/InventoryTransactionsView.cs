@@ -1,4 +1,5 @@
 using Clovent.Catalog.Application.Variants.Queries;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Inventory.Application.Transactions.Dtos;
@@ -28,6 +29,7 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     private const string FeatureCode = "inventorytransactions";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
@@ -38,8 +40,8 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
     public InventoryTransactionsView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
         InitializeComponent();
@@ -51,6 +53,7 @@ public sealed partial class InventoryTransactionsView : XtraUserControl
         if (disposing)
         {
             _scope.Dispose();
+            _gate.Dispose();
             components?.Dispose();
         }
 

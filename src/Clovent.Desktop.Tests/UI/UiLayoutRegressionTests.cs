@@ -149,9 +149,11 @@ public sealed class UiLayoutRegressionTests
 
         foreach (var combo in new[] { orgCombo, compCombo, branchCombo })
         {
+            Assert.False(combo.Properties.AutoHeight, "AutoHeight must be false to prevent TableLayoutPanel collapsing height");
             Assert.Equal(VertAlignment.Center, combo.Properties.Appearance.TextOptions.VAlignment);
             Assert.True(combo.Properties.DropDownRows >= 8, "Dropdown rows must be >= 8 to prevent clipped popups");
             Assert.True(combo.Width >= 260, $"Combo width {combo.Width} must be >= 260");
+            Assert.True(combo.Height >= 32, $"Combo height {combo.Height} must be >= 32");
         }
     }
 
@@ -164,10 +166,12 @@ public sealed class UiLayoutRegressionTests
         var combo = GetField<ComboBoxEdit>(picker, "_combo");
         var label = GetField<LabelControl>(picker, "_label");
 
+        Assert.False(combo.Properties.AutoHeight, "AutoHeight must be false to prevent TableLayoutPanel collapsing height");
         Assert.Equal(VertAlignment.Center, combo.Properties.Appearance.TextOptions.VAlignment);
         Assert.Equal(VertAlignment.Center, label.Appearance.TextOptions.VAlignment);
         Assert.True(combo.Properties.DropDownRows >= 8);
         Assert.True(combo.Width >= 260);
+        Assert.True(combo.Height >= 32);
     }
 
     [Fact]

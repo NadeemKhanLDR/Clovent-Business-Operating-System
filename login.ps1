@@ -26,10 +26,10 @@ function Click { param([int]$x, [int]$y)
 
 # Login fields (physical px, DPI-aware): username, password, POS card
 Click 2245 760
-[System.Windows.Forms.SendKeys]::SendWait('^aadmin')
+[System.Windows.Forms.SendKeys]::SendWait('^aadmin_acceptance')
 Start-Sleep -Milliseconds 400
 Click 2245 905
-[System.Windows.Forms.SendKeys]::SendWait('^aAdmin123!')
+[System.Windows.Forms.SendKeys]::SendWait('^aPassword@2026!')
 Start-Sleep -Milliseconds 400
 Click 1945 1667
 Write-Output "LOGIN SUBMITTED"

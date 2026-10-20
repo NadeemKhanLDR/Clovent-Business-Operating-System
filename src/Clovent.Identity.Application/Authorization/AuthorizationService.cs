@@ -15,13 +15,13 @@ public sealed class AuthorizationService(
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<string>> GetPermissionCodesAsync(Guid userId, CancellationToken cancellationToken = default)
     {
-        var cached = await cache.GetAsync(userId, cancellationToken);
+        var cached = await cache.GetAsync(userId, cancellationToken).ConfigureAwait(false);
         if (cached is not null)
         {
             return cached;
         }
 
-        var user = await userRepository.GetByIdAsync(new UserId(userId), cancellationToken);
+        var user = await userRepository.GetByIdAsync(new UserId(userId), cancellationToken).ConfigureAwait(false);
         if (user is null)
         {
             return [];
@@ -30,7 +30,7 @@ public sealed class AuthorizationService(
         var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var roleId in user.RoleIds)
         {
-            var role = await roleRepository.GetByIdAsync(roleId, cancellationToken);
+            var role = await roleRepository.GetByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
             if (role is null)
             {
                 continue;
@@ -38,7 +38,7 @@ public sealed class AuthorizationService(
 
             foreach (var permissionId in role.PermissionIds)
             {
-                var permission = await permissionRepository.GetByIdAsync(permissionId, cancellationToken);
+                var permission = await permissionRepository.GetByIdAsync(permissionId, cancellationToken).ConfigureAwait(false);
                 if (permission is not null)
                 {
                     codes.Add(permission.Code.Value);
@@ -47,21 +47,21 @@ public sealed class AuthorizationService(
         }
 
         var result = codes.ToList();
-        await cache.SetAsync(userId, result, cancellationToken);
+        await cache.SetAsync(userId, result, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
     /// <inheritdoc/>
     public async Task<bool> HasPermissionAsync(Guid userId, string permissionCode, CancellationToken cancellationToken = default)
     {
-        var codes = await GetPermissionCodesAsync(userId, cancellationToken);
+        var codes = await GetPermissionCodesAsync(userId, cancellationToken).ConfigureAwait(false);
         return codes.Contains(permissionCode, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>
     public async Task<bool> HasRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default)
     {
-        var user = await userRepository.GetByIdAsync(new UserId(userId), cancellationToken);
+        var user = await userRepository.GetByIdAsync(new UserId(userId), cancellationToken).ConfigureAwait(false);
         if (user is null)
         {
             return false;
@@ -69,7 +69,7 @@ public sealed class AuthorizationService(
 
         foreach (var roleId in user.RoleIds)
         {
-            var role = await roleRepository.GetByIdAsync(roleId, cancellationToken);
+            var role = await roleRepository.GetByIdAsync(roleId, cancellationToken).ConfigureAwait(false);
             if (role is not null && string.Equals(role.Name.Value, roleName, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
@@ -88,7 +88,7 @@ public sealed class AuthorizationService(
             return false;
         }
 
-        var codes = await GetPermissionCodesAsync(userId, cancellationToken);
+        var codes = await GetPermissionCodesAsync(userId, cancellationToken).ConfigureAwait(false);
         return policy.RequiredPermissionCodes.All(code => codes.Contains(code, StringComparer.OrdinalIgnoreCase));
     }
 }

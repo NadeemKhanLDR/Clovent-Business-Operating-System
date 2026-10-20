@@ -1,6 +1,9 @@
 using System.IO;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Clovent.Desktop.Authorization;
 using Clovent.Desktop.Commissioning.Security;
 using Clovent.Desktop.Sessions;
@@ -90,6 +93,75 @@ public sealed class CommissioningSecurityTests
 
         Assert.True(AdministrativePrivilegeChecker.IsSessionActive(adminSp));
         Assert.True(AdministrativePrivilegeChecker.HasAdministrativePrivileges(adminSp));
+    }
+
+    private sealed class AsyncYieldingAuthorizationService(Func<Guid, string, bool>? hasRole = null) : IAuthorizationService
+    {
+        public async Task<IReadOnlyCollection<string>> GetPermissionCodesAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return [];
+        }
+
+        public async Task<bool> HasPermissionAsync(Guid userId, string permissionCode, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return false;
+        }
+
+        public async Task<bool> HasRoleAsync(Guid userId, string roleName, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return hasRole?.Invoke(userId, roleName) ?? false;
+        }
+
+        public async Task<bool> SatisfiesPolicyAsync(Guid userId, string policyName, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            return false;
+        }
+    }
+
+    [Fact]
+    public void AdministrativePrivilegeChecker_WithSynchronizationContext_DoesNotDeadlock()
+    {
+        var prevContext = SynchronizationContext.Current;
+        try
+        {
+            using var syncContext = new WindowsFormsSynchronizationContext();
+            SynchronizationContext.SetSynchronizationContext(syncContext);
+
+            var adminUserId = Guid.NewGuid();
+            var adminServices = new ServiceCollection();
+            var adminSession = new CurrentSession();
+            adminSession.SignIn(adminUserId, Guid.NewGuid(), "System Administrator", userName: "admin");
+            adminServices.AddSingleton<ICurrentSession>(adminSession);
+            adminServices.AddSingleton<IAuthorizationService>(new AsyncYieldingAuthorizationService(hasRole: (u, r) => u == adminUserId && r == "Administrator"));
+            var adminSp = adminServices.BuildServiceProvider();
+
+            // Must complete cleanly without freezing or deadlocking the current thread
+            var hasPrivileges = AdministrativePrivilegeChecker.HasAdministrativePrivileges(adminSp);
+            Assert.True(hasPrivileges);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(prevContext);
+        }
+    }
+
+    [Fact]
+    public async Task AdministrativePrivilegeChecker_HasAdministrativePrivilegesAsync_EvaluatesRoles()
+    {
+        var adminUserId = Guid.NewGuid();
+        var adminServices = new ServiceCollection();
+        var adminSession = new CurrentSession();
+        adminSession.SignIn(adminUserId, Guid.NewGuid(), "System Administrator", userName: "admin");
+        adminServices.AddSingleton<ICurrentSession>(adminSession);
+        adminServices.AddSingleton<IAuthorizationService>(new AsyncYieldingAuthorizationService(hasRole: (u, r) => u == adminUserId && r == "Administrator"));
+        var adminSp = adminServices.BuildServiceProvider();
+
+        var hasPrivileges = await AdministrativePrivilegeChecker.HasAdministrativePrivilegesAsync(adminSp);
+        Assert.True(hasPrivileges);
     }
 
     [Fact]

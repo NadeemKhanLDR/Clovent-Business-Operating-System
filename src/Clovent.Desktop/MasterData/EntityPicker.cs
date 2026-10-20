@@ -60,10 +60,9 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
         {
             _layout.HandleCreated += (s, e) => {
                 var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-                var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+                var vertical = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
                 var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-                var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
-                _layout.Padding = new Padding(left, top, right, bottom);
+                _layout.Padding = new Padding(left, vertical, right, vertical);
                 ScaleCombo();
             };
         }
@@ -90,8 +89,11 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     private void ScaleCombo()
     {
         var targetWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(_configuredWidth, this);
-        var targetHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this);
+        var targetHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this);
+        _combo.Properties.AutoHeight = false;
         _combo.Width = targetWidth;
+        _combo.Height = targetHeight;
+        _combo.Size = new System.Drawing.Size(targetWidth, targetHeight);
         _combo.MinimumSize = new System.Drawing.Size(targetWidth, targetHeight);
     }
 

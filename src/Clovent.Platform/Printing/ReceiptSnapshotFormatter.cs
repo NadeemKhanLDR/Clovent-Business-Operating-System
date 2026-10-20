@@ -51,7 +51,7 @@ public static class ReceiptSnapshotFormatter
         var divider = new string('-', charsPerLine);
         var doubleDivider = new string('=', charsPerLine);
 
-        // 1. Reprint Banner (if applicable)
+        // 1. Reprint / Copy Banner
         if (options.IsReprint)
         {
             AppendLineAndScan(doubleDivider);
@@ -62,6 +62,18 @@ public static class ReceiptSnapshotFormatter
             }
             AppendLineAndScan(Center($"Reprinted: {DateTimeOffset.UtcNow:yyyy-MM-dd HH:mm:ss} UTC"));
             AppendLineAndScan(doubleDivider);
+        }
+        else if (options.CopyType == ReceiptCopyType.MerchantCopy)
+        {
+            AppendLineAndScan(doubleDivider);
+            AppendLineAndScan(Center("*** MERCHANT COPY ***"));
+            AppendLineAndScan(doubleDivider);
+        }
+        else if (options.CopyType == ReceiptCopyType.CustomerCopy)
+        {
+            AppendLineAndScan(divider);
+            AppendLineAndScan(Center("*** CUSTOMER COPY ***"));
+            AppendLineAndScan(divider);
         }
 
         // 2. Header Information
@@ -184,6 +196,16 @@ public static class ReceiptSnapshotFormatter
             AppendLineAndScan(Center(options.FooterText));
         }
 
+        if (options.CopyType == ReceiptCopyType.MerchantCopy && options.IncludeSignatureLine)
+        {
+            AppendLineAndScan(divider);
+            AppendLineAndScan(Center("CUSTOMER / CARDHOLDER SIGNATURE"));
+            sb.AppendLine();
+            AppendLineAndScan("X ________________________________________");
+            AppendLineAndScan(Center("I agree to pay the above total amount"));
+            AppendLineAndScan(Center("according to card issuer agreement."));
+        }
+
         var text = sb.ToString();
         var lineCount = text.Split('\n').Length;
 
@@ -230,6 +252,9 @@ public static class ReceiptSnapshotFormatter
         sb.AppendLine(TwoColumn("Columns:", profile.CharactersPerLine.ToString()));
         sb.AppendLine(TwoColumn("Cutter:", profile.SupportsCutter ? "Supported" : "None"));
         sb.AppendLine(TwoColumn("Drawer:", profile.SupportsCashDrawer ? "Supported" : "None"));
+        sb.AppendLine(TwoColumn("Customer Copy:", profile.PrintCustomerCopy ? $"{profile.CustomerCopies} Copy" : "Disabled"));
+        sb.AppendLine(TwoColumn("Merchant Copy:", profile.PrintMerchantCopy ? $"{profile.MerchantCopies} Copy ({profile.MerchantCopyTrigger})" : "Disabled"));
+        sb.AppendLine(TwoColumn("Signature Line:", profile.MerchantIncludeSignature ? "Enabled" : "Disabled"));
         sb.AppendLine(TwoColumn("Requested By:", operatorName));
         sb.AppendLine(TwoColumn("Test Time:", DateTimeOffset.UtcNow.ToString("yyyy-MM-dd HH:mm:ss") + " UTC"));
         sb.AppendLine(subDivider);

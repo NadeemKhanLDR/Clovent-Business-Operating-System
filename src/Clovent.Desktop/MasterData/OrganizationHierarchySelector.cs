@@ -52,13 +52,13 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
 
         _layout.HandleCreated += (s, e) => {
             var left = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-            var top = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
+            var vertical = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
             var right = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(12, _layout);
-            var bottom = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(8, _layout);
-            _layout.Padding = new Padding(left, top, right, bottom);
+            _layout.Padding = new Padding(left, vertical, right, vertical);
             ScaleCombos();
         };
 
+        ScaleCombos();
         HandleCreated += (_, _) => ScaleCombos();
         ParentChanged += (_, _) => ScaleCombos();
         VisibleChanged += (_, _) => ScaleCombos();
@@ -67,10 +67,13 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
     private void ScaleCombos()
     {
         var targetWidth = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(260, this);
-        var targetHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(30, this);
+        var targetHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this);
         foreach (var combo in new[] { _organizationCombo, _companyCombo, _branchCombo })
         {
+            combo.Properties.AutoHeight = false;
             combo.Width = targetWidth;
+            combo.Height = targetHeight;
+            combo.Size = new System.Drawing.Size(targetWidth, targetHeight);
             combo.MinimumSize = new System.Drawing.Size(targetWidth, targetHeight);
         }
     }

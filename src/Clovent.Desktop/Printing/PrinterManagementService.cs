@@ -363,14 +363,85 @@ public sealed class PrinterManagementService
                 ReprintCount: reprintCount,
                 ReprintReason: reprintReason);
 
-            var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
-
+            string payloadText;
             var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
+
+            if (isReprint)
+            {
+                var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
+                payloadText = formatted.FormattedText;
+            }
+            else
+            {
+                var sb = new System.Text.StringBuilder();
+
+                // 1. Customer copy (if enabled)
+                if (profile.PrintCustomerCopy)
+                {
+                    var custOptions = renderOptions with { CopyType = ReceiptCopyType.CustomerCopy };
+                    var custFormatted = ReceiptSnapshotFormatter.Format(data, custOptions);
+                    var count = Math.Clamp(profile.CustomerCopies, 1, 10);
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (sb.Length > 0)
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine("\f");
+                        }
+                        sb.Append(custFormatted.FormattedText);
+                    }
+                }
+
+                // 2. Merchant copy (if enabled & trigger matched)
+                var shouldPrintMerchant = false;
+                if (profile.PrintMerchantCopy)
+                {
+                    if (profile.MerchantCopyTrigger == MerchantCopyTrigger.Always)
+                    {
+                        shouldPrintMerchant = true;
+                    }
+                    else
+                    {
+                        shouldPrintMerchant = data.Payments.Any(p =>
+                            !string.Equals(p.PaymentMethodName, "Cash", StringComparison.OrdinalIgnoreCase));
+                    }
+                }
+
+                if (shouldPrintMerchant)
+                {
+                    var merchOptions = renderOptions with
+                    {
+                        CopyType = ReceiptCopyType.MerchantCopy,
+                        IncludeSignatureLine = profile.MerchantIncludeSignature
+                    };
+                    var merchFormatted = ReceiptSnapshotFormatter.Format(data, merchOptions);
+                    var count = Math.Clamp(profile.MerchantCopies, 1, 10);
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (sb.Length > 0)
+                        {
+                            sb.AppendLine();
+                            sb.AppendLine("\f");
+                        }
+                        sb.Append(merchFormatted.FormattedText);
+                    }
+                }
+
+                // Fallback: If both customer and merchant copies are disabled, produce standard receipt
+                if (sb.Length == 0)
+                {
+                    var stdFormatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
+                    sb.Append(stdFormatted.FormattedText);
+                }
+
+                payloadText = sb.ToString();
+            }
+
             var job = PrinterJob.Create(
                 docType,
                 profile.Id,
                 profile.SystemPrinterName,
-                formatted.FormattedText,
+                payloadText,
                 organizationId,
                 branchId,
                 terminalId,
