@@ -529,7 +529,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 order.WarehouseId.Value,
                 restockItems,
                 IsRestock: true,
-                ReferenceType: RefundStockReferenceType);
+                ReferenceType: RefundStockReferenceType,
+                OriginalOrderId: order.Id.Value,
+                OriginalOrderNumber: order.OrderNumber.Value);
 
             restockOutboxMessage = OutboxMessage.Create(
                 OutboxMessageType.InventoryPosting,

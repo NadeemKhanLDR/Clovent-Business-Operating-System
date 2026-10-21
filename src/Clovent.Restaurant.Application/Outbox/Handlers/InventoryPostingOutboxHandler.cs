@@ -4,7 +4,9 @@ using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
 using Clovent.Inventory.Transactions;
 using Clovent.Restaurant.Application.Outbox.Dtos;
+using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Outbox;
+using Clovent.Restaurant.Refunds;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,10 +15,14 @@ namespace Clovent.Restaurant.Application.Outbox.Handlers;
 /// <summary>
 /// Idempotent outbox handler that issues warehouse stock for completed orders
 /// or restocks returned items for completed refunds without stalling the cashier UI thread.
+/// Enforces consistent inventory policy across tracked, untracked, and insufficient-stock products,
+/// preventing inventory inflation and double-deductions.
 /// </summary>
 public sealed class InventoryPostingOutboxHandler(
     IMediator mediator,
-    ILogger<InventoryPostingOutboxHandler> logger) : IOutboxMessageHandler
+    ILogger<InventoryPostingOutboxHandler> logger,
+    IOutboxRepository? outboxRepository = null,
+    IRefundRepository? refundRepository = null) : IOutboxMessageHandler
 {
     private const string OrderStockReferenceType = "Order";
     private const string RefundStockReferenceType = "Refund";
@@ -37,32 +43,139 @@ public sealed class InventoryPostingOutboxHandler(
 
         if (payload.IsRestock)
         {
-            var referenceType = string.IsNullOrWhiteSpace(payload.ReferenceType)
-                ? RefundStockReferenceType
-                : payload.ReferenceType;
+            await HandleRestockAsync(payload, cancellationToken);
+            return;
+        }
 
-            var alreadyRestocked = await mediator.Send(
-                new ListInventoryTransactionsByReferenceQuery(referenceType, payload.OrderId), cancellationToken);
+        await HandleSaleIssueAsync(payload, cancellationToken);
+    }
 
-            var alreadyRestockedVariantIds = alreadyRestocked
-                .Where(t => t.TransactionType is nameof(InventoryTransactionType.Receipt) or nameof(InventoryTransactionType.OpeningBalance))
-                .Select(t => t.ProductVariantId)
-                .ToHashSet();
+    private async Task HandleRestockAsync(InventoryPostingPayload payload, CancellationToken cancellationToken)
+    {
+        var referenceType = string.IsNullOrWhiteSpace(payload.ReferenceType)
+            ? RefundStockReferenceType
+            : payload.ReferenceType;
 
-            var pendingRestockItems = payload.Items
-                .GroupBy(i => i.ProductVariantId)
-                .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(i => i.Quantity) })
-                .Where(i => !alreadyRestockedVariantIds.Contains(i.ProductVariantId))
-                .ToList();
+        var refundId = payload.OrderId;
+        var originalOrderId = payload.OriginalOrderId;
 
-            if (pendingRestockItems.Count == 0)
+        if (!originalOrderId.HasValue && refundRepository != null)
+        {
+            var refundEntity = await refundRepository.GetByIdAsync(new RefundId(refundId), cancellationToken);
+            if (refundEntity != null)
             {
-                logger.LogInformation("All inventory restock items for {ReferenceType} {DocumentNumber} already received. Skipping.", referenceType, payload.OrderNumber);
-                return;
+                originalOrderId = refundEntity.OrderId.Value;
+            }
+        }
+
+        // Idempotency check: see what has already been restocked for this specific refund
+        var alreadyRestocked = await mediator.Send(
+            new ListInventoryTransactionsByReferenceQuery(referenceType, refundId), cancellationToken);
+
+        var alreadyRestockedVariantIds = (alreadyRestocked ?? [])
+            .Where(t => t.TransactionType is nameof(InventoryTransactionType.Receipt) or nameof(InventoryTransactionType.OpeningBalance))
+            .Select(t => t.ProductVariantId)
+            .ToHashSet();
+
+        var pendingRestockItems = payload.Items
+            .GroupBy(i => i.ProductVariantId)
+            .Select(g => new { ProductVariantId = g.Key, Quantity = g.Sum(i => i.Quantity) })
+            .Where(i => !alreadyRestockedVariantIds.Contains(i.ProductVariantId))
+            .ToList();
+
+        if (pendingRestockItems.Count == 0)
+        {
+            logger.LogInformation("All inventory restock items for {ReferenceType} {DocumentNumber} already received. Skipping.", referenceType, payload.OrderNumber);
+            return;
+        }
+
+        foreach (var item in pendingRestockItems)
+        {
+            // 1. Untracked check: If WarehouseStock does not exist, variant is untracked at this location.
+            // Untracked items must NOT create phantom WarehouseStock or OpeningBalance on refund.
+            var stock = await mediator.Send(
+                new GetWarehouseStockByWarehouseAndVariantQuery(payload.WarehouseId, item.ProductVariantId), cancellationToken);
+
+            if (stock is null)
+            {
+                logger.LogInformation(
+                    "Product variant {VariantId} is not tracked at warehouse {WarehouseId}. Skipping refund restock movement.",
+                    item.ProductVariantId, payload.WarehouseId);
+                continue;
             }
 
-            foreach (var item in pendingRestockItems)
+            // 2. Correlation with original sale issue
+            if (originalOrderId.HasValue)
             {
+                var orderTransactions = await mediator.Send(
+                    new ListInventoryTransactionsByReferenceQuery(OrderStockReferenceType, originalOrderId.Value), cancellationToken);
+
+                var totalIssuedForOrder = (orderTransactions ?? [])
+                    .Where(t => t.ProductVariantId == item.ProductVariantId && t.TransactionType == nameof(InventoryTransactionType.Issue))
+                    .Sum(t => t.Quantity);
+
+                if (totalIssuedForOrder <= 0)
+                {
+                    // Check if the original sale outbox message is still pending/retrying
+                    if (outboxRepository != null)
+                    {
+                        var saleMessage = await outboxRepository.GetByIdempotencyKeyAsync($"inv-{originalOrderId.Value}", cancellationToken);
+                        if (saleMessage != null && saleMessage.Status is OutboxMessageStatus.Pending or OutboxMessageStatus.Processing or OutboxMessageStatus.RetryScheduled)
+                        {
+                            // Original sale posting is still pending/retrying: defer restock until sale completes
+                            throw new InvalidOperationException(
+                                $"Original sale inventory posting for order {originalOrderId.Value} is currently {saleMessage.Status}. Deferring restock retry.");
+                        }
+                    }
+
+                    // Original sale was never issued or failed permanently (e.g. DeadLetter due to insufficient stock).
+                    // Cannot return to stock what was never taken from stock - prevent inventory inflation.
+                    logger.LogWarning(
+                        "Original sale for order {OriginalOrderId} variant {VariantId} was never issued. Skipping refund restock on {RefundNumber} to prevent inventory inflation.",
+                        originalOrderId.Value, item.ProductVariantId, payload.OrderNumber);
+                    continue;
+                }
+
+                // Calculate how much has already been restocked across other refunds for this order
+                decimal alreadyRestockedForOrder = 0m;
+                if (refundRepository != null)
+                {
+                    var allOrderRefunds = await refundRepository.GetByOrderIdAsync(new OrderId(originalOrderId.Value), cancellationToken);
+                    foreach (var otherRefund in allOrderRefunds.Where(r => r.Id.Value != refundId))
+                    {
+                        var otherRefundTxs = await mediator.Send(
+                            new ListInventoryTransactionsByReferenceQuery(RefundStockReferenceType, otherRefund.Id.Value), cancellationToken);
+                        alreadyRestockedForOrder += (otherRefundTxs ?? [])
+                            .Where(t => t.ProductVariantId == item.ProductVariantId &&
+                                        t.TransactionType is nameof(InventoryTransactionType.Receipt) or nameof(InventoryTransactionType.OpeningBalance))
+                            .Sum(t => t.Quantity);
+                    }
+                }
+
+                var remainingRestockable = Math.Max(0m, totalIssuedForOrder - alreadyRestockedForOrder);
+                var effectiveRestockQty = Math.Min(item.Quantity, remainingRestockable);
+
+                if (effectiveRestockQty <= 0)
+                {
+                    logger.LogInformation(
+                        "Restock requested for variant {VariantId} on {RefundNumber}, but all {TotalIssued} units issued for order {OriginalOrderId} have already been restocked. Skipping.",
+                        item.ProductVariantId, payload.OrderNumber, totalIssuedForOrder, originalOrderId.Value);
+                    continue;
+                }
+
+                await mediator.Send(
+                    new OpenOrReceiveStockCommand(
+                        payload.WarehouseId,
+                        item.ProductVariantId,
+                        effectiveRestockQty,
+                        $"Restock from {referenceType} {payload.OrderNumber} (Order {payload.OriginalOrderNumber ?? originalOrderId.Value.ToString()})",
+                        referenceType,
+                        refundId),
+                    cancellationToken);
+            }
+            else
+            {
+                // Standalone / legacy refund without original order reference
                 await mediator.Send(
                     new OpenOrReceiveStockCommand(
                         payload.WarehouseId,
@@ -70,19 +183,21 @@ public sealed class InventoryPostingOutboxHandler(
                         item.Quantity,
                         $"Restock from {referenceType} {payload.OrderNumber}",
                         referenceType,
-                        payload.OrderId),
+                        refundId),
                     cancellationToken);
             }
-
-            logger.LogInformation("Successfully posted inventory restock for {ReferenceType} {DocumentNumber}.", referenceType, payload.OrderNumber);
-            return;
         }
 
+        logger.LogInformation("Successfully posted inventory restock for {ReferenceType} {DocumentNumber}.", referenceType, payload.OrderNumber);
+    }
+
+    private async Task HandleSaleIssueAsync(InventoryPostingPayload payload, CancellationToken cancellationToken)
+    {
         // Idempotency check: see what has already been issued for this order
         var alreadyIssued = await mediator.Send(
             new ListInventoryTransactionsByReferenceQuery(OrderStockReferenceType, payload.OrderId), cancellationToken);
 
-        var alreadyIssuedVariantIds = alreadyIssued
+        var alreadyIssuedVariantIds = (alreadyIssued ?? [])
             .Where(t => t.TransactionType == nameof(InventoryTransactionType.Issue))
             .Select(t => t.ProductVariantId)
             .ToHashSet();
@@ -106,10 +221,13 @@ public sealed class InventoryPostingOutboxHandler(
 
             if (stock is null)
             {
-                logger.LogWarning("Warehouse stock not found for variant {VariantId} at warehouse {WarehouseId}. Skipping movement.", item.ProductVariantId, payload.WarehouseId);
+                logger.LogInformation("Warehouse stock not found for variant {VariantId} at warehouse {WarehouseId}. Untracked item, skipping movement.", item.ProductVariantId, payload.WarehouseId);
                 continue;
             }
 
+            // IssueStockCommand will enforce AllowNegativeStock inside WarehouseStock aggregate:
+            // if !AllowNegativeStock and stock.QuantityOnHand < quantity, it throws InsufficientStock
+            // causing outbox message to retry with backoff.
             await mediator.Send(
                 new IssueStockCommand(
                     stock.WarehouseStockId,

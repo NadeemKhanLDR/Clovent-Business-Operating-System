@@ -543,12 +543,40 @@ public class ProcessRefundCommandHandlerTests
     {
         var (order, line1, _, _) = await CreateCompletedOrderWithLinesAsync();
         var outboxRepo = new StubOutboxRepository();
-        var recordedInventoryTx = new List<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>();
+        var recordedInventoryTx = new List<Clovent.Inventory.Application.Transactions.Dtos.InventoryTransactionDto>
+        {
+            new(
+                Guid.NewGuid(),
+                order.WarehouseId.Value,
+                line1.ProductVariantId.Value,
+                nameof(Clovent.Inventory.Transactions.InventoryTransactionType.Issue),
+                line1.Quantity,
+                "Order",
+                order.Id.Value,
+                $"Order {order.OrderNumber.Value}",
+                DateTimeOffset.UtcNow)
+        };
         var failNextInventoryPost = true;
         var stockReceiveCalls = 0;
 
         var mediator = new FakeMediator(req =>
         {
+            if (req is Clovent.Inventory.Application.WarehouseStocks.Queries.GetWarehouseStockByWarehouseAndVariantQuery stockQuery)
+            {
+                return Task.FromResult<object?>(new Clovent.Inventory.Application.WarehouseStocks.Dtos.WarehouseStockDto(
+                    Guid.NewGuid(),
+                    stockQuery.WarehouseId,
+                    stockQuery.ProductVariantId,
+                    10m,
+                    0m,
+                    10m,
+                    0m,
+                    0m,
+                    false,
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow));
+            }
+
             if (req is Clovent.Inventory.Application.Transactions.Queries.ListInventoryTransactionsByReferenceQuery query)
             {
                 var matches = recordedInventoryTx
@@ -626,7 +654,9 @@ public class ProcessRefundCommandHandlerTests
         failNextInventoryPost = false;
         var outboxHandler = new Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler(
             mediator,
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Clovent.Restaurant.Application.Outbox.Handlers.InventoryPostingOutboxHandler>.Instance,
+            outboxRepo,
+            _refundRepo);
         await outboxHandler.HandleAsync(outboxMsg, CancellationToken.None);
         outboxMsg.MarkCompleted(DateTimeOffset.UtcNow);
         Assert.Equal(1, stockReceiveCalls);
