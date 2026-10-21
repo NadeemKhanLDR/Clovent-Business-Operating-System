@@ -116,7 +116,7 @@ public sealed class RefundOutboxConcurrencyIntegrationTests : IAsyncLifetime
 
         // Seed initial warehouse inventory stock so restock can operate cleanly
         var mediator = initScope.ServiceProvider.GetRequiredService<IMediator>();
-        await mediator.Send(new OpenOrReceiveStockCommand(
+        var stockDto = await mediator.Send(new OpenOrReceiveStockCommand(
             _warehouseId.Value,
             _variantId.Value,
             10m,
@@ -155,6 +155,14 @@ public sealed class RefundOutboxConcurrencyIntegrationTests : IAsyncLifetime
         await restaurantDb.OrderLines.AddAsync(orderLine);
         await restaurantDb.Payments.AddAsync(payment);
         await restaurantDb.SaveChangesAsync();
+
+        // Issue stock for completed order so original sale depletion evidence exists
+        await mediator.Send(new IssueStockCommand(
+            stockDto.WarehouseStockId,
+            2m,
+            $"Order {order.OrderNumber.Value}",
+            "Order",
+            order.Id.Value));
 
         _orderId = order.Id.Value;
         _orderLineId = orderLine.Id.Value;

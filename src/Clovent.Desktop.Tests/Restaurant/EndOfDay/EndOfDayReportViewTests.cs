@@ -121,8 +121,8 @@ public class EndOfDayReportViewTests
             var expectedMonthStart = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
             Assert.Equal(expectedMonthStart, fromDate.DateTime.Date);
 
-            // Manual date change switches to Custom
-            fromDate.DateTime = DateTime.Today.AddDays(-20);
+            // Manual date change switches to Custom (shift by 1 day from the month start so value always changes)
+            fromDate.DateTime = fromDate.DateTime.AddDays(-1);
             Assert.Equal("Custom", periodCombo.SelectedItem?.ToString());
         }
     }

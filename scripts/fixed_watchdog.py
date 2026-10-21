@@ -2,11 +2,15 @@
 fixed_watchdog.py
 
 A non-destructive wall-clock watchdog controller.
-Enforces an external deadline by terminating ONLY its owned automation runner process tree,
+Enforces an external deadline by terminating ONLY verified owned automation runner processes,
 while strictly protecting Windows Sandbox, SQL Server, and evidence files.
 
-Usage:
-    python fixed_watchdog.py <evidence_dir> <max_minutes> [--pid <PID>] [--pid-file <PATH>]
+Features:
+- Validates PID ownership and process identity before any action.
+- Recursively inspects the entire descendant process tree of target PIDs.
+- Strictly protects Windows Sandbox, Hyper-V (vmwp), and SQL Server even if present
+  anywhere in a descendant tree.
+- Never executes unverified taskkill /T that could sweep protected processes.
 """
 
 import sys
@@ -15,6 +19,7 @@ import time
 import datetime
 import subprocess
 import argparse
+import json
 
 PROTECTED_PROCESS_NAMES = {
     "windowssandbox.exe",
@@ -23,6 +28,24 @@ PROTECTED_PROCESS_NAMES = {
     "sqlservr.exe",
     "sqlwriter.exe",
     "sqllocaldb.exe",
+    "system",
+    "registry",
+    "smss.exe",
+    "csrss.exe",
+    "wininit.exe",
+    "services.exe",
+    "lsass.exe",
+    "svchost.exe",
+    "explorer.exe"
+}
+
+ALLOWED_AUTOMATION_ROOT_NAMES = {
+    "powershell.exe",
+    "pwsh.exe",
+    "cmd.exe",
+    "python.exe",
+    "dotnet.exe",
+    "conhost.exe"
 }
 
 def is_protected(proc_name):
@@ -31,44 +54,126 @@ def is_protected(proc_name):
     clean = proc_name.lower().strip()
     return clean in PROTECTED_PROCESS_NAMES or any(clean.startswith(p.replace(".exe", "")) for p in PROTECTED_PROCESS_NAMES)
 
-def get_process_name(pid):
+def get_process_map():
+    """
+    Returns a dictionary of all running processes:
+    pid -> {"name": str, "parent_pid": int, "path": str}
+    """
+    procs = {}
     try:
-        out = subprocess.check_output(
-            ["powershell", "-NoProfile", "-Command", f"(Get-Process -Id {pid} -ErrorAction SilentlyContinue).ProcessName"],
-            text=True, stderr=subprocess.DEVNULL
-        ).strip()
+        ps_cmd = "Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath | ConvertTo-Json -Compress"
+        out = subprocess.check_output(["powershell", "-NoProfile", "-Command", ps_cmd], text=True, stderr=subprocess.DEVNULL).strip()
         if out:
-            return f"{out}.exe"
+            data = json.loads(out)
+            if isinstance(data, dict):
+                data = [data]
+            for item in data:
+                pid = item.get("ProcessId")
+                ppid = item.get("ParentProcessId")
+                name = item.get("Name") or ""
+                path = item.get("ExecutablePath") or ""
+                if pid is not None:
+                    procs[int(pid)] = {
+                        "name": str(name).lower(),
+                        "parent_pid": int(ppid) if ppid is not None else 0,
+                        "path": str(path)
+                    }
     except Exception:
         pass
-    return ""
+    return procs
 
-def terminate_owned_tree(root_pid, log_lines):
-    root_name = get_process_name(root_pid)
-    if not root_name:
-        msg = f"[WATCHDOG] Process PID {root_pid} already exited or not found."
+def get_descendants(root_pid, proc_map):
+    """
+    Returns list of all descendant PIDs of root_pid.
+    """
+    children = []
+    queue = [root_pid]
+    visited = {root_pid}
+    while queue:
+        curr = queue.pop(0)
+        for pid, info in proc_map.items():
+            if info["parent_pid"] == curr and pid not in visited:
+                visited.add(pid)
+                children.append(pid)
+                queue.append(pid)
+    return children
+
+def terminate_process_safe(pid, name, log_lines):
+    if is_protected(name):
+        msg = f"[SAFEGUARD] Blocked termination of protected process PID {pid} ({name})."
         print(msg)
         log_lines.append(msg)
-        return
+        return False
 
-    if is_protected(root_name):
-        msg = f"[SAFEGUARD] Refusing to terminate protected process PID {root_pid} ({root_name})."
-        print(msg)
-        log_lines.append(msg)
-        return
-
-    msg = f"[WATCHDOG] Terminating owned automation process tree rooted at PID {root_pid} ({root_name})..."
+    msg = f"[WATCHDOG] Terminating verified automation process PID {pid} ({name})."
     print(msg)
     log_lines.append(msg)
-
     try:
-        res = subprocess.run(
-            ["taskkill", "/PID", str(root_pid), "/T", "/F"],
-            capture_output=True, text=True
-        )
-        log_lines.append(f"taskkill output: {res.stdout.strip()} {res.stderr.strip()}")
+        res = subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, text=True)
+        log_lines.append(f"taskkill PID {pid}: {res.stdout.strip()} {res.stderr.strip()}")
+        return True
     except Exception as ex:
-        log_lines.append(f"Error terminating PID {root_pid}: {ex}")
+        log_lines.append(f"Error terminating PID {pid}: {ex}")
+        return False
+
+def terminate_owned_tree_verified(root_pid, log_lines, proc_map=None):
+    """
+    Verifies PID ownership and inspects all descendants before termination.
+    Never uses indiscriminate taskkill /T.
+    """
+    if proc_map is None:
+        proc_map = get_process_map()
+
+    if root_pid not in proc_map:
+        msg = f"[WATCHDOG] Target PID {root_pid} not found in active process table (already exited)."
+        print(msg)
+        log_lines.append(msg)
+        return
+
+    root_info = proc_map[root_pid]
+    root_name = root_info["name"]
+
+    # 1. Verify PID ownership: must not be protected, and should be expected automation process
+    if is_protected(root_name):
+        msg = f"[SAFEGUARD] Target PID {root_pid} is a protected process ({root_name}). Aborting termination."
+        print(msg)
+        log_lines.append(msg)
+        return
+
+    if root_name not in ALLOWED_AUTOMATION_ROOT_NAMES and not any(root_name.startswith(a.replace(".exe", "")) for a in ALLOWED_AUTOMATION_ROOT_NAMES):
+        msg = f"[SAFEGUARD] Target PID {root_pid} ({root_name}) is not a recognized automation runner. Aborting."
+        print(msg)
+        log_lines.append(msg)
+        return
+
+    # 2. Inspect all descendants
+    descendant_pids = get_descendants(root_pid, proc_map)
+
+    # 3. Check for any protected processes in descendants
+    protected_descendants = []
+    for d_pid in descendant_pids:
+        d_name = proc_map.get(d_pid, {}).get("name", "")
+        if is_protected(d_name):
+            protected_descendants.append((d_pid, d_name))
+
+    if protected_descendants:
+        msg = f"[SAFEGUARD] Detected {len(protected_descendants)} protected processes in descendant tree of PID {root_pid}: {protected_descendants}. Refusing taskkill /T!"
+        print(msg)
+        log_lines.append(msg)
+
+        # Terminate ONLY non-protected descendants individually from bottom up, excluding protected processes
+        non_protected = [p for p in reversed(descendant_pids) if not is_protected(proc_map.get(p, {}).get("name", ""))]
+        for p in non_protected:
+            terminate_process_safe(p, proc_map.get(p, {}).get("name", ""), log_lines)
+
+        # Terminate root process safely
+        terminate_process_safe(root_pid, root_name, log_lines)
+    else:
+        # All descendants are confirmed non-protected automation processes.
+        # Terminate descendants from bottom-up, then root PID.
+        for p in reversed(descendant_pids):
+            terminate_process_safe(p, proc_map.get(p, {}).get("name", ""), log_lines)
+        terminate_process_safe(root_pid, root_name, log_lines)
 
 def main():
     parser = argparse.ArgumentParser(description="Wall-clock watchdog for automation tasks.")
@@ -137,11 +242,13 @@ def main():
             print(timeout_msg.strip(), flush=True)
 
             log_lines = [timeout_msg]
-            # Stop ONLY registered owned automation processes
-            for pid in pids_to_supervise:
-                terminate_owned_tree(pid, log_lines)
+            proc_map = get_process_map()
 
-            # Safeguard confirmation:
+            # Stop ONLY verified owned automation processes after inspecting descendant trees
+            for pid in pids_to_supervise:
+                terminate_owned_tree_verified(pid, log_lines, proc_map)
+
+            # Safeguard confirmation
             log_lines.append("[SAFEGUARD] Preserved Windows Sandbox, SQL Server, and evidence directory.\n")
 
             with open(timeout_file, "w", encoding="utf-8") as f:
