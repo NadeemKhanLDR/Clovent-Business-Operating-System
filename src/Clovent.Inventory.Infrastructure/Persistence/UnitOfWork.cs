@@ -1,4 +1,8 @@
+using Clovent.Catalog.Variants;
 using Clovent.Inventory.Application;
+using Clovent.Inventory.Transactions;
+using Clovent.Inventory.WarehouseStocks;
+using Clovent.MasterData.Warehouses;
 using Microsoft.EntityFrameworkCore;
 
 namespace Clovent.Inventory.Infrastructure.Persistence;
@@ -39,8 +43,9 @@ public sealed class UnitOfWork(InventoryDbContext dbContext) : IUnitOfWork
                     cancellationToken).ConfigureAwait(false);
             }
 
-            // Clear any stale tracked entities so reads inside the locked transaction reflect the latest committed database state
-            dbContext.ChangeTracker.Clear();
+            // Detach only Unchanged entities so reads inside the locked transaction reflect fresh database state
+            // without discarding unrelated pending changes in the shared unit of work.
+            DetachUnchangedEntities(dbContext);
 
             var result = await operation(cancellationToken).ConfigureAwait(false);
             await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -50,14 +55,49 @@ public sealed class UnitOfWork(InventoryDbContext dbContext) : IUnitOfWork
         catch (DbUpdateException ex) when (IsDuplicateReferenceConstraintViolation(ex))
         {
             await dbTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            dbContext.ChangeTracker.Clear();
+            DetachStaleOrRolledBackEntities(dbContext, warehouseId, productVariantId);
             return await onDuplicateReferenceRecovery(cancellationToken).ConfigureAwait(false);
         }
         catch
         {
             await dbTransaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            dbContext.ChangeTracker.Clear();
+            DetachStaleOrRolledBackEntities(dbContext, warehouseId, productVariantId);
             throw;
+        }
+    }
+
+    private static void DetachUnchangedEntities(DbContext context)
+    {
+        foreach (var entry in context.ChangeTracker.Entries().Where(e => e.State == EntityState.Unchanged).ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+    }
+
+    private static void DetaleOrRolledBackEntities(DbContext context, Guid warehouseId, Guid productVariantId)
+    {
+        DetachStaleOrRolledBackEntities(context, warehouseId, productVariantId);
+    }
+
+    private static void DetachStaleOrRolledBackEntities(DbContext context, Guid warehouseId, Guid productVariantId)
+    {
+        var wid = new WarehouseId(warehouseId);
+        var vid = new ProductVariantId(productVariantId);
+
+        foreach (var entry in context.ChangeTracker.Entries().ToList())
+        {
+            if (entry.State == EntityState.Unchanged)
+            {
+                entry.State = EntityState.Detached;
+            }
+            else if (entry.Entity is WarehouseStock ws && ws.WarehouseId == wid && ws.ProductVariantId == vid)
+            {
+                entry.State = EntityState.Detached;
+            }
+            else if (entry.Entity is InventoryTransaction it && it.WarehouseId == wid && it.ProductVariantId == vid)
+            {
+                entry.State = EntityState.Detached;
+            }
         }
     }
 

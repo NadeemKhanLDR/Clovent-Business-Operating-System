@@ -149,4 +149,52 @@ public class InventoryTransactionRepositoryTests : SqliteTestBase
         Assert.Equal(20m, finalStock!.QuantityOnHand);
         Assert.Single(txns);
     }
+
+    [Fact]
+    public async Task ExecuteStockMovementAtomicallyAsync_DoesNotDiscardUnrelatedPendingChangesInSharedUnitOfWork()
+    {
+        var warehouseId = WarehouseId.New();
+        var variantId = ProductVariantId.New();
+        var otherVariantId = ProductVariantId.New();
+
+        await using var context = CreateContext();
+        var uow = new Clovent.Inventory.Infrastructure.Persistence.UnitOfWork(context);
+        var stockRepo = new WarehouseStockRepository(context);
+        var txRepo = new InventoryTransactionRepository(context);
+
+        // 1. Initial stock
+        var stock = Clovent.Inventory.WarehouseStocks.WarehouseStock.Create(warehouseId, variantId);
+        stock.Receive(10m);
+        await stockRepo.AddAsync(stock);
+        await uow.SaveChangesAsync();
+
+        // 2. Add an unrelated pending entity in the shared unit of work (e.g. StockAdjustment)
+        var pendingAdjustment = Clovent.Inventory.Adjustments.StockAdjustment.Create(
+            warehouseId, otherVariantId, Clovent.Inventory.Adjustments.StockAdjustmentType.Increase, 7m, "Unrelated pending change");
+        await context.StockAdjustments.AddAsync(pendingAdjustment);
+
+        Assert.Equal(Microsoft.EntityFrameworkCore.EntityState.Added, context.Entry(pendingAdjustment).State);
+
+        // 3. Execute atomic stock movement on the warehouse stock
+        await uow.ExecuteStockMovementAtomicallyAsync(
+            warehouseId.Value,
+            variantId.Value,
+            async ct =>
+            {
+                var s = await stockRepo.GetByWarehouseAndVariantAsync(warehouseId, variantId, ct);
+                s!.Receive(5m);
+                await txRepo.AddAsync(InventoryTransaction.Create(warehouseId, variantId, InventoryTransactionType.Receipt, 5m), ct);
+                return s.QuantityOnHand;
+            },
+            ct => Task.FromResult(0m));
+
+        // 4. Assert: Unrelated pending adjustment was NOT discarded/detached by ChangeTracker.Clear
+        Assert.NotEqual(Microsoft.EntityFrameworkCore.EntityState.Detached, context.Entry(pendingAdjustment).State);
+
+        // 5. Verify the unrelated entity was safely persisted to the database
+        await using var verifyContext = CreateContext();
+        var savedAdjustment = await verifyContext.StockAdjustments.FindAsync(pendingAdjustment.Id);
+        Assert.NotNull(savedAdjustment);
+        Assert.Equal(7m, savedAdjustment!.Quantity);
+    }
 }

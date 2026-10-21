@@ -1990,5 +1990,260 @@ public sealed class InventorySaleRefundConsistencyIntegrationTests : IAsyncLifet
 
     }
 
-}
 
+    // =================================================================================================
+    // 13. Multi-Item Message: Failure Midway Retries Without Skipping Unfinished or Repeating Completed
+    // =================================================================================================
+    [Fact]
+    public async Task Scenario13_MultiItemMessage_FailureMidway_RetriesWithoutSkippingUnfinishedOrRepeatingCompleted()
+    {
+        // Item A and Item C have stock = 5m
+        var variantA = await SeedTrackedStockAsync(5m);
+        var variantB = await SeedTrackedStockAsync(0m); // Item B has 0 stock, AllowNegativeStock = false
+        var variantC = await SeedTrackedStockAsync(5m);
+
+        var orderId = Guid.NewGuid();
+        var items = new List<InventoryPostingLineItem>
+        {
+            new(variantA.Value, "SKU-A", "Product A", 2m),
+            new(variantB.Value, "SKU-B", "Product B", 2m),
+            new(variantC.Value, "SKU-C", "Product C", 2m)
+        };
+
+        var payload = new InventoryPostingPayload(
+            orderId,
+            "ORD-MULTI-RETRY",
+            _warehouseId.Value,
+            items);
+
+        var msg = OutboxMessage.Create(
+            OutboxMessageType.InventoryPosting,
+            "Order",
+            orderId.ToString(),
+            orderId.ToString(),
+            JsonSerializer.Serialize(payload),
+            $"inv-{orderId:N}");
+
+        // Attempt 1: Item A succeeds, Item B throws InsufficientStockException, Item C not reached
+        using (var scope1 = _serviceProvider.CreateScope())
+        {
+            var handler = scope1.ServiceProvider.GetServices<IOutboxMessageHandler>()
+                .Single(h => h.MessageType == OutboxMessageType.InventoryPosting);
+
+            await Assert.ThrowsAnyAsync<Exception>(() => handler.HandleAsync(msg, CancellationToken.None));
+        }
+
+        // Verify intermediate state:
+        // Item A: issued 2 units (stock 5 -> 3)
+        // Item B: stock 0
+        // Item C: stock 5
+        using (var midScope = _serviceProvider.CreateScope())
+        {
+            var mediator = midScope.ServiceProvider.GetRequiredService<IMediator>();
+            var stockA = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantA.Value));
+            var stockB = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantB.Value));
+            var stockC = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantC.Value));
+            Assert.Equal(3m, stockA!.QuantityOnHand);
+            Assert.Equal(0m, stockB!.QuantityOnHand);
+            Assert.Equal(5m, stockC!.QuantityOnHand);
+
+            var txsA = await mediator.Send(new ListInventoryTransactionsByReferenceQuery("Order", orderId));
+            Assert.Single(txsA); // Exactly 1 movement for Item A
+            Assert.Equal(variantA.Value, txsA.First().ProductVariantId);
+        }
+
+        // Replenish stock for Item B so retry can succeed
+        using (var replenishScope = _serviceProvider.CreateScope())
+        {
+            var mediator = replenishScope.ServiceProvider.GetRequiredService<IMediator>();
+            await mediator.Send(new OpenOrReceiveStockCommand(
+                _warehouseId.Value,
+                variantB.Value,
+                5m,
+                "Replenishment for retry",
+                "PO",
+                Guid.NewGuid()));
+        }
+
+        // Attempt 2 (Retry): Item A must NOT be repeated, Item B and Item C must be processed
+        using (var scope2 = _serviceProvider.CreateScope())
+        {
+            var handler = scope2.ServiceProvider.GetServices<IOutboxMessageHandler>()
+                .Single(h => h.MessageType == OutboxMessageType.InventoryPosting);
+
+            await handler.HandleAsync(msg, CancellationToken.None);
+        }
+
+        // Assert final state:
+        // Item A: stock remains 3 (NOT double-deducted to 1!)
+        // Item B: stock drops from 5 to 3
+        // Item C: stock drops from 5 to 3
+        using (var finalScope = _serviceProvider.CreateScope())
+        {
+            var mediator = finalScope.ServiceProvider.GetRequiredService<IMediator>();
+            var stockA = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantA.Value));
+            var stockB = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantB.Value));
+            var stockC = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantC.Value));
+            Assert.Equal(3m, stockA!.QuantityOnHand);
+            Assert.Equal(3m, stockB!.QuantityOnHand);
+            Assert.Equal(3m, stockC!.QuantityOnHand);
+
+            var allTxs = await mediator.Send(new ListInventoryTransactionsByReferenceQuery("Order", orderId));
+            Assert.Equal(3, allTxs.Count);
+            Assert.Contains(allTxs, t => t.ProductVariantId == variantA.Value && t.Quantity == 2m);
+            Assert.Contains(allTxs, t => t.ProductVariantId == variantB.Value && t.Quantity == 2m);
+            Assert.Contains(allTxs, t => t.ProductVariantId == variantC.Value && t.Quantity == 2m);
+        }
+    }
+
+    // =================================================================================================
+    // 14. Concurrent Distinct Refunds Cannot Together Exceed Original Issued Quantity
+    // =================================================================================================
+    [Fact]
+    public async Task Scenario14_ConcurrentDistinctRefunds_CannotTogetherExceedOriginalIssuedQuantity()
+    {
+        // 10 units initial stock; order placed for 2 units (stock drops to 8, total issued = 2)
+        var variantId = await SeedTrackedStockAsync(10m);
+        var (orderId, orderLineId) = await CreateAndCompleteOrderAsync(variantId, quantity: 2m);
+
+        var processor = _serviceProvider.GetRequiredService<IOutboxProcessor>();
+        await processor.ProcessBatchAsync(); // Sale posted: stock = 8, total issued = 2
+
+        // Create two DISTINCT refunds, each for 2 units with Restock disposition
+        async Task<(Guid RefundId, OutboxMessage RestockMsg)> CreateRefundAsync(string idemp)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            var refundCmd = new ProcessRefundCommand(
+                OrderId: orderId,
+                Items: [new RefundItemRequest(orderLineId, 2m, InventoryDisposition.Restock)],
+                Reason: "Concurrent refund race",
+                SettlementMethod: RefundSettlementMethod.CashPayout,
+                IdempotencyKey: idemp,
+                CashierId: _cashierId.Value,
+                CashierName: "Cashier Alice",
+                BranchId: _branchId.Value,
+                ShiftId: _shiftId,
+                TerminalId: _terminalId.Value);
+
+            var dto = await mediator.Send(refundCmd);
+            var repo = scope.ServiceProvider.GetRequiredService<IOutboxRepository>();
+            var msg = await repo.GetByIdempotencyKeyAsync($"RESTOCK-{dto.RefundId:N}");
+            return (dto.RefundId, msg!);
+        }
+
+        var (refund1Id, msg1) = await CreateRefundAsync("RACE-REF-1");
+
+        // Refund 2 is a separate refund message for this order, requesting 2 units
+        Refund refund2Entity;
+        using (var refundScope = _serviceProvider.CreateScope())
+        {
+            var db = refundScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            refund2Entity = Refund.Create(
+                RefundNumber.Generate(DateTimeOffset.UtcNow),
+                new OrderId(orderId),
+                _branchId,
+                _warehouseId,
+                _cashierId.Value,
+                "Cashier Alice",
+                "Concurrent refund race 2",
+                "RACE-REF-2",
+                RefundSettlementMethod.CashPayout,
+                shiftId: new ShiftId(_shiftId),
+                terminalId: _terminalId);
+            await db.Refunds.AddAsync(refund2Entity);
+            await db.SaveChangesAsync();
+        }
+
+        var refund2Id = refund2Entity.Id.Value;
+        var payload2 = new InventoryPostingPayload(
+            refund2Id,
+            "REF-RACE-2",
+            _warehouseId.Value,
+            [new InventoryPostingLineItem(variantId.Value, "SKU-TEST", "Product", 2m)],
+            IsRestock: true,
+            ReferenceType: "Refund",
+            OriginalOrderId: orderId,
+            OriginalOrderNumber: "ORD-ORIG");
+        var msg2 = OutboxMessage.Create(
+            OutboxMessageType.InventoryPosting,
+            "Refund",
+            refund2Id.ToString(),
+            refund2Id.ToString(),
+            JsonSerializer.Serialize(payload2),
+            $"RESTOCK-{refund2Id:N}");
+
+        // Now run both restock handlers CONCURRENTLY across 2 separate scopes/DbContexts
+        Exception? ex1 = null;
+        Exception? ex2 = null;
+        using (var scope1 = _serviceProvider.CreateScope())
+        using (var scope2 = _serviceProvider.CreateScope())
+        {
+            var handler1 = scope1.ServiceProvider.GetServices<IOutboxMessageHandler>()
+                .Single(h => h.MessageType == OutboxMessageType.InventoryPosting);
+            var handler2 = scope2.ServiceProvider.GetServices<IOutboxMessageHandler>()
+                .Single(h => h.MessageType == OutboxMessageType.InventoryPosting);
+
+            var task1 = Task.Run(async () =>
+            {
+                try
+                {
+                    await handler1.HandleAsync(msg1, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    ex1 = ex;
+                }
+            });
+
+            var task2 = Task.Run(async () =>
+            {
+                try
+                {
+                    await handler2.HandleAsync(msg2, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    ex2 = ex;
+                }
+            });
+
+            await Task.WhenAll(task1, task2);
+        }
+
+        // Assert: Exactly ONE succeeded and exactly ONE was quarantined due to atomic depletion cap!
+        var loserEx = ex1 ?? ex2;
+        Assert.NotNull(loserEx);
+        Assert.True(ex1 == null || ex2 == null, "Both concurrent refunds cannot succeed when together they exceed depletion.");
+        Assert.IsType<InvalidOperationException>(loserEx);
+        Assert.Contains("quarantined", loserEx.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("have already been restocked", loserEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        // Assert: Net stock is STRICTLY 10 (8 + 2), NOT 12!
+        using (var verifyScope = _serviceProvider.CreateScope())
+        {
+            var mediator = verifyScope.ServiceProvider.GetRequiredService<IMediator>();
+            var stock = await mediator.Send(new GetWarehouseStockByWarehouseAndVariantQuery(_warehouseId.Value, variantId.Value));
+            Assert.NotNull(stock);
+            Assert.Equal(10m, stock!.QuantityOnHand);
+
+            // Exactly 1 receipt transaction across both refunds (either refund 1 or refund 2 won the race)
+            var txs1 = await mediator.Send(new ListInventoryTransactionsByReferenceQuery("Refund", refund1Id));
+            var txs2 = await mediator.Send(new ListInventoryTransactionsByReferenceQuery("Refund", refund2Id));
+            if (ex1 != null)
+            {
+                // Refund 2 won, Refund 1 was quarantined
+                Assert.Single(txs2);
+                Assert.Equal(2m, txs2.First().Quantity);
+                Assert.Empty(txs1);
+            }
+            else
+            {
+                // Refund 1 won, Refund 2 was quarantined
+                Assert.Single(txs1);
+                Assert.Equal(2m, txs1.First().Quantity);
+                Assert.Empty(txs2);
+            }
+        }
+    }
+}
