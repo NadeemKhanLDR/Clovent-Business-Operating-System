@@ -19,6 +19,7 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
 {
     private readonly Dictionary<string, Guid> _idsByDisplay = [];
     private readonly int _configuredWidth;
+    private bool _suppressSelectionChanged;
 
     /// <summary>Raised whenever <see cref="SelectedId"/> settles on a new value (including becoming <see langword="null"/>).</summary>
     public event EventHandler? SelectionChanged;
@@ -100,19 +101,31 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     /// <summary>Replaces the picker's options. Selects the first item, if any, or clears the selection otherwise.</summary>
     public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items)
     {
-        ScaleCombo();
-        _idsByDisplay.Clear();
-        _combo.Properties.Items.Clear();
-
-        foreach (var (id, display) in items)
+        _suppressSelectionChanged = true;
+        try
         {
-            _idsByDisplay[display] = id;
-            _combo.Properties.Items.Add(display);
+            ScaleCombo();
+            _idsByDisplay.Clear();
+            _combo.Properties.Items.Clear();
+
+            foreach (var (id, display) in items)
+            {
+                _idsByDisplay[display] = id;
+                _combo.Properties.Items.Add(display);
+            }
+
+            if (_combo.Properties.Items.Count > 0)
+            {
+                _combo.SelectedIndex = 0;
+            }
+            else
+            {
+                _combo.SelectedIndex = -1;
+            }
         }
-
-        if (_combo.Properties.Items.Count > 0)
+        finally
         {
-            _combo.SelectedIndex = 0;
+            _suppressSelectionChanged = false;
         }
 
         OnSelected();
@@ -143,12 +156,25 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
         }
     }
 
-    private void Combo_SelectedIndexChanged(object? sender, EventArgs e) => OnSelected();
+    private void Combo_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_suppressSelectionChanged)
+        {
+            return;
+        }
+
+        OnSelected();
+    }
 
     private void Layout_SizeChanged(object? sender, EventArgs e) => Size = _layout.Size;
 
     private void OnSelected()
     {
+        if (_suppressSelectionChanged)
+        {
+            return;
+        }
+
         SelectedId = _combo.SelectedItem is string display && _idsByDisplay.TryGetValue(display, out var id)
             ? id
             : null;

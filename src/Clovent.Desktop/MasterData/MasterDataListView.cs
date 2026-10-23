@@ -56,6 +56,7 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
     private readonly LabelControl _statusLabel = new() { Text = string.Empty };
     private readonly IReadOnlyList<MasterDataListAction<TDto>> _extraActions;
     private readonly List<SimpleButton> _extraActionButtons = [];
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
     private IReadOnlyList<TDto> _allItems = [];
 
@@ -362,40 +363,48 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
             return;
         }
 
-        var selectedId = GetDtoId(GetFocusedItem());
-
-        SetBusy(true);
+        await _refreshLock.WaitAsync(cancellationToken);
         try
         {
-            _allItems = await LoadItemsAsync(cancellationToken);
-            
-            var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector).ToList();
-            _gridControl.DataSource = visible;
-            _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
-            
-            if (selectedId is { } id)
+            var selectedId = GetDtoId(GetFocusedItem());
+
+            SetBusy(true);
+            try
             {
-                var newIndex = -1;
-                for (int i = 0; i < visible.Count; i++)
+                _allItems = await LoadItemsAsync(cancellationToken);
+                
+                var visible = MasterDataFilter.Apply(_allItems, _searchBox.Text, SearchTextSelector).ToList();
+                _gridControl.DataSource = visible;
+                _statusLabel.Text = $"{visible.Count} of {_allItems.Count} record(s)";
+                
+                if (selectedId is { } id)
                 {
-                    if (GetDtoId(visible[i]) == id)
+                    var newIndex = -1;
+                    for (int i = 0; i < visible.Count; i++)
                     {
-                        newIndex = i;
-                        break;
+                        if (GetDtoId(visible[i]) == id)
+                        {
+                            newIndex = i;
+                            break;
+                        }
+                    }
+                    if (newIndex >= 0)
+                    {
+                        _gridView.FocusedRowHandle = newIndex;
                     }
                 }
-                if (newIndex >= 0)
-                {
-                    _gridView.FocusedRowHandle = newIndex;
-                }
-            }
 
-            await UpdateFeaturePermissionsAsync();
-            UpdateButtonStates();
+                await UpdateFeaturePermissionsAsync();
+                UpdateButtonStates();
+            }
+            finally
+            {
+                SetBusy(false);
+            }
         }
         finally
         {
-            SetBusy(false);
+            _refreshLock.Release();
         }
     }
 
@@ -700,4 +709,15 @@ public sealed class MasterDataListView<TDto> : XtraUserControl
         fieldName.Equals("OnHand", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Equals("Reserved", StringComparison.OrdinalIgnoreCase) ||
         fieldName.Equals("Available", StringComparison.OrdinalIgnoreCase);
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _refreshLock.Dispose();
+        }
+
+        base.Dispose(disposing);
+    }
 }
