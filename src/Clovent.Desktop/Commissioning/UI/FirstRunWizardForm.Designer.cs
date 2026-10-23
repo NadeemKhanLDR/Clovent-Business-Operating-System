@@ -56,7 +56,7 @@ partial class FirstRunWizardForm
         this.lblServer = new DevExpress.XtraEditors.LabelControl();
         this.txtServer = new DevExpress.XtraEditors.TextEdit();
         this.lblDatabase = new DevExpress.XtraEditors.LabelControl();
-        this.txtDatabase = new DevExpress.XtraEditors.TextEdit();
+        this.txtDatabase = new DevExpress.XtraEditors.ComboBoxEdit();
         this.lblAuth = new DevExpress.XtraEditors.LabelControl();
         this.cmbAuth = new DevExpress.XtraEditors.ComboBoxEdit();
         this.lblUsername = new DevExpress.XtraEditors.LabelControl();
@@ -668,6 +668,11 @@ partial class FirstRunWizardForm
         this.txtDatabase.Name = "txtDatabase";
         this.txtDatabase.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         this.txtDatabase.Properties.Appearance.Options.UseFont = true;
+        this.txtDatabase.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        this.txtDatabase.Properties.Items.AddRange(new object[] {
+            "Clovent_BusinessOperatingSystem"});
+        this.txtDatabase.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
         this.txtDatabase.Size = new System.Drawing.Size(460, 24);
         this.txtDatabase.TabIndex = 5;
         // 
@@ -1609,7 +1614,7 @@ partial class FirstRunWizardForm
     private DevExpress.XtraEditors.LabelControl lblServer;
     private DevExpress.XtraEditors.TextEdit txtServer;
     private DevExpress.XtraEditors.LabelControl lblDatabase;
-    private DevExpress.XtraEditors.TextEdit txtDatabase;
+    private DevExpress.XtraEditors.ComboBoxEdit txtDatabase;
     private DevExpress.XtraEditors.LabelControl lblAuth;
     private DevExpress.XtraEditors.ComboBoxEdit cmbAuth;
     private DevExpress.XtraEditors.LabelControl lblUsername;

@@ -21,7 +21,7 @@ partial class DatabaseConnectionDialog
         this.lblServer = new DevExpress.XtraEditors.LabelControl();
         this.txtServer = new DevExpress.XtraEditors.TextEdit();
         this.lblDatabase = new DevExpress.XtraEditors.LabelControl();
-        this.txtDatabase = new DevExpress.XtraEditors.TextEdit();
+        this.cmbDatabase = new DevExpress.XtraEditors.ComboBoxEdit();
         this.lblAuth = new DevExpress.XtraEditors.LabelControl();
         this.cmbAuth = new DevExpress.XtraEditors.ComboBoxEdit();
         this.lblUsername = new DevExpress.XtraEditors.LabelControl();
@@ -35,7 +35,7 @@ partial class DatabaseConnectionDialog
         this.btnCancel = new DevExpress.XtraEditors.SimpleButton();
         this.panelBottom = new System.Windows.Forms.Panel();
         ((System.ComponentModel.ISupportInitialize)(this.txtServer.Properties)).BeginInit();
-        ((System.ComponentModel.ISupportInitialize)(this.txtDatabase.Properties)).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)(this.cmbDatabase.Properties)).BeginInit();
         ((System.ComponentModel.ISupportInitialize)(this.cmbAuth.Properties)).BeginInit();
         ((System.ComponentModel.ISupportInitialize)(this.txtUsername.Properties)).BeginInit();
         ((System.ComponentModel.ISupportInitialize)(this.txtPassword.Properties)).BeginInit();
@@ -93,14 +93,20 @@ partial class DatabaseConnectionDialog
         this.lblDatabase.TabIndex = 4;
         this.lblDatabase.Text = "Database Name:";
         // 
-        // txtDatabase
+        // cmbDatabase
         // 
-        this.txtDatabase.Location = new System.Drawing.Point(24, 154);
-        this.txtDatabase.Name = "txtDatabase";
-        this.txtDatabase.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
-        this.txtDatabase.Properties.Appearance.Options.UseFont = true;
-        this.txtDatabase.Size = new System.Drawing.Size(490, 24);
-        this.txtDatabase.TabIndex = 5;
+        this.cmbDatabase.EditValue = "Clovent_BusinessOperatingSystem";
+        this.cmbDatabase.Location = new System.Drawing.Point(24, 154);
+        this.cmbDatabase.Name = "cmbDatabase";
+        this.cmbDatabase.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.cmbDatabase.Properties.Appearance.Options.UseFont = true;
+        this.cmbDatabase.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
+        this.cmbDatabase.Properties.Items.AddRange(new object[] {
+            "Clovent_BusinessOperatingSystem"});
+        this.cmbDatabase.Properties.TextEditStyle = DevExpress.XtraEditors.Controls.TextEditStyles.Standard;
+        this.cmbDatabase.Size = new System.Drawing.Size(490, 24);
+        this.cmbDatabase.TabIndex = 5;
         // 
         // lblAuth
         // 
@@ -239,6 +245,8 @@ partial class DatabaseConnectionDialog
         // DatabaseConnectionDialog
         // 
         this.AcceptButton = this.btnSave;
+        this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
         this.CancelButton = this.btnCancel;
         this.ClientSize = new System.Drawing.Size(540, 444);
         this.Controls.Add(this.panelBottom);
@@ -249,7 +257,7 @@ partial class DatabaseConnectionDialog
         this.Controls.Add(this.lblUsername);
         this.Controls.Add(this.cmbAuth);
         this.Controls.Add(this.lblAuth);
-        this.Controls.Add(this.txtDatabase);
+        this.Controls.Add(this.cmbDatabase);
         this.Controls.Add(this.lblDatabase);
         this.Controls.Add(this.txtServer);
         this.Controls.Add(this.lblServer);
@@ -262,7 +270,7 @@ partial class DatabaseConnectionDialog
         this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
         this.Text = "Clovent - Database Connection Settings";
         ((System.ComponentModel.ISupportInitialize)(this.txtServer.Properties)).EndInit();
-        ((System.ComponentModel.ISupportInitialize)(this.txtDatabase.Properties)).EndInit();
+        ((System.ComponentModel.ISupportInitialize)(this.cmbDatabase.Properties)).EndInit();
         ((System.ComponentModel.ISupportInitialize)(this.cmbAuth.Properties)).EndInit();
         ((System.ComponentModel.ISupportInitialize)(this.txtUsername.Properties)).EndInit();
         ((System.ComponentModel.ISupportInitialize)(this.txtPassword.Properties)).EndInit();
@@ -276,7 +284,7 @@ partial class DatabaseConnectionDialog
     private DevExpress.XtraEditors.LabelControl lblServer;
     private DevExpress.XtraEditors.TextEdit txtServer;
     private DevExpress.XtraEditors.LabelControl lblDatabase;
-    private DevExpress.XtraEditors.TextEdit txtDatabase;
+    private DevExpress.XtraEditors.ComboBoxEdit cmbDatabase;
     private DevExpress.XtraEditors.LabelControl lblAuth;
     private DevExpress.XtraEditors.ComboBoxEdit cmbAuth;
     private DevExpress.XtraEditors.LabelControl lblUsername;
