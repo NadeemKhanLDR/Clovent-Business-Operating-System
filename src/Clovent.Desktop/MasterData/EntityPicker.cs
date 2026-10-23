@@ -19,7 +19,7 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
 {
     private readonly Dictionary<string, Guid> _idsByDisplay = [];
     private readonly int _configuredWidth;
-    private bool _isLoadingItems;
+    private bool _suppressSelectionChanged;
 
     /// <summary>Raised whenever <see cref="SelectedId"/> settles on a new value (including becoming <see langword="null"/>).</summary>
     public event EventHandler? SelectionChanged;
@@ -98,19 +98,10 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
         _combo.MinimumSize = new System.Drawing.Size(targetWidth, targetHeight);
     }
 
-    /// <summary>Clears the current selection, setting <see cref="SelectedId"/> to <see langword="null"/>.</summary>
-    public void ClearSelection()
+    /// <summary>Replaces the picker's options. Selects the first item, if any, or clears the selection otherwise.</summary>
+    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items)
     {
-        _combo.SelectedIndex = -1;
-        _combo.EditValue = null;
-        SelectedId = null;
-        SelectionChanged?.Invoke(this, EventArgs.Empty);
-    }
-
-    /// <summary>Replaces the picker's options. Optionally selects the initial id or first item.</summary>
-    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items, bool autoSelectFirst = true, Guid? initialSelectedId = null)
-    {
-        _isLoadingItems = true;
+        _suppressSelectionChanged = true;
         try
         {
             ScaleCombo();
@@ -123,23 +114,18 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
                 _combo.Properties.Items.Add(display);
             }
 
-            if (initialSelectedId.HasValue)
-            {
-                SelectId(initialSelectedId.Value);
-            }
-            else if (autoSelectFirst && _combo.Properties.Items.Count > 0)
+            if (_combo.Properties.Items.Count > 0)
             {
                 _combo.SelectedIndex = 0;
             }
             else
             {
                 _combo.SelectedIndex = -1;
-                _combo.EditValue = null;
             }
         }
         finally
         {
-            _isLoadingItems = false;
+            _suppressSelectionChanged = false;
         }
 
         OnSelected();
@@ -172,7 +158,7 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
 
     private void Combo_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        if (_isLoadingItems)
+        if (_suppressSelectionChanged)
         {
             return;
         }
@@ -184,6 +170,11 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
 
     private void OnSelected()
     {
+        if (_suppressSelectionChanged)
+        {
+            return;
+        }
+
         SelectedId = _combo.SelectedItem is string display && _idsByDisplay.TryGetValue(display, out var id)
             ? id
             : null;
