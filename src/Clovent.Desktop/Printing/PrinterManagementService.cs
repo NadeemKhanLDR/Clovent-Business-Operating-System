@@ -302,15 +302,17 @@ public sealed class PrinterManagementService
     /// </summary>
     public async Task<PrintDispatchResult> DispatchReceiptAsync(
         PrintableReceiptData data,
-        Guid? organizationId,
-        Guid? branchId,
-        Guid? terminalId,
+        Guid? organizationId = null,
+        Guid? branchId = null,
+        Guid? terminalId = null,
         bool isReprint = false,
         int reprintCount = 1,
         string? reprintReason = null,
         Guid? jobId = null,
         Clovent.Platform.Printing.ReceiptCopyType copyType = Clovent.Platform.Printing.ReceiptCopyType.Standard,
         Clovent.Platform.Printing.TerminalReceiptSettings? customSettings = null,
+        bool isAdditionalCopy = false,
+        Guid? targetProfileId = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(data);

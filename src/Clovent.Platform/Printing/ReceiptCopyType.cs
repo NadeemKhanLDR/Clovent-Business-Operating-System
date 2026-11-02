@@ -11,8 +11,14 @@ public enum ReceiptCopyType
     /// <summary>Dedicated customer receipt copy.</summary>
     CustomerCopy = 1,
 
+    /// <summary>Alias for <see cref="CustomerCopy"/>.</summary>
+    Customer = 1,
+
     /// <summary>Merchant / store audit copy, typically with signature line.</summary>
     MerchantCopy = 2,
+
+    /// <summary>Alias for <see cref="MerchantCopy"/>.</summary>
+    Merchant = 2,
 
     /// <summary>Historical reprint slip.</summary>
     Reprint = 3,
