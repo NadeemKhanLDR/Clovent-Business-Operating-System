@@ -1,4 +1,4 @@
-namespace Clovent.Platform.Printing;
+﻿namespace Clovent.Platform.Printing;
 
 /// <summary>
 /// Identifies the intended recipient or purpose of a printed receipt slip.
@@ -15,5 +15,8 @@ public enum ReceiptCopyType
     MerchantCopy = 2,
 
     /// <summary>Historical reprint slip.</summary>
-    Reprint = 3
+    Reprint = 3,
+
+    /// <summary>Unpaid draft bill / running tab view printed for customer preview before payment.</summary>
+    Draft = 4
 }

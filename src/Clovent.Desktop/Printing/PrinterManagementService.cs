@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -309,6 +309,8 @@ public sealed class PrinterManagementService
         int reprintCount = 1,
         string? reprintReason = null,
         Guid? jobId = null,
+        Clovent.Platform.Printing.ReceiptCopyType copyType = Clovent.Platform.Printing.ReceiptCopyType.Standard,
+        Clovent.Platform.Printing.TerminalReceiptSettings? customSettings = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(data);
@@ -864,5 +866,20 @@ public sealed class PrinterManagementService
             _jobTracker.MarkFailed(job.JobId, ex.Message);
             return PrintDispatchResult.Failed(profile.SystemPrinterName, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Retrieves the <see cref="Clovent.Platform.Printing.TerminalReceiptSettings"/> for the specified
+    /// terminal, falling back to the global default if no per-terminal settings are configured.
+    /// Always returns a non-null instance.
+    /// </summary>
+    /// <param name="terminalId">The terminal machine identifier, or <see langword="null"/> to retrieve the global default.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    public async Task<Clovent.Platform.Printing.TerminalReceiptSettings> GetTerminalReceiptSettingsAsync(
+        Guid? terminalId,
+        CancellationToken cancellationToken = default)
+    {
+        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return config.GetSettingsForTerminal(terminalId);
     }
 }

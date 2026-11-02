@@ -1,4 +1,4 @@
-using DevExpress.XtraEditors;
+﻿using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.MasterData;
 
@@ -99,7 +99,7 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     }
 
     /// <summary>Replaces the picker's options. Selects the first item, if any, or clears the selection otherwise.</summary>
-    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items)
+    public void LoadItems(IReadOnlyList<(Guid Id, string Display)> items, bool autoSelectFirst = true, Guid? initialSelectedId = null)
     {
         _suppressSelectionChanged = true;
         try
@@ -114,7 +114,21 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
                 _combo.Properties.Items.Add(display);
             }
 
-            if (_combo.Properties.Items.Count > 0)
+            if (initialSelectedId.HasValue)
+            {
+                var found = false;
+                for (int i = 0; i < _combo.Properties.Items.Count; i++)
+                {
+                    if (_combo.Properties.Items[i] is string display && _idsByDisplay.TryGetValue(display, out var id) && id == initialSelectedId.Value)
+                    {
+                        _combo.SelectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) _combo.SelectedIndex = autoSelectFirst && _combo.Properties.Items.Count > 0 ? 0 : -1;
+            }
+            else if (autoSelectFirst && _combo.Properties.Items.Count > 0)
             {
                 _combo.SelectedIndex = 0;
             }
@@ -185,6 +199,15 @@ public sealed partial class EntityPicker : DevExpress.XtraEditors.XtraUserContro
     /// <summary>Exposes the inner <see cref="ComboBoxEdit"/> so callers can configure auto-complete and text-edit style without requiring <c>EntityPicker</c> to duplicate every <see cref="ComboBoxEdit.Properties"/> member.</summary>
     public ComboBoxEdit ComboBox => _combo;
 
+    /// <summary>
+    /// Clears the current selection, setting <see cref="SelectedId"/> to <see langword="null"/>
+    /// and resetting the dropdown to no-selection state. Raises <see cref="SelectionChanged"/>.
+    /// </summary>
+    public void ClearSelection()
+    {
+        _combo.SelectedIndex = -1;
+        OnSelected();
+    }
     /// <summary>Exposes the inner <see cref="LabelControl"/> caption.</summary>
     public LabelControl Label => _label;
 

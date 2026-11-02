@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace Clovent.Platform.Printing;
 
@@ -302,5 +302,108 @@ public static class ReceiptSnapshotFormatter
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Formats <paramref name="data"/> as a draft bill (pre-payment running tab) using the given <paramref name="options"/>.
+    /// Omits the payments breakdown and balance sections — those are not yet settled.
+    /// Sets a "DRAFT BILL" banner header and uses <see cref="ReceiptCopyType.Draft"/> copy type.
+    /// </summary>
+    public static ReceiptFormattingResult FormatDraftBill(PrintableReceiptData data, ReceiptRenderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(options);
+
+        // Delegate to Format with a Draft-flavored options override so shared rendering logic applies,
+        // then strip or reformat the payments section.
+        var charsPerLine = Math.Clamp(options.CharactersPerLine, 28, 120);
+        var sb = new StringBuilder();
+        var containsComplexScript = false;
+
+        void AppendLineAndScan(string line)
+        {
+            if (!containsComplexScript && HasComplexScript(line)) containsComplexScript = true;
+            sb.AppendLine(line);
+        }
+
+        string Center(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return string.Empty;
+            if (text.Length >= charsPerLine) return text;
+            var pad = (charsPerLine - text.Length) / 2;
+            return new string(' ', Math.Max(0, pad)) + text;
+        }
+
+        string TwoColumn(string left, string right)
+        {
+            var maxLeft = charsPerLine - right.Length - 1;
+            if (maxLeft <= 0) return left + " " + right;
+            if (left.Length > maxLeft) left = left[..maxLeft];
+            var spaces = charsPerLine - left.Length - right.Length;
+            return left + new string(' ', Math.Max(1, spaces)) + right;
+        }
+
+        var divider = new string('-', charsPerLine);
+        var doubleDivider = new string('=', charsPerLine);
+
+        // Draft banner
+        AppendLineAndScan(doubleDivider);
+        AppendLineAndScan(Center("*** DRAFT BILL ***"));
+        AppendLineAndScan(Center("Not a payment receipt"));
+        AppendLineAndScan(doubleDivider);
+
+        if (!string.IsNullOrWhiteSpace(options.HeaderText)) AppendLineAndScan(Center(options.HeaderText));
+        if (!string.IsNullOrWhiteSpace(data.OrganizationName)) AppendLineAndScan(Center(data.OrganizationName));
+        if (!string.IsNullOrWhiteSpace(data.BranchName)) AppendLineAndScan(Center(data.BranchName));
+        if (!string.IsNullOrWhiteSpace(data.TaxRegistrationNumber)) AppendLineAndScan(Center($"STRN / NTN: {data.TaxRegistrationNumber}"));
+
+        AppendLineAndScan(divider);
+        AppendLineAndScan(TwoColumn("Order:", data.OrderNumber));
+        AppendLineAndScan(TwoColumn("Type:", data.OrderType));
+        AppendLineAndScan(TwoColumn("Date:", data.CompletedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")));
+        if (!string.IsNullOrWhiteSpace(data.TerminalName)) AppendLineAndScan(TwoColumn("Terminal:", data.TerminalName));
+        if (!string.IsNullOrWhiteSpace(data.CashierName)) AppendLineAndScan(TwoColumn("Cashier:", data.CashierName));
+
+        AppendLineAndScan(divider);
+
+        foreach (var item in data.Items)
+        {
+            var qtyPrice = $"x{item.Quantity:0.##} @ {item.UnitPrice:N2}";
+            var totalStr = item.LineTotal.ToString("N2");
+            if (item.Name.Length + qtyPrice.Length + totalStr.Length + 2 > charsPerLine)
+            {
+                AppendLineAndScan(item.Name);
+                AppendLineAndScan(TwoColumn("  " + qtyPrice, totalStr));
+            }
+            else
+            {
+                AppendLineAndScan(TwoColumn($"{item.Name} {qtyPrice}", totalStr));
+            }
+            if (!string.IsNullOrWhiteSpace(item.Notes)) AppendLineAndScan($"  Note: {item.Notes}");
+        }
+
+        AppendLineAndScan(divider);
+        AppendLineAndScan(TwoColumn("Subtotal:", data.Subtotal.ToString("N2")));
+        if (data.DiscountTotal != 0m) AppendLineAndScan(TwoColumn("Discount:", $"-{Math.Abs(data.DiscountTotal):N2}"));
+        if (data.TaxBreakdown != null && data.TaxBreakdown.Count > 0)
+        {
+            foreach (var tax in data.TaxBreakdown) AppendLineAndScan(TwoColumn($"Tax ({tax.TaxName}):", tax.TaxAmount.ToString("N2")));
+        }
+        else
+        {
+            AppendLineAndScan(TwoColumn("Tax:", data.TaxTotal.ToString("N2")));
+        }
+        if (data.ServiceChargeTotal != 0m) AppendLineAndScan(TwoColumn("Service Charge:", data.ServiceChargeTotal.ToString("N2")));
+
+        AppendLineAndScan(doubleDivider);
+        AppendLineAndScan(TwoColumn("Amount Due:", data.GrandTotal.ToString("N2")));
+        AppendLineAndScan(doubleDivider);
+
+        if (!string.IsNullOrWhiteSpace(data.CustomerNotes)) { AppendLineAndScan(divider); AppendLineAndScan($"Notes: {data.CustomerNotes}"); }
+        if (!string.IsNullOrWhiteSpace(options.FooterText)) { AppendLineAndScan(divider); AppendLineAndScan(Center(options.FooterText)); }
+
+        var text = sb.ToString();
+        var lineCount = text.Split('\n').Length;
+        return new ReceiptFormattingResult(text, containsComplexScript, lineCount);
     }
 }

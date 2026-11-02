@@ -1,4 +1,4 @@
-namespace Clovent.Platform.Printing;
+﻿namespace Clovent.Platform.Printing;
 
 /// <summary>
 /// Rendering configuration options for receipt text generation.
@@ -12,7 +12,10 @@ public sealed record ReceiptRenderOptions(
     string? HeaderText = "Clovent Business Operating System",
     string? FooterText = "Thank you for your visit!",
     ReceiptCopyType CopyType = ReceiptCopyType.Standard,
-    bool IncludeSignatureLine = false);
+    bool IncludeSignatureLine = false,
+    int MarginMm = 2,
+    string? LogoPath = null,
+    bool EnableLogo = false);
 
 /// <summary>
 /// Result of a receipt formatting execution, indicating layout and script properties.
