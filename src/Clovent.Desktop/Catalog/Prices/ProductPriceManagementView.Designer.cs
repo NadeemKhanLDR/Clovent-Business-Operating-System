@@ -1,3 +1,4 @@
+using System.Windows.Forms;
 using Clovent.Catalog.Application.Prices.Commands;
 using Clovent.Catalog.Application.Prices.Dtos;
 using Clovent.Desktop.MasterData;
@@ -8,18 +9,6 @@ partial class ProductPriceManagementView
 {
     /// <summary>Required designer variable.</summary>
     private System.ComponentModel.IContainer components = null;
-
-    /// <summary>Clean up any resources being used.</summary>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _scope.Dispose();
-            components?.Dispose();
-        }
-
-        base.Dispose(disposing);
-    }
 
     #region Component Designer generated code
 
@@ -47,8 +36,8 @@ partial class ProductPriceManagementView
             CanUseFeatureAsync = operation => CanUseFeatureAsync(operation),
             OnNew = CreateAsync,
             OnEdit = EditAsync,
-            OnActivate = dto => _mediator.Send(new ActivateProductPriceCommand(dto.ProductPriceId)),
-            OnDeactivate = dto => _mediator.Send(new DeactivateProductPriceCommand(dto.ProductPriceId)),
+            OnActivate = dto => _mediator.Send(new ActivateProductPriceCommand(dto.ProductPriceId), _lifecycleCts.Token),
+            OnDeactivate = dto => _mediator.Send(new DeactivateProductPriceCommand(dto.ProductPriceId), _lifecycleCts.Token),
         };
 
         _variantPicker.SelectionChanged += VariantPicker_SelectionChanged;

@@ -1,3 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Clovent.Catalog.Application.Prices.Commands;
 using Clovent.Catalog.Application.Prices.Dtos;
 using Clovent.Catalog.Application.Prices.Queries;
@@ -27,20 +33,49 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
     private const string FeatureCode = "prices";
 
     private readonly IServiceScope _scope;
+    private readonly ScreenOperationGate _gate = new();
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
+    private readonly CancellationTokenSource _lifecycleCts = new();
+    private bool _isLoadingVariants;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public ProductPriceManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
-        _mediator = _scope.ServiceProvider.GetRequiredService<IMediator>();
-        _featurePolicy = _scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>();
+        _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
+        _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
 
         InitializeComponent();
         _listView.GridView.CustomColumnDisplayText += GridView_CustomColumnDisplayText;
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            try
+            {
+                _lifecycleCts.Cancel();
+            }
+            catch (ObjectDisposedException) { }
+
+            _gate.Drain(TimeSpan.FromMilliseconds(500));
+            _scope.Dispose();
+            _gate.Dispose();
+            try
+            {
+                _lifecycleCts.Dispose();
+            }
+            catch (ObjectDisposedException) { }
+
+            components?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 
     private void GridView_CustomColumnDisplayText(object? sender, DevExpress.XtraGrid.Views.Base.CustomColumnDisplayTextEventArgs e)
@@ -59,14 +94,39 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
         }
     }
 
-    private async void VariantPicker_SelectionChanged(object? sender, EventArgs e) => await _listView.RefreshAsync();
+    private async void VariantPicker_SelectionChanged(object? sender, EventArgs e)
+    {
+        if (_isLoadingVariants || _lifecycleCts.IsCancellationRequested || IsDisposed || Disposing)
+        {
+            return;
+        }
+
+        await _listView.RefreshAsync(_lifecycleCts.Token);
+    }
 
     private async void ProductPriceManagementView_Load(object? sender, EventArgs e) => await LoadVariantsAsync();
 
     private async Task LoadVariantsAsync()
     {
-        var variants = await _mediator.Send(new ListProductVariantsQuery());
-        _variantPicker.LoadItems([.. variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}"))]);
+        _isLoadingVariants = true;
+        try
+        {
+            var variants = await _mediator.Send(new ListProductVariantsQuery(), _lifecycleCts.Token);
+            _variantPicker.LoadItems([.. variants.Select(v => (v.ProductVariantId, $"{v.Sku} - {v.Name}"))]);
+        }
+        catch (OperationCanceledException) when (_lifecycleCts.IsCancellationRequested)
+        {
+            return;
+        }
+        finally
+        {
+            _isLoadingVariants = false;
+        }
+
+        if (!_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing)
+        {
+            await _listView.RefreshAsync(_lifecycleCts.Token);
+        }
     }
 
     private async Task<IReadOnlyList<ProductPriceDto>> LoadItemsAsync(CancellationToken cancellationToken)
@@ -76,17 +136,21 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
             return [];
         }
 
-        var items = await _mediator.Send(new ListProductPricesByVariantQuery(variantId), cancellationToken);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifecycleCts.Token);
+        var items = await _mediator.Send(new ListProductPricesByVariantQuery(variantId), linked.Token);
         return [.. items];
     }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
-        _currentSession.UserId is { } userId
-            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}")
+        _currentSession.UserId is { } userId && !_lifecycleCts.IsCancellationRequested && !IsDisposed && !Disposing
+            ? _featurePolicy.CanUseFeatureAsync(userId, $"{FeatureCode}.{operation}", _lifecycleCts.Token)
             : Task.FromResult(false);
 
-    private async Task<IReadOnlyList<(Guid Id, string Display)>> LoadCurrencyOptionsAsync() =>
-        [.. (await _mediator.Send(new ListCurrenciesQuery())).Select(c => (c.CurrencyId, $"{c.Code} - {c.Name}"))];
+    private async Task<IReadOnlyList<(Guid Id, string Display)>> LoadCurrencyOptionsAsync()
+    {
+        var currencies = await _mediator.Send(new ListCurrenciesQuery(), _lifecycleCts.Token);
+        return [.. currencies.Select(c => (c.CurrencyId, $"{c.Code} - {c.Name}"))];
+    }
 
     private async Task CreateAsync()
     {
@@ -106,7 +170,7 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
         using var form = new ProductPriceEditForm("New Price", currencies);
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new CreateProductPriceCommand(variantId, form.PriceType, form.Amount, form.CurrencyId!.Value));
+            await _mediator.Send(new CreateProductPriceCommand(variantId, form.PriceType, form.Amount, form.CurrencyId!.Value), _lifecycleCts.Token);
         }
     }
 
@@ -122,7 +186,7 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
 
         if (form.ShowDialog(this) == DialogResult.OK)
         {
-            await _mediator.Send(new UpdateProductPriceAmountCommand(dto.ProductPriceId, form.Amount));
+            await _mediator.Send(new UpdateProductPriceAmountCommand(dto.ProductPriceId, form.Amount), _lifecycleCts.Token);
         }
     }
 }
