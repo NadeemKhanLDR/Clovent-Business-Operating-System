@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,13 +38,16 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
     private readonly IMediator _mediator;
     private readonly IFeatureAuthorizationPolicy _featurePolicy;
     private readonly ICurrentSession _currentSession;
+    private readonly ILogger<ProductPriceManagementView>? _logger;
     private readonly CancellationTokenSource _lifecycleCts = new();
+    private int _isDisposed;
     private bool _isLoadingVariants;
 
     /// <summary>Builds the screen and starts its own DI scope for the Scoped services it needs.</summary>
     public ProductPriceManagementView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         _scope = scopeFactory.CreateScope();
+        _logger = _scope.ServiceProvider.GetService<ILogger<ProductPriceManagementView>>();
         _mediator = new SerializedMediator(_scope.ServiceProvider.GetRequiredService<IMediator>(), _gate);
         _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
         _currentSession = currentSession;
@@ -57,6 +61,14 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
     {
         if (disposing)
         {
+            // Ensure disposal logic runs exactly once
+            if (Interlocked.Exchange(ref _isDisposed, 1) != 0)
+            {
+                base.Dispose(disposing);
+                return;
+            }
+
+            // Immediately cancel the lifecycle token to abort cancellable queries and reject queued work
             try
             {
                 _lifecycleCts.Cancel();
@@ -66,25 +78,59 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
             var drained = _gate.Drain(TimeSpan.FromMilliseconds(500));
             if (drained)
             {
-                _scope.Dispose();
-                _gate.Dispose();
+                try
+                {
+                    _scope.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Error disposing service scope during synchronous ProductPriceManagementView disposal");
+                }
+                finally
+                {
+                    try { _gate.Dispose(); } catch { }
+                }
             }
             else
             {
-                // In-flight operation exceeded 500ms timeout or ignored cancellation.
-                // Do not dispose _scope while active queries/commands may still be running against it.
-                // Schedule deferred disposal once the in-flight gate holder completes.
+                // In-flight operation exceeded 500ms drain timeout or ignored cancellation.
+                // INVARIANT: Do NOT force-dispose _scope while active queries or DbContext operations
+                // are still using it. If an operation never finishes, the scope remains alive
+                // to prevent Use-After-Disposal memory corruption or ObjectDisposedException.
+                // Only dispose the DI scope after positively confirming the active operation has completed.
+                _logger?.LogWarning("ProductPriceManagementView disposal timed out after 500ms waiting for in-flight operations. Deferring scope cleanup.");
+
                 _ = Task.Run(() =>
                 {
+                    bool deferredDrained = false;
                     try
                     {
-                        _gate.Drain(Timeout.InfiniteTimeSpan);
+                        deferredDrained = _gate.Drain(Timeout.InfiniteTimeSpan);
                     }
-                    catch { }
-                    finally
+                    catch (Exception ex)
                     {
-                        try { _scope.Dispose(); } catch { }
-                        try { _gate.Dispose(); } catch { }
+                        _logger?.LogError(ex, "Error during deferred drain in ProductPriceManagementView disposal");
+                    }
+
+                    if (deferredDrained)
+                    {
+                        try
+                        {
+                            _scope.Dispose();
+                            _logger?.LogInformation("Successfully disposed deferred ProductPriceManagementView service scope after in-flight gate holder completed.");
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger?.LogError(ex, "Error disposing deferred service scope in ProductPriceManagementView");
+                        }
+                        finally
+                        {
+                            try { _gate.Dispose(); } catch { }
+                        }
+                    }
+                    else
+                    {
+                        _logger?.LogError("Deferred drain did not acquire gate; scope will remain undisposed to avoid corrupting active operations.");
                     }
                 });
             }

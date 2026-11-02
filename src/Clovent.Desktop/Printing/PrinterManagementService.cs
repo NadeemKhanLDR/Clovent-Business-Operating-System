@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
+using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Notifications;
 using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
@@ -137,6 +138,15 @@ public sealed class PrinterManagementService
         }
     }
 
+    /// <summary>
+    /// Enforces strict company, branch, and terminal ownership boundaries.
+    /// Invariant: Manager/Admin role status MUST NOT bypass scope ownership boundaries.
+    /// </summary>
+    public void EnsureScopeOwnership(Guid? organizationId, Guid? branchId, Guid? terminalId, string actionDescription)
+    {
+        PosSettingsStore.EnsureWorkstationScopeOwnership(organizationId, branchId, terminalId, actionDescription);
+    }
+
     /// <summary>Resolves or creates the circuit breaker protecting the specified printer queue.</summary>
     public ICircuitBreaker GetCircuitBreaker(string printerName)
     {
@@ -248,6 +258,70 @@ public sealed class PrinterManagementService
         await _configStore.SaveAsync(config).ConfigureAwait(false);
     }
 
+    /// <summary>Retrieves receipt copies and layout configuration for a specific terminal machine.</summary>
+    public async Task<TerminalReceiptSettings> GetTerminalReceiptSettingsAsync(Guid? terminalId, CancellationToken cancellationToken = default)
+    {
+        EnsureScopeOwnership(organizationId: null, branchId: null, terminalId: terminalId, "reading terminal receipt settings");
+        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        return config.GetSettingsForTerminal(terminalId);
+    }
+
+    /// <summary>Saves receipt copies and layout configuration for a specific terminal machine.</summary>
+    public async Task SaveTerminalReceiptSettingsAsync(
+        Guid terminalId,
+        TerminalReceiptSettings settings,
+        Guid? organizationId = null,
+        Guid? branchId = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (!settings.IsCopyCountValid(out var copyError))
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings), copyError);
+        }
+
+        await EnsurePermissionAsync("feature.printers.manage", "save terminal receipt settings").ConfigureAwait(false);
+        EnsureScopeOwnership(organizationId: organizationId, branchId: branchId, terminalId: terminalId, "saving terminal receipt settings");
+
+        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        config.SetSettingsForTerminal(terminalId, settings);
+        await _configStore.SaveAsync(config, cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("Saved receipt settings for terminal {TerminalId}", terminalId);
+    }
+
+    /// <summary>Sets a profile as the explicit default receipt printer for a specific terminal machine.</summary>
+    public async Task AssignTerminalDefaultReceiptPrinterAsync(
+        Guid terminalId,
+        Guid profileId,
+        Guid? organizationId = null,
+        Guid? branchId = null,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsurePermissionAsync("feature.printers.manage", "assign terminal default receipt printer").ConfigureAwait(false);
+        EnsureScopeOwnership(organizationId: organizationId, branchId: branchId, terminalId: terminalId, "assigning terminal default receipt printer");
+
+        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        var profile = config.FindProfile(profileId) ?? throw new InvalidOperationException($"Printer profile {profileId} not found.");
+
+        // Remove any prior default receipt assignment for this terminal
+        config.Assignments.RemoveAll(a => a.TerminalId == terminalId && a.Role == PrinterRole.Receipt);
+
+        config.Assignments.Add(new PrinterAssignment
+        {
+            Id = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            BranchId = branchId,
+            TerminalId = terminalId,
+            Role = PrinterRole.Receipt,
+            PrinterProfileId = profileId,
+            IsDefaultReceiptPrinter = true,
+            CreatedAtUtc = DateTimeOffset.UtcNow
+        });
+
+        await _configStore.SaveAsync(config, cancellationToken).ConfigureAwait(false);
+        _logger?.LogInformation("Assigned profile '{ProfileName}' as default receipt printer for terminal {TerminalId}", profile.ProfileName, terminalId);
+    }
+
     /// <summary>
     /// Polls physical hardware status for the given profile.
     /// </summary>
@@ -309,13 +383,16 @@ public sealed class PrinterManagementService
         int reprintCount = 1,
         string? reprintReason = null,
         Guid? jobId = null,
-        Clovent.Platform.Printing.ReceiptCopyType copyType = Clovent.Platform.Printing.ReceiptCopyType.Standard,
-        Clovent.Platform.Printing.TerminalReceiptSettings? customSettings = null,
-        bool isAdditionalCopy = false,
+        ReceiptCopyType copyType = ReceiptCopyType.Customer,
+        TerminalReceiptSettings? customSettings = null,
         Guid? targetProfileId = null,
+        bool isAdditionalCopy = false,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(data);
+
+        // Enforce company, branch, and terminal scope boundaries (Manager/Admin cannot bypass)
+        EnsureScopeOwnership(organizationId, branchId, terminalId, "receipt dispatch");
 
         var effectiveJobId = jobId ?? Guid.NewGuid();
         var lockKey = $"receipt:{effectiveJobId}";
@@ -329,11 +406,22 @@ public sealed class PrinterManagementService
 
         try
         {
-            var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
-            if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
+            PrinterProfile? profile = null;
+            if (targetProfileId.HasValue)
             {
-                _logger?.LogWarning("Receipt printer resolution failed ({Outcome}): {Message}", routingResult.Outcome, routingResult.Message);
-                return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+                var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+                profile = config.FindProfile(targetProfileId.Value);
+            }
+
+            if (profile == null)
+            {
+                var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
+                if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } resolved)
+                {
+                    _logger?.LogWarning("Receipt printer resolution failed ({Outcome}): {Message}", routingResult.Outcome, routingResult.Message);
+                    return PrintDispatchResult.Failed(null, routingResult.Message ?? "No receipt printer configured or assigned for this scope.");
+                }
+                profile = resolved;
             }
 
             if (!_queueProvider.IsPrinterInstalled(profile.SystemPrinterName))
@@ -360,103 +448,80 @@ public sealed class PrinterManagementService
                 }
             }
 
+            var effectiveSettings = customSettings ?? (await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false)).GetSettingsForTerminal(terminalId);
+
             var renderOptions = new ReceiptRenderOptions(
-                PaperWidth: profile.PaperWidth,
-                CharactersPerLine: profile.CharactersPerLine,
-                IsReprint: isReprint,
+                PaperWidth: effectiveSettings?.PaperWidth ?? profile.PaperWidth,
+                CharactersPerLine: effectiveSettings?.CharactersPerLine ?? profile.CharactersPerLine,
+                IsReprint: isReprint || copyType == ReceiptCopyType.Reprint,
                 ReprintCount: reprintCount,
-                ReprintReason: reprintReason);
+                ReprintReason: reprintReason,
+                HeaderText: effectiveSettings?.HeaderText ?? "Clovent Business Operating System",
+                FooterText: effectiveSettings?.FooterText ?? "Thank you for your visit!",
+                CopyType: isReprint ? ReceiptCopyType.Reprint : copyType,
+                MarginMm: effectiveSettings?.MarginMm ?? 2,
+                LogoPath: effectiveSettings?.LogoPath,
+                EnableLogo: effectiveSettings?.EnableLogo ?? false);
 
-            string payloadText;
-            var docType = isReprint ? "ReprintReceipt" : "CustomerReceipt";
+            var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
 
-            if (isReprint)
-            {
-                var formatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
-                payloadText = formatted.FormattedText;
-            }
-            else
-            {
-                var sb = new System.Text.StringBuilder();
-
-                // 1. Customer copy (if enabled)
-                if (profile.PrintCustomerCopy)
+            var docType = isReprint || copyType == ReceiptCopyType.Reprint
+                ? "ReprintReceipt"
+                : copyType switch
                 {
-                    var custOptions = renderOptions with { CopyType = ReceiptCopyType.CustomerCopy };
-                    var custFormatted = ReceiptSnapshotFormatter.Format(data, custOptions);
-                    var count = Math.Clamp(profile.CustomerCopies, 1, 10);
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (sb.Length > 0)
-                        {
-                            sb.AppendLine();
-                            sb.AppendLine("\f");
-                        }
-                        sb.Append(custFormatted.FormattedText);
-                    }
-                }
-
-                // 2. Merchant copy (if enabled & trigger matched)
-                var shouldPrintMerchant = false;
-                if (profile.PrintMerchantCopy)
-                {
-                    if (profile.MerchantCopyTrigger == MerchantCopyTrigger.Always)
-                    {
-                        shouldPrintMerchant = true;
-                    }
-                    else
-                    {
-                        shouldPrintMerchant = data.Payments.Any(p =>
-                            !string.Equals(p.PaymentMethodName, "Cash", StringComparison.OrdinalIgnoreCase));
-                    }
-                }
-
-                if (shouldPrintMerchant)
-                {
-                    var merchOptions = renderOptions with
-                    {
-                        CopyType = ReceiptCopyType.MerchantCopy,
-                        IncludeSignatureLine = profile.MerchantIncludeSignature
-                    };
-                    var merchFormatted = ReceiptSnapshotFormatter.Format(data, merchOptions);
-                    var count = Math.Clamp(profile.MerchantCopies, 1, 10);
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (sb.Length > 0)
-                        {
-                            sb.AppendLine();
-                            sb.AppendLine("\f");
-                        }
-                        sb.Append(merchFormatted.FormattedText);
-                    }
-                }
-
-                // Fallback: If both customer and merchant copies are disabled, produce standard receipt
-                if (sb.Length == 0)
-                {
-                    var stdFormatted = ReceiptSnapshotFormatter.Format(data, renderOptions);
-                    sb.Append(stdFormatted.FormattedText);
-                }
-
-                payloadText = sb.ToString();
-            }
+                    ReceiptCopyType.Merchant => "MerchantReceipt",
+                    ReceiptCopyType.Draft => "DraftBill",
+                    _ => "CustomerReceipt"
+                };
 
             var job = PrinterJob.Create(
                 docType,
                 profile.Id,
                 profile.SystemPrinterName,
-                payloadText,
+                formatted.FormattedText,
                 organizationId,
                 branchId,
                 terminalId,
-                isReprint,
+                isReprint || copyType == ReceiptCopyType.Reprint,
                 reprintCount,
                 reprintReason,
                 documentReference: data.OrderNumber,
                 jobId: effectiveJobId,
-                documentId: data.OrderId);
+                documentId: data.OrderId,
+                logoPath: effectiveSettings?.EnableLogo == true ? effectiveSettings.LogoPath : null,
+                marginMm: effectiveSettings?.MarginMm ?? profile.MarginMm,
+                paperWidth: effectiveSettings?.PaperWidth ?? profile.PaperWidth);
 
-            return await ExecuteResilientDispatchAsync(profile, job, data.OrderNumber, cancellationToken).ConfigureAwait(false);
+            // Cash drawer kick is STRICTLY permitted ONLY on the primary customer copy of cash tenders.
+            // Reprints, additional customer copies (copy 2..N), merchant copies, drafts, and non-cash tenders NEVER trigger the drawer!
+            var hasCashTender = data.Payments.Any(p => string.Equals(p.PaymentMethodName, "Cash", StringComparison.OrdinalIgnoreCase));
+            var isCashDrawerAllowed = !isReprint
+                && !isAdditionalCopy
+                && copyType == ReceiptCopyType.Customer
+                && hasCashTender
+                && (effectiveSettings?.SupportsCashDrawer ?? profile.SupportsCashDrawer);
+
+            var effectiveProfile = profile;
+            if (profile.SupportsCashDrawer != isCashDrawerAllowed)
+            {
+                effectiveProfile = new PrinterProfile
+                {
+                    Id = profile.Id,
+                    ProfileName = profile.ProfileName,
+                    SystemPrinterName = profile.SystemPrinterName,
+                    Role = profile.Role,
+                    ConnectionType = profile.ConnectionType,
+                    PaperWidth = effectiveSettings?.PaperWidth ?? profile.PaperWidth,
+                    CharactersPerLine = effectiveSettings?.CharactersPerLine ?? profile.CharactersPerLine,
+                    MarginMm = effectiveSettings?.MarginMm ?? profile.MarginMm,
+                    PrintCopies = profile.PrintCopies,
+                    SupportsCutter = effectiveSettings?.SupportsCutter ?? profile.SupportsCutter,
+                    SupportsCashDrawer = isCashDrawerAllowed,
+                    IsEnabled = profile.IsEnabled
+                };
+            }
+
+            return await ExecuteResilientDispatchAsync(effectiveProfile, job, data.OrderNumber, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -496,6 +561,9 @@ public sealed class PrinterManagementService
 
         try
         {
+            // Enforce company, branch, and terminal scope boundaries (Manager/Admin cannot bypass)
+            EnsureScopeOwnership(organizationId, branchId, terminalId, "text print dispatch");
+
             var routingResult = _router.ResolvePrinterDetailed(organizationId, branchId, terminalId, PrinterRole.Receipt);
             if (routingResult.Outcome != PrinterResolutionOutcome.Success || routingResult.Profile is not { } profile)
             {
@@ -868,20 +936,5 @@ public sealed class PrinterManagementService
             _jobTracker.MarkFailed(job.JobId, ex.Message);
             return PrintDispatchResult.Failed(profile.SystemPrinterName, ex.Message);
         }
-    }
-
-    /// <summary>
-    /// Retrieves the <see cref="Clovent.Platform.Printing.TerminalReceiptSettings"/> for the specified
-    /// terminal, falling back to the global default if no per-terminal settings are configured.
-    /// Always returns a non-null instance.
-    /// </summary>
-    /// <param name="terminalId">The terminal machine identifier, or <see langword="null"/> to retrieve the global default.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    public async Task<Clovent.Platform.Printing.TerminalReceiptSettings> GetTerminalReceiptSettingsAsync(
-        Guid? terminalId,
-        CancellationToken cancellationToken = default)
-    {
-        var config = await _configStore.LoadAsync(cancellationToken).ConfigureAwait(false);
-        return config.GetSettingsForTerminal(terminalId);
     }
 }
