@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 
 namespace Clovent.Platform.Printing;
 
@@ -348,7 +348,7 @@ public static class ReceiptSnapshotFormatter
 
         // Draft banner
         AppendLineAndScan(doubleDivider);
-        AppendLineAndScan(Center("*** DRAFT BILL ***"));
+        AppendLineAndScan(Center("*** DRAFT BILL / NOT A FINAL RECEIPT ***"));
         AppendLineAndScan(Center("Not a payment receipt"));
         AppendLineAndScan(doubleDivider);
 
