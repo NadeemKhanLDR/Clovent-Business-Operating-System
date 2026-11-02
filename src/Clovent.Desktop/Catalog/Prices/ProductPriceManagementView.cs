@@ -63,9 +63,32 @@ public sealed partial class ProductPriceManagementView : XtraUserControl
             }
             catch (ObjectDisposedException) { }
 
-            _gate.Drain(TimeSpan.FromMilliseconds(500));
-            _scope.Dispose();
-            _gate.Dispose();
+            var drained = _gate.Drain(TimeSpan.FromMilliseconds(500));
+            if (drained)
+            {
+                _scope.Dispose();
+                _gate.Dispose();
+            }
+            else
+            {
+                // In-flight operation exceeded 500ms timeout or ignored cancellation.
+                // Do not dispose _scope while active queries/commands may still be running against it.
+                // Schedule deferred disposal once the in-flight gate holder completes.
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        _gate.Drain(Timeout.InfiniteTimeSpan);
+                    }
+                    catch { }
+                    finally
+                    {
+                        try { _scope.Dispose(); } catch { }
+                        try { _gate.Dispose(); } catch { }
+                    }
+                });
+            }
+
             try
             {
                 _lifecycleCts.Dispose();
