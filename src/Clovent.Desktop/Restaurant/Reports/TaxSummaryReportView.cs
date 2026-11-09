@@ -38,12 +38,16 @@ public sealed partial class TaxSummaryReportView : XtraUserControl
         _currentSession = null!;
 
         InitializeComponent();
+        WireEvents();
+        AppearanceManager.Changed += AppearanceManager_Changed;
     }
 
     /// <summary>Builds the view with required dependencies.</summary>
     public TaxSummaryReportView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         InitializeComponent();
+        WireEvents();
+        AppearanceManager.Changed += AppearanceManager_Changed;
 
         if (DesignModeHelper.IsInDesignMode)
         {
@@ -112,42 +116,6 @@ public sealed partial class TaxSummaryReportView : XtraUserControl
 
     private void WireEvents()
     {
-        _gridView.Columns.Clear();
-
-        var colAuth = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.Authority), "Authority");
-        colAuth.Width = 90;
-
-        var colCode = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.TaxCode), "Tax Code");
-        colCode.Width = 120;
-
-        var colRate = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.RatePercentage), "Rate %");
-        colRate.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-        colRate.DisplayFormat.FormatString = "0.##'%'";
-        colRate.Width = 80;
-
-        var colClass = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.TaxClassification), "Classification");
-        colClass.Width = 110;
-
-        var colBase = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.TaxableBase), "Taxable Base");
-        colBase.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colBase.DisplayFormat.FormatString = "F2";
-        colBase.Width = 110;
-
-        var colCharged = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.TaxCharged), "Tax Charged");
-        colCharged.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colCharged.DisplayFormat.FormatString = "F2";
-        colCharged.Width = 110;
-
-        var colRef = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.TaxRefunded), "Tax Refunded");
-        colRef.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colRef.DisplayFormat.FormatString = "F2";
-        colRef.Width = 110;
-
-        var colNet = _gridView.Columns.AddVisible(nameof(TaxAuthorityReportItemDto.NetTax), "Net Tax Payable");
-        colNet.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colNet.DisplayFormat.FormatString = "F2";
-        colNet.Width = 120;
-
         _gridView.CustomColumnDisplayText += (s, e) =>
         {
             if (e.Column.FieldName is nameof(TaxAuthorityReportItemDto.TaxableBase) or

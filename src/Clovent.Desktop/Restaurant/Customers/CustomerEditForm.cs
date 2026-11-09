@@ -14,7 +14,8 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
     public CustomerEditForm() : base("Edit Customer")
     {
         InitializeComponent();
-        }
+        AdoptCustomerLayout();
+    }
 
     /// <summary>Builds the dialog.</summary>
     public CustomerEditForm(
@@ -35,6 +36,7 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
         bool isCreditAllowed = true) : base(title)
     {
         InitializeComponent();
+        AdoptCustomerLayout();
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
 
@@ -122,6 +124,17 @@ public sealed partial class CustomerEditForm : MasterDataEditFormBase
                 _nameEdit.Focus();
             }
         };
+    }
+
+    // An inherited TableLayoutPanel is read-only in the WinForms Designer.
+    // The derived Designer owns this layout; runtime base helpers still use
+    // the same populated panel through their existing protected field.
+    private void AdoptCustomerLayout()
+    {
+        var inheritedPanel = _contentPanel;
+        _contentPanel = _customerLayout;
+        _contentPanel.Name = "_contentPanel";
+        inheritedPanel.Dispose();
     }
 
     /// <inheritdoc/>

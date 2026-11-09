@@ -5,6 +5,7 @@ namespace Clovent.Desktop.MasterData.Branches;
 partial class BranchEditForm
 {
     /// <summary>Required designer variable.</summary>
+    private TableLayoutPanel _branchLayout;
     private System.ComponentModel.IContainer components = null;
 
     /// <summary>Clean up any resources being used.</summary>
@@ -26,6 +27,21 @@ partial class BranchEditForm
     /// </summary>
     private void InitializeComponent()
     {
+        _branchLayout = new TableLayoutPanel();
+        _branchLayout.Name = "_branchLayout";
+        _branchLayout.Dock = DockStyle.Fill;
+        _branchLayout.AutoSize = true;
+        _branchLayout.Padding = new Padding(12);
+        _branchLayout.ColumnCount = 2;
+        _branchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _branchLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        _branchLayout.RowCount = 6;
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _branchLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         label1 = new LabelControl();
         _nameEdit = new TextEdit();
         label2 = new LabelControl();
@@ -45,74 +61,118 @@ partial class BranchEditForm
         ((System.ComponentModel.ISupportInitialize)_postalCodeEdit.Properties).BeginInit();
         ((System.ComponentModel.ISupportInitialize)_countryEdit.Properties).BeginInit();
         SuspendLayout();
-        _contentPanel.SuspendLayout();
-        _contentPanel.RowCount = 6;
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        _contentPanel.Controls.Add(label1, 0, 0);
-        _contentPanel.Controls.Add(_nameEdit, 1, 0);
-        _contentPanel.Controls.Add(label2, 0, 1);
-        _contentPanel.Controls.Add(_streetEdit, 1, 1);
-        _contentPanel.Controls.Add(label3, 0, 2);
-        _contentPanel.Controls.Add(_cityEdit, 1, 2);
-        _contentPanel.Controls.Add(label4, 0, 3);
-        _contentPanel.Controls.Add(_stateEdit, 1, 3);
-        _contentPanel.Controls.Add(label5, 0, 4);
-        _contentPanel.Controls.Add(_postalCodeEdit, 1, 4);
-        _contentPanel.Controls.Add(label6, 0, 5);
-        _contentPanel.Controls.Add(_countryEdit, 1, 5);
         //
-        // labels
+        // label1
         //
+        label1.Dock = DockStyle.Left;
+        label1.Location = new Point(15, 15);
+        label1.Name = "label1";
+        label1.Padding = new Padding(0, 4, 0, 4);
+        label1.Size = new Size(31, 21);
+        label1.TabIndex = 0;
         label1.Text = "Name:";
+        //
+        // _nameEdit
+        //
+        _nameEdit.Dock = DockStyle.Top;
+        _nameEdit.Location = new Point(82, 15);
+        _nameEdit.Name = "_nameEdit";
+        _nameEdit.Size = new Size(383, 20);
+        _nameEdit.TabIndex = 1;
+        //
+        // label2
+        //
+        label2.Dock = DockStyle.Left;
+        label2.Location = new Point(15, 42);
+        label2.Name = "label2";
+        label2.Padding = new Padding(0, 4, 0, 4);
+        label2.Size = new Size(34, 21);
+        label2.TabIndex = 2;
         label2.Text = "Street:";
+        //
+        // _streetEdit
+        //
+        _streetEdit.Dock = DockStyle.Top;
+        _streetEdit.Location = new Point(82, 42);
+        _streetEdit.Name = "_streetEdit";
+        _streetEdit.Size = new Size(383, 20);
+        _streetEdit.TabIndex = 3;
+        //
+        // label3
+        //
+        label3.Dock = DockStyle.Left;
+        label3.Location = new Point(15, 69);
+        label3.Name = "label3";
+        label3.Padding = new Padding(0, 4, 0, 4);
+        label3.Size = new Size(23, 21);
+        label3.TabIndex = 4;
         label3.Text = "City:";
+        //
+        // _cityEdit
+        //
+        _cityEdit.Dock = DockStyle.Top;
+        _cityEdit.Location = new Point(82, 69);
+        _cityEdit.Name = "_cityEdit";
+        _cityEdit.Size = new Size(383, 20);
+        _cityEdit.TabIndex = 5;
+        //
+        // label4
+        //
+        label4.Dock = DockStyle.Left;
+        label4.Location = new Point(15, 96);
+        label4.Name = "label4";
+        label4.Padding = new Padding(0, 4, 0, 4);
+        label4.Size = new Size(30, 21);
+        label4.TabIndex = 6;
         label4.Text = "State:";
+        //
+        // _stateEdit
+        //
+        _stateEdit.Dock = DockStyle.Top;
+        _stateEdit.Location = new Point(82, 96);
+        _stateEdit.Name = "_stateEdit";
+        _stateEdit.Size = new Size(383, 20);
+        _stateEdit.TabIndex = 7;
+        //
+        // label5
+        //
+        label5.Dock = DockStyle.Left;
+        label5.Location = new Point(15, 123);
+        label5.Name = "label5";
+        label5.Padding = new Padding(0, 4, 0, 4);
+        label5.Size = new Size(61, 21);
+        label5.TabIndex = 8;
         label5.Text = "Postal Code:";
+        //
+        // _postalCodeEdit
+        //
+        _postalCodeEdit.Dock = DockStyle.Top;
+        _postalCodeEdit.Location = new Point(82, 123);
+        _postalCodeEdit.Name = "_postalCodeEdit";
+        _postalCodeEdit.Size = new Size(383, 20);
+        _postalCodeEdit.TabIndex = 9;
+        //
+        // label6
+        //
+        label6.Dock = DockStyle.Left;
+        label6.Location = new Point(15, 150);
+        label6.Name = "label6";
+        label6.Padding = new Padding(0, 4, 0, 4);
+        label6.Size = new Size(43, 21);
+        label6.TabIndex = 10;
         label6.Text = "Country:";
-        label1.AutoSize = true;
-        label1.Dock = System.Windows.Forms.DockStyle.Left;
-        label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        label2.AutoSize = true;
-        label2.Dock = System.Windows.Forms.DockStyle.Left;
-        label2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        label3.AutoSize = true;
-        label3.Dock = System.Windows.Forms.DockStyle.Left;
-        label3.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        label4.AutoSize = true;
-        label4.Dock = System.Windows.Forms.DockStyle.Left;
-        label4.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        label5.AutoSize = true;
-        label5.Dock = System.Windows.Forms.DockStyle.Left;
-        label5.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        label6.AutoSize = true;
-        label6.Dock = System.Windows.Forms.DockStyle.Left;
-        label6.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         //
-        // editors
+        // _countryEdit
         //
-        _nameEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _nameEdit.Width = 260;
-        _streetEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _streetEdit.Width = 260;
-        _cityEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _cityEdit.Width = 260;
-        _stateEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _stateEdit.Width = 260;
-        _postalCodeEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _postalCodeEdit.Width = 260;
-        _countryEdit.Dock = System.Windows.Forms.DockStyle.Top;
-        _countryEdit.Width = 260;
-        _contentPanel.ResumeLayout(false);
-        _contentPanel.PerformLayout();
+        _countryEdit.Dock = DockStyle.Top;
+        _countryEdit.Location = new Point(82, 150);
+        _countryEdit.Name = "_countryEdit";
+        _countryEdit.Size = new Size(383, 20);
+        _countryEdit.TabIndex = 11;
         //
         // BranchEditForm
         //
-        ClientSize = new System.Drawing.Size(480, 360);
+        ClientSize = new Size(480, 360);
         Name = "BranchEditForm";
         ((System.ComponentModel.ISupportInitialize)_nameEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_streetEdit.Properties).EndInit();
@@ -120,6 +180,20 @@ partial class BranchEditForm
         ((System.ComponentModel.ISupportInitialize)_stateEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_postalCodeEdit.Properties).EndInit();
         ((System.ComponentModel.ISupportInitialize)_countryEdit.Properties).EndInit();
+        _branchLayout.Controls.Add(label1, 0, 0);
+        _branchLayout.Controls.Add(_nameEdit, 1, 0);
+        _branchLayout.Controls.Add(label2, 0, 1);
+        _branchLayout.Controls.Add(_streetEdit, 1, 1);
+        _branchLayout.Controls.Add(label3, 0, 2);
+        _branchLayout.Controls.Add(_cityEdit, 1, 2);
+        _branchLayout.Controls.Add(label4, 0, 3);
+        _branchLayout.Controls.Add(_stateEdit, 1, 3);
+        _branchLayout.Controls.Add(label5, 0, 4);
+        _branchLayout.Controls.Add(_postalCodeEdit, 1, 4);
+        _branchLayout.Controls.Add(label6, 0, 5);
+        _branchLayout.Controls.Add(_countryEdit, 1, 5);
+        Controls.Add(_branchLayout);
+        Controls.SetChildIndex(_branchLayout, 0);
         ResumeLayout(false);
         PerformLayout();
     }

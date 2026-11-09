@@ -41,12 +41,16 @@ public sealed partial class RefundAuditReportView : XtraUserControl
         _currentSession = null!;
 
         InitializeComponent();
+        WireEvents();
+        AppearanceManager.Changed += AppearanceManager_Changed;
     }
 
     /// <summary>Builds the view with required dependencies.</summary>
     public RefundAuditReportView(IServiceScopeFactory scopeFactory, ICurrentSession currentSession)
     {
         InitializeComponent();
+        WireEvents();
+        AppearanceManager.Changed += AppearanceManager_Changed;
 
         if (DesignModeHelper.IsInDesignMode)
         {
@@ -100,44 +104,6 @@ public sealed partial class RefundAuditReportView : XtraUserControl
 
     private void WireEvents()
     {
-        _gridView.Columns.Clear();
-
-        var colNum = _gridView.Columns.AddVisible(nameof(RefundDto.RefundNumber), "Credit Note #");
-        colNum.Width = 140;
-
-        var colDate = _gridView.Columns.AddVisible(nameof(RefundDto.RefundedAtUtc), "Date & Time");
-        colDate.Width = 150;
-
-        var colCashier = _gridView.Columns.AddVisible(nameof(RefundDto.CashierName), "Cashier");
-        colCashier.Width = 110;
-
-        var colAppr = _gridView.Columns.AddVisible(nameof(RefundDto.ApprovedByUserName), "Approved By");
-        colAppr.Width = 110;
-
-        var colReason = _gridView.Columns.AddVisible(nameof(RefundDto.Reason), "Reason");
-        colReason.Width = 160;
-
-        var colSettlement = _gridView.Columns.AddVisible(nameof(RefundDto.SettlementMethod), "Settlement");
-        colSettlement.Width = 120;
-
-        var colRef = _gridView.Columns.AddVisible(nameof(RefundDto.SettlementReference), "Reference");
-        colRef.Width = 110;
-
-        var colSub = _gridView.Columns.AddVisible(nameof(RefundDto.SubtotalRefunded), "Subtotal");
-        colSub.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colSub.DisplayFormat.FormatString = "F2";
-        colSub.Width = 100;
-
-        var colTax = _gridView.Columns.AddVisible(nameof(RefundDto.TaxReversedTotal), "Tax Reversed");
-        colTax.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colTax.DisplayFormat.FormatString = "F2";
-        colTax.Width = 100;
-
-        var colGrand = _gridView.Columns.AddVisible(nameof(RefundDto.GrandTotalRefunded), "Grand Total");
-        colGrand.DisplayFormat.FormatType = DevExpress.Utils.FormatType.Custom;
-        colGrand.DisplayFormat.FormatString = "F2";
-        colGrand.Width = 110;
-
         _gridView.CustomColumnDisplayText += (s, e) =>
         {
             if (e.Column.FieldName is nameof(RefundDto.SubtotalRefunded) or

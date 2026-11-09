@@ -18,7 +18,8 @@ namespace Clovent.Desktop.MasterData;
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEditors.XtraUserControl
 {
-    private readonly IMediator _mediator;
+    private IMediator? _mediator;
+    private IMediator Mediator => _mediator ?? throw new InvalidOperationException("Bind the hierarchy selector before loading data.");
     private readonly bool _showCompany;
     private readonly bool _showBranch;
 
@@ -38,10 +39,23 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
     /// <summary>The selected branch (only meaningful when the Branch combo is shown), or <see langword="null"/>.</summary>
     public Guid? SelectedBranchId { get; private set; }
 
-    /// <summary>Builds the selector, showing only the combos the caller's screen needs.</summary>
-    /// <param name="mediator">Used to query organizations/companies/branches as the user drills down.</param>
-    /// <param name="showCompany">Whether to show the Company combo (implies Organization).</param>
-    /// <param name="showBranch">Whether to show the Branch combo (implies Organization and Company).</param>
+    /// <summary>Builds the real organization/company controls without binding services.</summary>
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    public OrganizationHierarchySelector() : this(null!, true, false) { }
+
+    /// <summary>Attaches the owning screen's scoped mediator once, without querying data.</summary>
+    internal void BindMediator(IMediator mediator)
+    {
+        ArgumentNullException.ThrowIfNull(mediator);
+        if (_mediator is not null && !ReferenceEquals(_mediator, mediator))
+            throw new InvalidOperationException("The hierarchy selector is already bound.");
+        _mediator = mediator;
+    }
+
+    /// <summary>Builds the selector with the scoped mediator and required hierarchy levels.</summary>
+    /// <param name="mediator">Queries organizations, companies and branches.</param>
+    /// <param name="showCompany">Show the company selector.</param>
+    /// <param name="showBranch">Show the branch selector.</param>
     public OrganizationHierarchySelector(IMediator mediator, bool showCompany, bool showBranch)
     {
         _mediator = mediator;
@@ -82,7 +96,8 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
     public async Task LoadOrganizationsAsync(CancellationToken cancellationToken = default)
     {
         ScaleCombos();
-        var organizations = await _mediator.Send(new ListOrganizationsQuery(), cancellationToken);
+        if (Forms.Base.DesignModeHelper.IsInDesignMode) return;
+        var organizations = await Mediator.Send(new ListOrganizationsQuery(), cancellationToken);
 
         _organizationsByDisplay.Clear();
         _organizationCombo.Properties.Items.Clear();
@@ -133,7 +148,7 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
 
         if (SelectedOrganizationId is { } organizationId)
         {
-            var companies = await _mediator.Send(new ListCompaniesByOrganizationQuery(organizationId));
+            var companies = await Mediator.Send(new ListCompaniesByOrganizationQuery(organizationId));
             foreach (var company in companies)
             {
                 _companiesByDisplay[company.Name] = company.CompanyId;
@@ -174,7 +189,7 @@ public sealed partial class OrganizationHierarchySelector : DevExpress.XtraEdito
 
         if (SelectedCompanyId is { } companyId)
         {
-            var branches = await _mediator.Send(new ListBranchesByCompanyQuery(companyId));
+            var branches = await Mediator.Send(new ListBranchesByCompanyQuery(companyId));
             foreach (var branch in branches)
             {
                 _branchesByDisplay[branch.Name] = branch.BranchId;

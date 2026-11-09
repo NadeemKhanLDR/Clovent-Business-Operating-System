@@ -64,6 +64,9 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Clovent.Desktop.Tests" />
+    <Compile Update="MasterData\Branches\BranchManagementView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
   </ItemGroup>
 
   <ItemGroup>

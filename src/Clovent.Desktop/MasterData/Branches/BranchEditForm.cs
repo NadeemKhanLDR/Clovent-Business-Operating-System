@@ -11,6 +11,7 @@ public sealed partial class BranchEditForm : MasterDataEditFormBase
     public BranchEditForm() : base("Edit Branch")
     {
         InitializeComponent();
+        AdoptBranchLayout();
     }
 
     /// <summary>Builds the dialog. <paramref name="title"/> is the dialog's caption; <paramref name="name"/> and the address fields (<paramref name="street"/>, <paramref name="city"/>, <paramref name="state"/>, <paramref name="postalCode"/>, <paramref name="country"/>) pre-populate the fields when editing an existing branch.</summary>
@@ -24,6 +25,7 @@ public sealed partial class BranchEditForm : MasterDataEditFormBase
         string? country = null) : base(title)
     {
         InitializeComponent();
+        AdoptBranchLayout();
 
         if (Clovent.Desktop.Forms.Base.DesignModeHelper.IsInDesignMode)
             return;
@@ -36,6 +38,15 @@ public sealed partial class BranchEditForm : MasterDataEditFormBase
         _countryEdit.Text = country ?? string.Empty;
     }
 
+    // The derived Designer owns the table so a save can serialize its children.
+    // Base sizing/localization helpers retain their existing runtime panel contract.
+    private void AdoptBranchLayout()
+    {
+        var inheritedPanel = _contentPanel;
+        _contentPanel = _branchLayout;
+        _contentPanel.Name = "_contentPanel";
+        inheritedPanel.Dispose();
+    }
     /// <summary>The entered branch name.</summary>
     public string BranchNameValue => _nameEdit.Text.Trim();
 

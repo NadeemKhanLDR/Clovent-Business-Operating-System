@@ -35,7 +35,7 @@ public sealed record MasterDataListAction<TDto>(string Caption, Func<TDto, Task>
 /// </summary>
 /// <typeparam name="TDto">The Application-layer DTO record this screen lists (e.g. <c>OrganizationDto</c>).</typeparam>
 [System.ComponentModel.DesignerCategory("Code")]
-public sealed class MasterDataListView<TDto> : XtraUserControl
+public class MasterDataListView<TDto> : XtraUserControl
     where TDto : class
 {
     /// <summary>Designer-only constructor - never used at runtime.</summary>
