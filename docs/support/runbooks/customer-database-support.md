@@ -542,8 +542,8 @@ ORDER BY [ExecutedAtUtc] DESC;
 ---
 
 ## 10. Cross References
-- [CBOS Database Backup & Disaster Recovery Procedures](../operations/backup-and-restore.md)
-- [Logging & Diagnostics Architecture](../operations/logging-and-diagnostics.md)
-- [PDR-0003: Completed Financial Transaction Immutability](../product/pdr/PDR-0003-completed-financial-transaction-immutability.md)
-- [Database Architecture & Persistence Model](../database/database-architecture.md)
-- [Master Troubleshooting Guide](troubleshooting.md)
+- [CBOS Database Backup & Disaster Recovery Procedures](../../operations/backup-and-restore.md)
+- [Logging & Diagnostics Architecture](../../operations/logging-and-diagnostics.md)
+- [PDR-0003: Completed Financial Transaction Immutability](../../product/pdr/PDR-0003-completed-financial-transaction-immutability.md)
+- [Database Architecture & Persistence Model](../../database/database-architecture.md)
+- [Master Troubleshooting Guide](../troubleshooting.md)

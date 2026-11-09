@@ -14,7 +14,7 @@
 
 Clovent Business Operating System (CBOS) is an enterprise application framework specifically engineered for hospitality, retail, point of sale, and back-office management. Designed for mission-critical operations where terminal downtime equates directly to lost revenue and customer dissatisfaction, CBOS combines **Domain-Driven Design (DDD)**, **Clean Architecture**, and an **Always-On Resilience Architecture**.
 
-The system is deployed on Microsoft Windows desktop environments (.NET 10 / C# 13), utilizing Windows Forms and DevExpress 26.1 for high-performance, GPU-accelerated, high-DPI desktop presentation. Persistence is anchored in a single physical Microsoft SQL Server database, segmented by SQL schemas that correspond directly to autonomous bounded contexts.
+The system is deployed on Microsoft Windows desktop environments (.NET 10 / C# (SDK default)), utilizing Windows Forms and DevExpress 26.1 for high-performance, GPU-accelerated, high-DPI desktop presentation. Persistence is anchored in a single physical Microsoft SQL Server database, segmented by SQL schemas that correspond directly to autonomous bounded contexts.
 
 ```mermaid
 flowchart TD
@@ -114,7 +114,7 @@ To maintain continuous point-of-sale operation in retail and restaurant environm
 
 ## 4. Desktop Client Architecture
 
-- **Host Framework:** Windows Forms targeting `.NET 10-windows` with C# 13 language features.
+- **Host Framework:** Windows Forms targeting `.NET 10-windows` with C# (SDK default) language features.
 - **High-DPI Awareness:** Configured for `PerMonitorV2` High-DPI mode. WinForms `AutoScaleMode` is deliberately omitted on forms to prevent double-scaling coordinate corruption; DevExpress vector rendering engines handle screen DPI dynamically.
 - **Visual Studio Designer Safety:** Forms implement parameterless constructors decorated with `[EditorBrowsable(EditorBrowsableState.Never)]` and guard design-time execution using `DesignModeHelper.IsInDesignMode`.
 - **Typographic Standardization:** Unified UI styles across all forms via `DesktopStyle.cs` (30px toolbar controls, standardized button widths, 8px layout padding).

@@ -20,11 +20,12 @@ To develop, compile, debug, and test Clovent Business Operating System (CBOS), e
 - **Storage:** Solid-state drive (NVMe SSD recommended) with at least 25 GB free disk space.
 
 ### 1.2 Software Tooling & SDKs
-- **.NET 10.0 SDK:** Required to compile C# 13 and target `.NET 10.0` and `.NET 10.0-windows`. Verify via `dotnet --version`.
+- **.NET 10.0 SDK:** Required to target `.NET 10.0` and `.NET 10.0-windows`; C# uses the SDK default language version. Verify via `dotnet --version`.
 - **Integrated Development Environment (IDE):**
-  - **Visual Studio 2026** (or Visual Studio 2022 Version 17.12+ with preview features enabled).
+  - **Visual Studio 2026** with .NET 10 support. Visual Studio 2022 17.12 is not the verified .NET 10 Designer environment for this checkout.
   - Required Workloads:
     - **.NET Desktop Development** (includes Windows Forms tools, CodeDom designer support, and ClickOnce/packaging).
+  - **Designer host runtime:** this checkout pins `RuntimeFrameworkVersion` to `10.0.13` for the desktop executable. Visual Studio's out-of-process Designer also requests `Microsoft.NETCore.App 10.0.13` (x64). Verify installed runtimes with `dotnet --list-runtimes`; a successful build/self-contained restore does not install this shared host runtime. In the 2026-11-09 audit, installed 10.0.12 did not satisfy the Designer host and rendering was blocked. Any workstation runtime installation needs the workstation owner's authorization; do not lower the shipped runtime requirement to hide that error.
 - **DevExpress WinForms 26.1:**
   - `DevExpress.Win`, `DevExpress.Reporting.Core`, `DevExpress.Images` (Version `26.1.4-pre-26179` or active NuGet feed).
   - *Notice:* Configure your corporate or licensed DevExpress NuGet feed in `nuget.config`. Never commit personal feed authorization keys to version control.
@@ -80,7 +81,7 @@ dotnet test src\Clovent.Desktop.Tests\Clovent.Desktop.Tests.csproj --filter "Ful
    ```sql
    CREATE DATABASE [Clovent_BusinessOperatingSystem] COLLATE SQL_Latin1_General_CP1_CI_AS;
    ```
-3. Update connection string in `src\Clovent.Desktop\appsettings.Development.json` (git-ignored):
+3. Configure the development connection string in `src\Clovent.Desktop\appsettings.Development.json` (tracked in this checkout; never put personal credentials in committed settings):
    ```json
    {
      "ConnectionStrings": {

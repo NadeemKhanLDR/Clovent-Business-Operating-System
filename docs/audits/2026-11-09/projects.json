@@ -1,0 +1,1638 @@
+[
+  {
+    "path": "scratch/AddOnsReadOnlyCheck/AddOnsReadOnlyCheck.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "../../src/Clovent.Desktop/Clovent.Desktop.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "scratch/DesignerTest/DesignerTest.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Desktop\\Clovent.Desktop.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "scratch/SmartComboCheck/SmartComboCheck.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "../../src/Clovent.Desktop/Clovent.Desktop.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "scratch/SmartComboDiagnostic/SmartComboDiagnostic.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Platform\\Clovent.Platform.csproj",
+      "..\\..\\src\\Clovent.Desktop\\Clovent.Desktop.csproj",
+      "..\\..\\src\\Clovent.Restaurant.Application\\Clovent.Restaurant.Application.csproj",
+      "..\\..\\src\\Clovent.Restaurant.Infrastructure\\Clovent.Restaurant.Infrastructure.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Authentication/Clovent.Authentication.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Authentication.Application/Clovent.Authentication.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Authentication\\Clovent.Authentication.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Authentication.Application.Tests/Clovent.Authentication.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Authentication.Application\\Clovent.Authentication.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Authentication.Infrastructure/Clovent.Authentication.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Authentication\\Clovent.Authentication.csproj",
+      "..\\Clovent.Authentication.Application\\Clovent.Authentication.Application.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Authentication.Infrastructure.Tests/Clovent.Authentication.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Authentication.Infrastructure\\Clovent.Authentication.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.InMemory",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Authentication.Tests/Clovent.Authentication.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Authentication\\Clovent.Authentication.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Catalog/Clovent.Catalog.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Catalog.Application/Clovent.Catalog.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Catalog.Application.Tests/Clovent.Catalog.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Catalog.Application\\Clovent.Catalog.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Catalog.Infrastructure/Clovent.Catalog.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj",
+      "..\\Clovent.Catalog.Application\\Clovent.Catalog.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Catalog.Infrastructure.Tests/Clovent.Catalog.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Catalog.Infrastructure\\Clovent.Catalog.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Catalog.Tests/Clovent.Catalog.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Desktop/Clovent.Desktop.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\Clovent.Platform\\Clovent.Platform.csproj",
+      "..\\Clovent.Authentication.Application\\Clovent.Authentication.Application.csproj",
+      "..\\Clovent.Authentication.Infrastructure\\Clovent.Authentication.Infrastructure.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.Identity.Application\\Clovent.Identity.Application.csproj",
+      "..\\Clovent.Identity.Infrastructure\\Clovent.Identity.Infrastructure.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.MasterData.Application\\Clovent.MasterData.Application.csproj",
+      "..\\Clovent.MasterData.Infrastructure\\Clovent.MasterData.Infrastructure.csproj",
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj",
+      "..\\Clovent.Catalog.Application\\Clovent.Catalog.Application.csproj",
+      "..\\Clovent.Catalog.Infrastructure\\Clovent.Catalog.Infrastructure.csproj",
+      "..\\Clovent.Inventory\\Clovent.Inventory.csproj",
+      "..\\Clovent.Inventory.Application\\Clovent.Inventory.Application.csproj",
+      "..\\Clovent.Inventory.Infrastructure\\Clovent.Inventory.Infrastructure.csproj",
+      "..\\Clovent.Restaurant\\Clovent.Restaurant.csproj",
+      "..\\Clovent.Restaurant.Application\\Clovent.Restaurant.Application.csproj",
+      "..\\Clovent.Restaurant.Infrastructure\\Clovent.Restaurant.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "DevExpress.Reporting.Core",
+        "Version": "26.1.4-pre-26179"
+      },
+      {
+        "Include": "DevExpress.Win",
+        "Version": "26.1.4-pre-26179"
+      },
+      {
+        "Include": "DevExpress.Images",
+        "Version": "26.1.4-pre-26179"
+      },
+      {
+        "Include": "Microsoft.Extensions.Hosting",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Desktop.Tests/Clovent.Desktop.Tests.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\Clovent.Desktop\\Clovent.Desktop.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "SQLitePCLRaw.lib.e_sqlite3",
+        "Version": "3.53.3"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Desktop.UiQa/Clovent.Desktop.UiQa.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\Clovent.Desktop\\Clovent.Desktop.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Domain/Clovent.Domain.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Domain.Tests/Clovent.Domain.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Identity/Clovent.Identity.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Identity.Application/Clovent.Identity.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Identity\\Clovent.Identity.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Identity.Application.Tests/Clovent.Identity.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Identity.Application\\Clovent.Identity.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Identity.Infrastructure/Clovent.Identity.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.Identity.Application\\Clovent.Identity.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Caching.Memory",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Identity.Infrastructure.Tests/Clovent.Identity.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Identity.Infrastructure\\Clovent.Identity.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Identity.Tests/Clovent.Identity.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Identity\\Clovent.Identity.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Inventory/Clovent.Inventory.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Inventory.Application/Clovent.Inventory.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Inventory\\Clovent.Inventory.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Inventory.Application.Tests/Clovent.Inventory.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Inventory.Application\\Clovent.Inventory.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Inventory.Infrastructure/Clovent.Inventory.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Inventory\\Clovent.Inventory.csproj",
+      "..\\Clovent.Inventory.Application\\Clovent.Inventory.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Inventory.Infrastructure.Tests/Clovent.Inventory.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Inventory.Infrastructure\\Clovent.Inventory.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Inventory.Tests/Clovent.Inventory.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Inventory\\Clovent.Inventory.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.MasterData/Clovent.MasterData.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.MasterData.Application/Clovent.MasterData.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.MasterData.Application.Tests/Clovent.MasterData.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.MasterData.Application\\Clovent.MasterData.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.MasterData.Infrastructure/Clovent.MasterData.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.MasterData.Application\\Clovent.MasterData.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.MasterData.Infrastructure.Tests/Clovent.MasterData.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.MasterData.Infrastructure\\Clovent.MasterData.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.MasterData.Tests/Clovent.MasterData.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Platform/Clovent.Platform.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.Hosting",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Options.DataAnnotations",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Platform.Tests/Clovent.Platform.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Restaurant/Clovent.Restaurant.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Domain\\Clovent.Domain.csproj",
+      "..\\Clovent.Identity\\Clovent.Identity.csproj",
+      "..\\Clovent.MasterData\\Clovent.MasterData.csproj",
+      "..\\Clovent.Catalog\\Clovent.Catalog.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "src/Clovent.Restaurant.Application/Clovent.Restaurant.Application.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Restaurant\\Clovent.Restaurant.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj",
+      "..\\Clovent.Catalog.Application\\Clovent.Catalog.Application.csproj",
+      "..\\Clovent.Inventory.Application\\Clovent.Inventory.Application.csproj",
+      "..\\Clovent.Identity.Application\\Clovent.Identity.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging.Abstractions",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Restaurant.Application.Tests/Clovent.Restaurant.Application.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Restaurant.Application\\Clovent.Restaurant.Application.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Restaurant.Infrastructure/Clovent.Restaurant.Infrastructure.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Restaurant\\Clovent.Restaurant.csproj",
+      "..\\Clovent.Restaurant.Application\\Clovent.Restaurant.Application.csproj",
+      "..\\Clovent.Platform\\Clovent.Platform.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection.Abstractions",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "System.Security.Cryptography.ProtectedData",
+        "Version": "10.0.0"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Restaurant.Infrastructure.Tests/Clovent.Restaurant.Infrastructure.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Restaurant.Infrastructure\\Clovent.Restaurant.Infrastructure.csproj",
+      "..\\Clovent.Catalog.Infrastructure\\Clovent.Catalog.Infrastructure.csproj",
+      "..\\Clovent.Inventory.Infrastructure\\Clovent.Inventory.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Sqlite",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "SQLitePCLRaw.bundle_e_sqlite3",
+        "Version": "2.1.12"
+      }
+    ]
+  },
+  {
+    "path": "src/Clovent.Restaurant.Tests/Clovent.Restaurant.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Restaurant\\Clovent.Restaurant.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      },
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      }
+    ]
+  },
+  {
+    "path": "Tools/AcceptanceViewRunner/AcceptanceViewRunner.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.CBOS.Desktop/Clovent.CBOS.Desktop.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [],
+    "packages": [
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Json",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Hosting",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging",
+        "Version": "10.0.10"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.CLI/Clovent.CLI.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\src\\Clovent.Core\\Clovent.Core.csproj",
+      "..\\src\\Clovent.Generator\\Clovent.Generator.csproj",
+      "..\\src\\Clovent.Documents\\Clovent.Documents.csproj",
+      "..\\src\\Clovent.Configuration\\Clovent.Configuration.csproj",
+      "..\\src\\Clovent.Shared\\Clovent.Shared.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.Extensions.Configuration",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Json",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.DependencyInjection",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Hosting",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging.Console",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Spectre.Console",
+        "Version": "0.57.2"
+      },
+      {
+        "Include": "Spectre.Console.Cli",
+        "Version": "0.55.0"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.PackageManager/Clovent.PackageManager.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.PackageManager.Core\\Clovent.PackageManager.Core.csproj",
+      "..\\Clovent.PackageManager.Abstractions\\Clovent.PackageManager.Abstractions.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.PackageManager.Abstractions/Clovent.PackageManager.Abstractions.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.PackageManager.Core/Clovent.PackageManager.Core.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.PackageManager.Abstractions\\Clovent.PackageManager.Abstractions.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/Clovent.PackageManager.Tests/Clovent.PackageManager.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": [
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Configuration/Clovent.Configuration.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Core/Clovent.Core.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Documents/Clovent.Documents.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Core\\Clovent.Core.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Generator/Clovent.Generator.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Core\\Clovent.Core.csproj",
+      "..\\Clovent.Documents\\Clovent.Documents.csproj",
+      "..\\Clovent.Templates\\Clovent.Templates.csproj",
+      "..\\Clovent.Configuration\\Clovent.Configuration.csproj",
+      "..\\Clovent.Shared\\Clovent.Shared.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Modules.Identity/Clovent.Modules.Identity.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Core\\Clovent.Core.csproj",
+      "..\\Clovent.Shared\\Clovent.Shared.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "BCrypt.Net-Next",
+        "Version": "4.2.0"
+      },
+      {
+        "Include": "MediatR",
+        "Version": "12.4.1"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.EnvironmentVariables",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Configuration.Json",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Design",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.Tools",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Shared/Clovent.Shared.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": [
+      {
+        "Include": "MediatR.Contracts",
+        "Version": "2.0.1"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/src/Clovent.Templates/Clovent.Templates.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\Clovent.Core\\Clovent.Core.csproj"
+    ],
+    "packages": []
+  },
+  {
+    "path": "Tools/Clovent.CLI/tests/Clovent.Core.Tests/Clovent.Core.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Core\\Clovent.Core.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "coverlet.collector",
+        "Version": "6.0.4"
+      },
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.14.1"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.1.4"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.CLI/tests/Clovent.Generator.Tests/Clovent.Generator.Tests.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Generator\\Clovent.Generator.csproj",
+      "..\\..\\src\\Clovent.Core\\Clovent.Core.csproj",
+      "..\\..\\src\\Clovent.Templates\\Clovent.Templates.csproj",
+      "..\\..\\src\\Clovent.Documents\\Clovent.Documents.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.NET.Test.Sdk",
+        "Version": "17.13.0"
+      },
+      {
+        "Include": "xunit",
+        "Version": "2.9.3"
+      },
+      {
+        "Include": "xunit.runner.visualstudio",
+        "Version": "3.0.2"
+      }
+    ]
+  },
+  {
+    "path": "Tools/Clovent.Installer.Provisioner/Clovent.Installer.Provisioner.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Platform\\Clovent.Platform.csproj",
+      "..\\..\\src\\Clovent.Authentication.Infrastructure\\Clovent.Authentication.Infrastructure.csproj",
+      "..\\..\\src\\Clovent.Identity.Infrastructure\\Clovent.Identity.Infrastructure.csproj",
+      "..\\..\\src\\Clovent.MasterData.Infrastructure\\Clovent.MasterData.Infrastructure.csproj",
+      "..\\..\\src\\Clovent.Catalog.Infrastructure\\Clovent.Catalog.Infrastructure.csproj",
+      "..\\..\\src\\Clovent.Inventory.Infrastructure\\Clovent.Inventory.Infrastructure.csproj",
+      "..\\..\\src\\Clovent.Restaurant.Infrastructure\\Clovent.Restaurant.Infrastructure.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.Data.SqlClient",
+        "Version": "6.1.1"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "Microsoft.Extensions.Logging.Console",
+        "Version": "10.0.10"
+      },
+      {
+        "Include": "System.Security.Cryptography.Pkcs",
+        "Version": "9.0.21"
+      }
+    ]
+  },
+  {
+    "path": "Tools/InnoSetup/Examples/MyDll/C#/MyDll.csproj",
+    "frameworks": [],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/LicenseIssuer/Clovent.LicenseIssuer.csproj",
+    "frameworks": [
+      "net10.0"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/ScreenCaptureUtil/ScreenCaptureUtil.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [],
+    "packages": []
+  },
+  {
+    "path": "Tools/SupportFixtureRunner/SupportFixtureRunner.csproj",
+    "frameworks": [
+      "net10.0-windows"
+    ],
+    "references": [
+      "..\\..\\src\\Clovent.Desktop\\Clovent.Desktop.csproj"
+    ],
+    "packages": [
+      {
+        "Include": "Microsoft.Data.SqlClient",
+        "Version": "6.1.1"
+      },
+      {
+        "Include": "Microsoft.EntityFrameworkCore.SqlServer",
+        "Version": "10.0.10"
+      }
+    ]
+  }
+]

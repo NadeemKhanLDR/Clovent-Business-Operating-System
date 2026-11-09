@@ -1,8 +1,8 @@
 # Clovent Business Operating System (CBOS)
 
-[![Build & Verification Status](https://img.shields.io/badge/Verification-1%2C824%20Passed%20%7C%200%20Failed-success)](#6-current-release-status--verification)
-[![Release Version](https://img.shields.io/badge/Version-1.2.2-blue)](#6-current-release-status--verification)
-[![Engineering Status](https://img.shields.io/badge/Status-Frozen%20Internal%20Baseline-orange)](#6-current-release-status--verification)
+**Current source version:** desktop assembly `1.3.0` (see `src/Clovent.Desktop/Clovent.Desktop.csproj`). This is not a released/accepted-artifact claim. The 1.2.2 status and counts below describe the historical internal baseline, not verification of this checkout.
+
+Start with the [documentation index](docs/README.md) and the [current structure/Designer audit](docs/audits/2026-11-09/README.md). Builds, executed tests, live runtime acceptance and Visual Studio Designer rendering are separate gates; current evidence is recorded in the audit rather than a fixed green badge.
 
 **Clovent Business Operating System (CBOS)** is an enterprise Point-of-Sale (POS) and retail/hospitality operating platform engineered for high-reliability workstation deployments. CBOS combines high-speed POS register workflows, back-office administration, inventory management, dynamic catalog and price tier engines, shift cash drawer controls, financial reporting, and offline resilience via Continuity Mode and protected local operational caching.
 
@@ -23,7 +23,7 @@
 
 ## 2. Technology Stack
 
-- **Primary Language:** C# 13
+- **Primary Language:** C# (SDK default)
 - **Target Runtime & Frameworks:**
   - `net10.0-windows` for Desktop shell and Desktop UI tests (`src/Clovent.Desktop`, `src/Clovent.Desktop.Tests`)
   - `net10.0` for Domain, Application, Infrastructure, Platform, and CLI Provisioner

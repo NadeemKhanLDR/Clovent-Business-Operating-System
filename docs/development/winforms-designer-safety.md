@@ -1,5 +1,7 @@
 # WinForms Visual Studio Designer Safety & CodeDom Guidelines
 
+**Current verification prerequisite:** the pinned desktop runtime can make Visual Studio's out-of-process Designer request shared `Microsoft.NETCore.App 10.0.13` x64. A self-contained build/restore does not install that shared runtime on the developer machine. The [2026-11-09 audit](../audits/2026-11-09/README.md) captured the missing-runtime dialog; no rendered Designer pass is claimed. Do not lower the runtime pin, add placeholder controls or suppress constructor failures to mask a missing prerequisite. Install required developer tooling only with workstation-owner approval.
+
 | Attribute | Details |
 | :--- | :--- |
 | **Area** | WinForms UI Architecture & IDE Tooling Safety |

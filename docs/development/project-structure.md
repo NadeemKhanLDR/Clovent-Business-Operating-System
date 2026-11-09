@@ -15,7 +15,7 @@
 The CBOS repository is structured using the modern XML-based Visual Studio solution format: `Clovent.BusinessOperatingSystem.slnx`. The repository layout enforces strict separation between domain code, presentation hosts, build utilities, installers, and documentation:
 
 ```text
-d:\Clovent Business Operating System\
+<checkout-root>\
 ├── .agents/                 # AI coding agent operational guidelines and domain rules
 ├── docs/                    # Authoritative technical, architectural, and operational documentation
 ├── installer/               # Inno Setup production installer script (Clovent.BusinessOperatingSystem.iss)
@@ -32,7 +32,7 @@ d:\Clovent Business Operating System\
 ## 2. Bounded Context Structure (`src/`)
 
 Every business capability follows the 3-project Clean Architecture pattern:
-$$\mathbf{src/Clovent.\{Context\}} \quad \longrightarrow \quad \mathbf{src/Clovent.\{Context\}.Application} \quad \longrightarrow \quad \mathbf{src/Clovent.\{Context\}.Infrastructure}$$
+Project-reference direction is **Infrastructure → Application → Domain → shared domain primitives**. The Desktop composition root references infrastructure to register implementations. A folder/layer diagram is not a claim that every existing Application project is infrastructure-free: MasterData and Restaurant Application also reference the current Platform project, and Restaurant Application orchestrates other Application contexts. See the [current project inventory and audit](../audits/2026-11-09/README.md) for actual edges and limitations.
 
 | Context / Project | Layer | Target Framework | Purpose & Contained Types |
 | :--- | :--- | :---: | :--- |
@@ -65,7 +65,7 @@ $$\mathbf{src/Clovent.\{Context\}} \quad \longrightarrow \quad \mathbf{src/Clove
 Each bounded context maintains matching unit, application, and infrastructure test suites:
 - `Clovent.<Context>.Tests`: Fast, in-memory domain aggregate tests.
 - `Clovent.<Context>.Application.Tests`: MediatR handler pipeline and business rule tests.
-- `Clovent.<Context>.Infrastructure.Tests`: SQLite in-memory integration tests and Outbox atomicity verification.
+- `Clovent.<Context>.Infrastructure.Tests`: provider-specific integration tests. Some use SQLite; others require explicitly isolated SQL Server/LocalDB. Inspect each fixture before running it and report the actual provider.
 - `Clovent.Desktop.Tests`: UI formatting, layout docking, High-DPI typography, and workstation test isolation tests (`WorkstationStartupVerificationTests`).
 
 ---

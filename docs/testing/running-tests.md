@@ -12,14 +12,18 @@
 
 ## 1. Complete Solution Test Suite Execution
 
-To execute all 1,824+ automated unit, integration, and UI tests across all 42 projects in the CBOS solution:
+The root solution contains 42 projects, including test and production projects. Counts and timings depend on the revision, filter and available providers; read the executed runner summary/TRX rather than treating a documented count as a current result.
+
+Before an unrestricted run, inspect the selected tests for operational database/configuration access. Some diagnostic UI tests still write absolute workstation paths, and SQL integration suites may create LocalDB databases. Do not run them on a protected workstation merely because the solution builds. Prefer reviewed filters with fakes, SQLite and temporary directories; explicitly isolated SQL runs need their own authorized environment.
+
+The broad command, for a suitably isolated development/CI environment, is:
 
 ```powershell
 dotnet test Clovent.BusinessOperatingSystem.slnx -c Release --verbosity normal
 ```
 
-- **Execution Time:** ~30–45 seconds on modern multi-core workstations.
-- **Expected Outcome:** `Total tests: 1831. Passed: 1824. Failed: 0. Skipped: 7.`
+- Record exact command, revision, provider, exit code, passed/failed/skipped totals and TRX path. Building test assemblies is not executing tests.
+- See the [2026-11-09 structure/Designer audit](../audits/2026-11-09/README.md) for this revision's actual verification and exclusions.
 
 ---
 

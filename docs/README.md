@@ -1,5 +1,21 @@
 # Clovent Business Operating System (CBOS) — Master Documentation Index
 
+## Current checkout: start here
+
+The desktop project declares **1.3.0**. The 1.2.2 labels in the older catalog below are historical scope markers, not current test/acceptance results. Document inventory labels describe documentation coverage; they do not establish executed runtime or Designer verification.
+
+| Need | Canonical entry point |
+|---|---|
+| Current source audit, findings and evidence limitations | [2026-11-09 audit](audits/2026-11-09/README.md) |
+| Architecture and context ownership | [System architecture](architecture/system-architecture.md), [bounded contexts](architecture/bounded-contexts.md) |
+| Developer prerequisites and build commands | [Environment setup](development/environment-setup.md), [build guide](development/build.md) |
+| WinForms/DevExpress authoring | [Designer safety](development/winforms-designer-safety.md), [DPI standards](development/ui-high-dpi.md) |
+| Safe test execution and truthful results | [Running tests](testing/running-tests.md), [readiness evidence vocabulary](development/readiness-levels.md) |
+| Installation and support | [Installation](deployment/installation.md), [customer database support](support/runbooks/customer-database-support.md) |
+| Release qualification and historical records | [Release process](release/release-process.md), [versioning](release/versioning.md) |
+
+This index links existing sources rather than creating a second architecture/setup specification. Preserve candidate attribution in historical release/QA reports; the current audit does not requalify frozen candidate `9ccaa17`.
+
 > **CBOS Enterprise Documentation Portal**
 > - **Product Version:** CBOS 1.2.2 — Frozen Internal Acceptance Baseline
 > - **Target Audience:** Architects, Developers, QA, Operations, Support, Security
@@ -10,7 +26,7 @@
 
 ## 1. Welcome to the CBOS Documentation Portal
 
-**Clovent Business Operating System (CBOS)** is an enterprise Point-of-Sale (POS) and retail/hospitality operating platform engineered for high-reliability workstation deployments. Built with C# 13, .NET 10, Windows Forms, DevExpress 26.1, and Microsoft SQL Server, CBOS follows strict Domain-Driven Design (DDD) with Clean Architecture across 6 isolated database schemas and provides offline resilience through Continuity Mode and local operational caching.
+**Clovent Business Operating System (CBOS)** is an enterprise Point-of-Sale (POS) and retail/hospitality operating platform engineered for high-reliability workstation deployments. Built with C# (SDK default), .NET 10, Windows Forms, DevExpress 26.1, and Microsoft SQL Server, CBOS follows strict Domain-Driven Design (DDD) with Clean Architecture across 6 isolated database schemas and provides offline resilience through Continuity Mode and local operational caching.
 
 This portal is the single central entry point to all architectural, operational, development, security, and governance documentation across the platform.
 
@@ -241,7 +257,7 @@ If you are new to CBOS, start with your role's onboarding path:
 
 To maintain the high standard of documentation across future CBOS updates:
 1. **Source of Truth Precedence:**
-   - C# 13 Source Code > Automated Tests > Verified Runtime Telemetry > Permanent Rules (`.agents/rules/`) > Platform Documentation.
+   - Source Code > Automated Tests > Verified Runtime Telemetry > Permanent Rules (`.agents/rules/`) > Platform Documentation.
 2. **Strict Claims Standard:**
    - State `LIVE UI NOT EXECUTED` unless the application was interactively operated on a physical/virtual display.
    - State `VISUAL STUDIO DESIGNER UI NOT EXECUTED` unless forms were opened inside Visual Studio Designer.

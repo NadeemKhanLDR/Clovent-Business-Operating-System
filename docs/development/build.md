@@ -67,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 
 - **`<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>`**: Configures Windows PerMonitorV2 High-DPI mode on `Clovent.Desktop`.
 - **`<ForceDesignerDPIUnaware>true</ForceDesignerDPIUnaware>`**: Deliberate host setting preventing repeated Visual Studio Designer coordinate multiplication.
-- **`<Nullable>enable</Nullable>`**: Enforces C# 13 nullable reference types across all projects.
+- **`<Nullable>enable</Nullable>`**: Enforces C# nullable reference types across all projects.
 - **`<ImplicitUsings>enable</ImplicitUsings>`**: Enables global usings for standard .NET namespaces.
 
 ---

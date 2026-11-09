@@ -20,9 +20,9 @@ Supporting Governance Standards:
 ## 1. Project Identity & Technology Stack
 
 - **Product Name:** Clovent Business Operating System (CBOS)
-- **Current Baseline:** CBOS 1.2.2 — Frozen Internal Acceptance Baseline
+- **Historical Acceptance Baseline:** CBOS 1.2.2 — Frozen Internal Acceptance Baseline. Current desktop source declares version 1.3.0; neither label proves release acceptance. See [current audit and verification](docs/audits/2026-11-09/README.md).
 - **Solution File:** `Clovent.BusinessOperatingSystem.slnx`
-- **Primary Language:** C# (C# 13 / .NET 10)
+- **Primary Language:** C# (SDK default language version / .NET 10)
 - **Target Frameworks:**
   - `net10.0-windows` for Desktop application & Desktop tests (`src/Clovent.Desktop`, `src/Clovent.Desktop.Tests`)
   - `net10.0` for Domain, Application, Infrastructure, Platform, and CLI tools
