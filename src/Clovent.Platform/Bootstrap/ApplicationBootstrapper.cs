@@ -163,21 +163,35 @@ public sealed class ApplicationBootstrapper
     {
         var host = _builder.Build();
 
-        using (var scope = host.Services.CreateScope())
+        try
         {
-            var provider = scope.ServiceProvider;
-
-            foreach (var initializer in provider.GetServices<IPersistenceInitializer>())
+            using (var scope = host.Services.CreateScope())
             {
-                await initializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                var provider = scope.ServiceProvider;
+
+                foreach (var initializer in provider.GetServices<IPersistenceInitializer>())
+                {
+                    await initializer.InitializeAsync(cancellationToken).ConfigureAwait(false);
+                }
+
+                foreach (var startupTask in provider.GetServices<IStartupTask>())
+                {
+                    await startupTask.ExecuteAsync(cancellationToken).ConfigureAwait(false);
+                }
             }
 
-            foreach (var startupTask in provider.GetServices<IStartupTask>())
-            {
-                await startupTask.ExecuteAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return host;
         }
-
-        return host;
+        catch
+        {
+            // Ownership transfers to the caller only on success. A failed or
+            // cancelled initializer otherwise strands the root provider and its
+            // singleton resources even though the short-lived scope is disposed.
+            if (host is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            else
+                host.Dispose();
+            throw;
+        }
     }
 }

@@ -11,6 +11,53 @@ namespace Clovent.Platform.Tests.Bootstrap;
 
 public sealed class ApplicationBootstrapperTests
 {
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    public async Task FailedInitialization_DisposesOwnedSingletons(bool persistenceFailure, bool cancelled)
+    {
+        using var dir = new TempDirectory();
+        dir.WriteFile("appsettings.json", ValidPlatformSection);
+        var bootstrapper = ApplicationBootstrapper.Create(basePath: dir.Path);
+        var resource = new TrackedResource();
+        var failure = cancelled ? (Exception)new OperationCanceledException() : new InvalidOperationException("Synthetic startup failure");
+        bootstrapper.Services.AddSingleton<TrackedResource>(_ => resource);
+        if (persistenceFailure)
+            bootstrapper.Services.AddScoped<IPersistenceInitializer>(sp => new FailingInitializer(sp.GetRequiredService<TrackedResource>(), failure));
+        else
+            bootstrapper.Services.AddScoped<IStartupTask>(sp => new FailingStartupTask(sp.GetRequiredService<TrackedResource>(), failure));
+
+        var actual = await Record.ExceptionAsync(() => bootstrapper.BuildAndInitializeAsync());
+
+        Assert.Same(failure, actual);
+        Assert.True(resource.Disposed);
+    }
+
+    private sealed class TrackedResource : IDisposable
+    {
+        public bool Disposed { get; private set; }
+        public void Dispose() => Disposed = true;
+    }
+
+    private sealed class FailingInitializer(TrackedResource resource, Exception failure) : IPersistenceInitializer
+    {
+        public Task InitializeAsync(CancellationToken cancellationToken = default)
+        {
+            GC.KeepAlive(resource);
+            return Task.FromException(failure);
+        }
+    }
+
+    private sealed class FailingStartupTask(TrackedResource resource, Exception failure) : IStartupTask
+    {
+        public Task ExecuteAsync(CancellationToken cancellationToken = default)
+        {
+            GC.KeepAlive(resource);
+            return Task.FromException(failure);
+        }
+    }
+
     private const string ValidPlatformSection = """
         {
           "Platform": {
