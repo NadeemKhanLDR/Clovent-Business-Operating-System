@@ -9,9 +9,10 @@
 *.userosscache
 *.sln.docstates
 
-# Rider / VS Code
+# Rider / VS Code / Claude
 .idea/
 .vscode/
+.claude/
 
 # Test results
 [Tt]est[Rr]esult*/
