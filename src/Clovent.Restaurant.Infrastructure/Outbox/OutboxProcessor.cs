@@ -16,6 +16,7 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxProcessor> _logger;
+    private readonly Clovent.Platform.Sync.INetworkConnectivityProbe? _connectivityProbe;
     private readonly Clovent.Platform.Execution.IInteractiveScopeProvider? _interactiveScopeProvider;
     private readonly SemaphoreSlim _signal = new(0, 1);
     private readonly CancellationTokenSource _cts = new();
@@ -36,18 +37,21 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     {
         _scopeFactory = scopeFactory;
         _logger = logger;
+        _connectivityProbe = connectivityProbe;
         _interactiveScopeProvider = interactiveScopeProvider;
 
         if (connectivityProbe != null)
         {
-            connectivityProbe.ConnectivityChanged += (_, isOnline) =>
-            {
-                if (isOnline)
-                {
-                    _logger.LogInformation("Network connectivity restored; triggering immediate outbox push.");
-                    TriggerImmediate();
-                }
-            };
+            connectivityProbe.ConnectivityChanged += ConnectivityChanged;
+        }
+    }
+
+    private void ConnectivityChanged(object? sender, bool isOnline)
+    {
+        if (isOnline)
+        {
+            _logger.LogInformation("Network connectivity restored; triggering immediate outbox push.");
+            TriggerImmediate();
         }
     }
 
@@ -276,6 +280,9 @@ public sealed class OutboxProcessor : IOutboxProcessor, IHostedService, IDisposa
     {
         if (_disposed) return;
         _disposed = true;
+
+        if (_connectivityProbe != null)
+            _connectivityProbe.ConnectivityChanged -= ConnectivityChanged;
 
         try { _cts.Cancel(); } catch { }
         _cts.Dispose();
