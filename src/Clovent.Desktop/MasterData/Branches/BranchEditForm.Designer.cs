@@ -47,10 +47,12 @@ partial class BranchEditForm
         SuspendLayout();
         _contentPanel.SuspendLayout();
         _contentPanel.RowCount = 6;
-        for (int i = 0; i < 6; i++)
-        {
-            _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
-        }
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
+        _contentPanel.RowStyles.Add(new System.Windows.Forms.RowStyle());
         _contentPanel.Controls.Add(label1, 0, 0);
         _contentPanel.Controls.Add(_nameEdit, 1, 0);
         _contentPanel.Controls.Add(label2, 0, 1);
@@ -72,20 +74,39 @@ partial class BranchEditForm
         label4.Text = "State:";
         label5.Text = "Postal Code:";
         label6.Text = "Country:";
-        foreach (var label in new[] { label1, label2, label3, label4, label5, label6 })
-        {
-            label.AutoSize = true;
-            label.Dock = System.Windows.Forms.DockStyle.Left;
-            label.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
-        }
+        label1.AutoSize = true;
+        label1.Dock = System.Windows.Forms.DockStyle.Left;
+        label1.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label2.AutoSize = true;
+        label2.Dock = System.Windows.Forms.DockStyle.Left;
+        label2.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label3.AutoSize = true;
+        label3.Dock = System.Windows.Forms.DockStyle.Left;
+        label3.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label4.AutoSize = true;
+        label4.Dock = System.Windows.Forms.DockStyle.Left;
+        label4.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label5.AutoSize = true;
+        label5.Dock = System.Windows.Forms.DockStyle.Left;
+        label5.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
+        label6.AutoSize = true;
+        label6.Dock = System.Windows.Forms.DockStyle.Left;
+        label6.Padding = new System.Windows.Forms.Padding(0, 4, 0, 4);
         //
         // editors
         //
-        foreach (var editor in new Control[] { _nameEdit, _streetEdit, _cityEdit, _stateEdit, _postalCodeEdit, _countryEdit })
-        {
-            editor.Dock = System.Windows.Forms.DockStyle.Top;
-            editor.Width = 260;
-        }
+        _nameEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _nameEdit.Width = 260;
+        _streetEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _streetEdit.Width = 260;
+        _cityEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _cityEdit.Width = 260;
+        _stateEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _stateEdit.Width = 260;
+        _postalCodeEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _postalCodeEdit.Width = 260;
+        _countryEdit.Dock = System.Windows.Forms.DockStyle.Top;
+        _countryEdit.Width = 260;
         _contentPanel.ResumeLayout(false);
         _contentPanel.PerformLayout();
         //

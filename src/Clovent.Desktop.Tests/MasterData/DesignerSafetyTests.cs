@@ -12,6 +12,18 @@ namespace Clovent.Desktop.Tests.MasterData;
 
 public class DesignerSafetyTests
 {
+    [Fact]
+    public void BranchEditForm_InitializeComponent_DoesNotUseUnsupportedDesignerLoops()
+    {
+        var root = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+        while (root != null && !System.IO.File.Exists(System.IO.Path.Combine(root.FullName, "Clovent.BusinessOperatingSystem.slnx")))
+            root = root.Parent;
+        Assert.NotNull(root);
+        var source = System.IO.File.ReadAllText(System.IO.Path.Combine(root.FullName,
+            "src", "Clovent.Desktop", "MasterData", "Branches", "BranchEditForm.Designer.cs"));
+        Assert.DoesNotMatch(@"\b(for|foreach|while)\s*\(", source);
+    }
+
     [Theory]
     [InlineData(typeof(BranchEditForm))]
     [InlineData(typeof(CustomerEditForm))]

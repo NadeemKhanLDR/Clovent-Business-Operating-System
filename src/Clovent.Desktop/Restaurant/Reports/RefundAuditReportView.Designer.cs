@@ -42,7 +42,7 @@ partial class RefundAuditReportView
         {
             AppearanceManager.Changed -= AppearanceManager_Changed;
             _gate.Dispose();
-            _scope.Dispose();
+            _scope?.Dispose();
             components?.Dispose();
         }
 
