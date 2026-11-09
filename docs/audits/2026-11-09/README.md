@@ -1,5 +1,7 @@
 # Structure, lifecycle and WinForms audit — 2026-11-09
 
+**Current code-only continuation:** [repairs, validation and manual checklist](code-only-continuation.md), [142-type coverage table](designer-coverage.csv). 54 focused tests pass; Debug/Release builds have zero warnings/errors. Current coverage is four unchanged historical rendering PASS and 138 NOT VERIFIED. All changed screens and all edit/save/reopen checks remain NOT VERIFIED. [Earlier rendering results](designer-verification.md) are historical and do not qualify the current source.
+
 This audit changes source on an isolated branch. It does **not** requalify or modify frozen candidate `9ccaa17`, its installer, backups or historical acceptance results. No VM/Sandbox operation, operational SQL access, host feature/network/security change, packaging, publishing, push or merge was performed.
 
 ## Baseline and scope

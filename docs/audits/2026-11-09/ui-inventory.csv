@@ -13,14 +13,14 @@ src/Clovent.Desktop/Catalog/Variants/ProductVariantEditForm.cs,ProductVariantEdi
 src/Clovent.Desktop/Catalog/Variants/ProductVariantManagementView.cs,ProductVariantManagementView,XtraUserControl,True,False,False,True,"lambda,var",NOT VERIFIED
 src/Clovent.Desktop/Commissioning/UI/FirstRunWizardForm.cs,FirstRunWizardForm,XtraForm,True,False,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Commissioning/UI/SupportDiagnosticsForm.cs,SupportDiagnosticsForm,XtraForm,True,False,True,False,,NOT VERIFIED
-src/Clovent.Desktop/Configuration/DatabaseConnectionDialog.cs,DatabaseConnectionDialog,XtraForm,True,False,True,False,,NOT VERIFIED
+src/Clovent.Desktop/Configuration/DatabaseConnectionDialog.cs,DatabaseConnectionDialog,XtraForm,True,False,True,False,,PASS
 src/Clovent.Desktop/Forms/Base/BaseForm.cs,BaseForm,XtraUserControl,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Forms/Base/GridSpacer.cs,GridSpacer,Control,False,False,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Forms/Catalog/Products/ProductEditForm.cs,ProductEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Forms/Catalog/Products/ProductsForm.cs,ProductsForm,BaseForm,True,True,True,False,var,NOT VERIFIED
 src/Clovent.Desktop/Forms/Dashboard/DashboardView.cs,DashboardView,BaseForm,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Forms/Identity/LoginForm.cs,LoginForm,XtraForm,True,True,True,False,,NOT VERIFIED
-src/Clovent.Desktop/Forms/Identity/Roles/RoleEditForm.cs,RoleEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
+src/Clovent.Desktop/Forms/Identity/Roles/RoleEditForm.cs,RoleEditForm,MasterDataEditFormBase,True,True,True,False,,PASS
 src/Clovent.Desktop/Forms/Identity/Roles/RolesForm.cs,RolesForm,BaseForm,True,True,True,False,var,NOT VERIFIED
 src/Clovent.Desktop/Forms/Identity/Users/UserEditForm.cs,UserEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Forms/Identity/Users/UsersForm.cs,UsersForm,BaseForm,True,True,True,False,var,NOT VERIFIED
@@ -46,10 +46,10 @@ src/Clovent.Desktop/Inventory/Transfers/StockTransferCreateForm.cs,StockTransfer
 src/Clovent.Desktop/Inventory/Transfers/StockTransferManagementView.cs,StockTransferManagementView,XtraUserControl,True,False,False,True,lambda,NOT VERIFIED
 src/Clovent.Desktop/Inventory/WarehouseStocks/QuantityPromptForm.cs,QuantityPromptForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Inventory/WarehouseStocks/ReceiveInventoryForm.cs,ReceiveInventoryForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
-src/Clovent.Desktop/Inventory/WarehouseStocks/WarehouseStockEditForm.cs,WarehouseStockEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
+src/Clovent.Desktop/Inventory/WarehouseStocks/WarehouseStockEditForm.cs,WarehouseStockEditForm,MasterDataEditFormBase,True,True,True,False,,PASS
 src/Clovent.Desktop/Inventory/WarehouseStocks/WarehouseStockManagementView.cs,WarehouseStockManagementView,XtraUserControl,True,False,False,True,"lambda,var",NOT VERIFIED
 src/Clovent.Desktop/Licensing/SoftwareRegistrationForm.cs,SoftwareRegistrationForm,XtraForm,True,False,True,False,,NOT VERIFIED
-src/Clovent.Desktop/MasterData/Branches/BranchEditForm.cs,BranchEditForm,MasterDataEditFormBase,True,True,True,False,,FAIL (environment: missing Microsoft.NETCore.App 10.0.13; named-pipe timeout)
+src/Clovent.Desktop/MasterData/Branches/BranchEditForm.cs,BranchEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/MasterData/Branches/BranchManagementView.cs,BranchManagementView,XtraUserControl,True,False,False,True,lambda,NOT VERIFIED
 src/Clovent.Desktop/MasterData/Companies/CompanyEditForm.cs,CompanyEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/MasterData/Companies/CompanyManagementView.cs,CompanyManagementView,XtraUserControl,True,False,False,True,lambda,NOT VERIFIED
@@ -60,7 +60,7 @@ src/Clovent.Desktop/MasterData/Departments/DepartmentManagementView.cs,Departmen
 src/Clovent.Desktop/MasterData/EntityPicker.cs,EntityPicker,DevExpress.XtraEditors.XtraUserControl,True,False,False,True,target-new,NOT VERIFIED
 src/Clovent.Desktop/MasterData/FiscalYears/FiscalYearEditForm.cs,FiscalYearEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
 src/Clovent.Desktop/MasterData/FiscalYears/FiscalYearManagementView.cs,FiscalYearManagementView,XtraUserControl,True,False,False,True,lambda,NOT VERIFIED
-src/Clovent.Desktop/MasterData/MasterDataEditFormBase.cs,MasterDataEditFormBase,XtraForm,True,True,True,False,,NOT VERIFIED
+src/Clovent.Desktop/MasterData/MasterDataEditFormBase.cs,MasterDataEditFormBase,XtraForm,True,True,True,False,,PASS
 src/Clovent.Desktop/MasterData/MasterDataListView.cs,MasterDataListView,XtraUserControl,False,False,True,True,,NOT VERIFIED
 src/Clovent.Desktop/MasterData/OrganizationHierarchySelector.cs,OrganizationHierarchySelector,DevExpress.XtraEditors.XtraUserControl,True,False,False,True,"var,target-new",NOT VERIFIED
 src/Clovent.Desktop/MasterData/Organizations/OrganizationEditForm.cs,OrganizationEditForm,MasterDataEditFormBase,True,True,True,False,,NOT VERIFIED
@@ -140,3 +140,4 @@ src/Clovent.Desktop/Startup/ErrorDialogForm.cs,ErrorDialogForm,XtraForm,True,Tru
 src/Clovent.Desktop/Startup/StartupWaitForm.cs,StartupWaitForm,WaitForm,True,False,True,False,,NOT VERIFIED
 src/Clovent.Desktop/Sync/BranchSyncStatusControl.cs,BranchSyncStatusControl,XtraUserControl,False,False,True,True,,NOT VERIFIED
 src/Clovent.Desktop/Sync/BranchSyncStatusView.cs,BranchSyncStatusView,BaseForm,False,False,True,True,,NOT VERIFIED
+src/Clovent.Desktop/MasterData/Branches/BranchListView.cs,BranchListView,MasterDataListView<BranchDto>,False,False,True,True,concrete production child composition,NOT VERIFIED
