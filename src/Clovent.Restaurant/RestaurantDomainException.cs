@@ -18,6 +18,10 @@ namespace Clovent.Restaurant;
 /// </summary>
 public sealed class RestaurantDomainException : DomainException
 {
+    /// <summary>A new payment cannot be attributed to a closed or missing shift.</summary>
+    public static RestaurantDomainException PaymentRequiresOpenShift(Shifts.ShiftId shiftId) =>
+        new($"Payment was not saved: shift {shiftId.Value} is closed or no longer exists. Refresh the terminal shift before starting a new payment.");
+
     private RestaurantDomainException(string message) : base(message)
     {
     }

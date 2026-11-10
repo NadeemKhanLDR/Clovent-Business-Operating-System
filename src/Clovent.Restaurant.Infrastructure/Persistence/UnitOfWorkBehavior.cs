@@ -10,11 +10,23 @@ public sealed class UnitOfWorkBehavior<TRequest, TResponse>(IUnitOfWork unitOfWo
     /// <inheritdoc/>
     public async Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken)
     {
-        var response = await next().ConfigureAwait(false);
-        if (!typeof(TRequest).Name.EndsWith("Query", StringComparison.Ordinal))
+        var isCommand = !typeof(TRequest).Name.EndsWith("Query", StringComparison.Ordinal);
+        try
         {
-            await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            var response = await next().ConfigureAwait(false);
+            if (isCommand)
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            }
+            return response;
         }
-        return response;
+        catch
+        {
+            // Handlers can mutate tracked aggregates before throwing. Skipping
+            // SaveChanges alone is insufficient when the screen reuses its scope.
+            if (isCommand && unitOfWork is UnitOfWork efUnitOfWork)
+                efUnitOfWork.DiscardTrackedState();
+            throw;
+        }
     }
 }

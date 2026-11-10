@@ -15,11 +15,16 @@ namespace Clovent.Restaurant.Infrastructure.Repositories;
 public sealed class ShiftRepository(RestaurantDbContext dbContext) : IShiftRepository
 {
     /// <inheritdoc/>
-    public async Task<Shift?> GetByIdAsync(ShiftId id, CancellationToken cancellationToken = default) =>
-        await dbContext.Shifts
+    public async Task<Shift?> GetByIdAsync(ShiftId id, CancellationToken cancellationToken = default)
+    {
+        var tracked = dbContext.Shifts.Local.FirstOrDefault(s => s.Id == id);
+        if (tracked is not null && dbContext.Entry(tracked).State == EntityState.Unchanged)
+            await dbContext.Entry(tracked).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        return await dbContext.Shifts
             .Include(s => s.CashMovements)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken)
             .ConfigureAwait(false);
+    }
 
     /// <inheritdoc/>
     public async Task<Shift?> GetActiveShiftForTerminalAsync(TerminalId terminalId, CancellationToken cancellationToken = default) =>

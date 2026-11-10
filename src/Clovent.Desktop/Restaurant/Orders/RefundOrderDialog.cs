@@ -103,6 +103,11 @@ public sealed partial class RefundOrderDialog : XtraForm
     private readonly BindingList<RefundLineItemRow> _lineRows = [];
     private string? _lastAttemptFingerprint;
     private string? _currentAttemptIdempotencyKey;
+    private readonly Action<RefundDto>? _receiptPreview;
+    private bool _submittingRefund;
+
+    /// <summary>A receipt failure after a confirmed refund; never a transaction failure.</summary>
+    public string? ReceiptWarning { get; private set; }
 
     /// <summary>The resulting refund DTO if successfully processed.</summary>
     public RefundDto? ResultRefund { get; private set; }
@@ -157,9 +162,12 @@ public sealed partial class RefundOrderDialog : XtraForm
         Guid? terminalId = null,
         IManagerAuthorizationService? managerAuthService = null,
         string? currentUserName = null,
-        Func<string, string, string, Task<ManagerAuthorizationResult?>>? authorizationPrompt = null) : base()
+        Func<string, string, string, Task<ManagerAuthorizationResult?>>? authorizationPrompt = null,
+        Action<RefundDto>? receiptPreview = null) : base()
     {
         InitializeComponent();
+
+        _receiptPreview = receiptPreview;
 
         if (DesignModeHelper.IsInDesignMode)
         {
@@ -438,6 +446,7 @@ public sealed partial class RefundOrderDialog : XtraForm
 
     private async Task SubmitRefundAsync(bool suppressInteractivePrompts)
     {
+        if (_submittingRefund || ResultRefund is not null) return;
         var itemsToRefund = _lineRows.Where(r => r.RefundQuantity > 0).ToList();
         if (itemsToRefund.Count == 0)
         {
@@ -545,27 +554,42 @@ public sealed partial class RefundOrderDialog : XtraForm
 
         Cursor = Cursors.WaitCursor;
         _submitRefundButton.Enabled = false;
+        _submittingRefund = true;
 
         try
         {
             var result = await _mediator.Send(command);
             ResultRefund = result;
 
-            if (!suppressInteractivePrompts)
+            try
             {
-                var printPrompt = XtraMessageBox.Show(
-                    this,
-                    $"Refund {result.RefundNumber} processed successfully.\n\nTotal Refunded: {CurrencyDisplay.FormatPlain(result.GrandTotalRefunded)}\n\nWould you like to preview/print the refund credit note?",
-                    "Refund Complete",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Information);
-
-                if (printPrompt == DialogResult.Yes)
+                if (_receiptPreview is not null)
                 {
-                    var creditNoteText = ReceiptFormatter.FormatRefundCreditNote(result, _orderNumber);
-                    using var previewForm = new ReceiptPreviewForm(creditNoteText);
-                    previewForm.ShowDialog(this);
+                    _receiptPreview(result);
                 }
+                else if (!suppressInteractivePrompts)
+                {
+                    var printPrompt = XtraMessageBox.Show(
+                        this,
+                        $"Refund {result.RefundNumber} processed successfully.\n\nTotal Refunded: {CurrencyDisplay.FormatPlain(result.GrandTotalRefunded)}\n\nWould you like to preview/print the refund credit note?",
+                        "Refund Complete",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Information);
+
+                    if (printPrompt == DialogResult.Yes)
+                    {
+                        var creditNoteText = ReceiptFormatter.FormatRefundCreditNote(result, _orderNumber);
+                        using var previewForm = new ReceiptPreviewForm(creditNoteText);
+                        previewForm.ShowDialog(this);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                ReceiptWarning = $"Refund {result.RefundNumber} is committed. Receipt preview/printing failed: {ex.Message}. Do not submit another refund; reprint the existing credit note.";
+                _logger?.LogWarning(ex, "Refund {RefundId} committed but receipt presentation failed", result.RefundId);
+                if (!suppressInteractivePrompts)
+                    XtraMessageBox.Show(this, ReceiptWarning, "Refund Saved - Receipt Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
             DialogResult = DialogResult.OK;
@@ -573,10 +597,21 @@ public sealed partial class RefundOrderDialog : XtraForm
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Failed to process refund for order {OrderId}", _orderId);
+            _logger?.LogWarning(ex, "Refund submission did not return a confirmed result for order {OrderId}", _orderId);
+            var recovered = await RefreshRefundHistoryAfterFailureAsync(command);
+            if (recovered is not null)
+            {
+                ResultRefund = recovered;
+                ReceiptWarning = $"Refund {recovered.RefundNumber} was confirmed saved in refund history after an interrupted response. Do not submit another refund. Reprint its existing credit note if needed.";
+                if (!suppressInteractivePrompts)
+                    XtraMessageBox.Show(this, ReceiptWarning, "Refund Confirmed Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DialogResult = DialogResult.OK;
+                Close();
+                return;
+            }
             if (!suppressInteractivePrompts)
             {
-                XtraMessageBox.Show(this, $"Refund processing failed: {ex.Message}", "Refund Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                XtraMessageBox.Show(this, $"The refund result could not be confirmed: {ex.Message}\n\nRefresh the order and refund history before collecting or paying money again. Retry the unchanged request with its existing attempt key; do not create a new refund to resolve an uncertain result.", "Refund Result Unconfirmed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -587,6 +622,37 @@ public sealed partial class RefundOrderDialog : XtraForm
         {
             Cursor = Cursors.Default;
             _submitRefundButton.Enabled = true;
+            _submittingRefund = false;
+        }
+    }
+
+    private async Task<RefundDto?> RefreshRefundHistoryAfterFailureAsync(ProcessRefundCommand command)
+    {
+        try
+        {
+            var history = await _mediator.Send(new ListRefundsByOrderQuery(_orderId));
+            foreach (var row in _lineRows)
+            {
+                var posted = history.SelectMany(r => r.Lines).Where(l => l.OrderLineId == row.OrderLineId).ToList();
+                row.AlreadyRefundedQuantity = posted.Sum(l => l.Quantity);
+                row.AlreadyReversedDiscount = posted.Sum(l => l.DiscountReversed);
+                row.AlreadyReversedTax = posted.Sum(l => l.TaxReversed);
+            }
+            _linesGridView.RefreshData();
+            UpdateSummary();
+            var saved = history.FirstOrDefault(r => r.IdempotencyKey == command.IdempotencyKey);
+            if (saved is null || saved.OrderId != command.OrderId || saved.Reason != command.Reason ||
+                saved.SettlementMethod != command.SettlementMethod.ToString() ||
+                saved.SettlementReference != command.SettlementReference || saved.ShiftId != command.ShiftId ||
+                saved.TerminalId != command.TerminalId || saved.CashierId != command.CashierId) return null;
+            var requested = command.Items.Select(i => (i.OrderLineId, i.Quantity, Disposition: i.Disposition.ToString())).OrderBy(i => i.OrderLineId);
+            var persisted = saved.Lines.Select(i => (i.OrderLineId, i.Quantity, Disposition: i.InventoryDisposition)).OrderBy(i => i.OrderLineId);
+            return requested.SequenceEqual(persisted) ? saved : null;
+        }
+        catch (Exception refreshError) when (refreshError is not OutOfMemoryException)
+        {
+            _logger?.LogWarning(refreshError, "Could not refresh refund history for order {OrderId} after an uncertain result", _orderId);
+            return null;
         }
     }
 }

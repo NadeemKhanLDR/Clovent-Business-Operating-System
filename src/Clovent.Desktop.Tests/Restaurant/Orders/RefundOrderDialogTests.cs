@@ -22,6 +22,50 @@ namespace Clovent.Desktop.Tests.Restaurant.Orders;
 
 public class RefundOrderDialogTests
 {
+    [Fact]
+    public async Task LostRefundAcknowledgement_RefreshesHistoryAndReturnsOriginalCommittedRefund()
+    {
+        var orderId = Guid.NewGuid();
+        var mediator = CreateSeededMediator(orderId, out _, out _);
+        mediator.LoseAcknowledgementAfterCommit = true;
+        using var dialog = new RefundOrderDialog(mediator, NullLogger.Instance, orderId, "RECOVERY-ACK",
+            Guid.NewGuid(), "Synthetic cashier",
+            authorizationPrompt: (_, _, _) => Task.FromResult<ManagerAuthorizationResult?>(ManagerAuthorizationResult.Approved(Guid.NewGuid(), "Synthetic manager")));
+        await dialog.ReloadOrderLinesAsync();
+        dialog.LineRows[0].RefundQuantity = 1m;
+        dialog.ReasonEdit.Text = "Synthetic return";
+        dialog.SettlementMethodCombo.SelectedIndex = 0;
+        await dialog.ExecuteSubmitRefundAsync();
+        Assert.Equal(Assert.Single(mediator.ExistingRefunds).RefundId, dialog.ResultRefund?.RefundId);
+        Assert.Equal(1m, dialog.LineRows[0].AlreadyRefundedQuantity);
+        Assert.Equal(System.Windows.Forms.DialogResult.OK, dialog.DialogResult);
+        await dialog.ExecuteSubmitRefundAsync();
+        Assert.Single(mediator.SentRefundCommands);
+        Assert.Contains("confirmed saved", dialog.ReceiptWarning);
+    }
+
+    [Fact]
+    public async Task ReceiptFailureAfterCommit_DoesNotFailOrResubmitRefund()
+    {
+        var orderId = Guid.NewGuid();
+        var mediator = CreateSeededMediator(orderId, out _, out _);
+        using var dialog = new RefundOrderDialog(mediator, NullLogger.Instance, orderId, "RECOVERY-1",
+            Guid.NewGuid(), "Synthetic cashier",
+            authorizationPrompt: (_, _, _) => Task.FromResult<ManagerAuthorizationResult?>(ManagerAuthorizationResult.Approved(Guid.NewGuid(), "Synthetic manager")),
+            receiptPreview: _ => throw new InvalidOperationException("injected receipt failure"));
+        await dialog.ReloadOrderLinesAsync();
+        dialog.LineRows[0].RefundQuantity = 1m;
+        dialog.ReasonEdit.Text = "Synthetic return";
+        dialog.SettlementMethodCombo.SelectedIndex = 0;
+        await dialog.ExecuteSubmitRefundAsync();
+        Assert.NotNull(dialog.ResultRefund);
+        Assert.Contains("is committed", dialog.ReceiptWarning);
+        Assert.Equal(System.Windows.Forms.DialogResult.OK, dialog.DialogResult);
+        await dialog.ExecuteSubmitRefundAsync();
+        Assert.Single(mediator.SentRefundCommands);
+        Assert.False(dialog.Visible);
+    }
+
     private sealed class FakeRefundMediator : IMediator
     {
         public List<OrderLineDto> OrderLines { get; } = [];
@@ -29,6 +73,7 @@ public class RefundOrderDialogTests
         public List<ProductVariantDto> Variants { get; } = [];
         public List<ProcessRefundCommand> SentRefundCommands { get; } = [];
         public Func<ProcessRefundCommand, Task<RefundDto>>? OnProcessRefund { get; set; }
+        public bool LoseAcknowledgementAfterCommit { get; set; }
 
         public async Task<TResponse> Send<TResponse>(IRequest<TResponse> request, CancellationToken cancellationToken = default)
         {
@@ -87,6 +132,11 @@ public class RefundOrderDialogTests
                             l.Disposition.ToString())).ToList(),
                         cmd.ShiftId,
                         cmd.TerminalId);
+                    if (LoseAcknowledgementAfterCommit)
+                    {
+                        ExistingRefunds.Add(dto);
+                        throw new TimeoutException("injected lost acknowledgement after refund commit");
+                    }
                     return (TResponse)(object)dto;
                 default:
                     throw new NotSupportedException($"Unsupported request type: {request.GetType().Name}");

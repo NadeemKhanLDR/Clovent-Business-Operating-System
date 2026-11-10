@@ -98,6 +98,7 @@ public sealed class OrderLifecycleIntegrationTests : IDisposable
         services.AddScoped<Clovent.Restaurant.Orders.IOrderNumberSequenceRepository>(_ => new OrderNumberSequenceRepository(_restaurantDb));
         services.AddScoped<Clovent.Restaurant.Customers.ICustomerRepository>(_ => new CustomerRepository(_restaurantDb));
         services.AddScoped<Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository>(_ => new CustomerLedgerEntryRepository(_restaurantDb));
+        services.AddScoped<Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository>(_ => new CustomerPaymentAllocationRepository(_restaurantDb));
 
         services.AddScoped<IProductRepository>(_ => new ProductRepository(_catalogDb));
         services.AddScoped<IProductVariantRepository>(_ => new ProductVariantRepository(_catalogDb));

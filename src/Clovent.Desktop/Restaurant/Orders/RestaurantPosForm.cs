@@ -8869,6 +8869,8 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
     }
 
+    private readonly PaymentAttemptRecovery _paymentAttemptRecovery = new();
+
     private async Task RecordPaymentAsync()
     {
         if (_orderId is not { } orderId)
@@ -9018,61 +9020,55 @@ public sealed partial class RestaurantPosForm : XtraForm
         _recordButton.Enabled = false;
         try
         {
-            var idempotencyKey = $"pay:{orderId}:{paymentMethodId}:{tendered:F2}:{DateTimeOffset.UtcNow.Ticks}";
-            await PosPerformanceTracker.TrackAsync("PaymentCommit", async () =>
-            {
-                await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId, idempotencyKey));
-                return true;
-            });
-        }
-        catch (Exception ex) when (IsDatabaseConnectivityException(ex))
-        {
-            if (_continuityCoordinator != null)
-            {
-                var enterContinuity = XtraMessageBox.Show(
-                    this,
-                    "Primary database connection is unreachable.\n\nWould you like to enter Clovent Continuity Mode to complete this transaction as an offline cash sale?",
-                    "Database Offline - Continuity Mode",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-
-                if (enterContinuity == DialogResult.Yes)
+            await _paymentAttemptRecovery.ExecuteAsync(
+                new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId),
+                command => PosPerformanceTracker.TrackAsync("PaymentCommit", async () =>
                 {
-                    _continuityCoordinator.EnterContinuityMode($"Database connectivity interrupted during checkout: {ex.Message}");
-                    await RecordContinuitySaleAsync(methodName, tendered);
-                    return;
-                }
-            }
-            throw;
+                    await _mediator.Send(command);
+                    return true;
+                }),
+                RefreshOrderAsync);
         }
         finally
         {
             _recordButton.Enabled = true;
         }
-
-        await RefreshOrderAsync();
-        await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
-
-        UpdateChangeDisplay();
-
-        // _balance is re-read by RefreshOrderAsync above, so this reflects the server's
-        // post-payment balance rather than whatever was typed into the tender field.
-        if (_currentOrder is not null && PosPaymentRules.ShouldAutoComplete(_currentOrder.Status, _balance, paymentRecorded: true))
+        var followUpFailure = await PaymentAttemptRecovery.RunCommittedFollowUpAsync(async () =>
         {
-            await CompleteAsync();
-        }
+            await LogActivityAsync("Payment", $"{CurrencyDisplay.FormatPlain(applied)} via {methodName}");
 
-        if (_currentOrder is null)
-        {
-            var paymentForm = _recordButton.FindForm();
-            if (paymentForm != null && paymentForm != this)
+            UpdateChangeDisplay();
+
+            // _balance is re-read by RefreshOrderAsync above, so this reflects the server's
+            // post-payment balance rather than whatever was typed into the tender field.
+            if (_currentOrder is not null && PosPaymentRules.ShouldAutoComplete(_currentOrder.Status, _balance, paymentRecorded: true))
             {
-                paymentForm.DialogResult = DialogResult.OK;
-                paymentForm.Close();
+                await CompleteAsync();
             }
+
+            if (_currentOrder is null)
+            {
+                var paymentForm = _recordButton.FindForm();
+                if (paymentForm != null && paymentForm != this)
+                {
+                    paymentForm.DialogResult = DialogResult.OK;
+                    paymentForm.Close();
+                }
+            }
+        });
+        if (followUpFailure is not null)
+        {
+            _logger.LogWarning(followUpFailure, "Payment saved for order {OrderId}; completion/receipt follow-up failed", orderId);
+            try { await RefreshOrderAsync(); }
+            catch (Exception refreshError) when (refreshError is not OutOfMemoryException)
+            {
+                _logger.LogWarning(refreshError, "Could not refresh order {OrderId} after saved payment", orderId);
+            }
+            XtraMessageBox.Show(this,
+                "Payment is saved. Order completion or receipt follow-up could not finish. Do not collect money again. Refresh the order; complete it if still open, or reprint the existing receipt if already completed.",
+                "Payment Saved - Follow-Up Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
-
     private async Task RecordContinuitySaleAsync(string methodName, decimal tendered)
     {
         if (!ContinuityBusinessRules.CanAcceptTender(methodName, out var rejection))

@@ -10,8 +10,18 @@ namespace Clovent.Restaurant.Infrastructure.Repositories;
 public sealed class OrderRepository(RestaurantDbContext dbContext) : IOrderRepository
 {
     /// <inheritdoc/>
-    public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken cancellationToken = default) =>
-        await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == id, cancellationToken).ConfigureAwait(false);
+    public async Task<Order?> GetByIdAsync(OrderId id, CancellationToken cancellationToken = default)
+    {
+        var tracked = dbContext.Orders.Local.FirstOrDefault(o => o.Id == id);
+        if (tracked is not null && dbContext.Entry(tracked).State == EntityState.Unchanged)
+        {
+            // A screen can outlive a completion in another scope. EF identity
+            // resolution otherwise returns its old Open aggregate even when the
+            // SELECT sees a Completed row. Preserve actual in-flight mutations.
+            await dbContext.Entry(tracked).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+        return await dbContext.Orders.FirstOrDefaultAsync(o => o.Id == id, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyCollection<Order>> GetOpenOrHeldByTableIdAsync(TableId tableId, CancellationToken cancellationToken = default) =>

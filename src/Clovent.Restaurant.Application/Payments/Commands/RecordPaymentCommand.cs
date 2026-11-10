@@ -35,7 +35,8 @@ public sealed class RecordPaymentCommandHandler(
     IOrderLineRepository orderLineRepository,
     IDiscountRepository discountRepository,
     IServiceChargeRepository serviceChargeRepository,
-    ICustomerPaymentAllocationRepository allocationRepository)
+    ICustomerPaymentAllocationRepository allocationRepository,
+    IShiftRepository? shiftRepository = null)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
     /// <summary>
@@ -95,6 +96,12 @@ public sealed class RecordPaymentCommandHandler(
         await RequireWithinOutstandingBalanceAsync(orderId, request.Amount, cancellationToken);
 
         ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+        if (shiftId is { } selectedShiftId && shiftRepository is not null)
+        {
+            var shift = await shiftRepository.GetByIdAsync(selectedShiftId, cancellationToken);
+            if (shift is null || shift.Status != ShiftStatus.Open)
+                throw RestaurantDomainException.PaymentRequiresOpenShift(selectedShiftId);
+        }
 
         var isAdvance = PaymentMethodClassifier.IsCustomerAdvance(paymentMethod.Name.Value);
 
