@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Clovent.Catalog.Application.Variants.Dtos;
 using Clovent.Catalog.Application.Variants.Queries;
@@ -10,6 +9,7 @@ using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Inventory.Transactions;
 using Clovent.MasterData.Terminals;
 using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Outbox;
 using Clovent.Restaurant.Application.Outbox.Dtos;
 using Clovent.Restaurant.Application.Refunds.Dtos;
@@ -67,7 +67,6 @@ public sealed record ProcessRefundCommand(
 public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundCommand, RefundDto>
 {
     private const string RefundStockReferenceType = "Refund";
-    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> OrderRefundLocks = new();
 
     private readonly IRefundRepository _refundRepository;
     private readonly IOrderRepository _orderRepository;
@@ -132,20 +131,44 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             }
         }
 
-        var orderLock = OrderRefundLocks.GetOrAdd(request.OrderId, _ => new SemaphoreSlim(1, 1));
-        await orderLock.WaitAsync(cancellationToken);
-        try
+        Guid? candidateShiftId = request.ShiftId;
+        if (!candidateShiftId.HasValue && _shiftRepository != null)
         {
-            return await HandleCoreAsync(request, cancellationToken);
+            Shift? activeShift = null;
+            if (request.TerminalId.HasValue)
+            {
+                activeShift = await _shiftRepository.GetActiveShiftForTerminalAsync(
+                    new TerminalId(request.TerminalId.Value),
+                    cancellationToken);
+            }
+            if (activeShift == null && request.CashierId != Guid.Empty)
+            {
+                activeShift = await _shiftRepository.GetActiveShiftForCashierAsync(
+                    new Clovent.Identity.Users.UserId(request.CashierId),
+                    cancellationToken);
+            }
+            candidateShiftId = activeShift?.Id.Value;
         }
-        finally
-        {
-            orderLock.Release();
-        }
+
+        var preReadOrder = await _orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken);
+        var keys = new List<TransactionLockKey>(3) { TransactionLockKey.ForOrder(request.OrderId) };
+        if (candidateShiftId.HasValue) keys.Add(TransactionLockKey.ForShift(candidateShiftId.Value));
+        if (preReadOrder?.CustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid.Value));
+
+        return await TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
     }
 
     private async Task<RefundDto> HandleCoreAsync(ProcessRefundCommand request, CancellationToken cancellationToken)
     {
+        if (_outboxProcessor != null && _outboxRepository == null)
+        {
+            throw new InvalidOperationException(
+                "Invalid composition: IOutboxProcessor is configured without IOutboxRepository, so durable refund restock outbox messages cannot be persisted.");
+        }
+
         // 1. Preliminary Idempotency check: reuse of existing attempt
         var existingRefund = await _refundRepository.GetByIdempotencyKeyAsync(request.IdempotencyKey, cancellationToken);
         if (existingRefund != null)
@@ -265,6 +288,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         // 3. Load prior refunds on this order to calculate remaining eligibility
         var priorRefunds = await _refundRepository.GetByOrderIdAsync(orderId, cancellationToken);
         var priorRefundedQtyByLine = new Dictionary<Guid, decimal>();
+        var priorGrossRefundedByLine = new Dictionary<Guid, decimal>();
         var priorDiscountReversedByLine = new Dictionary<Guid, decimal>();
         var priorTaxReversedByLine = new Dictionary<Guid, decimal>();
 
@@ -274,6 +298,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             {
                 var lineGuid = rl.OrderLineId.Value;
                 priorRefundedQtyByLine[lineGuid] = priorRefundedQtyByLine.GetValueOrDefault(lineGuid) + rl.Quantity;
+                priorGrossRefundedByLine[lineGuid] = priorGrossRefundedByLine.GetValueOrDefault(lineGuid) + rl.GrossAmount;
                 priorDiscountReversedByLine[lineGuid] = priorDiscountReversedByLine.GetValueOrDefault(lineGuid) + rl.DiscountReversed;
                 priorTaxReversedByLine[lineGuid] = priorTaxReversedByLine.GetValueOrDefault(lineGuid) + rl.TaxReversed;
             }
@@ -358,12 +383,14 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                 priorRefundedQuantity: priorQty,
                 priorDiscountReversed: priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value),
                 priorTaxReversed: priorTaxReversedByLine.GetValueOrDefault(line.Id.Value),
-                requestedQuantity: reqItem.Quantity);
+                requestedQuantity: reqItem.Quantity,
+                priorGrossRefunded: priorGrossRefundedByLine.GetValueOrDefault(line.Id.Value));
 
             var discountReversed = calc.DiscountReversed;
             var taxReversed = calc.TaxReversed;
 
             priorRefundedQtyByLine[line.Id.Value] = priorQty + reqItem.Quantity;
+            priorGrossRefundedByLine[line.Id.Value] = priorGrossRefundedByLine.GetValueOrDefault(line.Id.Value) + calc.GrossRefund;
             priorDiscountReversedByLine[line.Id.Value] = priorDiscountReversedByLine.GetValueOrDefault(line.Id.Value) + discountReversed;
             priorTaxReversedByLine[line.Id.Value] = priorTaxReversedByLine.GetValueOrDefault(line.Id.Value) + taxReversed;
 

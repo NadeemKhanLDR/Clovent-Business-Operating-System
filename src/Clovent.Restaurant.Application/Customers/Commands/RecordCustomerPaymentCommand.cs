@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
@@ -35,13 +36,43 @@ public sealed class RecordCustomerPaymentCommandHandler(
     IOrderRepository? orderRepository = null,
     IPaymentRepository? paymentRepository = null,
     IPaymentMethodRepository? paymentMethodRepository = null,
-    ICustomerPaymentAllocationRepository? allocationRepository = null) : IRequestHandler<RecordCustomerPaymentCommand, CustomerPaymentResult>
+    ICustomerPaymentAllocationRepository? allocationRepository = null,
+    IShiftRepository? shiftRepository = null) : IRequestHandler<RecordCustomerPaymentCommand, CustomerPaymentResult>
 {
     /// <inheritdoc/>
-    public async Task<CustomerPaymentResult> Handle(RecordCustomerPaymentCommand request, CancellationToken cancellationToken)
+    public Task<CustomerPaymentResult> Handle(RecordCustomerPaymentCommand request, CancellationToken cancellationToken)
+    {
+        var keys = new List<TransactionLockKey>(2)
+        {
+            TransactionLockKey.ForCustomer(request.CustomerId)
+        };
+        if (request.ShiftId.HasValue)
+        {
+            keys.Add(TransactionLockKey.ForShift(request.ShiftId.Value));
+        }
+
+        return TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
+    }
+
+    private async Task<CustomerPaymentResult> HandleCoreAsync(RecordCustomerPaymentCommand request, CancellationToken cancellationToken)
     {
         if (request.AmountReceived <= 0)
             throw new ArgumentOutOfRangeException(nameof(request.AmountReceived), "Payment amount must be positive.");
+
+        if (request.ShiftId is { } rawShiftId && shiftRepository is not null)
+        {
+            var shift = await shiftRepository.GetByIdAsync(new ShiftId(rawShiftId), cancellationToken)
+                ?? throw new NotFoundException(nameof(Shift), rawShiftId);
+
+            if (shift.Status != ShiftStatus.Open)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot record customer collection against Shift #{shift.ShiftNumber} because its status is {shift.Status}.");
+            }
+        }
 
         var customerId = new CustomerId(request.CustomerId);
         var customer = await customerRepository.GetByIdAsync(customerId, cancellationToken)

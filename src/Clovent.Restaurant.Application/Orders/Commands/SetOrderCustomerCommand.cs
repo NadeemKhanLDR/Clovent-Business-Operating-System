@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.Orders;
@@ -14,7 +15,13 @@ public sealed class SetOrderCustomerCommandHandler(
     ICustomerRepository customerRepository) : IRequestHandler<SetOrderCustomerCommand, OrderDto>
 {
     /// <inheritdoc/>
-    public async Task<OrderDto> Handle(SetOrderCustomerCommand request, CancellationToken cancellationToken)
+    public Task<OrderDto> Handle(SetOrderCustomerCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteWithLocksAsync(
+            [TransactionLockKey.ForOrder(request.OrderId)],
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
+
+    private async Task<OrderDto> HandleCoreAsync(SetOrderCustomerCommand request, CancellationToken cancellationToken)
     {
         var order = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);

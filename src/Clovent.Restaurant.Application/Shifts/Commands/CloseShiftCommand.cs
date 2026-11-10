@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Restaurant.ActivityLogs;
-using System.Collections.Concurrent;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Shifts.Dtos;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.DomainServices;
@@ -31,22 +31,12 @@ public sealed class CloseShiftCommandHandler(
     Clovent.Restaurant.Outbox.IOutboxRepository? outboxRepository = null,
     Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
 {
-    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ShiftCloseLocks = new();
-
     /// <inheritdoc/>
-    public async Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken)
-    {
-        var shiftLock = ShiftCloseLocks.GetOrAdd(request.ShiftId, static _ => new SemaphoreSlim(1, 1));
-        await shiftLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            shiftLock.Release();
-        }
-    }
+    public Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteWithLocksAsync(
+            [TransactionLockKey.ForShift(request.ShiftId)],
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
 
     private async Task<ShiftSummaryDto> HandleCoreAsync(CloseShiftCommand request, CancellationToken cancellationToken)
     {

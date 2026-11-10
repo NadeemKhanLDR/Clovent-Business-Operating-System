@@ -119,57 +119,57 @@ internal static class ValueConverters
     /// <summary><see cref="Order.OrderLineIds"/> &lt;-&gt; a JSON array of order line id GUIDs - identical reasoning to <c>Clovent.Identity.Infrastructure.Persistence.ValueConverters.CompanyIdsConverter</c>.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<OrderLineId>, string> OrderLineIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
-        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new OrderLineId(g)).ToList());
+        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new OrderLineId(g)).ToHashSet());
 
     /// <summary><see cref="Order.OrderLineIds"/>'s change-tracking comparer - identical reasoning to <c>CompanyIdsComparer</c>.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<OrderLineId>> OrderLineIdsComparer = new(
-        (a, b) => (a ?? new List<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<OrderLineId>()).OrderBy(i => i.Value)),
+        (a, b) => (a ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
-        v => v.ToList());
+        v => v.ToHashSet());
 
     /// <summary><see cref="Order.DiscountIds"/> &lt;-&gt; a JSON array of discount id GUIDs.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<DiscountId>, string> DiscountIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
-        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new DiscountId(g)).ToList());
+        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new DiscountId(g)).ToHashSet());
 
     /// <summary><see cref="Order.DiscountIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<DiscountId>> DiscountIdsComparer = new(
-        (a, b) => (a ?? new List<DiscountId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<DiscountId>()).OrderBy(i => i.Value)),
+        (a, b) => (a ?? Array.Empty<DiscountId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<DiscountId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
-        v => v.ToList());
+        v => v.ToHashSet());
 
     /// <summary><see cref="Order.ServiceChargeIds"/> &lt;-&gt; a JSON array of service charge id GUIDs.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<ServiceChargeId>, string> ServiceChargeIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
-        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new ServiceChargeId(g)).ToList());
+        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new ServiceChargeId(g)).ToHashSet());
 
     /// <summary><see cref="Order.ServiceChargeIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<ServiceChargeId>> ServiceChargeIdsComparer = new(
-        (a, b) => (a ?? new List<ServiceChargeId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<ServiceChargeId>()).OrderBy(i => i.Value)),
+        (a, b) => (a ?? Array.Empty<ServiceChargeId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<ServiceChargeId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
-        v => v.ToList());
+        v => v.ToHashSet());
 
     /// <summary><see cref="Order.PaymentIds"/> &lt;-&gt; a JSON array of payment id GUIDs.</summary>
     public static readonly ValueConverter<IReadOnlyCollection<PaymentId>, string> PaymentIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
-        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new PaymentId(g)).ToList());
+        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new PaymentId(g)).ToHashSet());
 
     /// <summary><see cref="Order.PaymentIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<PaymentId>> PaymentIdsComparer = new(
-        (a, b) => (a ?? new List<PaymentId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<PaymentId>()).OrderBy(i => i.Value)),
+        (a, b) => (a ?? Array.Empty<PaymentId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<PaymentId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
-        v => v.ToList());
+        v => v.ToHashSet());
 
     /// <summary><see cref="KitchenTicket.OrderLineIds"/> &lt;-&gt; a JSON array of order line id GUIDs (the send-time snapshot - see <see cref="KitchenTicket"/>'s doc comment).</summary>
     public static readonly ValueConverter<IReadOnlyCollection<OrderLineId>, string> KitchenTicketOrderLineIdsConverter = new(
         v => JsonSerializer.Serialize(v.Select(i => i.Value), (JsonSerializerOptions?)null),
-        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new OrderLineId(g)).ToList());
+        v => (JsonSerializer.Deserialize<List<Guid>>(v, (JsonSerializerOptions?)null) ?? new List<Guid>()).Select(g => new OrderLineId(g)).ToHashSet());
 
     /// <summary><see cref="KitchenTicket.OrderLineIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<OrderLineId>> KitchenTicketOrderLineIdsComparer = new(
-        (a, b) => (a ?? new List<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? new List<OrderLineId>()).OrderBy(i => i.Value)),
+        (a, b) => (a ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value)),
         v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
-        v => v.ToList());
+        v => v.ToHashSet());
 
     /// <summary><see cref="CustomerId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
     public static readonly ValueConverter<CustomerId, Guid> CustomerIdConverter =

@@ -15,6 +15,7 @@ using Clovent.Restaurant.Sales;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Tables;
 using System.Text.Json;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Outbox;
 using Clovent.Restaurant.Application.Outbox.Dtos;
 using Clovent.Restaurant.Outbox;
@@ -48,8 +49,20 @@ public sealed class CompleteOrderCommandHandler(
     IOutboxProcessor? outboxProcessor = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
-    public async Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken)
+    public Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteWithLocksAsync(
+            [TransactionLockKey.ForOrder(request.OrderId)],
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
+
+    private async Task<OrderDto> HandleCoreAsync(CompleteOrderCommand request, CancellationToken cancellationToken)
     {
+        if (outboxProcessor is not null && outboxRepository is null)
+        {
+            throw new InvalidOperationException(
+                "Invalid composition: IOutboxProcessor is configured without IOutboxRepository, so durable order completion outbox messages cannot be persisted.");
+        }
+
         var orderId = new OrderId(request.OrderId);
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);

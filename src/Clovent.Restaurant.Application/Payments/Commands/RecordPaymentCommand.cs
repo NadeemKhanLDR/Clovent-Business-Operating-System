@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders;
@@ -35,7 +36,8 @@ public sealed class RecordPaymentCommandHandler(
     IOrderLineRepository orderLineRepository,
     IDiscountRepository discountRepository,
     IServiceChargeRepository serviceChargeRepository,
-    ICustomerPaymentAllocationRepository allocationRepository)
+    ICustomerPaymentAllocationRepository allocationRepository,
+    IShiftRepository? shiftRepository = null)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
     /// <summary>
@@ -48,16 +50,42 @@ public sealed class RecordPaymentCommandHandler(
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
-        var orderLock = OrderTransactionLocks.GetLock(request.OrderId);
-        await orderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+            var preReadOrder = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false);
+            var preReadCustomerId = preReadOrder?.CustomerId?.Value;
+
+            var keys = new List<TransactionLockKey>(3);
+            if (request.ShiftId is { } sid) keys.Add(TransactionLockKey.ForShift(sid));
+            if (preReadCustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid));
+            keys.Add(TransactionLockKey.ForOrder(request.OrderId));
+
+            var retryNeeded = false;
+            var result = await TransactionLockManager.ExecuteWithLocksAsync<PaymentDto>(
+                keys,
+                cancellationToken,
+                async () =>
+                {
+                    if (attempt == 0)
+                    {
+                        var rechecked = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false);
+                        if (rechecked?.CustomerId?.Value != preReadCustomerId)
+                        {
+                            retryNeeded = true;
+                            return default!;
+                        }
+                    }
+
+                    return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+                }).ConfigureAwait(false);
+
+            if (!retryNeeded)
+            {
+                return result;
+            }
         }
-        finally
-        {
-            orderLock.Release();
-        }
+
+        return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<PaymentDto> HandleCoreAsync(RecordPaymentCommand request, CancellationToken cancellationToken)
@@ -95,6 +123,17 @@ public sealed class RecordPaymentCommandHandler(
         await RequireWithinOutstandingBalanceAsync(orderId, request.Amount, cancellationToken);
 
         ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
+        if (shiftId is { } targetShiftId && shiftRepository is not null)
+        {
+            var shift = await shiftRepository.GetByIdAsync(targetShiftId, cancellationToken)
+                ?? throw new NotFoundException(nameof(Shift), targetShiftId.Value);
+
+            if (shift.Status != ShiftStatus.Open)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot record payment against Shift #{shift.ShiftNumber} because its status is {shift.Status}.");
+            }
+        }
 
         var isAdvance = PaymentMethodClassifier.IsCustomerAdvance(paymentMethod.Name.Value);
 

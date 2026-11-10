@@ -1411,4 +1411,50 @@ public class ProcessRefundCommandHandlerTests
         public Task<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>> GetUncompletedMessagesByTypeAsync(string messageType, int maxCount = 100, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Clovent.Restaurant.Outbox.OutboxMessage>>(Messages.Where(m => m.MessageType == messageType && m.Status != Clovent.Restaurant.Outbox.OutboxMessageStatus.Completed).ToList());
     }
+
+    [Fact]
+    public async Task ProcessRefund_MidpointFractionalCashRefundInTwoHalves_FinalPartialAbsorbsResidualWithoutExceedingPaidCash()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        // 1 unit @ 10.05 = 10.05 paid cash
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 10.05m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "PRA", "PK-EXEMPT", 10.05m, 0m, 0m, "1.3.0-AwayFromZero-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var payment = Payment.Create(order.Id, _cashMethod.Id, 10.05m, null);
+        order.RecordPayment(payment.Id);
+        await _paymentRepo.AddAsync(payment);
+
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = CreateHandler();
+        var cashierId = Guid.NewGuid();
+
+        var r1 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line.Id.Value, 0.5m, InventoryDisposition.Restock)],
+            "Partial half 1",
+            RefundSettlementMethod.CashPayout,
+            "IDEM-FRAC-1",
+            cashierId,
+            "Cashier"), CancellationToken.None);
+
+        var r2 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line.Id.Value, 0.5m, InventoryDisposition.Restock)],
+            "Partial half 2",
+            RefundSettlementMethod.CashPayout,
+            "IDEM-FRAC-2",
+            cashierId,
+            "Cashier"), CancellationToken.None);
+
+        Assert.Equal(5.03m, r1.GrandTotalRefunded);
+        Assert.Equal(5.02m, r2.GrandTotalRefunded);
+        Assert.Equal(10.05m, r1.SubtotalRefunded + r2.SubtotalRefunded);
+        Assert.Equal(10.05m, r1.GrandTotalRefunded + r2.GrandTotalRefunded);
+    }
 }

@@ -33,8 +33,8 @@ public sealed class RefundLine : Entity<RefundLineId>
     /// <summary>Original unit price snapshotted from the order line.</summary>
     public decimal UnitPrice { get; }
 
-    /// <summary>Gross value refunded: <see cref="Quantity"/> * <see cref="UnitPrice"/>.</summary>
-    public decimal GrossAmount => MoneyRoundingPolicy.RoundMoney(Quantity * UnitPrice);
+    /// <summary>Authoritative gross value refunded (equals <see cref="LineTotalRefunded"/> + <see cref="DiscountReversed"/> - exclusive <see cref="TaxReversed"/>), preserving residual cent adjustments on final partials.</summary>
+    public decimal GrossAmount => LineTotalRefunded + DiscountReversed - (TaxIsInclusive ? 0m : TaxReversed);
 
     /// <summary>Allocated discount reversed by this refund line.</summary>
     public decimal DiscountReversed { get; }

@@ -63,6 +63,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
             return new EmergencyReplayResult(0, 0, 0, 0, Array.Empty<string>());
         }
 
+        if (_outboxRepository is null)
+        {
+            throw new InvalidOperationException(
+                "Invalid composition: IOutboxRepository is required to replay emergency transactions with durable inventory and sync outbox messages.");
+        }
+
         var successCount = 0;
         var duplicateCount = 0;
         var failedCount = 0;

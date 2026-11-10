@@ -59,6 +59,9 @@ public sealed class RefundLineItemRow
     /// <summary>Total discount reversed on previous credit notes for this line.</summary>
     public decimal AlreadyReversedDiscount { get; set; }
 
+    /// <summary>Total gross value refunded on previous credit notes for this line.</summary>
+    public decimal AlreadyReversedGross { get; set; }
+
     /// <summary>Total tax reversed on previous credit notes for this line.</summary>
     public decimal AlreadyReversedTax { get; set; }
 
@@ -69,10 +72,11 @@ public sealed class RefundLineItemRow
         AllocatedDiscount,
         TaxAmount,
         TaxIsInclusive,
-        AlreadyRefundedQuantity,
-        AlreadyReversedDiscount,
-        AlreadyReversedTax,
-        RefundQuantity).NetPayableRefund;
+        Math.Min(AlreadyRefundedQuantity, OriginalQuantity),
+        Math.Min(AlreadyReversedDiscount, AllocatedDiscount),
+        Math.Min(AlreadyReversedTax, TaxAmount),
+        Math.Min(Math.Max(0m, RefundQuantity), RemainingQuantity),
+        AlreadyReversedGross).NetPayableRefund;
 
     /// <summary>Whether returned stock is restored to warehouse inventory or written off as waste.</summary>
     public InventoryDisposition Disposition { get; set; } = InventoryDisposition.Restock;
@@ -103,6 +107,11 @@ public sealed partial class RefundOrderDialog : XtraForm
     private readonly BindingList<RefundLineItemRow> _lineRows = [];
     private string? _lastAttemptFingerprint;
     private string? _currentAttemptIdempotencyKey;
+    private readonly Action<RefundDto>? _receiptPreview;
+    private bool _submittingRefund;
+
+    /// <summary>A receipt failure after a confirmed refund; never a transaction failure.</summary>
+    public string? ReceiptWarning { get; private set; }
 
     /// <summary>The resulting refund DTO if successfully processed.</summary>
     public RefundDto? ResultRefund { get; private set; }
@@ -157,9 +166,12 @@ public sealed partial class RefundOrderDialog : XtraForm
         Guid? terminalId = null,
         IManagerAuthorizationService? managerAuthService = null,
         string? currentUserName = null,
-        Func<string, string, string, Task<ManagerAuthorizationResult?>>? authorizationPrompt = null) : base()
+        Func<string, string, string, Task<ManagerAuthorizationResult?>>? authorizationPrompt = null,
+        Action<RefundDto>? receiptPreview = null) : base()
     {
         InitializeComponent();
+
+        _receiptPreview = receiptPreview;
 
         if (DesignModeHelper.IsInDesignMode)
         {
@@ -360,6 +372,11 @@ public sealed partial class RefundOrderDialog : XtraForm
                 .GroupBy(l => l.OrderLineId)
                 .ToDictionary(g => g.Key, g => g.Sum(l => l.DiscountReversed));
 
+            var reversedGrossByLineId = existingRefunds
+                .SelectMany(r => r.Lines)
+                .GroupBy(l => l.OrderLineId)
+                .ToDictionary(g => g.Key, g => g.Sum(l => l.GrossAmount));
+
             var reversedTaxByLineId = existingRefunds
                 .SelectMany(r => r.Lines)
                 .GroupBy(l => l.OrderLineId)
@@ -369,6 +386,7 @@ public sealed partial class RefundOrderDialog : XtraForm
             foreach (var line in lines)
             {
                 var prevRefunded = refundedQtyByLineId.GetValueOrDefault(line.OrderLineId, 0m);
+                var prevGross = reversedGrossByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var prevDiscount = reversedDiscountByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var prevTax = reversedTaxByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var itemName = variantNames.GetValueOrDefault(line.ProductVariantId, line.Notes ?? "Menu Item");
@@ -383,6 +401,7 @@ public sealed partial class RefundOrderDialog : XtraForm
                     AllocatedDiscount = line.AllocatedDiscount,
                     TaxAmount = line.TaxAmount ?? 0m,
                     TaxIsInclusive = line.TaxIsInclusive,
+                    AlreadyReversedGross = prevGross,
                     AlreadyReversedDiscount = prevDiscount,
                     AlreadyReversedTax = prevTax,
                     RefundQuantity = 0,
@@ -438,6 +457,7 @@ public sealed partial class RefundOrderDialog : XtraForm
 
     private async Task SubmitRefundAsync(bool suppressInteractivePrompts)
     {
+        if (_submittingRefund || ResultRefund is not null) return;
         var itemsToRefund = _lineRows.Where(r => r.RefundQuantity > 0).ToList();
         if (itemsToRefund.Count == 0)
         {
@@ -545,14 +565,21 @@ public sealed partial class RefundOrderDialog : XtraForm
 
         Cursor = Cursors.WaitCursor;
         _submitRefundButton.Enabled = false;
+        _submittingRefund = true;
 
         try
         {
             var result = await _mediator.Send(command);
             ResultRefund = result;
 
-            if (!suppressInteractivePrompts)
+            try
             {
+                if (_receiptPreview is not null)
+                {
+                    _receiptPreview(result);
+                }
+                else if (!suppressInteractivePrompts)
+                {
                 var printPrompt = XtraMessageBox.Show(
                     this,
                     $"Refund {result.RefundNumber} processed successfully.\n\nTotal Refunded: {CurrencyDisplay.FormatPlain(result.GrandTotalRefunded)}\n\nWould you like to preview/print the refund credit note?",
@@ -566,6 +593,14 @@ public sealed partial class RefundOrderDialog : XtraForm
                     using var previewForm = new ReceiptPreviewForm(creditNoteText);
                     previewForm.ShowDialog(this);
                 }
+                }
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                ReceiptWarning = $"Refund {result.RefundNumber} is committed. Receipt preview/printing failed: {ex.Message}. Do not submit another refund; reprint the existing credit note.";
+                _logger?.LogWarning(ex, "Refund {RefundId} committed but receipt presentation failed", result.RefundId);
+                if (!suppressInteractivePrompts)
+                    XtraMessageBox.Show(this, ReceiptWarning, "Refund Saved - Receipt Unavailable", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
 
             DialogResult = DialogResult.OK;
@@ -576,7 +611,7 @@ public sealed partial class RefundOrderDialog : XtraForm
             _logger?.LogError(ex, "Failed to process refund for order {OrderId}", _orderId);
             if (!suppressInteractivePrompts)
             {
-                XtraMessageBox.Show(this, $"Refund processing failed: {ex.Message}", "Refund Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                XtraMessageBox.Show(this, $"The refund result could not be confirmed: {ex.Message}\n\nRefresh the order and refund history before collecting or paying money again. Retry the unchanged request with its existing attempt key; do not create a new refund to resolve an uncertain result.", "Refund Result Unconfirmed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             else
             {
@@ -587,6 +622,7 @@ public sealed partial class RefundOrderDialog : XtraForm
         {
             Cursor = Cursors.Default;
             _submitRefundButton.Enabled = true;
+            _submittingRefund = false;
         }
     }
 }
