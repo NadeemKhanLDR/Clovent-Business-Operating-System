@@ -54,7 +54,8 @@ public sealed class PaymentIdempotencyTests
             methodRepo,
             lineRepo,
             discountRepo,
-            serviceRepo);
+            serviceRepo,
+            new FakeCustomerPaymentAllocationRepository());
 
         var command = new RecordPaymentCommand(
             order.Id.Value,
@@ -119,7 +120,8 @@ public sealed class PaymentIdempotencyTests
             methodRepo,
             lineRepo,
             discountRepo,
-            serviceRepo);
+            serviceRepo,
+            new FakeCustomerPaymentAllocationRepository());
 
         var command1 = new RecordPaymentCommand(
             order.Id.Value,
@@ -136,6 +138,72 @@ public sealed class PaymentIdempotencyTests
             method.Id.Value,
             150m,
             IdempotencyKey: "unique-payment-key-999");
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command2, CancellationToken.None));
+        Assert.Contains("differing payloads is prohibited", ex.Message);
+    }
+
+    [Fact]
+    public async Task RecordPayment_WithSameKey_DifferingPaymentMethod_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var orderRepo = new FakeOrderRepository();
+        var lineRepo = new FakeOrderLineRepository();
+        var paymentRepo = new FakePaymentRepository();
+        var methodRepo = new FakePaymentMethodRepository();
+        var customerRepo = new FakeCustomerRepository();
+        var ledgerRepo = new FakeCustomerLedgerEntryRepository();
+        var discountRepo = new FakeDiscountRepository();
+        var serviceRepo = new FakeServiceChargeRepository();
+
+        var methodCash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var methodCard = PaymentMethod.Create(PaymentMethodName.Create("Card"));
+        await methodRepo.AddAsync(methodCash);
+        await methodRepo.AddAsync(methodCard);
+
+        var order = Order.Create(
+            OrderType.TakeAway,
+            new WarehouseId(Guid.NewGuid()),
+            null,
+            OrderNumber.Generate(DateTimeOffset.UtcNow));
+        await orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(
+            order.Id,
+            new ProductVariantId(Guid.NewGuid()),
+            2m,
+            100m,
+            0m,
+            false);
+        await lineRepo.AddAsync(line);
+        order.AddOrderLine(line.Id);
+
+        var handler = new RecordPaymentCommandHandler(
+            orderRepo,
+            paymentRepo,
+            customerRepo,
+            ledgerRepo,
+            methodRepo,
+            lineRepo,
+            discountRepo,
+            serviceRepo,
+            new FakeCustomerPaymentAllocationRepository());
+
+        var command1 = new RecordPaymentCommand(
+            order.Id.Value,
+            methodCash.Id.Value,
+            100m,
+            IdempotencyKey: "unique-payment-method-key-123");
+
+        // Act 1: Initial payment with Cash succeeds
+        await handler.Handle(command1, CancellationToken.None);
+
+        // Act 2: Submit with same idempotency key and amount but differing PaymentMethodId (Card instead of Cash)
+        var command2 = new RecordPaymentCommand(
+            order.Id.Value,
+            methodCard.Id.Value,
+            100m,
+            IdempotencyKey: "unique-payment-method-key-123");
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => handler.Handle(command2, CancellationToken.None));
         Assert.Contains("differing payloads is prohibited", ex.Message);

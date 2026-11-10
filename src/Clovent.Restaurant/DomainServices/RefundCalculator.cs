@@ -54,10 +54,12 @@ public static class RefundCalculator
         }
         else
         {
-            // Intermediate partial refund: proportional allocation rounded AwayFromZero
+            // Intermediate partial refund: proportional allocation rounded AwayFromZero, capped to remaining reversible balance
             var ratio = effectiveQuantity / originalQuantity;
-            discountReversed = MoneyRoundingPolicy.RoundMoney(allocatedDiscount * ratio);
-            taxReversed = MoneyRoundingPolicy.RoundMoney(taxAmount * ratio);
+            var remainingDiscount = Math.Max(0m, allocatedDiscount - priorDiscountReversed);
+            var remainingTax = Math.Max(0m, taxAmount - priorTaxReversed);
+            discountReversed = Math.Min(remainingDiscount, MoneyRoundingPolicy.RoundMoney(allocatedDiscount * ratio));
+            taxReversed = Math.Min(remainingTax, MoneyRoundingPolicy.RoundMoney(taxAmount * ratio));
         }
 
         var grossRefund = MoneyRoundingPolicy.RoundMoney(effectiveQuantity * unitPrice);

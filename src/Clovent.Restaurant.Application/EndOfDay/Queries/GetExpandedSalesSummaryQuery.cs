@@ -1,3 +1,4 @@
+using Clovent.Restaurant.DomainServices;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -290,12 +291,12 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     totalCollected += p.Amount;
 
                     string cat = "Order Settlement (Other)";
-                    if (string.Equals(methodName, CashMethodName, StringComparison.OrdinalIgnoreCase))
+                    if (PaymentMethodClassifier.IsCash(methodName))
                     {
                         cashCollected += p.Amount;
                         cat = "Order Settlement (Cash)";
                     }
-                    else if (methodName.Contains(CardFragment, StringComparison.OrdinalIgnoreCase))
+                    else if (PaymentMethodClassifier.IsCard(methodName))
                     {
                         cardCollected += p.Amount;
                         cat = "Order Settlement (Card)";
@@ -586,7 +587,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             foreach (var p in shiftPayments.Where(p => !p.IsVoided))
             {
                 if (paymentMethods.TryGetValue(p.PaymentMethodId, out var pm) &&
-                    string.Equals(pm.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
+                    PaymentMethodClassifier.IsCash(pm.Name.Value))
                 {
                     shiftCashSales += p.Amount;
                 }
@@ -594,7 +595,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
 
             var shiftLedger = await ledgerRepository.GetByShiftIdAsync(s.Id, cancellationToken);
             decimal shiftCashCollections = shiftLedger
-                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Where(e => e.Credit > 0 && PaymentMethodClassifier.IsCash(e.PaymentMethod))
                 .Sum(e => e.Credit);
 
             decimal shiftCashIn = s.CashMovements.Where(m => m.Type == CashMovementType.CashIn).Sum(m => m.Amount);

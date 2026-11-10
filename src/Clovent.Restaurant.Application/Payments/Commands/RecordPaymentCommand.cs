@@ -11,6 +11,7 @@ using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.ServiceCharges;
 using Clovent.Restaurant.Shifts;
 using Clovent.Restaurant.Customers;
+using Clovent.Restaurant.DomainServices;
 using MediatR;
 
 namespace Clovent.Restaurant.Application.Payments.Commands;
@@ -34,7 +35,7 @@ public sealed class RecordPaymentCommandHandler(
     IOrderLineRepository orderLineRepository,
     IDiscountRepository discountRepository,
     IServiceChargeRepository serviceChargeRepository,
-    ICustomerPaymentAllocationRepository? allocationRepository = null)
+    ICustomerPaymentAllocationRepository allocationRepository)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
     /// <summary>
@@ -47,15 +48,31 @@ public sealed class RecordPaymentCommandHandler(
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
+        var orderLock = OrderTransactionLocks.GetLock(request.OrderId);
+        await orderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            orderLock.Release();
+        }
+    }
+
+    private async Task<PaymentDto> HandleCoreAsync(RecordPaymentCommand request, CancellationToken cancellationToken)
+    {
         if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
             var existingPayment = await paymentRepository.GetByIdempotencyKeyAsync(request.IdempotencyKey, cancellationToken);
             if (existingPayment is not null)
             {
-                if (existingPayment.OrderId.Value != request.OrderId || Math.Abs(existingPayment.Amount - request.Amount) > BalanceEpsilon)
+                if (existingPayment.OrderId.Value != request.OrderId ||
+                    existingPayment.PaymentMethodId.Value != request.PaymentMethodId ||
+                    Math.Abs(existingPayment.Amount - request.Amount) > BalanceEpsilon)
                 {
                     throw new InvalidOperationException(
-                        $"Idempotency key '{request.IdempotencyKey}' was already used for a different payment (Order: {existingPayment.OrderId.Value}, Amount: {existingPayment.Amount:N2}). Reusing idempotency keys with differing payloads is prohibited.");
+                        $"Idempotency key '{request.IdempotencyKey}' was already used for a different payment (Order: {existingPayment.OrderId.Value}, PaymentMethod: {existingPayment.PaymentMethodId.Value}, Amount: {existingPayment.Amount:N2}). Reusing idempotency keys with differing payloads is prohibited.");
                 }
 
                 return PaymentDto.FromDomain(existingPayment);
@@ -66,6 +83,11 @@ public sealed class RecordPaymentCommandHandler(
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
 
+        if (order.Status != OrderStatus.Open)
+        {
+            throw RestaurantDomainException.OrderNotOpen(order.Id, order.Status);
+        }
+
         var paymentMethodId = new PaymentMethodId(request.PaymentMethodId);
         var paymentMethod = await paymentMethodRepository.GetByIdAsync(paymentMethodId, cancellationToken)
             ?? throw new NotFoundException(nameof(PaymentMethod), request.PaymentMethodId);
@@ -74,8 +96,7 @@ public sealed class RecordPaymentCommandHandler(
 
         ShiftId? shiftId = request.ShiftId.HasValue ? new ShiftId(request.ShiftId.Value) : null;
 
-        var isAdvance = string.Equals(paymentMethod.Name.Value, "Customer Advance", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(paymentMethod.Name.Value, "Advance", StringComparison.OrdinalIgnoreCase);
+        var isAdvance = PaymentMethodClassifier.IsCustomerAdvance(paymentMethod.Name.Value);
 
         if (isAdvance)
         {
@@ -112,16 +133,13 @@ public sealed class RecordPaymentCommandHandler(
                 paymentMethod.Name.Value);
             await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
 
-            if (allocationRepository is not null)
-            {
-                var alloc = CustomerPaymentAllocation.Create(
-                    customer.Id,
-                    order.Id,
-                    request.Amount,
-                    ledgerEntry.Id,
-                    $"Customer advance applied to order {order.OrderNumber.Value}");
-                await allocationRepository.AddAsync(alloc, cancellationToken);
-            }
+            var alloc = CustomerPaymentAllocation.Create(
+                customer.Id,
+                order.Id,
+                request.Amount,
+                ledgerEntry.Id,
+                $"Customer advance applied to order {order.OrderNumber.Value}");
+            await allocationRepository.AddAsync(alloc, cancellationToken);
 
             var advPayment = Payment.Create(orderId, paymentMethodId, request.Amount, shiftId, request.IdempotencyKey);
             order.RecordPayment(advPayment.Id);
@@ -130,10 +148,7 @@ public sealed class RecordPaymentCommandHandler(
             return PaymentDto.FromDomain(advPayment);
         }
 
-        var isCredit = string.Equals(paymentMethod.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(paymentMethod.Name.Value, "Customer Account", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase);
+        var isCredit = PaymentMethodClassifier.IsOnAccountCredit(paymentMethod.Name.Value);
 
         if (isCredit)
         {
@@ -198,7 +213,7 @@ public sealed class RecordPaymentCommandHandler(
                 paymentMethod.Name.Value);
             await ledgerRepository.AddAsync(ledgerEntry, cancellationToken);
 
-            if (advanceApplied > 0 && allocationRepository is not null)
+            if (advanceApplied > 0)
             {
                 var alloc = CustomerPaymentAllocation.Create(
                     customer.Id,

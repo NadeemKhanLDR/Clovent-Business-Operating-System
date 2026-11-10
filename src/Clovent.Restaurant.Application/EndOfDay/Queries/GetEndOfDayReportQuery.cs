@@ -1,4 +1,5 @@
 using Clovent.MasterData.Warehouses;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Application.EndOfDay.Dtos;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
@@ -50,8 +51,8 @@ public sealed class GetEndOfDayReportQueryHandler(
     IPaymentMethodRepository paymentMethodRepository,
     Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null) : IRequestHandler<GetEndOfDayReportQuery, EndOfDayReportDto>
 {
-    private const string CashMethodName = "Cash";
-    private const string CardMethodNameFragment = "card";
+    // Classified via PaymentMethodClassifier
+
 
     /// <inheritdoc/>
     public async Task<EndOfDayReportDto> Handle(GetEndOfDayReportQuery request, CancellationToken cancellationToken)
@@ -111,11 +112,11 @@ public sealed class GetEndOfDayReportQueryHandler(
                 methodTotals[methodName] = methodTotals.GetValueOrDefault(methodName) + payment.Amount;
                 methodNamesForOrder.Add(methodName);
 
-                if (string.Equals(methodName, CashMethodName, StringComparison.OrdinalIgnoreCase))
+                if (PaymentMethodClassifier.IsCash(methodName))
                 {
                     cashCollected += payment.Amount;
                 }
-                else if (methodName.Contains(CardMethodNameFragment, StringComparison.OrdinalIgnoreCase))
+                else if (PaymentMethodClassifier.IsCard(methodName))
                 {
                     cardCollected += payment.Amount;
                 }

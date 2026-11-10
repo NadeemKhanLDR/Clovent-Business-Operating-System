@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Restaurant.ActivityLogs;
+using System.Collections.Concurrent;
 using Clovent.Restaurant.Application.Shifts.Dtos;
 using Clovent.Restaurant.PaymentMethods;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Shifts;
 using MediatR;
@@ -29,8 +31,24 @@ public sealed class CloseShiftCommandHandler(
     Clovent.Restaurant.Outbox.IOutboxRepository? outboxRepository = null,
     Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<CloseShiftCommand, ShiftSummaryDto>
 {
+    private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> ShiftCloseLocks = new();
+
     /// <inheritdoc/>
     public async Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken)
+    {
+        var shiftLock = ShiftCloseLocks.GetOrAdd(request.ShiftId, static _ => new SemaphoreSlim(1, 1));
+        await shiftLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            shiftLock.Release();
+        }
+    }
+
+    private async Task<ShiftSummaryDto> HandleCoreAsync(CloseShiftCommand request, CancellationToken cancellationToken)
     {
         var shiftId = new ShiftId(request.ShiftId);
         var shift = await shiftRepository.GetByIdAsync(shiftId, cancellationToken)
@@ -87,7 +105,7 @@ public sealed class CloseShiftCommandHandler(
         {
             var shiftLedgerEntries = await ledgerRepository.GetByShiftIdAsync(shiftId, cancellationToken);
             cashCustomerPayments = shiftLedgerEntries
-                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Where(e => e.Credit > 0 && PaymentMethodClassifier.IsCash(e.PaymentMethod))
                 .Sum(e => e.Credit);
         }
 

@@ -68,7 +68,8 @@ public sealed class CustomerReceivablesLifecycleIntegrationTests
             paymentMethodRepo,
             orderLineRepo,
             discountRepo,
-            serviceChargeRepo);
+            serviceChargeRepo,
+            allocationRepo);
 
         var recordCustomerPaymentHandler = new RecordCustomerPaymentCommandHandler(
             customerRepo,
@@ -245,7 +246,8 @@ public sealed class CustomerReceivablesLifecycleIntegrationTests
             paymentMethodRepo,
             orderLineRepo,
             discountRepo,
-            serviceChargeRepo);
+            serviceChargeRepo,
+            new FakeCustomerPaymentAllocationRepository());
 
         // Attempting to pay On Account for Walk-in Customer MUST fail
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -298,7 +300,8 @@ public sealed class CustomerReceivablesLifecycleIntegrationTests
             paymentMethodRepo,
             orderLineRepo,
             discountRepo,
-            serviceChargeRepo);
+            serviceChargeRepo,
+            new FakeCustomerPaymentAllocationRepository());
 
         // Attempting to pay 1,500 with a 1,000 credit limit without override MUST fail
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

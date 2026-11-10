@@ -138,6 +138,10 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException PaymentAlreadyVoided(PaymentId paymentId) =>
         new($"Payment '{paymentId}' is already voided.");
 
+
+    /// <summary>VoidPaymentCommand was attempted on an already-Completed order.</summary>
+    public static RestaurantDomainException CompletedOrderPaymentCannotBeVoided(OrderId orderId, PaymentId paymentId) =>
+        new($"Payment '{paymentId}' belongs to completed order '{orderId}' and cannot be voided. Completed transactions are immutable and must use the compensating refund workflow.");
     /// <summary>A KitchenTicket.Start() was attempted while not New.</summary>
     public static RestaurantDomainException KitchenTicketNotNew(KitchenTicketId kitchenTicketId) =>
         new($"Kitchen ticket '{kitchenTicketId}' is not new.");

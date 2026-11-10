@@ -8669,10 +8669,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
 
         static bool IsCreditMethod(string name) =>
-            string.Equals(name, "Credit", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "On Account", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(name, "Customer Account", StringComparison.OrdinalIgnoreCase);
+            Clovent.Restaurant.DomainServices.PaymentMethodClassifier.IsOnAccountCredit(name);
 
         var totalCreditRequested = dialog.Allocations
             .Where(a => a.Amount > 0m && IsCreditMethod(a.Name))
@@ -8909,10 +8906,7 @@ public sealed partial class RestaurantPosForm : XtraForm
 
         var applied = Math.Min(tendered, _balance);
 
-        var isCredit = string.Equals(methodName, "Credit", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(methodName, "Customer Credit", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(methodName, "On Account", StringComparison.OrdinalIgnoreCase) ||
-                       string.Equals(methodName, "Customer Account", StringComparison.OrdinalIgnoreCase);
+        var isCredit = Clovent.Restaurant.DomainServices.PaymentMethodClassifier.IsOnAccountCredit(methodName);
 
         bool exceedCreditLimitApproved = false;
         if (isCredit)

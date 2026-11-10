@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Restaurant.Application.Shifts.Dtos;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Shifts;
@@ -73,7 +74,7 @@ public sealed class GetShiftSummaryQueryHandler(
         {
             var shiftLedgerEntries = await ledgerRepository.GetByShiftIdAsync(shiftId, cancellationToken);
             cashCustomerPayments = shiftLedgerEntries
-                .Where(e => e.Credit > 0 && string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Where(e => e.Credit > 0 && PaymentMethodClassifier.IsCash(e.PaymentMethod))
                 .Sum(e => e.Credit);
         }
 

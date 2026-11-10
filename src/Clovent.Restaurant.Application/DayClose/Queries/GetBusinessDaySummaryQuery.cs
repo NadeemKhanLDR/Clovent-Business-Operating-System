@@ -126,11 +126,11 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                 if (methodsById.TryGetValue(p.PaymentMethodId, out var method))
                 {
                     var name = method.Name.Value;
-                    if (string.Equals(name, "Cash", StringComparison.OrdinalIgnoreCase))
+                    if (PaymentMethodClassifier.IsCash(name))
                     {
                         totalCashSales += p.Amount;
                     }
-                    else if (name.Contains("Card", StringComparison.OrdinalIgnoreCase))
+                    else if (PaymentMethodClassifier.IsCard(name))
                     {
                         totalCardSales += p.Amount;
                     }
@@ -179,8 +179,8 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                 if (orderLineRepository != null)
                 {
                     var lines = await orderLineRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-                    totalTax += lines.Sum(l => l.TaxAmount ?? 0m);
-                    totalDiscounts += lines.Sum(l => l.AllocatedDiscount);
+                    totalTax += lines.Where(l => !l.IsVoided).Sum(l => l.TaxAmount ?? 0m);
+                    totalDiscounts += lines.Where(l => !l.IsVoided).Sum(l => l.AllocatedDiscount);
                 }
             }
         }

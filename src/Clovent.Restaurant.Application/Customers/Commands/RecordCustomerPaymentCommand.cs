@@ -1,4 +1,5 @@
 using Clovent.Restaurant.Customers;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
@@ -100,8 +101,9 @@ public sealed class RecordCustomerPaymentCommandHandler(
             method);
         await ledgerRepository.AddAsync(entry, cancellationToken);
 
-        if (appliedAmount > 0 && orderRepository is not null && paymentRepository is not null && paymentMethodRepository is not null && allocationRepository is not null)
+        if (appliedAmount > 0 && orderRepository is not null && paymentRepository is not null && paymentMethodRepository is not null)
         {
+            if (allocationRepository is null) throw new InvalidOperationException("Customer payment allocation repository is required when order receivables repositories are configured.");
             // FIFO allocation across open On Account orders (oldest order first)
             var customerOrders = await orderRepository.GetByCustomerIdAsync(customerId, cancellationToken);
             var sortedOrders = customerOrders.OrderBy(o => o.CreatedAtUtc).ToList();

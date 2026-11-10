@@ -55,6 +55,7 @@ public sealed class OrderScopeEnforcementPipelineTests
         services.AddSingleton<Clovent.Restaurant.Customers.ICustomerRepository>(new FakeCustomerRepository());
         services.AddSingleton<Clovent.Restaurant.Customers.ICustomerLedgerEntryRepository>(new FakeCustomerLedgerEntryRepository());
 
+        services.AddSingleton<Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository>(new FakeCustomerPaymentAllocationRepository());
         var config = new ConfigurationBuilder().Build();
         services.AddApplication(config);
 

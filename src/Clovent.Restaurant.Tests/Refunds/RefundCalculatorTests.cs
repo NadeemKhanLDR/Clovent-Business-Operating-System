@@ -178,4 +178,24 @@ public class RefundCalculatorTests
         // Tax is inclusive, so net payable refund is gross (116) - discount (0) = 116
         Assert.Equal(116m, calc.NetPayableRefund);
     }
+
+    [Fact]
+    public void CalculateLineRefund_IntermediateFractionalRefund_NeverExceedsRemainingDiscountOrTax()
+    {
+        // Prior intermediate refunds reversed 9.99 of 10.00 discount and 15.99 of 16.00 tax.
+        // An intermediate refund with ratio 0.40 would round to 4.00/6.40 if unclamped, exceeding total allocated.
+        var calc = RefundCalculator.CalculateLineRefund(
+            originalQuantity: 1m,
+            unitPrice: 100m,
+            allocatedDiscount: 10m,
+            taxAmount: 16m,
+            taxIsInclusive: false,
+            priorRefundedQuantity: 0.50m,
+            priorDiscountReversed: 9.99m,
+            priorTaxReversed: 15.99m,
+            requestedQuantity: 0.40m);
+
+        Assert.Equal(0.01m, calc.DiscountReversed);
+        Assert.Equal(0.01m, calc.TaxReversed);
+    }
 }

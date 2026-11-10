@@ -970,6 +970,205 @@ public class ProcessRefundCommandHandlerTests
         Assert.Equal(2394.00m, allRefunds.Where(r => r.SettlementMethod == RefundSettlementMethod.ExternalCardRefund).Sum(r => r.GrandTotalRefunded));
     }
 
+
+    [Fact]
+    public async Task ProcessRefund_ExternalCardRefund_SupportsCreditCardPaymentMethod()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 1500m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 1500m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var creditCardMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit Card"));
+        var paymentMethodRepo = new StubPaymentMethodRepository([creditCardMethod]);
+
+        var cardPay = Payment.Create(order.Id, creditCardMethod.Id, 1500m, null);
+        order.RecordPayment(cardPay.Id);
+        await _paymentRepo.AddAsync(cardPay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: paymentMethodRepo);
+
+        var refundResult = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line.Id.Value, 1m)],
+            "Customer return via Credit Card",
+            RefundSettlementMethod.ExternalCardRefund,
+            "IDEMP-CREDIT-CARD-REFUND-1",
+            Guid.NewGuid(),
+            "Cashier"), CancellationToken.None);
+
+        Assert.NotNull(refundResult);
+        Assert.Equal(1500m, refundResult.GrandTotalRefunded);
+        Assert.Equal("ExternalCardRefund", refundResult.SettlementMethod);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_ExternalCardRefund_SupportsDebitCardMixedTendersVoidedPaymentsAndEnforcesCumulativeCap()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        // 4 lines: 1x500, 1x500, 1x400, 1x600 => Total 2000
+        var line1 = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 500m, 0m, false);
+        line1.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 500m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        var line2 = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 500m, 0m, false);
+        line2.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 500m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        var line3 = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 400m, 0m, false);
+        line3.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 400m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        var line4 = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 600m, 0m, false);
+        line4.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 600m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        foreach (var l in new[] { line1, line2, line3, line4 })
+        {
+            order.AddOrderLine(l.Id);
+            await _orderLineRepo.AddAsync(l);
+        }
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var creditCardMethod = PaymentMethod.Create(PaymentMethodName.Create("Credit Card"));
+        var debitCardMethod = PaymentMethod.Create(PaymentMethodName.Create("  debit card "));
+        var paymentMethodRepo = new StubPaymentMethodRepository([cashMethod, creditCardMethod, debitCardMethod]);
+
+        // Active split: Cash 1000 + Credit Card 500 + Debit Card 500 = 2000 (card cap = 1000)
+        // Plus one VOIDED Debit Card payment of 1000 that MUST NOT count toward card cap.
+        var cashPay = Payment.Create(order.Id, cashMethod.Id, 1000m, null);
+        var creditPay = Payment.Create(order.Id, creditCardMethod.Id, 500m, null);
+        var debitPay = Payment.Create(order.Id, debitCardMethod.Id, 500m, null);
+        var voidedDebitPay = Payment.Create(order.Id, debitCardMethod.Id, 1000m, null);
+        voidedDebitPay.Void();
+
+        foreach (var p in new[] { cashPay, creditPay, debitPay, voidedDebitPay })
+        {
+            order.RecordPayment(p.Id);
+            await _paymentRepo.AddAsync(p);
+        }
+
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = new ProcessRefundCommandHandler(
+            _refundRepo,
+            _orderRepo,
+            _orderLineRepo,
+            _paymentRepo,
+            _customerRepo,
+            _customerLedgerRepo,
+            _activityLogRepo,
+            _mediator,
+            _unitOfWork,
+            paymentMethodRepository: paymentMethodRepo);
+
+        // 1. First partial ExternalCardRefund: 600 (leaves 400 card capacity)
+        var r1 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line4.Id.Value, 1m)],
+            "Partial debit/credit card return",
+            RefundSettlementMethod.ExternalCardRefund,
+            "IDEMP-DEBIT-MIXED-1",
+            Guid.NewGuid(),
+            "Cashier"), CancellationToken.None);
+        Assert.Equal(600m, r1.GrandTotalRefunded);
+
+        // 2. Attempting 500 ExternalCardRefund MUST FAIL (remaining card cap is 400; cash 1000 and voided 1000 cannot fund card refund)
+        var capEx = await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line1.Id.Value, 1m)],
+                "Exceed remaining card cap",
+                RefundSettlementMethod.ExternalCardRefund,
+                "IDEMP-DEBIT-MIXED-OVER",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+        Assert.Contains("exceeds remaining eligible card paid", capEx.Message, StringComparison.OrdinalIgnoreCase);
+
+        // 3. Exact remaining card capacity (400) succeeds
+        var r2 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line3.Id.Value, 1m)],
+            "Exact remaining card capacity",
+            RefundSettlementMethod.ExternalCardRefund,
+            "IDEMP-DEBIT-MIXED-2",
+            Guid.NewGuid(),
+            "Cashier"), CancellationToken.None);
+        Assert.Equal(400m, r2.GrandTotalRefunded);
+
+        // 4. Subsequent ExternalCardRefund (500) fails (0 card cap left)
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line2.Id.Value, 1m)],
+                "Zero card capacity remaining",
+                RefundSettlementMethod.ExternalCardRefund,
+                "IDEMP-DEBIT-MIXED-3",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+
+        // 5. CashPayout for line 1 + line 2 (1000) succeeds against original Cash tender
+        var r3 = await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line1.Id.Value, 1m), new RefundItemRequest(line2.Id.Value, 1m)],
+            "Remaining cash items",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-DEBIT-MIXED-4",
+            Guid.NewGuid(),
+            "Cashier"), CancellationToken.None);
+        Assert.Equal(1000m, r3.GrandTotalRefunded);
+    }
+
+    [Fact]
+    public async Task ProcessRefund_IdempotencyConflict_DifferingDisposition_ThrowsConflict()
+    {
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        await _orderRepo.AddAsync(order);
+
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 2m, 500m, 0m, false);
+        line.SetTaxSnapshot("Exempt", "FBR", "PK-EXEMPT", 1000m, 0m, 0m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(line.Id);
+        await _orderLineRepo.AddAsync(line);
+
+        var pay = Payment.Create(order.Id, _cashMethod.Id, 1000m, null);
+        order.RecordPayment(pay.Id);
+        await _paymentRepo.AddAsync(pay);
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        var handler = CreateHandler();
+
+        await handler.Handle(new ProcessRefundCommand(
+            order.Id.Value,
+            [new RefundItemRequest(line.Id.Value, 1m, InventoryDisposition.Restock)],
+            "Initial restock refund",
+            RefundSettlementMethod.CashPayout,
+            "IDEMP-DISP-CONFLICT-1",
+            Guid.NewGuid(),
+            "Cashier"), CancellationToken.None);
+
+        // Retry same key, order, line, and quantity, but differing InventoryDisposition
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ProcessRefundCommand(
+                order.Id.Value,
+                [new RefundItemRequest(line.Id.Value, 1m, InventoryDisposition.DamagedDiscard)],
+                "Conflicting disposition",
+                RefundSettlementMethod.CashPayout,
+                "IDEMP-DISP-CONFLICT-1",
+                Guid.NewGuid(),
+                "Cashier"), CancellationToken.None));
+    }
+
     [Fact]
     public async Task ProcessRefund_ExternalCardRefundWithMissingOrUnconfiguredPaymentMethodDependency_FailsClosedAndCannotBypassCardCap()
     {

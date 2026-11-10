@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Restaurant.Customers;
+using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
@@ -54,7 +55,7 @@ public sealed class RecordBulkCustomerPaymentsCommandHandler(
         }
 
         // Validate all rows before committing anything
-        var hasCash = request.Payments.Any(p => string.Equals(p.PaymentMethodName, "Cash", StringComparison.OrdinalIgnoreCase));
+        var hasCash = request.Payments.Any(p => PaymentMethodClassifier.IsCash(p.PaymentMethodName));
         if (hasCash && !request.ShiftId.HasValue)
         {
             throw new InvalidOperationException("A cashier shift must be active to record cash collections.");

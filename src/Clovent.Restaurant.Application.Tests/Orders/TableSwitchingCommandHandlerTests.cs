@@ -256,7 +256,7 @@ public class TableSwitchingCommandHandlerTests
         _t01.Occupy();
         await TransferHandler.Handle(new TransferOrderTableCommand(order.Id.Value, _t02.Id.Value), CancellationToken.None);
 
-        await new VoidOrderCommandHandler(_orderRepository, _tableRepository, new FakePaymentRepository(), new FakeCustomerRepository(), new FakeCustomerLedgerEntryRepository(), new FakePaymentMethodRepository())
+        await new VoidOrderCommandHandler(_orderRepository, _tableRepository, new FakePaymentRepository(), new FakeCustomerRepository(), new FakeCustomerLedgerEntryRepository(), new FakePaymentMethodRepository(), new FakeCustomerPaymentAllocationRepository())
             .Handle(new VoidOrderCommand(order.Id.Value, "test void"), CancellationToken.None);
 
         Assert.Equal("Available", _t01.OccupancyStatus.ToString());

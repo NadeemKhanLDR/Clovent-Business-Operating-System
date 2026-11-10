@@ -221,4 +221,76 @@ public class TaxSummaryAndRefundReportTests
         Assert.Equal(130.00m, srbItem.TaxRefunded);
         Assert.Equal(130.00m, srbItem.NetTax);
     }
+
+    [Fact]
+    public async Task GetTaxSummaryReportQuery_TaxInclusiveOrderAndPartialRefund_ExcludesInclusiveTaxFromSalesExcludingTax()
+    {
+        var warehouseId = WarehouseId.New();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var order = Order.Create(OrderType.TakeAway, warehouseId);
+        await _orderRepo.AddAsync(order);
+
+        // 2 units @ 116.00 (16% Tax-Inclusive) -> Gross 232.00, Pre-tax Base 200.00, Inclusive Tax 32.00
+        var incLine = OrderLine.Create(
+            order.Id,
+            ProductVariantId.New(),
+            2m,
+            116m,
+            16m,
+            true,
+            taxClassification: "Taxable",
+            taxAuthority: "PRA",
+            taxCode: "PK-PRA-16");
+        incLine.SetTaxSnapshot("Taxable", "PRA", "PK-PRA-16", 200m, 0m, 32m, "CBOS-TaxPolicy-NetOfDiscount-v1");
+        order.AddOrderLine(incLine.Id);
+        await _orderLineRepo.AddAsync(incLine);
+
+        order.AssignDailySalesNumber(1);
+        order.Complete();
+
+        // Refund 1 unit: 116.00 payable (100.00 pre-tax base + 16.00 inclusive tax)
+        var refund = Refund.Create(
+            RefundNumber.Generate(DateTimeOffset.UtcNow),
+            order.Id,
+            BranchId.New(),
+            warehouseId,
+            Guid.NewGuid(),
+            "Cashier",
+            "Inclusive Tax Partial Return",
+            "IDEM-INC-1",
+            RefundSettlementMethod.CashPayout);
+
+        var refLine = RefundLine.Create(
+            refund.Id,
+            incLine.Id,
+            incLine.ProductVariantId,
+            "SKU-INC",
+            "Inclusive Meal",
+            1m,
+            116m,
+            0m,
+            16m,
+            116m,
+            "Taxable",
+            "PK-PRA-16",
+            16m,
+            true,
+            InventoryDisposition.Restock);
+        refund.AddLine(refLine);
+        refund.FinalizeFinancials(116m, 0m, 16m, 116m, "{}");
+        await _refundRepo.AddAsync(refund);
+
+        var queryHandler = new GetTaxSummaryReportQueryHandler(_orderRepo, _orderLineRepo, _refundRepo);
+        var report = await queryHandler.Handle(
+            new GetTaxSummaryReportQuery(warehouseId.Value, today.AddDays(-1), today.AddDays(1)),
+            CancellationToken.None);
+
+        Assert.Equal(200.00m, report.TaxableSalesBase);
+        Assert.Equal(200.00m, report.SalesExcludingTax);
+        Assert.Equal(32.00m, report.TotalTaxCharged);
+        Assert.Equal(16.00m, report.TotalTaxRefunded);
+        Assert.Equal(16.00m, report.NetTaxPayable);
+        Assert.Equal(100.00m, report.NetSales);
+    }
 }

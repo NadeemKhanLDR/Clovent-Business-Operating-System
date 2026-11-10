@@ -265,7 +265,8 @@ public class TableSelectionDineInTests
             new FakePaymentRepository(),
             new FakeCustomerRepository(),
             new FakeCustomerLedgerEntryRepository(),
-            new FakePaymentMethodRepository());
+            new FakePaymentMethodRepository(),
+            new FakeCustomerPaymentAllocationRepository());
 
         var voided = await voidHandler.Handle(new VoidOrderCommand(created.OrderId, "Void order"), CancellationToken.None);
 

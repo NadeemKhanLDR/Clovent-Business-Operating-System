@@ -433,7 +433,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
             var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
             var cashMethodIds = methods
-                .Where(m => string.Equals(m.Name.Value, "Cash", StringComparison.OrdinalIgnoreCase))
+                .Where(m => PaymentMethodClassifier.IsCash(m.Name.Value))
                 .Select(m => m.Id.Value)
                 .ToHashSet();
 
@@ -468,14 +468,14 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
             var methods = await _paymentMethodRepository.GetAllAsync(cancellationToken);
             var cardMethodIds = methods
-                .Where(m => string.Equals(m.Name.Value, "Card", StringComparison.OrdinalIgnoreCase))
+                .Where(m => PaymentMethodClassifier.IsCard(m.Name.Value))
                 .Select(m => m.Id.Value)
                 .ToHashSet();
 
             if (cardMethodIds.Count == 0)
             {
                 throw RestaurantDomainException.CardRefundPaymentMethodValidationUnavailable(
-                    "No 'Card' payment method is configured; cannot verify original card tender cap.");
+                    "No 'Card', 'Credit Card', or 'Debit Card' payment method is configured; cannot verify original card tender cap.");
             }
 
             var totalCardPaid = payments
@@ -679,11 +679,22 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             throw RestaurantDomainException.IdempotencyKeyConflict(request.IdempotencyKey);
         }
 
-        var lineMap = existing.Lines.ToDictionary(l => l.OrderLineId.Value);
-        foreach (var reqItem in request.Items)
+        var existingGrouped = existing.Lines
+            .GroupBy(l => (OrderLineId: l.OrderLineId.Value, Disposition: l.InventoryDisposition))
+            .ToDictionary(g => g.Key, g => g.Sum(l => l.Quantity));
+
+        var requestGrouped = request.Items
+            .GroupBy(i => (i.OrderLineId, i.Disposition))
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.Quantity));
+
+        if (existingGrouped.Count != requestGrouped.Count)
         {
-            if (!lineMap.TryGetValue(reqItem.OrderLineId, out var existingLine) ||
-                existingLine.Quantity != reqItem.Quantity)
+            throw RestaurantDomainException.IdempotencyKeyConflict(request.IdempotencyKey);
+        }
+
+        foreach (var (key, qty) in requestGrouped)
+        {
+            if (!existingGrouped.TryGetValue(key, out var existingQty) || existingQty != qty)
             {
                 throw RestaurantDomainException.IdempotencyKeyConflict(request.IdempotencyKey);
             }

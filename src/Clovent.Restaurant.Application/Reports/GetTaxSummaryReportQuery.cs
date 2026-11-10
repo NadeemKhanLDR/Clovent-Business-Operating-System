@@ -149,9 +149,14 @@ public sealed class GetTaxSummaryReportQueryHandler(
             .OrderBy(b => b.TaxCode)
             .ToList();
 
-        decimal salesExcludingTax = MoneyRoundingPolicy.RoundMoney(grossSales - totalDiscounts);
+        decimal refundedSalesExclTax = refundsInRange.Sum(r =>
+            r.Lines.Count > 0
+                ? r.Lines.Sum(rl => rl.GrossAmount - rl.DiscountReversed - (rl.TaxIsInclusive ? rl.TaxReversed : 0m))
+                : (r.SubtotalRefunded - r.DiscountReversedTotal));
+
+        decimal salesExcludingTax = MoneyRoundingPolicy.RoundMoney(taxableBase + zeroRatedSales + exemptSales + outOfScopeSales);
         decimal netTaxPayable = MoneyRoundingPolicy.RoundMoney(totalTaxCharged - totalTaxRefunded);
-        decimal netSales = MoneyRoundingPolicy.RoundMoney(salesExcludingTax - refundsInRange.Sum(r => r.SubtotalRefunded - r.DiscountReversedTotal));
+        decimal netSales = MoneyRoundingPolicy.RoundMoney(salesExcludingTax - refundedSalesExclTax);
 
         return new TaxSummaryReportDto(
             request.WarehouseId,

@@ -1,10 +1,11 @@
 using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Orders.Dtos;
-using Clovent.Restaurant.Orders;
-using Clovent.Restaurant.Tables;
-using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Customers;
+using Clovent.Restaurant.DomainServices;
+using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.PaymentMethods;
+using Clovent.Restaurant.Payments;
+using Clovent.Restaurant.Tables;
 using MediatR;
 
 namespace Clovent.Restaurant.Application.Orders.Commands;
@@ -20,12 +21,26 @@ public sealed class VoidOrderCommandHandler(
     ICustomerRepository customerRepository,
     ICustomerLedgerEntryRepository ledgerRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null,
+    ICustomerPaymentAllocationRepository allocationRepository,
     Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null)
     : IRequestHandler<VoidOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(VoidOrderCommand request, CancellationToken cancellationToken)
+    {
+        var orderLock = OrderTransactionLocks.GetLock(request.OrderId);
+        await orderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            orderLock.Release();
+        }
+    }
+
+    private async Task<OrderDto> HandleCoreAsync(VoidOrderCommand request, CancellationToken cancellationToken)
     {
         var order = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
@@ -43,12 +58,10 @@ public sealed class VoidOrderCommandHandler(
             var paymentMethod = await paymentMethodRepository.GetByIdAsync(payment.PaymentMethodId, cancellationToken);
             if (paymentMethod is not null)
             {
-                var isCredit = string.Equals(paymentMethod.Name.Value, "On Account", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(paymentMethod.Name.Value, "Customer Account", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(paymentMethod.Name.Value, "Credit", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(paymentMethod.Name.Value, "Customer Credit", StringComparison.OrdinalIgnoreCase);
+                var isCredit = PaymentMethodClassifier.IsOnAccountCredit(paymentMethod.Name.Value);
+                var isAdvance = PaymentMethodClassifier.IsCustomerAdvance(paymentMethod.Name.Value);
 
-                if (isCredit && order.CustomerId is { } customerId)
+                if ((isCredit || isAdvance) && order.CustomerId is { } customerId)
                 {
                     var customer = await customerRepository.GetByIdAsync(customerId, cancellationToken);
                     if (customer is not null)
@@ -56,10 +69,14 @@ public sealed class VoidOrderCommandHandler(
                         customer.AdjustBalance(-payment.Amount);
                         await customerRepository.UpdateAsync(customer, cancellationToken);
 
+                        var desc = isAdvance
+                            ? $"Void Advance Settlement ({order.OrderNumber.Value})"
+                            : $"Void Order Reversal ({order.OrderNumber.Value})";
+
                         var ledgerEntry = CustomerLedgerEntry.Create(
                             customer.Id,
                             $"VOID-ORD-{order.Id.Value}",
-                            $"Void Order Reversal ({order.OrderNumber.Value})",
+                            desc,
                             0m,
                             payment.Amount,
                             customer.OutstandingBalance);
@@ -70,13 +87,10 @@ public sealed class VoidOrderCommandHandler(
             payment.Void();
         }
 
-        if (allocationRepository is not null)
+        var allocations = await allocationRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+        foreach (var alloc in allocations)
         {
-            var allocations = await allocationRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-            foreach (var alloc in allocations)
-            {
-                await allocationRepository.RemoveAsync(alloc, cancellationToken);
-            }
+            await allocationRepository.RemoveAsync(alloc, cancellationToken);
         }
 
         if (order.TableId is { } tableId)
