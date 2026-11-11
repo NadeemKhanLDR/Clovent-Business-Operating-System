@@ -29,6 +29,14 @@ public sealed class VoidOrderCommandHandler(
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(VoidOrderCommand request, CancellationToken cancellationToken)
     {
+        var (claimed, leasedResult) = await TransactionLockManager
+            .TryRunUnderPipelineLeaseAsync(request, () => HandleCoreAsync(request, cancellationToken))
+            .ConfigureAwait(false);
+        if (claimed)
+        {
+            return leasedResult;
+        }
+
         var orderId = new OrderId(request.OrderId);
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken);
         var payments = await paymentRepository.GetByOrderIdAsync(orderId, cancellationToken);
@@ -43,7 +51,8 @@ public sealed class VoidOrderCommandHandler(
             }
         }
 
-        return await TransactionLockManager.ExecuteWithLocksAsync(
+        return await TransactionLockManager.ExecuteForRequestAsync(
+            request,
             keys,
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken)).ConfigureAwait(false);

@@ -50,6 +50,14 @@ public sealed class RecordPaymentCommandHandler(
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
+        var (claimed, leasedResult) = await TransactionLockManager
+            .TryRunUnderPipelineLeaseAsync(request, () => HandleCoreAsync(request, cancellationToken))
+            .ConfigureAwait(false);
+        if (claimed)
+        {
+            return leasedResult;
+        }
+
         for (var attempt = 0; attempt < 2; attempt++)
         {
             var preReadOrder = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false);
@@ -61,19 +69,17 @@ public sealed class RecordPaymentCommandHandler(
             keys.Add(TransactionLockKey.ForOrder(request.OrderId));
 
             var retryNeeded = false;
-            var result = await TransactionLockManager.ExecuteWithLocksAsync<PaymentDto>(
+            var result = await TransactionLockManager.ExecuteForRequestAsync<PaymentDto>(
+                request,
                 keys,
                 cancellationToken,
                 async () =>
                 {
-                    if (attempt == 0)
+                    var rechecked = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false);
+                    if (rechecked?.CustomerId?.Value != preReadCustomerId)
                     {
-                        var rechecked = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken).ConfigureAwait(false);
-                        if (rechecked?.CustomerId?.Value != preReadCustomerId)
-                        {
-                            retryNeeded = true;
-                            return default!;
-                        }
+                        retryNeeded = true;
+                        return default!;
                     }
 
                     return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
@@ -85,7 +91,7 @@ public sealed class RecordPaymentCommandHandler(
             }
         }
 
-        return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+        throw new InvalidOperationException("Order customer changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.");
     }
 
     private async Task<PaymentDto> HandleCoreAsync(RecordPaymentCommand request, CancellationToken cancellationToken)

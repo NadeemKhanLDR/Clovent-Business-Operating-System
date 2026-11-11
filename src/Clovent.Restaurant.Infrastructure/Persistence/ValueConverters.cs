@@ -124,7 +124,7 @@ internal static class ValueConverters
     /// <summary><see cref="Order.OrderLineIds"/>'s change-tracking comparer - identical reasoning to <c>CompanyIdsComparer</c>.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<OrderLineId>> OrderLineIdsComparer = new(
         (a, b) => (a ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToHashSet());
 
     /// <summary><see cref="Order.DiscountIds"/> &lt;-&gt; a JSON array of discount id GUIDs.</summary>
@@ -135,7 +135,7 @@ internal static class ValueConverters
     /// <summary><see cref="Order.DiscountIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<DiscountId>> DiscountIdsComparer = new(
         (a, b) => (a ?? Array.Empty<DiscountId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<DiscountId>()).OrderBy(i => i.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<DiscountId>()).OrderBy(i => i.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToHashSet());
 
     /// <summary><see cref="Order.ServiceChargeIds"/> &lt;-&gt; a JSON array of service charge id GUIDs.</summary>
@@ -146,7 +146,7 @@ internal static class ValueConverters
     /// <summary><see cref="Order.ServiceChargeIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<ServiceChargeId>> ServiceChargeIdsComparer = new(
         (a, b) => (a ?? Array.Empty<ServiceChargeId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<ServiceChargeId>()).OrderBy(i => i.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<ServiceChargeId>()).OrderBy(i => i.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToHashSet());
 
     /// <summary><see cref="Order.PaymentIds"/> &lt;-&gt; a JSON array of payment id GUIDs.</summary>
@@ -157,7 +157,7 @@ internal static class ValueConverters
     /// <summary><see cref="Order.PaymentIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<PaymentId>> PaymentIdsComparer = new(
         (a, b) => (a ?? Array.Empty<PaymentId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<PaymentId>()).OrderBy(i => i.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<PaymentId>()).OrderBy(i => i.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToHashSet());
 
     /// <summary><see cref="KitchenTicket.OrderLineIds"/> &lt;-&gt; a JSON array of order line id GUIDs (the send-time snapshot - see <see cref="KitchenTicket"/>'s doc comment).</summary>
@@ -168,7 +168,7 @@ internal static class ValueConverters
     /// <summary><see cref="KitchenTicket.OrderLineIds"/>'s change-tracking comparer.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<OrderLineId>> KitchenTicketOrderLineIdsComparer = new(
         (a, b) => (a ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).SequenceEqual((b ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<OrderLineId>()).OrderBy(i => i.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToHashSet());
 
     /// <summary><see cref="CustomerId"/> &lt;-&gt; <see cref="Guid"/>.</summary>

@@ -27,18 +27,34 @@ public sealed class ShiftRepository(RestaurantDbContext dbContext) : IShiftRepos
     }
 
     /// <inheritdoc/>
-    public async Task<Shift?> GetActiveShiftForTerminalAsync(TerminalId terminalId, CancellationToken cancellationToken = default) =>
-        await dbContext.Shifts
+    public async Task<Shift?> GetActiveShiftForTerminalAsync(TerminalId terminalId, CancellationToken cancellationToken = default)
+    {
+        foreach (var tracked in dbContext.Shifts.Local.Where(s => s.TerminalId == terminalId).ToArray())
+        {
+            if (dbContext.Entry(tracked).State == EntityState.Unchanged)
+                await dbContext.Entry(tracked).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await dbContext.Shifts
             .Include(s => s.CashMovements)
             .FirstOrDefaultAsync(s => s.TerminalId == terminalId && s.Status == ShiftStatus.Open, cancellationToken)
             .ConfigureAwait(false);
+    }
 
     /// <inheritdoc/>
-    public async Task<Shift?> GetActiveShiftForCashierAsync(UserId cashierId, CancellationToken cancellationToken = default) =>
-        await dbContext.Shifts
+    public async Task<Shift?> GetActiveShiftForCashierAsync(UserId cashierId, CancellationToken cancellationToken = default)
+    {
+        foreach (var tracked in dbContext.Shifts.Local.Where(s => s.CashierId == cashierId).ToArray())
+        {
+            if (dbContext.Entry(tracked).State == EntityState.Unchanged)
+                await dbContext.Entry(tracked).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return await dbContext.Shifts
             .Include(s => s.CashMovements)
             .FirstOrDefaultAsync(s => s.CashierId == cashierId && s.Status == ShiftStatus.Open, cancellationToken)
             .ConfigureAwait(false);
+    }
 
     /// <inheritdoc/>
     public async Task<IReadOnlyList<Shift>> SearchShiftsAsync(

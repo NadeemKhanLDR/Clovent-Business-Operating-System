@@ -65,7 +65,8 @@ public sealed class RecordBulkCustomerPaymentsCommandHandler(
             }
         }
 
-        return TransactionLockManager.ExecuteWithLocksAsync(
+        return TransactionLockManager.ExecuteForRequestAsync(
+            request,
             keys,
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));
@@ -150,13 +151,17 @@ public sealed class RecordBulkCustomerPaymentsCommandHandler(
                 ? item.Reference.Trim()
                 : batchRef;
 
-            var res = await singleHandler.Handle(new RecordCustomerPaymentCommand(
+            var singleCommand = new RecordCustomerPaymentCommand(
                 item.CustomerId,
                 item.Amount,
                 item.PaymentMethodName,
                 refVal,
                 combinedNotes,
-                request.ShiftId), cancellationToken);
+                request.ShiftId);
+
+            var res = await TransactionLockManager.ExecuteNestedRequestAsync(
+                singleCommand,
+                () => singleHandler.Handle(singleCommand, cancellationToken));
 
             results.Add(res);
             totalReceived += res.PaymentReceived;

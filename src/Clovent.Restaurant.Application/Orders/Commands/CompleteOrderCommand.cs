@@ -50,7 +50,8 @@ public sealed class CompleteOrderCommandHandler(
 {
     /// <inheritdoc/>
     public Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken) =>
-        TransactionLockManager.ExecuteWithLocksAsync(
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
             [TransactionLockKey.ForOrder(request.OrderId)],
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));

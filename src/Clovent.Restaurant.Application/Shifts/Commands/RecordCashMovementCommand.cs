@@ -26,7 +26,8 @@ public sealed class RecordCashMovementCommandHandler(
 {
     /// <inheritdoc/>
     public Task<CashMovementDto> Handle(RecordCashMovementCommand request, CancellationToken cancellationToken) =>
-        TransactionLockManager.ExecuteWithLocksAsync(
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
             [TransactionLockKey.ForShift(request.ShiftId)],
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));

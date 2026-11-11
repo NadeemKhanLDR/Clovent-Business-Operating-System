@@ -256,18 +256,19 @@ public sealed class FirstRunWizardLayoutTests
         {
             var field = typeof(FirstRunWizardForm).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
             var lbl = (LabelControl)field!.GetValue(form)!;
+            var bounds = GetBoundsRelativeTo(lbl, grpPrerequisites);
 
-            Assert.True(lbl.Top >= 28, $"Control {name} Top ({lbl.Top}) is too high and cuts into the card header.");
-            Assert.True(lbl.Top + lbl.Height <= grpPrerequisites.Height,
-                $"Control {name} Bottom ({lbl.Top + lbl.Height}) exceeds card height ({grpPrerequisites.Height}).");
-            Assert.True(lbl.Left >= 16, $"Control {name} Left ({lbl.Left}) is too close to the card edge.");
+            Assert.True(bounds.Top >= 28, $"Control {name} Top ({bounds.Top}) is too high and cuts into the card header.");
+            Assert.True(bounds.Bottom <= grpPrerequisites.Height,
+                $"Control {name} Bottom ({bounds.Bottom}) exceeds card height ({grpPrerequisites.Height}).");
+            Assert.True(bounds.Left >= 16, $"Control {name} Left ({bounds.Left}) is too close to the card edge.");
 
             if (prevPrereqTop > 0)
             {
-                int rowDelta = lbl.Top - prevPrereqTop;
+                int rowDelta = bounds.Top - prevPrereqTop;
                 Assert.True(rowDelta >= 26, $"Row delta {rowDelta}px between prerequisite rows is too tight.");
             }
-            prevPrereqTop = lbl.Top;
+            prevPrereqTop = bounds.Top;
         }
 
         // Verify Detection controls inside container
@@ -277,19 +278,34 @@ public sealed class FirstRunWizardLayoutTests
         {
             var field = typeof(FirstRunWizardForm).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance);
             var lbl = (LabelControl)field!.GetValue(form)!;
+            var bounds = GetBoundsRelativeTo(lbl, grpSystemDetection);
 
-            Assert.True(lbl.Top >= 28, $"Control {name} Top ({lbl.Top}) is too high and cuts into the card header.");
-            Assert.True(lbl.Top + lbl.Height <= grpSystemDetection.Height,
-                $"Control {name} Bottom ({lbl.Top + lbl.Height}) exceeds card height ({grpSystemDetection.Height}).");
-            Assert.True(lbl.Left >= 16, $"Control {name} Left ({lbl.Left}) is too close to the card edge.");
+            Assert.True(bounds.Top >= 28, $"Control {name} Top ({bounds.Top}) is too high and cuts into the card header.");
+            Assert.True(bounds.Bottom <= grpSystemDetection.Height,
+                $"Control {name} Bottom ({bounds.Bottom}) exceeds card height ({grpSystemDetection.Height}).");
+            Assert.True(bounds.Left >= 16, $"Control {name} Left ({bounds.Left}) is too close to the card edge.");
 
             if (prevDetectTop > 0)
             {
-                int rowDelta = lbl.Top - prevDetectTop;
+                int rowDelta = bounds.Top - prevDetectTop;
                 Assert.True(rowDelta >= 26, $"Row delta {rowDelta}px between detection rows is too tight.");
             }
-            prevDetectTop = lbl.Top;
+            prevDetectTop = bounds.Top;
         }
+    }
+
+    private static Rectangle GetBoundsRelativeTo(Control control, Control ancestor)
+    {
+        var location = control.Location;
+        var parent = control.Parent;
+        while (parent is not null && !ReferenceEquals(parent, ancestor))
+        {
+            location.Offset(parent.Location);
+            parent = parent.Parent;
+        }
+
+        Assert.Same(ancestor, parent);
+        return new Rectangle(location, control.Size);
     }
 
     [Theory]

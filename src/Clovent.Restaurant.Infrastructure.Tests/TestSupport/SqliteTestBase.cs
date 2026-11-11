@@ -12,7 +12,7 @@ public abstract class SqliteTestBase : IDisposable
     private readonly SqliteConnection _connection;
     private readonly DbContextOptions<RestaurantDbContext> _options;
 
-    private sealed class SqliteDateTimeOffsetCustomizer(ModelCustomizerDependencies dependencies) : ModelCustomizer(dependencies)
+    internal sealed class SqliteDateTimeOffsetCustomizer(ModelCustomizerDependencies dependencies) : ModelCustomizer(dependencies)
     {
         public override void Customize(ModelBuilder modelBuilder, DbContext context)
         {

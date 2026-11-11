@@ -10,8 +10,13 @@ namespace Clovent.Restaurant.Infrastructure.Repositories;
 public sealed class TableRepository(RestaurantDbContext dbContext) : ITableRepository
 {
     /// <inheritdoc/>
-    public async Task<Table?> GetByIdAsync(TableId id, CancellationToken cancellationToken = default) =>
-        await dbContext.Tables.FirstOrDefaultAsync(t => t.Id == id, cancellationToken).ConfigureAwait(false);
+    public async Task<Table?> GetByIdAsync(TableId id, CancellationToken cancellationToken = default)
+    {
+        var tracked = dbContext.Tables.Local.FirstOrDefault(t => t.Id == id);
+        if (tracked is not null && dbContext.Entry(tracked).State == EntityState.Unchanged)
+            await dbContext.Entry(tracked).ReloadAsync(cancellationToken).ConfigureAwait(false);
+        return await dbContext.Tables.FirstOrDefaultAsync(t => t.Id == id, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <inheritdoc/>
     public async Task<Table?> GetByCodeAsync(DiningAreaId diningAreaId, EntityCode code, CancellationToken cancellationToken = default) =>

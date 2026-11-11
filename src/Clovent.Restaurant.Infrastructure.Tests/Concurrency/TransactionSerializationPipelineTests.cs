@@ -123,7 +123,16 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
     {
         public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            await barrier.PauseIfArmedAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await barrier.PauseIfArmedAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                await inner.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                throw;
+            }
+
             await inner.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
     }
@@ -152,7 +161,10 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
         services.RemoveAll<DbContextOptions<RestaurantDbContext>>();
         services.RemoveAll<DbContextOptions>();
         services.RemoveAll<RestaurantDbContext>();
-        var sqliteOptions = new DbContextOptionsBuilder<RestaurantDbContext>().UseSqlite(_connectionString).Options;
+        var sqliteOptions = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseSqlite(_connectionString)
+            .ReplaceService<Microsoft.EntityFrameworkCore.Infrastructure.IModelCustomizer, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SqliteTestBase.SqliteDateTimeOffsetCustomizer>()
+            .Options;
         services.AddSingleton(sqliteOptions);
         services.AddSingleton<DbContextOptions>(sqliteOptions);
         services.AddScoped(sp => new RestaurantDbContext(sp.GetRequiredService<DbContextOptions<RestaurantDbContext>>()));
@@ -197,7 +209,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
         });
 
         // Wait until Scope 1's handler has returned and UnitOfWorkBehavior is paused right BEFORE SaveChangesAsync commits
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), scope1Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (scope1Task.IsCompleted)
+        {
+            await scope1Task;
+        }
 
         var scope2Task = Task.Run(async () =>
         {
@@ -258,7 +274,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
             return await m1.Send(new RecordPaymentCommand(order1.Id.Value, onAccountMethod.Id.Value, 800m));
         });
 
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), scope1Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (scope1Task.IsCompleted)
+        {
+            await scope1Task;
+        }
 
         var scope2Task = Task.Run(async () =>
         {
@@ -321,7 +341,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
                 .Send(new RecordPaymentCommand(order1.Id.Value, advanceMethod.Id.Value, 500m));
         });
 
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), scope1Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (scope1Task.IsCompleted)
+        {
+            await scope1Task;
+        }
 
         var scope2Task = Task.Run(async () =>
         {
@@ -381,7 +405,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
                 .Send(new CloseShiftCommand(shift.Id.Value, 1000m));
         });
 
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), closeTask).WaitAsync(TimeSpan.FromSeconds(10));
+        if (closeTask.IsCompleted)
+        {
+            await closeTask;
+        }
 
         var payTask = Task.Run(async () =>
         {
@@ -433,7 +461,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
                 .Send(new CloseShiftCommand(shift.Id.Value, 500m));
         });
 
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), closeTask).WaitAsync(TimeSpan.FromSeconds(10));
+        if (closeTask.IsCompleted)
+        {
+            await closeTask;
+        }
 
         var collectTask = Task.Run(async () =>
         {
@@ -493,7 +525,11 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
                 .Send(new CloseShiftCommand(shift.Id.Value, 1000m));
         });
 
-        await barrier.WaitUntilSaveEnteredAsync();
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), closeTask).WaitAsync(TimeSpan.FromSeconds(10));
+        if (closeTask.IsCompleted)
+        {
+            await closeTask;
+        }
 
         var refundTask = Task.Run(async () =>
         {
@@ -519,5 +555,252 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
 
         Assert.False(finishedEarly, "Cash refund executed against closing shift while CloseShift was saving.");
         await Assert.ThrowsAsync<Clovent.Restaurant.RestaurantDomainException>(() => refundTask);
+    }
+
+    [Fact]
+    public async Task RecordBulkCustomerPayments_ThroughPipeline_ExecutesNestedCustomerPaymentsAndSerializesThroughSaveChanges()
+    {
+        var barrier = new BarrierControl();
+        await using var sp = BuildTestServiceProvider(barrier);
+
+        var warehouseId = WarehouseId.New();
+        var terminalId = TerminalId.New();
+        var branchId = BranchId.New();
+        var cashierId = Guid.NewGuid();
+        var shift = Shift.Open(1, branchId, warehouseId, terminalId, new Clovent.Identity.Users.UserId(cashierId), "Cashier", 0m);
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var customer1 = Customer.Create(EntityCode.Create("BULK-1"), "Bulk Customer 1", "03000000001", "Addr 1", null, 300m, 1000m, null);
+        var customer2 = Customer.Create(EntityCode.Create("BULK-2"), "Bulk Customer 2", "03000000002", "Addr 2", null, 200m, 1000m, null);
+
+        using (var seedScope = sp.CreateScope())
+        {
+            var db = seedScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await db.Shifts.AddAsync(shift);
+            await db.PaymentMethods.AddAsync(cashMethod);
+            await db.Customers.AddAsync(customer1);
+            await db.Customers.AddAsync(customer2);
+            await db.SaveChangesAsync();
+        }
+
+        barrier.ArmOnce();
+
+        var bulkTask = Task.Run(async () =>
+        {
+            using var s1 = sp.CreateScope();
+            return await s1.ServiceProvider.GetRequiredService<IMediator>().Send(
+                new RecordBulkCustomerPaymentsCommand(
+                    [
+                        new BulkCustomerPaymentItem(customer1.Id.Value, 100m, "Cash", Notes: "Item 1"),
+                        new BulkCustomerPaymentItem(customer2.Id.Value, 150m, "Cash", Notes: "Item 2")
+                    ],
+                    shift.Id.Value,
+                    "BULK-PIPE-1"));
+        });
+
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), bulkTask).WaitAsync(TimeSpan.FromSeconds(10));
+        if (bulkTask.IsCompleted)
+        {
+            await bulkTask;
+        }
+
+        var competingTask = Task.Run(async () =>
+        {
+            using var s2 = sp.CreateScope();
+            return await s2.ServiceProvider.GetRequiredService<IMediator>().Send(
+                new RecordCustomerPaymentCommand(customer1.Id.Value, 50m, "Cash", ShiftId: shift.Id.Value));
+        });
+
+        var finishedEarly = await Task.WhenAny(competingTask, Task.Delay(150)) == competingTask;
+        barrier.ReleaseSave();
+
+        var bulkResult = await bulkTask;
+        var competingResult = await competingTask;
+
+        Assert.False(finishedEarly, "Competing single customer payment bypassed outer bulk locks before SaveChangesAsync completed.");
+        Assert.Equal(2, bulkResult.TotalPayments);
+        Assert.Equal(250m, bulkResult.TotalReceived);
+        Assert.Equal(200m, competingResult.OutstandingBefore);
+        Assert.Equal(150m, competingResult.OutstandingAfter);
+    }
+
+    [Fact]
+    public async Task RecordPayment_CancellationInsideSaveChanges_HoldsLockUntilUnitOfWorkCleanupCompletes_ThenNextScopeCommitsOnce()
+    {
+        var barrier = new BarrierControl();
+        await using var sp = BuildTestServiceProvider(barrier);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 500m, 0m, false);
+        order.AddOrderLine(line.Id);
+
+        using (var seedScope = sp.CreateScope())
+        {
+            var db = seedScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await db.PaymentMethods.AddAsync(cashMethod);
+            await db.Orders.AddAsync(order);
+            await db.OrderLines.AddAsync(line);
+            await db.SaveChangesAsync();
+        }
+
+        barrier.ArmOnce();
+        using var cts = new CancellationTokenSource();
+
+        using var scope1 = sp.CreateScope();
+        var db1 = scope1.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+        var scope1Task = scope1.ServiceProvider.GetRequiredService<IMediator>()
+            .Send(new RecordPaymentCommand(order.Id.Value, cashMethod.Id.Value, 500m, IdempotencyKey: "cancel-cleanup"), cts.Token);
+
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), scope1Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (scope1Task.IsCompleted)
+        {
+            await scope1Task;
+        }
+
+        var scope2Task = Task.Run(async () =>
+        {
+            using var s2 = sp.CreateScope();
+            return await s2.ServiceProvider.GetRequiredService<IMediator>()
+                .Send(new RecordPaymentCommand(order.Id.Value, cashMethod.Id.Value, 500m, IdempotencyKey: "scope2-clean"));
+        });
+
+        var finishedEarly = await Task.WhenAny(scope2Task, Task.Delay(150)) == scope2Task;
+        Assert.False(finishedEarly);
+
+        await cts.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => scope1Task);
+
+        Assert.Empty(db1.ChangeTracker.Entries());
+        var secondResult = await scope2Task;
+        Assert.Equal(500m, secondResult.Amount);
+
+        using var verifyScope = sp.CreateScope();
+        var payments = await verifyScope.ServiceProvider.GetRequiredService<IPaymentRepository>()
+            .GetByOrderIdAsync(order.Id);
+        var saved = Assert.Single(payments);
+        Assert.Equal("scope2-clean", saved.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task PreloadedStaleEntitiesInSameScope_ReloadFreshStateAfterWaitingOnLock()
+    {
+        var barrier = new BarrierControl();
+        await using var sp = BuildTestServiceProvider(barrier);
+
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line = OrderLine.Create(order.Id, ProductVariantId.New(), 1m, 500m, 0m, false);
+        order.AddOrderLine(line.Id);
+
+        using (var seedScope = sp.CreateScope())
+        {
+            var db = seedScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await db.PaymentMethods.AddAsync(cashMethod);
+            await db.Orders.AddAsync(order);
+            await db.OrderLines.AddAsync(line);
+            await db.SaveChangesAsync();
+        }
+
+        using var scope2 = sp.CreateScope();
+        var preloadedOrder = await scope2.ServiceProvider.GetRequiredService<IOrderRepository>()
+            .GetByIdAsync(order.Id);
+        Assert.NotNull(preloadedOrder);
+        Assert.Equal(OrderStatus.Open, preloadedOrder.Status);
+
+        barrier.ArmOnce();
+
+        var scope1Task = Task.Run(async () =>
+        {
+            using var s1 = sp.CreateScope();
+            var m1 = s1.ServiceProvider.GetRequiredService<IMediator>();
+            await m1.Send(new RecordPaymentCommand(order.Id.Value, cashMethod.Id.Value, 500m, IdempotencyKey: "pay-before-complete"));
+        });
+
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), scope1Task).WaitAsync(TimeSpan.FromSeconds(10));
+        if (scope1Task.IsCompleted)
+        {
+            await scope1Task;
+        }
+
+        var scope2Task = scope2.ServiceProvider.GetRequiredService<IMediator>()
+            .Send(new RecordPaymentCommand(order.Id.Value, cashMethod.Id.Value, 500m, IdempotencyKey: "stale-scope2"));
+
+        await Task.Delay(120);
+        Assert.False(scope2Task.IsCompleted);
+        barrier.ReleaseSave();
+
+        await scope1Task;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => scope2Task);
+    }
+
+    [Fact]
+    public async Task DirectHandlerExecution_RecordBulkCustomerPayments_RemainsConsistentWithPipelineSerialization()
+    {
+        var barrier = new BarrierControl();
+        await using var sp = BuildTestServiceProvider(barrier);
+
+        var branchId = BranchId.New();
+        var warehouseId = WarehouseId.New();
+        var terminalId = TerminalId.New();
+        var shift = Shift.Open(1, branchId, warehouseId, terminalId, new Clovent.Identity.Users.UserId(Guid.NewGuid()), "Cashier", 0m);
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        var customer = Customer.Create(EntityCode.Create("DIRECT-1"), "Direct Handler Customer", "03000000010", "Addr", null, 200m, 1000m, null);
+
+        using (var seedScope = sp.CreateScope())
+        {
+            var db = seedScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await db.Shifts.AddAsync(shift);
+            await db.PaymentMethods.AddAsync(cashMethod);
+            await db.Customers.AddAsync(customer);
+            await db.SaveChangesAsync();
+        }
+
+        barrier.ArmOnce();
+
+        var pipelineTask = Task.Run(async () =>
+        {
+            using var s1 = sp.CreateScope();
+            return await s1.ServiceProvider.GetRequiredService<IMediator>().Send(
+                new RecordBulkCustomerPaymentsCommand(
+                    [new BulkCustomerPaymentItem(customer.Id.Value, 120m, "Cash", Notes: "Via pipeline")],
+                    shift.Id.Value,
+                    "BULK-PIPE-DIRECT-1"));
+        });
+
+        await Task.WhenAny(barrier.WaitUntilSaveEnteredAsync(), pipelineTask).WaitAsync(TimeSpan.FromSeconds(10));
+        if (pipelineTask.IsCompleted)
+        {
+            await pipelineTask;
+        }
+
+        var directTask = Task.Run(async () =>
+        {
+            using var s2 = sp.CreateScope();
+            var directHandler = s2.ServiceProvider.GetRequiredService<IRequestHandler<RecordBulkCustomerPaymentsCommand, BulkCustomerPaymentBatchResult>>();
+            var result = await directHandler.Handle(
+                new RecordBulkCustomerPaymentsCommand(
+                    [new BulkCustomerPaymentItem(customer.Id.Value, 80m, "Cash", Notes: "Via direct handler")],
+                    shift.Id.Value,
+                    "BULK-DIRECT-2"),
+                CancellationToken.None);
+            await s2.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync();
+            return result;
+        });
+
+        var finishedEarly = await Task.WhenAny(directTask, Task.Delay(150)) == directTask;
+        barrier.ReleaseSave();
+
+        var pipeRes = await pipelineTask;
+        var directRes = await directTask;
+
+        Assert.False(finishedEarly, "Direct handler execution bypassed pipeline locks while SaveChangesAsync was still running.");
+        Assert.Equal(120m, pipeRes.TotalReceived);
+        Assert.Equal(80m, directRes.TotalReceived);
+
+        using var verifyScope = sp.CreateScope();
+        var updated = await verifyScope.ServiceProvider.GetRequiredService<ICustomerRepository>().GetByIdAsync(customer.Id);
+        Assert.NotNull(updated);
+        Assert.Equal(0m, updated.OutstandingBalance);
     }
 }

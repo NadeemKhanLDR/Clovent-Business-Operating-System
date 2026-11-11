@@ -51,7 +51,8 @@ public sealed class RecordCustomerPaymentCommandHandler(
             keys.Add(TransactionLockKey.ForShift(request.ShiftId.Value));
         }
 
-        return TransactionLockManager.ExecuteWithLocksAsync(
+        return TransactionLockManager.ExecuteForRequestAsync(
+            request,
             keys,
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));

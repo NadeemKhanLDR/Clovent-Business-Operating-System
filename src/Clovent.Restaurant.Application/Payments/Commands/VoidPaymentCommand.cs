@@ -30,6 +30,14 @@ public sealed class VoidPaymentCommandHandler(
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(VoidPaymentCommand request, CancellationToken cancellationToken)
     {
+        var (claimed, leasedResult) = await TransactionLockManager
+            .TryRunUnderPipelineLeaseAsync(request, () => HandleCoreAsync(new PaymentId(request.PaymentId), cancellationToken))
+            .ConfigureAwait(false);
+        if (claimed)
+        {
+            return leasedResult;
+        }
+
         var payment = await repository.GetByIdAsync(new PaymentId(request.PaymentId), cancellationToken)
             ?? throw new NotFoundException(nameof(Payment), request.PaymentId);
 
@@ -38,7 +46,8 @@ public sealed class VoidPaymentCommandHandler(
         if (payment.ShiftId is { } sid) keys.Add(TransactionLockKey.ForShift(sid.Value));
         if (order?.CustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid.Value));
 
-        return await TransactionLockManager.ExecuteWithLocksAsync(
+        return await TransactionLockManager.ExecuteForRequestAsync(
+            request,
             keys,
             cancellationToken,
             () => HandleCoreAsync(payment.Id, cancellationToken)).ConfigureAwait(false);

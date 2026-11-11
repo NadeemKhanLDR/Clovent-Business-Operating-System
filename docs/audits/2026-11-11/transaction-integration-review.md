@@ -12,9 +12,9 @@ New integration-review branch: audit/transaction-integration-review-20261111, ch
 
 Common ancestor is 8c6fbb07e96254f9ae01cfdd8c2552d2b3e4b74e. Recovery's checkout was clean initially. The other checkout already contained unrelated Designer/screenshot changes, untracked resources and earlier recovery working copies; they were not used as an integration source. Both original branch tips and checkout status lists remain unchanged.
 
-Additional uncommitted edits that appeared earlier (`PipelineLockLease` rewrite, escaped-`AsyncLocal` hardening, `TableRepository` / `CustomerPaymentAllocationRepository` / `ValueConverters` hash sorting edits) were checkpointed separately under `D:\CBOS\Artifacts\transaction-integration-20261111\separate-inflight-files` and `separate-inflight-layer.patch` and are NOT included in this commit.
+Additional hardening from the follow-up pass is now integrated and verified directly on `audit/transaction-integration-review-20261111`: ordered hashing in all five Restaurant `ValueComparer`s (`ValueConverters.cs` + `ValueComparerContractTests.cs`), hardened single-use `PipelineLockLease` + sequential `ExecuteNestedRequestAsync` with canonical hierarchy enforcement (`TransactionLockManager.cs` + `TransactionSerializationBehavior.cs`), direct-handler/pipeline parity across all 10 commands (`RecordPaymentCommand`, `VoidPaymentCommand`, `VoidOrderCommand`, `ProcessRefundCommand`, `RecordBulkCustomerPaymentsCommand`), unchanged tracked-entity reload guards in `ShiftRepository` and `TableRepository`, and Desktop layout/provisioner test fixes (`FirstRunWizardForm.Designer.cs`, `FirstRunWizardLayoutTests.cs`). The original branches, `separate-inflight-layer.patch` artifact, and unrelated Designer edits remain untouched.
 
-Final integration is a two-parent merge on `audit/transaction-integration-review-20261111` combining `11063d7` and `7aad813` while preserving both original branches and worktrees unchanged.
+Final integration and hardening live exclusively on `audit/transaction-integration-review-20261111` (merge commit `b366d0d0e4073f55480551607cb69fe8c1dea35d` -> `4d85c61` -> current HEAD) while preserving both original branches and worktrees unchanged.
 
 ## Findings and conflict decisions
 
@@ -47,9 +47,9 @@ No SQL schema migration, package upgrade, framework target change or persisted o
 
 ## Files modified / created
 
-New focused implementation files are `ITransactionLockProvider.cs`, `SqlTransactionLockProvider.cs`, `ProtectedPaymentAttemptJournal.cs`, `TransactionLockManager.cs`, and `TransactionSerializationBehavior.cs` (`ExecuteForOrderWithCustomerAsync` rechecks customer assignment under lock for up to 2 attempts). `PaymentAttemptRecovery` and the ordinary POS payment path now use durable identity. `VoidOrderCommand` and `RefundOrderDialog` refund-history refresh include the reproduced integration fixes (`ShiftRepository.GetByIdAsync` reloads unchanged tracked shifts before lock re-entry).
+New/hardened implementation files are `ITransactionLockProvider.cs`, `SqlTransactionLockProvider.cs`, `ProtectedPaymentAttemptJournal.cs`, `TransactionLockManager.cs` (single-use mutable-disposal `PipelineLockLease`, zero ambient `AsyncLocal` bypass in `ExecuteWithLocksAsync`, explicit sequential `ExecuteNestedRequestAsync` with canonical `Shift < Customer < Order` violation checks), `TransactionSerializationBehavior.cs` (2-attempt pre-lock/in-lock entity/target recheck loops for `ExecuteForOrderWithCustomerAsync`, `ExecuteForVoidOrderAsync`, and `ExecuteForRefundAsync`), `ValueConverters.cs` (ordered `GetHashCode` across all 5 `HashSet` comparers), and `ShiftRepository.cs` / `TableRepository.cs` (`EntityState.Unchanged` reload guards). `RecordPaymentCommandHandler` retries customer changes on both direct-call attempts and fails closed on repeated target changes matching `TransactionSerializationBehavior`; `VoidPaymentCommand`, `VoidOrderCommand`, and `ProcessRefundCommand` route fallback locking consistently through `ExecuteForRequestAsync`; `RecordBulkCustomerPaymentsCommandHandler` wraps sequential `singleHandler.Handle` calls in `ExecuteNestedRequestAsync`. `FirstRunWizardForm.Designer.cs` adds `Padding(16, 10, 16, 6)` to `prerequisiteLayout` and `detectionLayout` so Step 1 cards preserve edge/header margins without weakening `FirstRunWizardLayoutTests`.
 
-New validation files include `CrossProcessPaymentTests`, `SqlTransactionLockTests`, `SqlTestTargetGuardTests`, `PaymentAttemptJournalTests`, `TransactionLockManagerTests`, and the bounded `Tools/Clovent.Transaction.TestWorker` executable. SQL fixtures now use `SqlTestDatabaseGuard`. Existing recovery tests gain the void/gross-history regressions. No unrelated `DashboardView` or `ManagerAuthorizationForm` Designer edits are included. The committed `PaymentHistoryDialog` Designer restrictions from `7aad813` are included intentionally; rendering remains unverified.
+New validation files include `CrossProcessPaymentTests`, `SqlTransactionLockTests`, `SqlTestTargetGuardTests`, `PaymentAttemptJournalTests`, `TransactionLockManagerTests`, `ValueComparerContractTests`, and the bounded `Tools/Clovent.Transaction.TestWorker` executable. SQL fixtures now use `SqlTestDatabaseGuard`. Existing suites gain void/gross-history, `AsyncLocal` parallel-child and post-exit escape, sequential/canonical nested lock, cancellation/rollback cleanup, stale preloaded-entity reload, and direct-handler parity regressions. No unrelated `DashboardView` or `ManagerAuthorizationForm` Designer edits are included. The committed `PaymentHistoryDialog` Designer restrictions from `7aad813` are included intentionally; rendering remains unverified.
 
 ## SQL target and cleanup verification
 
@@ -59,7 +59,7 @@ Evidence logged via `CBOS_SQL_TEST_EVIDENCE` during the final `Clovent.Restauran
 - Database names must match allowed synthetic prefixes plus a 32-hex GUID; operational names and remote/default server targets reject before opening.
 - Windows integrated authentication only; no credentials are recorded.
 - Provider is Microsoft.EntityFrameworkCore.SqlServer. SELECT DB_NAME() confirms the actual catalog.
-- Reported server version is 17.00.4025. No SQL Server 2022-specific acceptance is inferred.
+- Reported server version is LocalDB `17.00.4025` (`Microsoft.EntityFrameworkCore.SqlServer`). No SQL Server 2022 / version 16 compatibility or acceptance is claimed or inferred from LocalDB v17.
 - Cleanup calls EnsureDeleted and then checks DB_ID(@database) is NULL using the same test identity against master. Cleanup errors are no longer suppressed.
 - 31 created records, 31 unique databases, 31 matching cleanup-verified records (`leaked: 0`). Each has exactly one creation and one verified deletion.
 
@@ -69,28 +69,32 @@ Historical cleanup for the earlier run cannot be independently reconstructed fro
 
 ## Final executed verification
 
-All counts below were executed after the final code edit on the merged tree:
+All counts below were executed after the final code edit on this branch:
 
-| Execution | PASS | FAIL / SKIP |
-|---|---:|---:|
-| Full `Clovent.Restaurant.Infrastructure.Tests` (includes 31 LocalDB databases + SQLite + pipeline) | 160 | 0 / 0 |
-| Full `Clovent.Restaurant.Application.Tests` | 477 | 0 / 0 |
-| Full `Clovent.Restaurant.Tests` | 244 | 0 / 0 |
-| Full `Clovent.Domain.Tests` | 15 | 0 / 0 |
-| Full `Clovent.Inventory.Tests` | 23 | 0 / 0 |
-| Full `Clovent.Inventory.Application.Tests` | 30 | 0 / 0 |
-| Filtered `Clovent.Desktop.Tests` (7 transaction/recovery/composition/dialog suites) | 24 | 0 / 0 |
-| Total (verified transaction/domain/app/infra + focused Desktop scope) | 973 | 0 / 0 |
+| Execution | PASS | FAIL | SKIP |
+|---|---:|---:|---:|
+| Full `Clovent.Restaurant.Infrastructure.Tests` (31 LocalDB + SQLite + EF ValueComparer + pipeline) | 164 | 0 | 0 |
+| Full `Clovent.Restaurant.Application.Tests` | 484 | 0 | 0 |
+| Full `Clovent.Restaurant.Tests` | 244 | 0 | 0 |
+| Full `Clovent.Domain.Tests` | 15 | 0 | 0 |
+| Full `Clovent.Inventory.Tests` | 23 | 0 | 0 |
+| Full `Clovent.Inventory.Application.Tests` | 30 | 0 | 0 |
+| Applicable `Clovent.Desktop.Tests` (after building `Tools\Clovent.Installer.Provisioner`; excluding live-SQL `RuntimeVerificationTests` & `DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTests`) | 1007 | 1 | 7 |
+| **Total executed** | **1967** | **1** | **7** |
 
-Note: An earlier unfiltered non-live-SQL `Clovent.Desktop.Tests` run (998 PASS, 7 SKIP, 10 FAIL) hit 8 failures because `tools\Clovent.Installer.Provisioner` was not built separately, 1 pre-existing layout failure (`FirstRunWizardLayoutTests`), and 1 stale incremental build failure (`LostRefundAcknowledgement`) that passed after `dotnet build --no-incremental`.
+Desktop failure & skip accounting:
+- **1 Failure**: `PrinterSettingsFormTests.CompactDimensions_FitsWithinMdiTabWithoutExcessiveHeight` (`height 570 should be <= 450px`) when executed in the shared `testhost` process after `GlobalTypographyTests` mutates static `DevExpress.XtraEditors.WindowsFormsSettings.DefaultFont` (`Segoe UI >= 10F`, scaling `AutoScaleMode.Font`). Running `PrinterSettingsFormTests` isolated passes `8/8`.
+- **7 Explicit Skips**: `QuickOrderDealLiveAcceptanceTests.Execute_Live_Quick_Order_Deal_Acceptance_Suite`, `RecallOrderDialogScreenshotTests` (2), `LayoutTreeDiagnosticTests` (2), `LiveAcceptanceQaRun.Run_Full_POS_Live_Acceptance_Suite`, `CategorySelectionLiveScreenshotsTest.Generate_Live_Category_Selection_Screenshots`.
+- **2 Explicit Exclusions**: `RuntimeVerificationTests` and `DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTests` (require isolated live SQL target via `CBOS_TEST_SQL_CONNECTION`).
+- **Resolved earlier failures**: `ProvisionerCli_InvalidArguments_FailsBeforeSideEffectsWithExitCode64` (`8/8` pass after building `Tools\Clovent.Installer.Provisioner`), `FirstRunWizardLayoutTests` (`24/24` pass after adding `Padding(16, 10, 16, 6)` to `prerequisiteLayout`/`detectionLayout` and translating label coordinates relative to `GroupControl`), and `LostRefundAcknowledgement_RefreshesHistoryAndReturnsOriginalCommittedRefund` (passes both in `RefundOrderDialogTests` and full Desktop suite).
 
-Full-solution `Debug` (`--no-incremental`) and `Release` (`--no-incremental -p:UseArtifactsOutput=true -p:ArtifactsPath=%TEMP%\cbos-rel-artifacts` due to 0.49 GB free space on `D:\`) builds of `Clovent.BusinessOperatingSystem.slnx` succeeded with `0 Warning(s), 0 Error(s)` (confirming the earlier `SqlRestartRecoveryTests.cs` CS8604 warning is resolved). Temporary Release artifacts on `C:\` were removed after verification.
+Full-solution `Debug` (`--no-incremental`) and `Release` (`--no-incremental -p:UseArtifactsOutput=true -p:ArtifactsPath=%TEMP%\cbos-rel-artifacts` due to 0.49 GB free space on `D:\`) builds of `Clovent.BusinessOperatingSystem.slnx` succeeded with `0 Warning(s), 0 Error(s)`. Temporary Release artifacts on `C:\` were removed after verification.
 
-LIVE UI NOT EXECUTED. VISUAL STUDIO DESIGNER UI NOT EXECUTED. Live operational SQL (`CBOS_TEST_SQL_CONNECTION`) and physical printing remain NOT VERIFIED. No Sandbox, Hyper-V, provisioning, production-data access, main merge, push or packaging.
+LIVE UI NOT EXECUTED. VISUAL STUDIO DESIGNER UI NOT EXECUTED. Live operational SQL (`CBOS_TEST_SQL_CONNECTION`), SQL Server 2022/v16 qualification, and physical printing remain NOT VERIFIED. No Sandbox, Hyper-V, provisioning, production-data access, main merge, push or packaging.
 
 ## Remaining limitations and decisions
 
-**Cross-terminal races:** The four described independent-process cases are REAL SQL SERVER VALIDATED. The protocol requires all participating financial clients to use the same database lock convention. Older/noncooperating clients, ad-hoc SQL, arbitrary forked child tasks sharing an `AsyncLocal` lock flow, and every non-order entity reload edge case remain outside this commit (see the separate `separate-inflight-layer.patch` checkpoint). Deployment must validate application-lock use under the intended least-privileged runtime identity in an approved nonproduction environment; this pass used Windows-integrated disposable test databases and changed no permissions.
+**Cross-terminal races:** The four described independent-process cases are REAL LOCALDB (`17.00.4025`) VALIDATED, and request-bound `PipelineLockLease` + `ExecuteNestedRequestAsync` hardening closes inherited `AsyncLocal` parallel-child and post-exit escapes inside the process while preserving canonical lock ordering (`Shift < Customer < Order`). The protocol requires all participating financial clients to use the same database lock convention; older/noncooperating clients, ad-hoc SQL, and sibling `ValueConverters` outside Restaurant (noted in `Clovent.Identity.Infrastructure\Persistence\ValueConverters.cs`) remain out of scope of this branch. Deployment must validate application-lock use under the intended least-privileged runtime identity and target SQL Server engine version in an approved nonproduction environment; this pass used Windows-integrated disposable LocalDB databases and changed no permissions.
 
 **Restart identity:** Ordinary single-payment identity survives recreation of the coordinator/store on the same terminal, cashier and Windows profile, with real protected files. A literal desktop process restart was not performed. This is not certification of split-tender batch recovery, customer collection workflows, another workstation/profile, database restore/recommissioning or machine loss.
 

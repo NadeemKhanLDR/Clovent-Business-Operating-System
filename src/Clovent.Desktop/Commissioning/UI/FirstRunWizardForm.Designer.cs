@@ -2171,6 +2171,7 @@ partial class FirstRunWizardForm
         this.prerequisiteLayout.Dock = System.Windows.Forms.DockStyle.Top;
         this.prerequisiteLayout.AutoSize = true;
         this.prerequisiteLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+        this.prerequisiteLayout.Padding = new System.Windows.Forms.Padding(16, 10, 16, 6);
         this.prerequisiteLayout.ColumnCount = 1;
         this.prerequisiteLayout.RowCount = 4;
         this.prerequisiteLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -2211,6 +2212,7 @@ partial class FirstRunWizardForm
         this.detectionLayout.Dock = System.Windows.Forms.DockStyle.Top;
         this.detectionLayout.AutoSize = true;
         this.detectionLayout.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+        this.detectionLayout.Padding = new System.Windows.Forms.Padding(16, 10, 16, 6);
         this.detectionLayout.ColumnCount = 1;
         this.detectionLayout.RowCount = 4;
         this.detectionLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));

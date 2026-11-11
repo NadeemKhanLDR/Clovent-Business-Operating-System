@@ -33,7 +33,8 @@ public sealed class CloseShiftCommandHandler(
 {
     /// <inheritdoc/>
     public Task<ShiftSummaryDto> Handle(CloseShiftCommand request, CancellationToken cancellationToken) =>
-        TransactionLockManager.ExecuteWithLocksAsync(
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
             [TransactionLockKey.ForShift(request.ShiftId)],
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));

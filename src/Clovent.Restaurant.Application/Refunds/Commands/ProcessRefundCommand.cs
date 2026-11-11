@@ -131,6 +131,14 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
             }
         }
 
+        var (claimed, leasedResult) = await TransactionLockManager
+            .TryRunUnderPipelineLeaseAsync(request, () => HandleCoreAsync(request, cancellationToken))
+            .ConfigureAwait(false);
+        if (claimed)
+        {
+            return leasedResult;
+        }
+
         Guid? candidateShiftId = request.ShiftId;
         if (!candidateShiftId.HasValue && _shiftRepository != null)
         {
@@ -155,7 +163,8 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         if (candidateShiftId.HasValue) keys.Add(TransactionLockKey.ForShift(candidateShiftId.Value));
         if (preReadOrder?.CustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid.Value));
 
-        return await TransactionLockManager.ExecuteWithLocksAsync(
+        return await TransactionLockManager.ExecuteForRequestAsync(
+            request,
             keys,
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));

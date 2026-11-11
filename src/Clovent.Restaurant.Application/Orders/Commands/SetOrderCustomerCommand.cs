@@ -16,7 +16,8 @@ public sealed class SetOrderCustomerCommandHandler(
 {
     /// <inheritdoc/>
     public Task<OrderDto> Handle(SetOrderCustomerCommand request, CancellationToken cancellationToken) =>
-        TransactionLockManager.ExecuteWithLocksAsync(
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
             [TransactionLockKey.ForOrder(request.OrderId)],
             cancellationToken,
             () => HandleCoreAsync(request, cancellationToken));
