@@ -132,6 +132,100 @@ public sealed class SqlTransactionLockTests
         }
     }
 
+    [Fact]
+    public async Task SharedVsExclusiveLocks_AllowConcurrentSharedReadersAndSerializeExclusiveWriterOnLocalDb()
+    {
+        var dbName = $"CBOS_Recovery_{Guid.NewGuid():N}";
+        var options = new DbContextOptionsBuilder<RestaurantDbContext>()
+            .UseSqlServer(SqlTestDatabaseGuard.ConnectionString(dbName)).Options;
+
+        await using var db1 = new RestaurantDbContext(options);
+        await using var db2 = new RestaurantDbContext(options);
+        await using var db3 = new RestaurantDbContext(options);
+        await using var db4 = new RestaurantDbContext(options);
+
+        var branchId = Guid.NewGuid();
+        var sharedKey = TransactionLockKey.ForBusinessDay(branchId, TransactionLockAccessMode.Shared);
+        var exclusiveKey = TransactionLockKey.ForBusinessDay(branchId, TransactionLockAccessMode.Exclusive);
+
+        var shared1Entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shared2Entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseShared = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exclusiveEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseExclusive = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        Task? sharedTask1 = null;
+        Task? sharedTask2 = null;
+        Task? exclusiveTask = null;
+        Task? lateSharedTask = null;
+
+        try
+        {
+            await db1.Database.EnsureCreatedAsync();
+            await SqlTestDatabaseGuard.CreatedAsync(db1);
+
+            var l1 = new SqlTransactionLockProvider(db1);
+            var l2 = new SqlTransactionLockProvider(db2);
+            var l3 = new SqlTransactionLockProvider(db3);
+            var l4 = new SqlTransactionLockProvider(db4);
+
+            sharedTask1 = l1.ExecuteAsync<int>([sharedKey], CancellationToken.None, async () =>
+            {
+                shared1Entered.SetResult();
+                await releaseShared.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                return 1;
+            });
+
+            sharedTask2 = l2.ExecuteAsync<int>([sharedKey], CancellationToken.None, async () =>
+            {
+                shared2Entered.SetResult();
+                await releaseShared.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                return 2;
+            });
+
+            // Both Shared holders enter concurrently across separate SQL sessions
+            await Task.WhenAll(shared1Entered.Task, shared2Entered.Task).WaitAsync(TimeSpan.FromSeconds(10));
+
+            exclusiveTask = l3.ExecuteAsync<int>([exclusiveKey], CancellationToken.None, async () =>
+            {
+                exclusiveEntered.SetResult();
+                await releaseExclusive.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                return 3;
+            });
+
+            await Task.Delay(150);
+            Assert.False(exclusiveEntered.Task.IsCompleted);
+
+            releaseShared.TrySetResult();
+            await Task.WhenAll(sharedTask1, sharedTask2).WaitAsync(TimeSpan.FromSeconds(10));
+            await exclusiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+            var lateSharedEntered = false;
+            lateSharedTask = l4.ExecuteAsync<int>([sharedKey], CancellationToken.None, () =>
+            {
+                lateSharedEntered = true;
+                return Task.FromResult(4);
+            });
+
+            await Task.Delay(150);
+            Assert.False(lateSharedEntered);
+
+            releaseExclusive.TrySetResult();
+            await Task.WhenAll(exclusiveTask, lateSharedTask).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(lateSharedEntered);
+        }
+        finally
+        {
+            releaseShared.TrySetResult();
+            releaseExclusive.TrySetResult();
+            foreach (var t in new[] { sharedTask1, sharedTask2, exclusiveTask, lateSharedTask })
+            {
+                if (t is not null) { try { await t; } catch { } }
+            }
+            await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db1);
+        }
+    }
+
     private static async Task ImpersonateAndAssertLeastPrivilegeAsync(RestaurantDbContext db)
     {
         var conn = db.Database.GetDbConnection();

@@ -68,6 +68,7 @@ public sealed class ProductionCompositionGuaranteeTests
         Assert.NotNull(sp.GetRequiredService<ICustomerLedgerEntryRepository>());
         Assert.NotNull(sp.GetRequiredService<ICustomerPaymentAllocationRepository>());
         Assert.NotNull(sp.GetRequiredService<IPaymentMethodRepository>());
+        Assert.IsType<SqlTransactionLockProvider>(sp.GetRequiredService<ITransactionLockProvider>());
         Assert.NotNull(sp.GetRequiredService<IEmergencyJournalReplayer>());
         Assert.NotNull(sp.GetRequiredService<IRequestHandler<CompleteOrderCommand, Clovent.Restaurant.Application.Orders.Dtos.OrderDto>>());
         Assert.NotNull(sp.GetRequiredService<IRequestHandler<ProcessRefundCommand, Clovent.Restaurant.Application.Refunds.Dtos.RefundDto>>());
@@ -145,9 +146,77 @@ public sealed class ProductionCompositionGuaranteeTests
             null!,
             null!,
             null!,
-            outboxRepository: null);
+            outboxRepository: null,
+            transactionLockProvider: new DummyTransactionLockProvider());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => replayer.ReplayPendingAsync());
+    }
+
+    [Fact]
+    public void EmergencyJournalReplayer_NullTransactionLockProvider_FailsClosed()
+    {
+        var store = new SinglePendingJournalStore();
+
+        Assert.Throws<ArgumentNullException>(() => new EmergencyJournalReplayer(
+            store,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            outboxRepository: new DummyOutboxRepository(),
+            transactionLockProvider: null!,
+            outboxProcessor: new DummyOutboxProcessor()));
+    }
+
+    [Fact]
+    public void EmergencyJournalReplayer_MissingTransactionLockProviderInDI_FailsClosedAtResolution()
+    {
+        var services = new ServiceCollection();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:Default"] = "Server=localhost;Database=Placeholder;Trusted_Connection=True;"
+            })
+            .Build();
+
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton<IExecutionContextAccessor, ExecutionContextAccessor>();
+        services.AddSingleton<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry, Clovent.Platform.CircuitBreakers.CircuitBreakerRegistry>();
+        Clovent.Platform.Sync.SyncServiceCollectionExtensions.AddTestPlatformSync(services);
+
+        services.AddApplication(config);
+        services.AddInfrastructure(config);
+        services.AddPersistence(config);
+
+        // Simulate incomplete composition missing ITransactionLockProvider
+        var descriptor = services.First(d => d.ServiceType == typeof(ITransactionLockProvider));
+        services.Remove(descriptor);
+
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        Assert.Throws<InvalidOperationException>(() => scope.ServiceProvider.GetRequiredService<IEmergencyJournalReplayer>());
+    }
+
+    private sealed class DummyTransactionLockProvider : ITransactionLockProvider
+    {
+        public Task<T> ExecuteAsync<T>(IReadOnlyList<TransactionLockKey> keys, CancellationToken cancellationToken, Func<Task<T>> action) =>
+            action();
+    }
+
+    private sealed class DummyOutboxRepository : IOutboxRepository
+    {
+        public Task AddAsync(OutboxMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddRangeAsync(IEnumerable<OutboxMessage> messages, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<OutboxMessage?> GetByIdAsync(OutboxMessageId id, CancellationToken cancellationToken = default) => Task.FromResult<OutboxMessage?>(null);
+        public Task<OutboxMessage?> GetByIdempotencyKeyAsync(string idempotencyKey, CancellationToken cancellationToken = default) => Task.FromResult<OutboxMessage?>(null);
+        public Task<IReadOnlyList<OutboxMessage>> ClaimMessagesAsync(int batchSize, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+        public Task UpdateAsync(OutboxMessage message, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<OutboxMessage>> GetStaleProcessingMessagesAsync(TimeSpan staleThreshold, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+        public Task<OutboxStatistics> GetStatisticsAsync(CancellationToken cancellationToken = default) => Task.FromResult(new OutboxStatistics(0, 0, 0, 0, 0, 0, null, new Dictionary<string, int>()));
+        public Task<IReadOnlyList<OutboxMessage>> GetDeadLetterAndFailedMessagesAsync(int maxCount = 50, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
+        public Task<IReadOnlyList<OutboxMessage>> GetUncompletedMessagesByTypeAsync(string messageType, int maxCount = 100, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<OutboxMessage>>([]);
     }
 
     private sealed class DummyOutboxProcessor : IOutboxProcessor

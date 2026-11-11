@@ -12,6 +12,7 @@ using Clovent.Restaurant.Outbox;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.Payments;
 using Clovent.Restaurant.Tables;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace Clovent.Restaurant.Application.Continuity;
@@ -29,11 +30,14 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
     private readonly IPaymentMethodRepository _paymentMethodRepository;
     private readonly IOutboxRepository? _outboxRepository;
     private readonly IOutboxProcessor? _outboxProcessor;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmergencyJournalReplayer>? _logger;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly ITransactionLockProvider? _transactionLockProvider;
 
-    /// <summary>Initializes a new instance of <see cref="EmergencyJournalReplayer"/>.</summary>
+    /// <summary>
+    /// Initializes a new instance of <see cref="EmergencyJournalReplayer"/> requiring durable outbox persistence
+    /// and transaction lock coordination.
+    /// </summary>
     public EmergencyJournalReplayer(
         IContinuityJournalStore journalStore,
         IOrderRepository orderRepository,
@@ -41,11 +45,13 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         IPaymentRepository paymentRepository,
         IPaymentMethodRepository paymentMethodRepository,
         IUnitOfWork unitOfWork,
-        IOutboxRepository? outboxRepository = null,
+        IOutboxRepository? outboxRepository,
+        ITransactionLockProvider transactionLockProvider,
         IOutboxProcessor? outboxProcessor = null,
-        ILogger<EmergencyJournalReplayer>? logger = null,
-        ITransactionLockProvider? transactionLockProvider = null)
+        ILogger<EmergencyJournalReplayer>? logger = null)
     {
+        ArgumentNullException.ThrowIfNull(transactionLockProvider);
+
         _journalStore = journalStore;
         _orderRepository = orderRepository;
         _orderLineRepository = orderLineRepository;
@@ -56,6 +62,30 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         _outboxProcessor = outboxProcessor;
         _logger = logger;
         _transactionLockProvider = transactionLockProvider;
+    }
+
+    /// <summary>Initializes a new instance of <see cref="EmergencyJournalReplayer"/> for isolated unit testing without external DB locks.</summary>
+    internal EmergencyJournalReplayer(
+        IContinuityJournalStore journalStore,
+        IOrderRepository orderRepository,
+        IOrderLineRepository orderLineRepository,
+        IPaymentRepository paymentRepository,
+        IPaymentMethodRepository paymentMethodRepository,
+        IUnitOfWork unitOfWork,
+        IOutboxRepository? outboxRepository = null,
+        IOutboxProcessor? outboxProcessor = null,
+        ILogger<EmergencyJournalReplayer>? logger = null)
+    {
+        _journalStore = journalStore;
+        _orderRepository = orderRepository;
+        _orderLineRepository = orderLineRepository;
+        _paymentRepository = paymentRepository;
+        _paymentMethodRepository = paymentMethodRepository;
+        _unitOfWork = unitOfWork;
+        _outboxRepository = outboxRepository;
+        _outboxProcessor = outboxProcessor;
+        _logger = logger;
+        _transactionLockProvider = null;
     }
 
     /// <inheritdoc />
@@ -71,6 +101,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         {
             throw new InvalidOperationException(
                 "Invalid composition: IOutboxRepository is required to replay emergency transactions with durable inventory and sync outbox messages.");
+        }
+
+        if (_outboxProcessor is not null && _transactionLockProvider is null)
+        {
+            throw new InvalidOperationException(
+                "Invalid composition: ITransactionLockProvider is required whenever continuity replay runs with IOutboxProcessor.");
         }
 
         var successCount = 0;
@@ -105,7 +141,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     continue;
                 }
 
-                var replayKeys = new[] { TransactionLockKey.ForContinuityTransaction(tx.TransactionId) };
+                var replayKeys = new List<TransactionLockKey>(2);
+                if (tx.BranchId != Guid.Empty)
+                {
+                    replayKeys.Add(TransactionLockKey.ForBusinessDay(tx.BranchId, TransactionLockAccessMode.Shared));
+                }
+                replayKeys.Add(TransactionLockKey.ForContinuityTransaction(tx.TransactionId));
                 var replayed = await ExecuteWithReplayLocksAsync(
                     replayKeys,
                     cancellationToken,

@@ -48,7 +48,18 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.CatalogPriceDeltaSyncOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.ShiftSummaryDeltaSyncOutboxHandler>();
 
-        services.AddScoped<Clovent.Restaurant.Application.Continuity.IEmergencyJournalReplayer, Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>();
+        services.AddScoped<Clovent.Restaurant.Application.Continuity.IEmergencyJournalReplayer>(sp =>
+            new Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer(
+                sp.GetRequiredService<Clovent.Restaurant.Continuity.IContinuityJournalStore>(),
+                sp.GetRequiredService<Clovent.Restaurant.Orders.IOrderRepository>(),
+                sp.GetRequiredService<Clovent.Restaurant.OrderLines.IOrderLineRepository>(),
+                sp.GetRequiredService<Clovent.Restaurant.Payments.IPaymentRepository>(),
+                sp.GetRequiredService<Clovent.Restaurant.PaymentMethods.IPaymentMethodRepository>(),
+                sp.GetRequiredService<Clovent.Restaurant.Application.IUnitOfWork>(),
+                sp.GetRequiredService<Clovent.Restaurant.Outbox.IOutboxRepository>(),
+                sp.GetRequiredService<Clovent.Restaurant.Application.Concurrency.ITransactionLockProvider>(),
+                sp.GetService<Clovent.Restaurant.Application.Outbox.IOutboxProcessor>(),
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>>()));
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IOperationalCacheSynchronizer, Clovent.Restaurant.Application.Continuity.OperationalCacheSynchronizer>();
 
         // Multi-Terminal Branch Replication & Sync Ingestion Handlers

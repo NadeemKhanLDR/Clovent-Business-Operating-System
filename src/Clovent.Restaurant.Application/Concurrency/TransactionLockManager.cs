@@ -4,39 +4,67 @@ using System.Collections.Immutable;
 namespace Clovent.Restaurant.Application.Concurrency;
 
 /// <summary>
-/// Canonical lock hierarchy ordering for in-process transaction serialization.
+/// Canonical lock hierarchy ordering for in-process and SQL session transaction serialization.
 /// Numerical order defines the strict global acquisition order
-/// (<see cref="Shift"/> &lt; <see cref="Customer"/> &lt; <see cref="Order"/>)
+/// (<see cref="BusinessDay"/> &lt; <see cref="Shift"/> &lt; <see cref="Customer"/> &lt; <see cref="Table"/> &lt; <see cref="Order"/> &lt; <see cref="Continuity"/>)
 /// to make multi-resource lock deadlocks impossible.
 /// </summary>
 public enum TransactionLockScope
 {
+    /// <summary>Branch business-day lifecycle operations (Exclusive for day close / shift open; Shared for financial postings).</summary>
+    BusinessDay = 1,
+
     /// <summary>Shift-level operations (close shift, cash movement, shift-attributed payments/refunds).</summary>
-    Shift = 1,
+    Shift = 2,
 
     /// <summary>Customer-level shared state (OutstandingBalance, credit limit, advances, allocations).</summary>
-    Customer = 2,
+    Customer = 3,
+
+    /// <summary>Table-level occupancy and bill ownership operations (create order, transfer table, split order, merge tables, vacate/reopen).</summary>
+    Table = 4,
 
     /// <summary>Order-level operations (order/line/discount mutations, payments, payment voids, completion, order voids, refunds).</summary>
-    Order = 3,
+    Order = 5,
 
-    /// <summary>Branch business-day lifecycle operations (open shift, close business day).</summary>
-    BusinessDay = 4,
-
-    /// <summary>Offline Continuity journal transaction replay serialization.</summary>
-    Continuity = 5
+    /// <summary>Offline Continuity journal transaction replay and emergency idempotency coordination.</summary>
+    Continuity = 6
 }
 
-/// <summary>Comparable lock key uniquely identifying a locked aggregate in global acquisition order.</summary>
-public readonly record struct TransactionLockKey(TransactionLockScope Scope, Guid EntityId)
+/// <summary>Conflict mode for a lock acquisition on a resource.</summary>
+public enum TransactionLockAccessMode
+{
+    /// <summary>Exclusive writer lock (mutually exclusive with all other Exclusive and Shared holders).</summary>
+    Exclusive = 0,
+
+    /// <summary>Shared reader/intent lock (compatible with other Shared holders; blocked by Exclusive writers).</summary>
+    Shared = 1
+}
+
+/// <summary>Comparable lock key uniquely identifying a locked resource and access mode in global acquisition order.</summary>
+public readonly record struct TransactionLockKey(
+    TransactionLockScope Scope,
+    Guid EntityId,
+    TransactionLockAccessMode AccessMode = TransactionLockAccessMode.Exclusive)
     : IComparable<TransactionLockKey>
 {
+    /// <summary>Identifies the underlying entity resource regardless of <see cref="AccessMode"/>.</summary>
+    public (TransactionLockScope Scope, Guid EntityId) Resource => (Scope, EntityId);
+
     /// <inheritdoc/>
     public int CompareTo(TransactionLockKey other)
     {
         var scopeCmp = ((int)Scope).CompareTo((int)other.Scope);
-        return scopeCmp != 0 ? scopeCmp : EntityId.CompareTo(other.EntityId);
+        if (scopeCmp != 0) return scopeCmp;
+
+        var idCmp = EntityId.CompareTo(other.EntityId);
+        return idCmp != 0 ? idCmp : ((int)AccessMode).CompareTo((int)other.AccessMode);
     }
+
+    /// <summary>Creates a branch business-day lock key.</summary>
+    public static TransactionLockKey ForBusinessDay(
+        Guid branchId,
+        TransactionLockAccessMode accessMode = TransactionLockAccessMode.Exclusive) =>
+        new(TransactionLockScope.BusinessDay, branchId, accessMode);
 
     /// <summary>Creates a shift lock key.</summary>
     public static TransactionLockKey ForShift(Guid shiftId) => new(TransactionLockScope.Shift, shiftId);
@@ -44,11 +72,11 @@ public readonly record struct TransactionLockKey(TransactionLockScope Scope, Gui
     /// <summary>Creates a customer lock key.</summary>
     public static TransactionLockKey ForCustomer(Guid customerId) => new(TransactionLockScope.Customer, customerId);
 
+    /// <summary>Creates a table lock key.</summary>
+    public static TransactionLockKey ForTable(Guid tableId) => new(TransactionLockScope.Table, tableId);
+
     /// <summary>Creates an order lock key.</summary>
     public static TransactionLockKey ForOrder(Guid orderId) => new(TransactionLockScope.Order, orderId);
-
-    /// <summary>Creates a branch business-day lock key.</summary>
-    public static TransactionLockKey ForBusinessDay(Guid branchId) => new(TransactionLockScope.BusinessDay, branchId);
 
     /// <summary>Creates a continuity transaction replay lock key.</summary>
     public static TransactionLockKey ForContinuityTransaction(Guid transactionId) => new(TransactionLockScope.Continuity, transactionId);
@@ -79,8 +107,158 @@ public readonly record struct TransactionLockKey(TransactionLockScope Scope, Gui
 /// </remarks>
 public static class TransactionLockManager
 {
-    private static readonly ConcurrentDictionary<TransactionLockKey, SemaphoreSlim> Locks = new();
+    private static readonly ConcurrentDictionary<(TransactionLockScope Scope, Guid EntityId), AsyncLockGate> Locks = new();
     private static readonly AsyncLocal<PipelineLockLease?> ActivePipelineLease = new();
+
+    private sealed class AsyncLockGate
+    {
+        private readonly object _sync = new();
+        private readonly Queue<Waiter> _waiters = new();
+        private int _state; // 0 = unlocked, >0 = active shared readers, -1 = active exclusive writer
+
+        /// <summary>Permanent non-evicting identity marker for diagnostics/tests.</summary>
+        public SemaphoreSlim IdentityMarker { get; } = new(1, 1);
+
+        public Task<LockHold> AcquireAsync(TransactionLockAccessMode mode, CancellationToken cancellationToken)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Task.FromCanceled<LockHold>(cancellationToken);
+            }
+
+            lock (_sync)
+            {
+                if (mode == TransactionLockAccessMode.Shared)
+                {
+                    if (_state >= 0 && _waiters.Count == 0)
+                    {
+                        _state++;
+                        return Task.FromResult(new LockHold(this, mode));
+                    }
+                }
+                else
+                {
+                    if (_state == 0 && _waiters.Count == 0)
+                    {
+                        _state = -1;
+                        return Task.FromResult(new LockHold(this, mode));
+                    }
+                }
+
+                var waiter = new Waiter(this, mode);
+                _waiters.Enqueue(waiter);
+                waiter.AttachCancellation(cancellationToken);
+                return waiter.Tcs.Task;
+            }
+        }
+
+        public void Release(TransactionLockAccessMode mode)
+        {
+            lock (_sync)
+            {
+                if (mode == TransactionLockAccessMode.Exclusive)
+                {
+                    _state = 0;
+                }
+                else
+                {
+                    _state--;
+                }
+
+                PumpWaitersLocked();
+            }
+        }
+
+        private void OnWaiterCancelled(Waiter waiter, CancellationToken token)
+        {
+            var shouldCancel = false;
+            lock (_sync)
+            {
+                if (waiter.TryClaim(isCancel: true))
+                {
+                    shouldCancel = true;
+                    PumpWaitersLocked();
+                }
+            }
+
+            if (shouldCancel)
+            {
+                waiter.Tcs.TrySetCanceled(token);
+            }
+        }
+
+        private void PumpWaitersLocked()
+        {
+            while (_waiters.Count > 0)
+            {
+                var head = _waiters.Peek();
+                if (head.IsFinished)
+                {
+                    _waiters.Dequeue();
+                    continue;
+                }
+
+                if (head.Mode == TransactionLockAccessMode.Exclusive)
+                {
+                    if (_state == 0 && head.TryClaim(isCancel: false))
+                    {
+                        _waiters.Dequeue();
+                        _state = -1;
+                        head.CompleteGranted(new LockHold(this, head.Mode));
+                    }
+                    break;
+                }
+
+                if (_state >= 0)
+                {
+                    _waiters.Dequeue();
+                    if (head.TryClaim(isCancel: false))
+                    {
+                        _state++;
+                        head.CompleteGranted(new LockHold(this, head.Mode));
+                    }
+                    continue;
+                }
+
+                break;
+            }
+        }
+
+        private sealed class Waiter(AsyncLockGate owner, TransactionLockAccessMode mode)
+        {
+            private int _done; // 0 = pending, 1 = granted, 2 = cancelled
+            private CancellationTokenRegistration _registration;
+
+            public TransactionLockAccessMode Mode => mode;
+            public TaskCompletionSource<LockHold> Tcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public bool IsFinished => Volatile.Read(ref _done) != 0;
+
+            public void AttachCancellation(CancellationToken ct)
+            {
+                if (ct.CanBeCanceled)
+                {
+                    _registration = ct.Register(static state =>
+                    {
+                        var (w, token) = ((Waiter, CancellationToken))state!;
+                        w._owner.OnWaiterCancelled(w, token);
+                    }, (this, ct));
+                }
+            }
+
+            private readonly AsyncLockGate _owner = owner;
+
+            public bool TryClaim(bool isCancel) =>
+                Interlocked.CompareExchange(ref _done, isCancel ? 2 : 1, 0) == 0;
+
+            public void CompleteGranted(LockHold hold)
+            {
+                _registration.Unregister();
+                Tcs.TrySetResult(hold);
+            }
+        }
+    }
+
+    private readonly record struct LockHold(AsyncLockGate Gate, TransactionLockAccessMode Mode);
 
     private sealed class PipelineLockLease(
         object? boundRequest,
@@ -106,6 +284,40 @@ public static class TransactionLockManager
             ReferenceEquals(boundRequest, request) &&
             Interlocked.Exchange(ref _behaviorHandedOff, 1) == 0;
 
+        public bool IsKeySatisfied(TransactionLockKey required)
+        {
+            foreach (var held in heldKeys)
+            {
+                if (held.Scope == required.Scope && held.EntityId == required.EntityId)
+                {
+                    return held.AccessMode == TransactionLockAccessMode.Exclusive ||
+                           required.AccessMode == TransactionLockAccessMode.Shared;
+                }
+            }
+
+            return false;
+        }
+
+        public bool HasResourceConflictUpgrade(TransactionLockKey required)
+        {
+            if (required.AccessMode != TransactionLockAccessMode.Exclusive)
+            {
+                return false;
+            }
+
+            foreach (var held in heldKeys)
+            {
+                if (held.Scope == required.Scope &&
+                    held.EntityId == required.EntityId &&
+                    held.AccessMode == TransactionLockAccessMode.Shared)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         public bool TryClaim(object request, IEnumerable<TransactionLockKey>? requiredKeys)
         {
             if (IsDisposed || boundRequest is null || !ReferenceEquals(boundRequest, request))
@@ -117,7 +329,7 @@ public static class TransactionLockManager
             {
                 foreach (var key in requiredKeys)
                 {
-                    if (key.EntityId != Guid.Empty && !heldKeys.Contains(key))
+                    if (key.EntityId != Guid.Empty && !IsKeySatisfied(key))
                     {
                         return false;
                     }
@@ -135,9 +347,12 @@ public static class TransactionLockManager
         public void Dispose() => Interlocked.Exchange(ref _disposed, 1);
     }
 
-    /// <summary>Returns the canonical semaphore instance for <paramref name="key"/> (for deterministic testing/diagnostics).</summary>
+    /// <summary>Returns the canonical non-evicting lock marker for <paramref name="key"/> (for deterministic testing/diagnostics).</summary>
     internal static SemaphoreSlim GetSemaphore(TransactionLockKey key) =>
-        Locks.GetOrAdd(key, static _ => new SemaphoreSlim(1, 1));
+        GetGate(key.Resource).IdentityMarker;
+
+    private static AsyncLockGate GetGate((TransactionLockScope Scope, Guid EntityId) resource) =>
+        Locks.GetOrAdd(resource, static _ => new AsyncLockGate());
 
     /// <summary>
     /// Acquires all distinct <paramref name="keys"/> in canonical order for <paramref name="request"/>
@@ -162,7 +377,7 @@ public static class TransactionLockManager
         if (current is not null && current.TryConsumeBehaviorHandoff(request))
         {
             var missingKeys = ExtractCanonicalMissingKeys(current, sortedKeys);
-            var acquired = new List<SemaphoreSlim>(missingKeys.Count);
+            var acquired = new List<LockHold>(missingKeys.Count);
             using var childLease = new PipelineLockLease(
                 request,
                 current.HeldKeys.Union(missingKeys),
@@ -183,7 +398,7 @@ public static class TransactionLockManager
             }
         }
 
-        var topAcquired = new List<SemaphoreSlim>(sortedKeys.Count);
+        var topAcquired = new List<LockHold>(sortedKeys.Count);
         using var lease = new PipelineLockLease(
             request,
             sortedKeys.ToImmutableHashSet(),
@@ -294,7 +509,7 @@ public static class TransactionLockManager
             {
                 var sortedKeys = NormalizeKeys(keys);
                 var missingKeys = ExtractCanonicalMissingKeys(lease, sortedKeys);
-                var acquired = new List<SemaphoreSlim>(missingKeys.Count);
+                var acquired = new List<LockHold>(missingKeys.Count);
                 using var childLease = new PipelineLockLease(
                     request,
                     lease.HeldKeys.Union(missingKeys),
@@ -344,7 +559,7 @@ public static class TransactionLockManager
             return await action().ConfigureAwait(false);
         }
 
-        var acquired = new List<SemaphoreSlim>(sortedKeys.Count);
+        var acquired = new List<LockHold>(sortedKeys.Count);
         using var scopeLease = new PipelineLockLease(
             boundRequest: null,
             sortedKeys.ToImmutableHashSet(),
@@ -366,7 +581,13 @@ public static class TransactionLockManager
 
     private static List<TransactionLockKey> NormalizeKeys(IEnumerable<TransactionLockKey> keys) =>
         keys.Where(k => k.EntityId != Guid.Empty)
-            .Distinct()
+            .GroupBy(k => k.Resource)
+            .Select(g => new TransactionLockKey(
+                g.Key.Scope,
+                g.Key.EntityId,
+                g.Any(k => k.AccessMode == TransactionLockAccessMode.Exclusive)
+                    ? TransactionLockAccessMode.Exclusive
+                    : TransactionLockAccessMode.Shared))
             .OrderBy(k => k)
             .ToList();
 
@@ -377,7 +598,13 @@ public static class TransactionLockManager
         var missing = new List<TransactionLockKey>();
         foreach (var key in sortedRequestedKeys)
         {
-            if (!current.HeldKeys.Contains(key))
+            if (current.HasResourceConflictUpgrade(key))
+            {
+                throw new InvalidOperationException(
+                    $"Canonical transaction lock hierarchy violation: cannot upgrade held Shared lock on {key.Scope}:{key.EntityId} to Exclusive.");
+            }
+
+            if (!current.IsKeySatisfied(key))
             {
                 missing.Add(key);
             }
@@ -394,23 +621,23 @@ public static class TransactionLockManager
 
     private static async Task AcquireSortedAsync(
         IReadOnlyList<TransactionLockKey> sortedKeys,
-        List<SemaphoreSlim> acquired,
+        List<LockHold> acquired,
         CancellationToken cancellationToken)
     {
         foreach (var key in sortedKeys)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var semaphore = GetSemaphore(key);
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            acquired.Add(semaphore);
+            var gate = GetGate(key.Resource);
+            var hold = await gate.AcquireAsync(key.AccessMode, cancellationToken).ConfigureAwait(false);
+            acquired.Add(hold);
         }
     }
 
-    private static void ReleaseReverse(List<SemaphoreSlim> acquired)
+    private static void ReleaseReverse(List<LockHold> acquired)
     {
         for (var i = acquired.Count - 1; i >= 0; i--)
         {
-            acquired[i].Release();
+            acquired[i].Gate.Release(acquired[i].Mode);
         }
     }
 }

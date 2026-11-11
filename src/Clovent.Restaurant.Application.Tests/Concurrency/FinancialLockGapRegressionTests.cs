@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
 using Clovent.Catalog.Variants;
+using Clovent.Identity.Branches;
+using Clovent.Identity.Users;
+using Clovent.MasterData.Terminals;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.ActivityLogs;
 using Clovent.Restaurant.Application.Concurrency;
@@ -12,6 +15,8 @@ using Clovent.Restaurant.Application.OrderLines.Commands;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders.Commands;
 using Clovent.Restaurant.Application.Orders.Dtos;
+using Clovent.Restaurant.Application.Payments.Commands;
+using Clovent.Restaurant.Application.Payments.Dtos;
 using Clovent.Restaurant.Application.Shifts.Commands;
 using Clovent.Restaurant.Application.Shifts.Dtos;
 using Clovent.Restaurant.Application.Tests.TestSupport;
@@ -22,6 +27,7 @@ using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Orders.ValueObjects;
 using Clovent.Restaurant.PaymentMethods;
 using Clovent.Restaurant.PaymentMethods.ValueObjects;
+using Clovent.Restaurant.Shifts;
 using Clovent.Restaurant.Tables;
 using Xunit;
 
@@ -103,7 +109,11 @@ public sealed class FinancialLockGapRegressionTests
         Assert.Single(await sharedPaymentRepo.GetAllAsync());
         Assert.Contains(
             recordingProvider.RecordedBatches,
-            batch => batch.Count == 1 && batch[0] == TransactionLockKey.ForContinuityTransaction(txId));
+            batch => batch.SequenceEqual(new[]
+            {
+                TransactionLockKey.ForBusinessDay(tx1.BranchId, TransactionLockAccessMode.Shared),
+                TransactionLockKey.ForContinuityTransaction(txId)
+            }));
     }
 
     [Fact]
@@ -231,15 +241,281 @@ public sealed class FinancialLockGapRegressionTests
             () => Task.FromResult<ShiftDto>(null!),
             CancellationToken.None);
 
-        var expectedOrderPair = new[]
+        var expectedMergeTuple = new[]
         {
+            TransactionLockKey.ForTable(table1.Value),
+            TransactionLockKey.ForTable(table2.Value),
             TransactionLockKey.ForOrder(orderA.Id.Value),
             TransactionLockKey.ForOrder(orderB.Id.Value)
         }.OrderBy(k => k).ToArray();
 
         Assert.Contains(recordingProvider.RecordedBatches, b => b.Count == 1 && b[0] == TransactionLockKey.ForOrder(orderA.Id.Value));
-        Assert.Contains(recordingProvider.RecordedBatches, b => b.SequenceEqual(expectedOrderPair));
-        Assert.Equal(2, recordingProvider.RecordedBatches.Count(b => b.Count == 1 && b[0] == TransactionLockKey.ForBusinessDay(branchId)));
+        Assert.Contains(recordingProvider.RecordedBatches, b => b.SequenceEqual(expectedMergeTuple));
+        Assert.Contains(recordingProvider.RecordedBatches, b => b.SequenceEqual(new[] { TransactionLockKey.ForTable(table1.Value), TransactionLockKey.ForOrder(orderA.Id.Value) }));
+        Assert.Equal(2, recordingProvider.RecordedBatches.Count(b => b.Count == 1 && b[0] == TransactionLockKey.ForBusinessDay(branchId, TransactionLockAccessMode.Exclusive)));
+    }
+
+    [Fact]
+    public async Task ContinuityReplay_VersusRecordPaymentWithSameEmergencyIdempotencyKey_SharesContinuityLockThroughSaveChanges()
+    {
+        var orderRepo = new FakeOrderRepository();
+        var lineRepo = new FakeOrderLineRepository();
+        var paymentRepo = new FakePaymentRepository();
+        var methodRepo = new FakePaymentMethodRepository();
+        var outboxRepo = new FakeOutboxRepository();
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        await methodRepo.AddAsync(cashMethod);
+
+        var onlineOrder = Order.Create(OrderType.TakeAway, new WarehouseId(Guid.NewGuid()), null);
+        var onlineLine = OrderLine.Create(onlineOrder.Id, new ProductVariantId(Guid.NewGuid()), 1m, 150m, 0m, false);
+        onlineOrder.AddOrderLine(onlineLine.Id);
+        await orderRepo.AddAsync(onlineOrder);
+        await lineRepo.AddAsync(onlineLine);
+
+        var txId = Guid.NewGuid();
+        var emergencyKey = $"emergency:{txId}";
+        var journal = new FakeContinuityJournalStore();
+        await journal.AppendAsync(CreateValidEmergencyTx(txId));
+
+        var saveEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowSaveFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gateUow = new GateUnitOfWork(saveEntered, allowSaveFinish);
+        var recordingProvider = new RecordingPersistenceLockProvider();
+
+        var replayer = new EmergencyJournalReplayer(
+            journal, orderRepo, lineRepo, paymentRepo, methodRepo, gateUow, outboxRepo, transactionLockProvider: recordingProvider);
+
+        var paymentBehavior = new TransactionSerializationBehavior<RecordPaymentCommand, PaymentDto>(
+            orderRepo, paymentRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
+
+        var replayTask = Task.Run(() => replayer.ReplayPendingAsync());
+        await saveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var paymentEntered = false;
+        var paymentCmd = new RecordPaymentCommand(onlineOrder.Id.Value, cashMethod.Id.Value, 150m, IdempotencyKey: emergencyKey);
+        var paymentTask = Task.Run(() => paymentBehavior.Handle(
+            paymentCmd,
+            async () =>
+            {
+                paymentEntered = true;
+                var existing = await paymentRepo.GetByIdempotencyKeyAsync(emergencyKey);
+                return existing is not null ? PaymentDto.FromDomain(existing) : null!;
+            },
+            CancellationToken.None));
+
+        await Task.Delay(80);
+        Assert.False(paymentEntered);
+
+        allowSaveFinish.SetResult();
+        var replayResult = await replayTask.WaitAsync(TimeSpan.FromSeconds(5));
+        var paymentResult = await paymentTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(1, replayResult.SuccessCount);
+        Assert.True(paymentEntered);
+        Assert.NotNull(paymentResult);
+        Assert.Equal(emergencyKey, paymentResult.IdempotencyKey);
+        Assert.Equal(1, recordingProvider.MaxConcurrentActiveForKey(TransactionLockKey.ForContinuityTransaction(txId)));
+    }
+
+    [Fact]
+    public async Task CloseBusinessDay_VersusOpenShiftAndLateFinancialPostings_SerializesWhileAllowingConcurrentSharedPostings()
+    {
+        var orderRepo = new FakeOrderRepository();
+        var paymentRepo = new FakePaymentRepository();
+        var shiftRepo = new FakeShiftRepository();
+        var recordingProvider = new RecordingPersistenceLockProvider();
+
+        var branchId = new BranchId(Guid.NewGuid());
+        var shift1 = Shift.Open(1, branchId, new WarehouseId(Guid.NewGuid()), new TerminalId(Guid.NewGuid()), new UserId(Guid.NewGuid()), "C1", 0m);
+        var shift2 = Shift.Open(2, branchId, new WarehouseId(Guid.NewGuid()), new TerminalId(Guid.NewGuid()), new UserId(Guid.NewGuid()), "C2", 0m);
+        await shiftRepo.AddAsync(shift1);
+        await shiftRepo.AddAsync(shift2);
+
+        var order1 = Order.Create(OrderType.TakeAway, new WarehouseId(Guid.NewGuid()), null);
+        var order2 = Order.Create(OrderType.TakeAway, new WarehouseId(Guid.NewGuid()), null);
+        await orderRepo.AddAsync(order1);
+        await orderRepo.AddAsync(order2);
+
+        var p1Entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var p2Entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePayments = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var payBehavior = new TransactionSerializationBehavior<RecordPaymentCommand, PaymentDto>(
+            orderRepo, paymentRepo, shiftRepo, persistenceLocks: recordingProvider);
+
+        var pay1Task = Task.Run(() => payBehavior.Handle(
+            new RecordPaymentCommand(order1.Id.Value, Guid.NewGuid(), 50m, ShiftId: shift1.Id.Value),
+            async () => { p1Entered.SetResult(); await releasePayments.Task; return null!; },
+            CancellationToken.None));
+
+        var pay2Task = Task.Run(() => payBehavior.Handle(
+            new RecordPaymentCommand(order2.Id.Value, Guid.NewGuid(), 75m, ShiftId: shift2.Id.Value),
+            async () => { p2Entered.SetResult(); await releasePayments.Task; return null!; },
+            CancellationToken.None));
+
+        // 1. Two Shared BusinessDay postings on different orders/shifts run concurrently without serializing each other
+        await Task.WhenAll(p1Entered.Task, p2Entered.Task).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(2, recordingProvider.MaxConcurrentActiveForKey(TransactionLockKey.ForBusinessDay(branchId.Value, TransactionLockAccessMode.Shared)));
+
+        // 2. While payments are in flight, CloseBusinessDayCommand (Exclusive) MUST block
+        var dayCloseBehavior = new TransactionSerializationBehavior<CloseBusinessDayCommand, BusinessDayCloseDto>(
+            orderRepo, paymentRepo, shiftRepo, persistenceLocks: recordingProvider);
+        var dayCloseEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseDayClose = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dayCloseTask = Task.Run(() => dayCloseBehavior.Handle(
+            new CloseBusinessDayCommand(branchId.Value, DateOnly.FromDateTime(DateTime.UtcNow), Guid.NewGuid(), "Mgr"),
+            async () => { dayCloseEntered.SetResult(); await releaseDayClose.Task; return null!; },
+            CancellationToken.None));
+
+        await Task.Delay(80);
+        Assert.False(dayCloseEntered.Task.IsCompleted);
+
+        releasePayments.SetResult();
+        await Task.WhenAll(pay1Task, pay2Task).WaitAsync(TimeSpan.FromSeconds(5));
+
+        // 3. Once active postings drain, CloseBusinessDayCommand enters; while it holds Exclusive,
+        //    both OpenShiftCommand and a late RecordCashMovementCommand MUST block until day close completes.
+        await dayCloseEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var lateMovementEntered = false;
+        var openShiftEntered = false;
+
+        var cashBehavior = new TransactionSerializationBehavior<RecordCashMovementCommand, CashMovementDto>(
+            orderRepo, paymentRepo, shiftRepo, persistenceLocks: recordingProvider);
+        var lateMovementTask = Task.Run(() => cashBehavior.Handle(
+            new RecordCashMovementCommand(shift1.Id.Value, CashMovementType.CashOut, 10m, "Drop", Guid.NewGuid()),
+            () => { lateMovementEntered = true; return Task.FromResult<CashMovementDto>(null!); },
+            CancellationToken.None));
+
+        var openBehavior = new TransactionSerializationBehavior<OpenShiftCommand, ShiftDto>(
+            orderRepo, paymentRepo, shiftRepo, persistenceLocks: recordingProvider);
+        var openShiftTask = Task.Run(() => openBehavior.Handle(
+            new OpenShiftCommand(branchId.Value, Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "NewCashier", 100m),
+            () => { openShiftEntered = true; return Task.FromResult<ShiftDto>(null!); },
+            CancellationToken.None));
+
+        await Task.Delay(80);
+        Assert.False(lateMovementEntered);
+        Assert.False(openShiftEntered);
+
+        releaseDayClose.SetResult();
+        await Task.WhenAll(dayCloseTask, lateMovementTask, openShiftTask).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(lateMovementEntered);
+        Assert.True(openShiftEntered);
+    }
+
+    [Fact]
+    public async Task SplitOrder_VersusLineMutation_RechecksTransferredLineAndAcquiresDestinationOrderLock()
+    {
+        var orderRepo = new FakeOrderRepository();
+        var lineRepo = new FakeOrderLineRepository();
+        var recordingProvider = new RecordingPersistenceLockProvider();
+
+        var sourceTable = new TableId(Guid.NewGuid());
+        var destTable = new TableId(Guid.NewGuid());
+        var sourceOrder = Order.Create(OrderType.DineIn, new WarehouseId(Guid.NewGuid()), sourceTable);
+        var line = OrderLine.Create(sourceOrder.Id, new ProductVariantId(Guid.NewGuid()), 1m, 40m, 0m, false);
+        sourceOrder.AddOrderLine(line.Id);
+        await orderRepo.AddAsync(sourceOrder);
+        await lineRepo.AddAsync(line);
+
+        Order? createdDestinationOrder = null;
+        var splitEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowSplitFinish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var splitBehavior = new TransactionSerializationBehavior<SplitOrderCommand, OrderDto>(
+            orderRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
+
+        var splitTask = Task.Run(() => splitBehavior.Handle(
+            new SplitOrderCommand(sourceOrder.Id.Value, [line.Id.Value], destTable.Value),
+            async () =>
+            {
+                splitEntered.SetResult();
+                await allowSplitFinish.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+                createdDestinationOrder = Order.Create(OrderType.DineIn, sourceOrder.WarehouseId, destTable);
+                sourceOrder.RemoveOrderLine(line.Id);
+                line.TransferToOrder(createdDestinationOrder.Id);
+                createdDestinationOrder.AddOrderLine(line.Id);
+                await orderRepo.AddAsync(createdDestinationOrder);
+                return OrderDto.FromDomain(createdDestinationOrder);
+            },
+            CancellationToken.None));
+
+        await splitEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var lineBehavior = new TransactionSerializationBehavior<SetOrderLineQuantityCommand, OrderLineDto>(
+            orderRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
+        OrderId? observedOrderIdDuringLineMutation = null;
+
+        var lineTask = Task.Run(() => lineBehavior.Handle(
+            new SetOrderLineQuantityCommand(line.Id.Value, 3m),
+            () =>
+            {
+                observedOrderIdDuringLineMutation = line.OrderId;
+                line.SetQuantity(3m);
+                return Task.FromResult(OrderLineDto.FromDomain(line));
+            },
+            CancellationToken.None));
+
+        await Task.Delay(80);
+        Assert.False(lineTask.IsCompleted);
+
+        allowSplitFinish.SetResult();
+        await Task.WhenAll(splitTask, lineTask).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(createdDestinationOrder);
+        Assert.Equal(createdDestinationOrder!.Id, observedOrderIdDuringLineMutation);
+        Assert.Contains(
+            recordingProvider.RecordedBatches,
+            b => b.Count == 1 && b[0] == TransactionLockKey.ForOrder(createdDestinationOrder.Id.Value));
+    }
+
+    [Fact]
+    public async Task MergeTables_WhenTargetTableEmpty_VersusConcurrentCreateOrder_SerializesOnTargetTableLock()
+    {
+        var orderRepo = new FakeOrderRepository();
+        var lineRepo = new FakeOrderLineRepository();
+        var recordingProvider = new RecordingPersistenceLockProvider();
+
+        var sourceTable = new TableId(Guid.NewGuid());
+        var emptyTargetTable = new TableId(Guid.NewGuid());
+        var sourceOrder = Order.Create(OrderType.DineIn, new WarehouseId(Guid.NewGuid()), sourceTable);
+        await orderRepo.AddAsync(sourceOrder);
+
+        var mergeEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseMerge = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var mergeBehavior = new TransactionSerializationBehavior<MergeTablesCommand, OrderDto>(
+            orderRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
+        var createBehavior = new TransactionSerializationBehavior<CreateOrderCommand, OrderDto>(
+            orderRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
+
+        var mergeTask = Task.Run(() => mergeBehavior.Handle(
+            new MergeTablesCommand(sourceTable.Value, emptyTargetTable.Value),
+            async () =>
+            {
+                mergeEntered.SetResult();
+                await releaseMerge.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                return OrderDto.FromDomain(sourceOrder);
+            },
+            CancellationToken.None));
+
+        await mergeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var createEntered = false;
+        var createTask = Task.Run(() => createBehavior.Handle(
+            new CreateOrderCommand(OrderType.DineIn, Guid.NewGuid(), emptyTargetTable.Value),
+            () => { createEntered = true; return Task.FromResult<OrderDto>(null!); },
+            CancellationToken.None));
+
+        await Task.Delay(80);
+        Assert.False(createEntered);
+
+        releaseMerge.SetResult();
+        await Task.WhenAll(mergeTask, createTask).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.True(createEntered);
+        Assert.Equal(1, recordingProvider.MaxConcurrentActiveForKey(TransactionLockKey.ForTable(emptyTargetTable.Value)));
     }
 
     private static EmergencyTransaction CreateValidEmergencyTx(Guid txId)

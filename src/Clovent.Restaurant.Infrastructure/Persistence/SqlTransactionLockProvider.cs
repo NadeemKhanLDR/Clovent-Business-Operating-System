@@ -19,13 +19,24 @@ public sealed class SqlTransactionLockProvider(RestaurantDbContext db, ILogger<S
         try
         {
             if (openedHere) await db.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-            foreach (var key in keys.Where(k => k.EntityId != Guid.Empty).Distinct().OrderBy(k => k))
+            foreach (var key in keys
+                .Where(k => k.EntityId != Guid.Empty)
+                .GroupBy(k => k.Resource)
+                .Select(g => new TransactionLockKey(
+                    g.Key.Scope,
+                    g.Key.EntityId,
+                    g.Any(k => k.AccessMode == TransactionLockAccessMode.Exclusive)
+                        ? TransactionLockAccessMode.Exclusive
+                        : TransactionLockAccessMode.Shared))
+                .OrderBy(k => k))
             {
                 var resource = $"CBOS:financial:{(int)key.Scope}:{key.EntityId:N}";
+                var lockMode = key.AccessMode == TransactionLockAccessMode.Shared ? "Shared" : "Exclusive";
                 await using var command = connection.CreateCommand();
-                command.CommandText = "DECLARE @result int; EXEC @result = sys.sp_getapplock @Resource=@resource, @LockMode=N'Exclusive', @LockOwner=N'Session', @LockTimeout=10000; SELECT @result;";
+                command.CommandText = "DECLARE @result int; EXEC @result = sys.sp_getapplock @Resource=@resource, @LockMode=@lockMode, @LockOwner=N'Session', @LockTimeout=10000; SELECT @result;";
                 command.CommandTimeout = 15;
                 var parameter = command.CreateParameter(); parameter.ParameterName = "@resource"; parameter.Value = resource; command.Parameters.Add(parameter);
+                var modeParameter = command.CreateParameter(); modeParameter.ParameterName = "@lockMode"; modeParameter.Value = lockMode; command.Parameters.Add(modeParameter);
                 // Track even an unacknowledged acquisition so cancellation cannot
                 // leave a possibly granted session lock in the pool.
                 acquired.Add(resource);

@@ -7,7 +7,6 @@ using Clovent.Restaurant.Application.Payments.Commands;
 using Clovent.Restaurant.Application.Refunds.Commands;
 using Clovent.Restaurant.Application.ServiceCharges.Commands;
 using Clovent.Restaurant.Application.Shifts.Commands;
-using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Payments;
@@ -19,7 +18,7 @@ namespace Clovent.Restaurant.Application.Concurrency;
 
 /// <summary>
 /// MediatR pipeline behavior executing OUTER to <c>UnitOfWorkBehavior</c> so that
-/// multi-entity locks (<see cref="TransactionLockScope.Shift"/> &lt; <see cref="TransactionLockScope.Customer"/> &lt; <see cref="TransactionLockScope.Order"/> &lt; <see cref="TransactionLockScope.BusinessDay"/> &lt; <see cref="TransactionLockScope.Continuity"/>)
+/// multi-entity locks (<see cref="TransactionLockScope.BusinessDay"/> &lt; <see cref="TransactionLockScope.Shift"/> &lt; <see cref="TransactionLockScope.Customer"/> &lt; <see cref="TransactionLockScope.Table"/> &lt; <see cref="TransactionLockScope.Order"/> &lt; <see cref="TransactionLockScope.Continuity"/>)
 /// remain held until <c>IUnitOfWork.SaveChangesAsync</c> completes and failure cleanup (<c>DiscardTrackedState</c>) finishes.
 /// </summary>
 public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
@@ -38,12 +37,12 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
     {
         return request switch
         {
-            RecordPaymentCommand cmd => ExecuteForOrderWithCustomerAsync(
+            RecordPaymentCommand cmd => ExecuteWithRecheckAsync(
                 request,
-                cmd.OrderId,
-                cmd.ShiftId,
+                ct => ResolvePaymentKeysAsync(cmd.OrderId, cmd.ShiftId, cmd.IdempotencyKey, ct),
                 next,
-                cancellationToken),
+                cancellationToken,
+                "Order customer changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt."),
 
             VoidPaymentCommand cmd => ExecuteForVoidPaymentAsync(
                 request,
@@ -51,29 +50,33 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
                 next,
                 cancellationToken),
 
-            VoidOrderCommand cmd => ExecuteForVoidOrderAsync(
+            VoidOrderCommand cmd => ExecuteWithRecheckAsync(
                 request,
-                cmd.OrderId,
+                ct => ResolveVoidOrderKeysAsync(cmd.OrderId, ct),
                 next,
-                cancellationToken),
-
-            CompleteOrderCommand cmd => ExecutePipelineWithLocksAsync(
-                request,
-                [TransactionLockKey.ForOrder(cmd.OrderId)],
                 cancellationToken,
-                () => next()),
+                "Financial targets changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt."),
 
-            SetOrderCustomerCommand cmd => ExecutePipelineWithLocksAsync(
+            CompleteOrderCommand cmd => ExecuteWithRecheckAsync(
                 request,
-                [TransactionLockKey.ForOrder(cmd.OrderId)],
+                ct => ResolveOrderWithOptionalTableAndBranchAsync(cmd.OrderId, cmd.BranchId, ct),
+                next,
                 cancellationToken,
-                () => next()),
+                "Order table assignment changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt."),
 
-            CancelOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
+            SetOrderCustomerCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
+
+            CreateOrderCommand cmd => cmd.TableId is { } tid
+                ? ExecutePipelineWithLocksAsync(request, [TransactionLockKey.ForTable(tid)], cancellationToken, () => next())
+                : next(),
+
+            CancelOrderCommand cmd => ExecuteForOrderWithTableAsync(request, cmd.OrderId, extraTableId: null, next, cancellationToken),
+            ReopenOrderCommand cmd => ExecuteForOrderWithTableAsync(request, cmd.OrderId, extraTableId: null, next, cancellationToken),
+            TransferOrderTableCommand cmd => ExecuteForOrderWithTableAsync(request, cmd.OrderId, cmd.NewTableId, next, cancellationToken),
+            SplitOrderCommand cmd => ExecuteForOrderWithTableAsync(request, cmd.SourceOrderId, cmd.TargetTableId, next, cancellationToken),
+
             HoldOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             ResumeOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
-            ReopenOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
-            TransferOrderTableCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             UpdateDeliveryDetailsCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             AddOrderLineCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             RemoveOrderLineCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
@@ -81,44 +84,41 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             RemoveDiscountFromOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             ApplyServiceChargeToOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
             RemoveServiceChargeFromOrderCommand cmd => ExecuteForOrderAsync(request, cmd.OrderId, next, cancellationToken),
-            SplitOrderCommand cmd => ExecuteForOrderAsync(request, cmd.SourceOrderId, next, cancellationToken),
 
             SetOrderLineQuantityCommand cmd => ExecuteForOrderLineAsync(request, cmd.OrderLineId, next, cancellationToken),
             OverrideOrderLinePriceCommand cmd => ExecuteForOrderLineAsync(request, cmd.OrderLineId, next, cancellationToken),
             VoidOrderLineCommand cmd => ExecuteForOrderLineAsync(request, cmd.OrderLineId, next, cancellationToken),
             UnvoidOrderLineCommand cmd => ExecuteForOrderLineAsync(request, cmd.OrderLineId, next, cancellationToken),
 
-            MergeTablesCommand cmd => ExecuteForMergeTablesAsync(request, cmd, next, cancellationToken),
-
-            CloseBusinessDayCommand cmd => ExecutePipelineWithLocksAsync(
+            MergeTablesCommand cmd => ExecuteWithRecheckAsync(
                 request,
-                [TransactionLockKey.ForBusinessDay(cmd.BranchId)],
+                ct => ResolveMergeTableKeysAsync(cmd, ct),
+                next,
                 cancellationToken,
-                () => next()),
+                "Table orders changed repeatedly during merge lock acquisition. Refresh and retry the unchanged attempt."),
+
+            CloseBusinessDayCommand cmd => ExecuteWithRecheckAsync(
+                request,
+                ct => ResolveCloseBusinessDayKeysAsync(cmd, ct),
+                next,
+                cancellationToken,
+                "Branch shifts changed repeatedly during business-day close lock acquisition. Refresh and retry the unchanged attempt."),
 
             OpenShiftCommand cmd => ExecutePipelineWithLocksAsync(
                 request,
-                [TransactionLockKey.ForBusinessDay(cmd.BranchId)],
+                [TransactionLockKey.ForBusinessDay(cmd.BranchId, TransactionLockAccessMode.Exclusive)],
                 cancellationToken,
                 () => next()),
 
-            ProcessRefundCommand cmd => ExecuteForRefundAsync(
+            ProcessRefundCommand cmd => ExecuteWithRecheckAsync(
                 request,
-                cmd,
+                ct => ResolveRefundKeysAsync(cmd, ct),
                 next,
-                cancellationToken),
-
-            CloseShiftCommand cmd => ExecutePipelineWithLocksAsync(
-                request,
-                [TransactionLockKey.ForShift(cmd.ShiftId)],
                 cancellationToken,
-                () => next()),
+                "Financial targets changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt."),
 
-            RecordCashMovementCommand cmd => ExecutePipelineWithLocksAsync(
-                request,
-                [TransactionLockKey.ForShift(cmd.ShiftId)],
-                cancellationToken,
-                () => next()),
+            CloseShiftCommand cmd => ExecuteForShiftAsync(request, cmd.ShiftId, next, cancellationToken),
+            RecordCashMovementCommand cmd => ExecuteForShiftAsync(request, cmd.ShiftId, next, cancellationToken),
 
             RecordCustomerPaymentCommand cmd => ExecuteForCustomerPaymentAsync(
                 request,
@@ -136,55 +136,29 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
         };
     }
 
-    private Task<TResponse> ExecuteForOrderAsync(
-        TRequest request,
-        Guid orderId,
-        RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken) =>
-        ExecutePipelineWithLocksAsync(
+    private Task<T> ExecutePipelineWithLocksAsync<T>(
+        object request,
+        IEnumerable<TransactionLockKey> keys,
+        CancellationToken cancellationToken,
+        Func<Task<T>> action) =>
+        TransactionLockManager.ExecutePipelineWithLocksAsync(
             request,
-            [TransactionLockKey.ForOrder(orderId)],
+            keys,
             cancellationToken,
-            () => next());
+            acquiredKeys => persistenceLocks is null || acquiredKeys.Count == 0
+                ? action()
+                : persistenceLocks.ExecuteAsync(acquiredKeys, cancellationToken, action));
 
-    private async Task<TResponse> ExecuteForOrderLineAsync(
+    private async Task<TResponse> ExecuteWithRecheckAsync(
         TRequest request,
-        Guid orderLineId,
+        Func<CancellationToken, Task<HashSet<TransactionLockKey>>> resolveKeys,
         RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string instabilityMessage)
     {
-        if (orderLineRepository is null)
-        {
-            return await next().ConfigureAwait(false);
-        }
-
-        var line = await orderLineRepository.GetByIdAsync(new OrderLineId(orderLineId), cancellationToken).ConfigureAwait(false);
-        if (line is null)
-        {
-            return await next().ConfigureAwait(false);
-        }
-
-        return await ExecutePipelineWithLocksAsync(
-            request,
-            [TransactionLockKey.ForOrder(line.OrderId.Value)],
-            cancellationToken,
-            () => next()).ConfigureAwait(false);
-    }
-
-    private async Task<TResponse> ExecuteForMergeTablesAsync(
-        TRequest request,
-        MergeTablesCommand cmd,
-        RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken)
-    {
-        if (orderRepository is null)
-        {
-            return await next().ConfigureAwait(false);
-        }
-
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            var keys = await ResolveMergeTableOrderKeysAsync(cmd, cancellationToken).ConfigureAwait(false);
+            var keys = await resolveKeys(cancellationToken).ConfigureAwait(false);
             if (keys.Count == 0)
             {
                 return await next().ConfigureAwait(false);
@@ -197,7 +171,7 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
                 cancellationToken,
                 async () =>
                 {
-                    var currentKeys = await ResolveMergeTableOrderKeysAsync(cmd, cancellationToken).ConfigureAwait(false);
+                    var currentKeys = await resolveKeys(cancellationToken).ConfigureAwait(false);
                     if (!keys.SetEquals(currentKeys))
                     {
                         retryNeeded = true;
@@ -213,14 +187,107 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             }
         }
 
-        throw new InvalidOperationException("Table orders changed repeatedly during merge lock acquisition. Refresh and retry the unchanged attempt.");
+        throw new InvalidOperationException(instabilityMessage);
     }
 
-    private async Task<HashSet<TransactionLockKey>> ResolveMergeTableOrderKeysAsync(
+    private Task<TResponse> ExecuteForOrderAsync(
+        TRequest request,
+        Guid orderId,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken) =>
+        ExecutePipelineWithLocksAsync(
+            request,
+            [TransactionLockKey.ForOrder(orderId)],
+            cancellationToken,
+            () => next());
+
+    private Task<TResponse> ExecuteForOrderWithTableAsync(
+        TRequest request,
+        Guid orderId,
+        Guid? extraTableId,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken) =>
+        ExecuteWithRecheckAsync(
+            request,
+            async ct =>
+            {
+                var keys = new HashSet<TransactionLockKey> { TransactionLockKey.ForOrder(orderId) };
+                if (extraTableId is { } tid)
+                {
+                    keys.Add(TransactionLockKey.ForTable(tid));
+                }
+
+                if (orderRepository is not null)
+                {
+                    var order = await orderRepository.GetByIdAsync(new OrderId(orderId), ct).ConfigureAwait(false);
+                    if (order?.TableId is { } existingTableId)
+                    {
+                        keys.Add(TransactionLockKey.ForTable(existingTableId.Value));
+                    }
+                }
+
+                return keys;
+            },
+            next,
+            cancellationToken,
+            "Order table assignment changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.");
+
+    private async Task<HashSet<TransactionLockKey>> ResolveOrderWithOptionalTableAndBranchAsync(
+        Guid orderId,
+        Guid? branchId,
+        CancellationToken cancellationToken)
+    {
+        var keys = new HashSet<TransactionLockKey> { TransactionLockKey.ForOrder(orderId) };
+        if (branchId is { } bid && bid != Guid.Empty)
+        {
+            keys.Add(TransactionLockKey.ForBusinessDay(bid, TransactionLockAccessMode.Shared));
+        }
+
+        if (orderRepository is not null)
+        {
+            var order = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken).ConfigureAwait(false);
+            if (order?.TableId is { } tid)
+            {
+                keys.Add(TransactionLockKey.ForTable(tid.Value));
+            }
+        }
+
+        return keys;
+    }
+
+    private Task<TResponse> ExecuteForOrderLineAsync(
+        TRequest request,
+        Guid orderLineId,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken) =>
+        ExecuteWithRecheckAsync(
+            request,
+            async ct =>
+            {
+                if (orderLineRepository is null)
+                {
+                    return [];
+                }
+
+                var line = await orderLineRepository.GetByIdAsync(new OrderLineId(orderLineId), ct).ConfigureAwait(false);
+                return line is null
+                    ? []
+                    : [TransactionLockKey.ForOrder(line.OrderId.Value)];
+            },
+            next,
+            cancellationToken,
+            "Order line moved repeatedly between orders during lock acquisition. Refresh and retry the unchanged attempt.");
+
+    private async Task<HashSet<TransactionLockKey>> ResolveMergeTableKeysAsync(
         MergeTablesCommand cmd,
         CancellationToken cancellationToken)
     {
-        var keys = new HashSet<TransactionLockKey>();
+        var keys = new HashSet<TransactionLockKey>
+        {
+            TransactionLockKey.ForTable(cmd.SourceTableId),
+            TransactionLockKey.ForTable(cmd.TargetTableId)
+        };
+
         if (orderRepository is null)
         {
             return keys;
@@ -241,67 +308,30 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
         return keys;
     }
 
-    private Task<T> ExecutePipelineWithLocksAsync<T>(
-        object request,
-        IEnumerable<TransactionLockKey> keys,
-        CancellationToken cancellationToken,
-        Func<Task<T>> action) =>
-        TransactionLockManager.ExecutePipelineWithLocksAsync(
-            request,
-            keys,
-            cancellationToken,
-            acquiredKeys => persistenceLocks is null || acquiredKeys.Count == 0
-                ? action()
-                : persistenceLocks.ExecuteAsync(acquiredKeys, cancellationToken, action));
-
-    private async Task<TResponse> ExecuteForOrderWithCustomerAsync(
-        TRequest request,
+    private async Task<HashSet<TransactionLockKey>> ResolvePaymentKeysAsync(
         Guid orderId,
         Guid? shiftId,
-        RequestHandlerDelegate<TResponse> next,
+        string? idempotencyKey,
         CancellationToken cancellationToken)
     {
-        for (var attempt = 0; attempt < 2; attempt++)
+        var keys = new HashSet<TransactionLockKey> { TransactionLockKey.ForOrder(orderId) };
+        await AddShiftAndBranchSharedLockAsync(keys, shiftId, cancellationToken).ConfigureAwait(false);
+
+        if (orderRepository is not null)
         {
-            Guid? preReadCustomerId = null;
-            if (orderRepository is not null)
+            var order = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken).ConfigureAwait(false);
+            if (order?.CustomerId is { } cid)
             {
-                var order = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken).ConfigureAwait(false);
-                preReadCustomerId = order?.CustomerId?.Value;
-            }
-
-            var keys = new List<TransactionLockKey>(3);
-            if (shiftId is { } sid) keys.Add(TransactionLockKey.ForShift(sid));
-            if (preReadCustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid));
-            keys.Add(TransactionLockKey.ForOrder(orderId));
-
-            var retryNeeded = false;
-            var response = await ExecutePipelineWithLocksAsync<TResponse>(
-                request,
-                keys,
-                cancellationToken,
-                async () =>
-                {
-                    if (orderRepository is not null)
-                    {
-                        var rechecked = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken).ConfigureAwait(false);
-                        if (rechecked?.CustomerId?.Value != preReadCustomerId)
-                        {
-                            retryNeeded = true;
-                            return default!;
-                        }
-                    }
-
-                    return await next().ConfigureAwait(false);
-                }).ConfigureAwait(false);
-
-            if (!retryNeeded)
-            {
-                return response;
+                keys.Add(TransactionLockKey.ForCustomer(cid.Value));
             }
         }
 
-        throw new InvalidOperationException("Order customer changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.");
+        if (TryParseEmergencyTransactionId(idempotencyKey) is { } emergencyTxId)
+        {
+            keys.Add(TransactionLockKey.ForContinuityTransaction(emergencyTxId));
+        }
+
+        return keys;
     }
 
     private async Task<TResponse> ExecuteForVoidPaymentAsync(
@@ -321,48 +351,12 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             return await next().ConfigureAwait(false);
         }
 
-        return await ExecuteForOrderWithCustomerAsync(
+        return await ExecuteWithRecheckAsync(
             request,
-            payment.OrderId.Value,
-            payment.ShiftId?.Value,
+            ct => ResolvePaymentKeysAsync(payment.OrderId.Value, payment.ShiftId?.Value, idempotencyKey: null, ct),
             next,
-            cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<TResponse> ExecuteForVoidOrderAsync(
-        TRequest request,
-        Guid orderId,
-        RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken)
-    {
-        for (var attempt = 0; attempt < 2; attempt++)
-        {
-            var keys = await ResolveVoidOrderKeysAsync(orderId, cancellationToken).ConfigureAwait(false);
-
-            var retryNeeded = false;
-            var response = await ExecutePipelineWithLocksAsync<TResponse>(
-                request,
-                keys,
-                cancellationToken,
-                async () =>
-                {
-                    var currentKeys = await ResolveVoidOrderKeysAsync(orderId, cancellationToken).ConfigureAwait(false);
-                    if (!keys.SetEquals(currentKeys))
-                    {
-                        retryNeeded = true;
-                        return default!;
-                    }
-
-                    return await next().ConfigureAwait(false);
-                }).ConfigureAwait(false);
-
-            if (!retryNeeded)
-            {
-                return response;
-            }
-        }
-
-        throw new InvalidOperationException("Financial targets changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.");
+            cancellationToken,
+            "Order customer changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.").ConfigureAwait(false);
     }
 
     private async Task<HashSet<TransactionLockKey>> ResolveVoidOrderKeysAsync(Guid orderId, CancellationToken cancellationToken)
@@ -375,6 +369,11 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             {
                 keys.Add(TransactionLockKey.ForCustomer(cid.Value));
             }
+
+            if (order?.TableId is { } tid)
+            {
+                keys.Add(TransactionLockKey.ForTable(tid.Value));
+            }
         }
 
         if (paymentRepository is not null)
@@ -384,7 +383,7 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             {
                 if (!p.IsVoided && p.ShiftId is { } sid)
                 {
-                    keys.Add(TransactionLockKey.ForShift(sid.Value));
+                    await AddShiftAndBranchSharedLockAsync(keys, sid.Value, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -392,51 +391,13 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
         return keys;
     }
 
-    private async Task<TResponse> ExecuteForRefundAsync(
-        TRequest request,
-        ProcessRefundCommand cmd,
-        RequestHandlerDelegate<TResponse> next,
-        CancellationToken cancellationToken)
-    {
-        for (var attempt = 0; attempt < 2; attempt++)
-        {
-            var (candidateShiftId, customerId) = await ResolveRefundTargetsAsync(cmd, cancellationToken).ConfigureAwait(false);
-
-            var keys = new List<TransactionLockKey>(3) { TransactionLockKey.ForOrder(cmd.OrderId) };
-            if (candidateShiftId is { } sid) keys.Add(TransactionLockKey.ForShift(sid));
-            if (customerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid));
-
-            var retryNeeded = false;
-            var response = await ExecutePipelineWithLocksAsync<TResponse>(
-                request,
-                keys,
-                cancellationToken,
-                async () =>
-                {
-                    var (currentShiftId, currentCustomerId) = await ResolveRefundTargetsAsync(cmd, cancellationToken).ConfigureAwait(false);
-                    if (currentShiftId != candidateShiftId || currentCustomerId != customerId)
-                    {
-                        retryNeeded = true;
-                        return default!;
-                    }
-
-                    return await next().ConfigureAwait(false);
-                }).ConfigureAwait(false);
-
-            if (!retryNeeded)
-            {
-                return response;
-            }
-        }
-
-        throw new InvalidOperationException("Financial targets changed repeatedly during lock acquisition. Refresh and retry the unchanged attempt.");
-    }
-
-    private async Task<(Guid? ShiftId, Guid? CustomerId)> ResolveRefundTargetsAsync(
+    private async Task<HashSet<TransactionLockKey>> ResolveRefundKeysAsync(
         ProcessRefundCommand cmd,
         CancellationToken cancellationToken)
     {
         Guid? candidateShiftId = cmd.ShiftId;
+        Guid? branchIdFromShift = null;
+
         if (!candidateShiftId.HasValue && shiftRepository is not null)
         {
             Shift? activeShift = null;
@@ -455,51 +416,75 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             }
 
             candidateShiftId = activeShift?.Id.Value;
+            branchIdFromShift = activeShift?.BranchId.Value;
         }
 
-        Guid? customerId = null;
+        var keys = new HashSet<TransactionLockKey> { TransactionLockKey.ForOrder(cmd.OrderId) };
+        if (candidateShiftId is { } sid)
+        {
+            if (branchIdFromShift is { } bid && bid != Guid.Empty)
+            {
+                keys.Add(TransactionLockKey.ForShift(sid));
+                keys.Add(TransactionLockKey.ForBusinessDay(bid, TransactionLockAccessMode.Shared));
+            }
+            else
+            {
+                await AddShiftAndBranchSharedLockAsync(keys, sid, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         if (orderRepository is not null)
         {
             var order = await orderRepository.GetByIdAsync(new OrderId(cmd.OrderId), cancellationToken).ConfigureAwait(false);
-            customerId = order?.CustomerId?.Value;
+            if (order?.CustomerId is { } cid)
+            {
+                keys.Add(TransactionLockKey.ForCustomer(cid.Value));
+            }
         }
 
-        return (candidateShiftId, customerId);
+        return keys;
     }
 
-    private Task<TResponse> ExecuteForCustomerPaymentAsync(
+    private async Task<TResponse> ExecuteForShiftAsync(
+        TRequest request,
+        Guid shiftId,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var keys = new HashSet<TransactionLockKey>();
+        await AddShiftAndBranchSharedLockAsync(keys, shiftId, cancellationToken).ConfigureAwait(false);
+
+        return await ExecutePipelineWithLocksAsync(
+            request,
+            keys,
+            cancellationToken,
+            () => next()).ConfigureAwait(false);
+    }
+
+    private async Task<TResponse> ExecuteForCustomerPaymentAsync(
         TRequest request,
         RecordCustomerPaymentCommand cmd,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        var keys = new List<TransactionLockKey>(2)
-        {
-            TransactionLockKey.ForCustomer(cmd.CustomerId)
-        };
-        if (cmd.ShiftId.HasValue)
-        {
-            keys.Add(TransactionLockKey.ForShift(cmd.ShiftId.Value));
-        }
+        var keys = new HashSet<TransactionLockKey> { TransactionLockKey.ForCustomer(cmd.CustomerId) };
+        await AddShiftAndBranchSharedLockAsync(keys, cmd.ShiftId, cancellationToken).ConfigureAwait(false);
 
-        return ExecutePipelineWithLocksAsync(
+        return await ExecutePipelineWithLocksAsync(
             request,
             keys,
             cancellationToken,
-            () => next());
+            () => next()).ConfigureAwait(false);
     }
 
-    private Task<TResponse> ExecuteForBulkCustomerPaymentsAsync(
+    private async Task<TResponse> ExecuteForBulkCustomerPaymentsAsync(
         TRequest request,
         RecordBulkCustomerPaymentsCommand cmd,
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        var keys = new List<TransactionLockKey>();
-        if (cmd.ShiftId.HasValue)
-        {
-            keys.Add(TransactionLockKey.ForShift(cmd.ShiftId.Value));
-        }
+        var keys = new HashSet<TransactionLockKey>();
+        await AddShiftAndBranchSharedLockAsync(keys, cmd.ShiftId, cancellationToken).ConfigureAwait(false);
 
         if (cmd.Payments is not null)
         {
@@ -509,10 +494,83 @@ public sealed class TransactionSerializationBehavior<TRequest, TResponse>(
             }
         }
 
-        return ExecutePipelineWithLocksAsync(
+        return await ExecutePipelineWithLocksAsync(
             request,
             keys,
             cancellationToken,
-            () => next());
+            () => next()).ConfigureAwait(false);
+    }
+
+    private async Task<HashSet<TransactionLockKey>> ResolveCloseBusinessDayKeysAsync(
+        CloseBusinessDayCommand cmd,
+        CancellationToken cancellationToken)
+    {
+        var keys = new HashSet<TransactionLockKey>
+        {
+            TransactionLockKey.ForBusinessDay(cmd.BranchId, TransactionLockAccessMode.Exclusive)
+        };
+
+        if (shiftRepository is not null)
+        {
+            var fromWindow = new DateTimeOffset(cmd.BusinessDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero).AddDays(-1);
+            var recentShifts = await shiftRepository.SearchShiftsAsync(
+                fromDateUtc: fromWindow,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            foreach (var s in recentShifts)
+            {
+                if (s.BranchId.Value == cmd.BranchId)
+                {
+                    keys.Add(TransactionLockKey.ForShift(s.Id.Value));
+                }
+            }
+
+            var openShifts = await shiftRepository.SearchShiftsAsync(
+                status: ShiftStatus.Open,
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+            foreach (var s in openShifts)
+            {
+                if (s.BranchId.Value == cmd.BranchId)
+                {
+                    keys.Add(TransactionLockKey.ForShift(s.Id.Value));
+                }
+            }
+        }
+
+        return keys;
+    }
+
+    private async Task AddShiftAndBranchSharedLockAsync(
+        HashSet<TransactionLockKey> keys,
+        Guid? shiftId,
+        CancellationToken cancellationToken)
+    {
+        if (shiftId is not { } sid || sid == Guid.Empty)
+        {
+            return;
+        }
+
+        keys.Add(TransactionLockKey.ForShift(sid));
+        if (shiftRepository is not null)
+        {
+            var shift = await shiftRepository.GetByIdAsync(new ShiftId(sid), cancellationToken).ConfigureAwait(false);
+            if (shift is not null && shift.BranchId.Value != Guid.Empty)
+            {
+                keys.Add(TransactionLockKey.ForBusinessDay(shift.BranchId.Value, TransactionLockAccessMode.Shared));
+            }
+        }
+    }
+
+    private static Guid? TryParseEmergencyTransactionId(string? idempotencyKey)
+    {
+        const string prefix = "emergency:";
+        if (string.IsNullOrWhiteSpace(idempotencyKey) ||
+            !idempotencyKey.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return Guid.TryParse(idempotencyKey.AsSpan(prefix.Length), out var txId) && txId != Guid.Empty
+            ? txId
+            : null;
     }
 }

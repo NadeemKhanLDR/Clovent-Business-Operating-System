@@ -176,6 +176,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
             new PaymentMethodRepository(replayDb),
             new UnitOfWork(replayDb),
             new OutboxRepository(replayDb),
+            new SqlTransactionLockProvider(replayDb),
             null,
             NullLogger<EmergencyJournalReplayer>.Instance);
 
@@ -292,7 +293,8 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentRepository(db1),
                 new PaymentMethodRepository(db1),
                 new UnitOfWork(db1),
-                new OutboxRepository(db1));
+                new OutboxRepository(db1),
+                new SqlTransactionLockProvider(db1));
 
             var result1 = await replayer1.ReplayPendingAsync();
             Assert.Equal(count, result1.SuccessCount);
@@ -309,7 +311,8 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentRepository(db2),
                 new PaymentMethodRepository(db2),
                 new UnitOfWork(db2),
-                new OutboxRepository(db2));
+                new OutboxRepository(db2),
+                new SqlTransactionLockProvider(db2));
 
             var result2 = await replayer2.ReplayPendingAsync();
             Assert.Equal(0, result2.TotalProcessed);
@@ -335,7 +338,8 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentRepository(db3),
                 new PaymentMethodRepository(db3),
                 new UnitOfWork(db3),
-                new OutboxRepository(db3));
+                new OutboxRepository(db3),
+                new SqlTransactionLockProvider(db3));
 
             var result3 = await replayer3.ReplayPendingAsync();
             Assert.Equal(3, result3.TotalProcessed);
@@ -431,6 +435,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                     new PaymentMethodRepository(workerDb),
                     new UnitOfWork(workerDb),
                     new OutboxRepository(workerDb),
+                    new SqlTransactionLockProvider(workerDb),
                     null,
                     NullLogger<EmergencyJournalReplayer>.Instance);
 
@@ -560,7 +565,8 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
             new PaymentRepository(db),
             new PaymentMethodRepository(db),
             new UnitOfWork(db),
-            new OutboxRepository(db));
+            new OutboxRepository(db),
+            new SqlTransactionLockProvider(db));
 
         var result = await replayer.ReplayPendingAsync();
 
