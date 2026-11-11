@@ -20,6 +20,14 @@ partial class PaymentHistoryDialog
 {
     private System.ComponentModel.IContainer components = null;
 
+    private readonly LabelControl _completedPolicyBanner = new()
+    {
+        Dock = DockStyle.Fill,
+        AutoSizeMode = LabelAutoSizeMode.Vertical,
+        Visible = false,
+        Name = "_completedPolicyBanner",
+        Padding = new Padding(8, 6, 8, 8)
+    };
     private readonly GridControl _paymentsGrid = new() { Dock = DockStyle.Fill };
     private readonly GridView _paymentsGridView = new();
     private readonly SimpleButton _voidButton = new() { Text = "Void Payment" };
@@ -59,12 +67,18 @@ partial class PaymentHistoryDialog
 
     private void BuildLayout()
     {
-        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(12) };
+        var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(12) };
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         // AutoSize action row, not a fixed 52px - the DPI-grown AutoSize
         // buttons (40px minimum + margins) overflowed the fixed row and
         // clipped into the grid at above-100% DPI.
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        _completedPolicyBanner.Appearance.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+        _completedPolicyBanner.Appearance.ForeColor = Color.FromArgb(148, 72, 0);
+        _completedPolicyBanner.Appearance.Options.UseFont = true;
+        _completedPolicyBanner.Appearance.Options.UseForeColor = true;
 
         _paymentsGrid.MainView = _paymentsGridView;
         _paymentsGrid.ViewCollection.Add(_paymentsGridView);
@@ -110,8 +124,9 @@ partial class PaymentHistoryDialog
         _voidButton.Margin = new Padding(6, 4, 0, 4);
         actionPanel.Controls.Add(_voidButton);
 
-        root.Controls.Add(_paymentsGrid, 0, 0);
-        root.Controls.Add(actionPanel, 0, 1);
+        root.Controls.Add(_completedPolicyBanner, 0, 0);
+        root.Controls.Add(_paymentsGrid, 0, 1);
+        root.Controls.Add(actionPanel, 0, 2);
 
         Controls.Add(root);
     }

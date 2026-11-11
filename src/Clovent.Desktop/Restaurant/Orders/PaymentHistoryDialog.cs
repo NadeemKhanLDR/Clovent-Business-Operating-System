@@ -90,9 +90,16 @@ public sealed partial class PaymentHistoryDialog : XtraForm
     {
         AppearanceManager.Apply(this, "Restaurant", nameof(PaymentHistoryDialog));
 
+        var order = await _mediator.Send(new GetOrderByIdQuery(_orderId));
         var payments = await _mediator.Send(new ListPaymentsByOrderQuery(_orderId));
         var methods = await _mediator.Send(new ListPaymentMethodsQuery());
         var methodNames = methods.ToDictionary(m => m.PaymentMethodId, m => m.Name);
+
+        var (canVoid, explanation) = PaymentHistoryRules.EvaluateVoidAvailability(order.Status);
+        _voidButton.Enabled = canVoid;
+        _voidButton.ToolTip = explanation ?? string.Empty;
+        _completedPolicyBanner.Text = explanation ?? string.Empty;
+        _completedPolicyBanner.Visible = !canVoid;
 
         _paymentsGrid.DataSource = payments.Select(p => new PaymentRow(
             p.PaymentId,
@@ -104,6 +111,14 @@ public sealed partial class PaymentHistoryDialog : XtraForm
 
     private async Task VoidPaymentAsync()
     {
+        var order = await _mediator.Send(new GetOrderByIdQuery(_orderId));
+        var (canVoid, explanation) = PaymentHistoryRules.EvaluateVoidAvailability(order.Status);
+        if (!canVoid)
+        {
+            XtraMessageBox.Show(this, explanation!, "Completed Order Immutable", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
         if (_paymentsGridView.GetFocusedRow() is not PaymentRow row)
         {
             XtraMessageBox.Show(this, "Select a payment in the list first.", "No Payment Selected", MessageBoxButtons.OK, MessageBoxIcon.Information);

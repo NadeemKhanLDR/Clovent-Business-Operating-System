@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
@@ -43,15 +44,50 @@ public sealed class RecordBulkCustomerPaymentsCommandHandler(
     IOrderRepository orderRepository,
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    ICustomerPaymentAllocationRepository allocationRepository)
+    ICustomerPaymentAllocationRepository allocationRepository,
+    IShiftRepository? shiftRepository = null)
     : IRequestHandler<RecordBulkCustomerPaymentsCommand, BulkCustomerPaymentBatchResult>
 {
     /// <inheritdoc/>
-    public async Task<BulkCustomerPaymentBatchResult> Handle(RecordBulkCustomerPaymentsCommand request, CancellationToken cancellationToken)
+    public Task<BulkCustomerPaymentBatchResult> Handle(RecordBulkCustomerPaymentsCommand request, CancellationToken cancellationToken)
+    {
+        var keys = new List<TransactionLockKey>();
+        if (request.ShiftId.HasValue)
+        {
+            keys.Add(TransactionLockKey.ForShift(request.ShiftId.Value));
+        }
+
+        if (request.Payments is not null)
+        {
+            foreach (var item in request.Payments)
+            {
+                keys.Add(TransactionLockKey.ForCustomer(item.CustomerId));
+            }
+        }
+
+        return TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
+    }
+
+    private async Task<BulkCustomerPaymentBatchResult> HandleCoreAsync(RecordBulkCustomerPaymentsCommand request, CancellationToken cancellationToken)
     {
         if (request.Payments == null || request.Payments.Count == 0)
         {
             throw new ArgumentException("At least one payment row is required for bulk collection.", nameof(request.Payments));
+        }
+
+        if (request.ShiftId is { } rawShiftId && shiftRepository is not null)
+        {
+            var shift = await shiftRepository.GetByIdAsync(new ShiftId(rawShiftId), cancellationToken)
+                ?? throw new NotFoundException(nameof(Shift), rawShiftId);
+
+            if (shift.Status != ShiftStatus.Open)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot record bulk customer collections against Shift #{shift.ShiftNumber} because its status is {shift.Status}.");
+            }
         }
 
         // Validate all rows before committing anything
@@ -95,7 +131,8 @@ public sealed class RecordBulkCustomerPaymentsCommandHandler(
             orderRepository,
             paymentRepository,
             paymentMethodRepository,
-            allocationRepository);
+            allocationRepository,
+            shiftRepository);
 
         var results = new List<CustomerPaymentResult>();
         decimal totalReceived = 0m;

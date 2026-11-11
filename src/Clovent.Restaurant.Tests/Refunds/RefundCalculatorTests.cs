@@ -198,4 +198,95 @@ public class RefundCalculatorTests
         Assert.Equal(0.01m, calc.DiscountReversed);
         Assert.Equal(0.01m, calc.TaxReversed);
     }
+
+    [Fact]
+    public void CalculateLineRefund_MidpointUnitPriceSplitAcrossTwoHalves_FinalPartialAbsorbsGrossRoundingResidual()
+    {
+        // 1 unit @ 10.05 -> gross = 10.05.
+        // First half 0.5: 5.025 -> AwayFromZero = 5.03.
+        // Second half (final remaining 0.5) must absorb residual gross cent (10.05 - 5.03 = 5.02) so total = 10.05, not 10.06.
+        var first = RefundCalculator.CalculateLineRefund(
+            originalQuantity: 1m,
+            unitPrice: 10.05m,
+            allocatedDiscount: 0m,
+            taxAmount: 0m,
+            taxIsInclusive: false,
+            priorRefundedQuantity: 0m,
+            priorDiscountReversed: 0m,
+            priorTaxReversed: 0m,
+            requestedQuantity: 0.5m);
+
+        var second = RefundCalculator.CalculateLineRefund(
+            originalQuantity: 1m,
+            unitPrice: 10.05m,
+            allocatedDiscount: 0m,
+            taxAmount: 0m,
+            taxIsInclusive: false,
+            priorRefundedQuantity: 0.5m,
+            priorDiscountReversed: 0m,
+            priorTaxReversed: 0m,
+            requestedQuantity: 0.5m);
+
+        Assert.Equal(5.03m, first.GrossRefund);
+        Assert.Equal(5.02m, second.GrossRefund);
+        Assert.Equal(10.05m, first.NetPayableRefund + second.NetPayableRefund);
+    }
+
+    [Theory]
+    [InlineData(2.5, 0, 0)] // priorRefundedQuantity > originalQuantity (2)
+    [InlineData(1, 15, 0)]  // priorDiscountReversed > allocatedDiscount (10)
+    [InlineData(1, 0, 20)]  // priorTaxReversed > taxAmount (16)
+    public void CalculateLineRefund_InconsistentHistoricalState_ThrowsInsteadOfSilentlyClamping(
+        decimal priorRefundedQuantity,
+        decimal priorDiscountReversed,
+        decimal priorTaxReversed)
+    {
+        Assert.Throws<InvalidOperationException>(() => RefundCalculator.CalculateLineRefund(
+            originalQuantity: 2m,
+            unitPrice: 100m,
+            allocatedDiscount: 10m,
+            taxAmount: 16m,
+            taxIsInclusive: false,
+            priorRefundedQuantity: priorRefundedQuantity,
+            priorDiscountReversed: priorDiscountReversed,
+            priorTaxReversed: priorTaxReversed,
+            requestedQuantity: 0.5m));
+    }
+
+    [Fact]
+    public void CalculateLineRefund_RequestedQuantityExceedingRemaining_ThrowsInsteadOfSilentlyClamping()
+    {
+        Assert.Throws<InvalidOperationException>(() => RefundCalculator.CalculateLineRefund(
+            originalQuantity: 2m,
+            unitPrice: 100m,
+            allocatedDiscount: 10m,
+            taxAmount: 16m,
+            taxIsInclusive: false,
+            priorRefundedQuantity: 1.5m,
+            priorDiscountReversed: 7.50m,
+            priorTaxReversed: 12.00m,
+            requestedQuantity: 1m));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CalculateLineRefund_RepeatingFractionalReturnsWithExplicitPriorGross_PreservesExactCumulativeTotals(bool taxIsInclusive)
+    {
+        // 1 unit @ 10.01 gross, discount 1.00, tax 1.44 -> 0.33 + 0.33 + 0.34
+        // Intermediate 0.33 * 10.01 = 3.3033 -> 3.30 (two partials = 6.60).
+        // Final 0.34 absorbs exact residual 10.01 - 6.60 = 3.41 (not 3.40 which loses $0.01).
+        var p1 = RefundCalculator.CalculateLineRefund(1m, 10.01m, 1.00m, 1.44m, taxIsInclusive, 0m, 0m, 0m, 0.33m, 0m);
+        var p2 = RefundCalculator.CalculateLineRefund(1m, 10.01m, 1.00m, 1.44m, taxIsInclusive, 0.33m, p1.DiscountReversed, p1.TaxReversed, 0.33m, p1.GrossRefund);
+        var p3 = RefundCalculator.CalculateLineRefund(1m, 10.01m, 1.00m, 1.44m, taxIsInclusive, 0.66m, p1.DiscountReversed + p2.DiscountReversed, p1.TaxReversed + p2.TaxReversed, 0.34m, p1.GrossRefund + p2.GrossRefund);
+
+        Assert.Equal(3.30m, p1.GrossRefund);
+        Assert.Equal(3.30m, p2.GrossRefund);
+        Assert.Equal(3.41m, p3.GrossRefund);
+        Assert.Equal(10.01m, p1.GrossRefund + p2.GrossRefund + p3.GrossRefund);
+        Assert.Equal(1.00m, p1.DiscountReversed + p2.DiscountReversed + p3.DiscountReversed);
+        Assert.Equal(1.44m, p1.TaxReversed + p2.TaxReversed + p3.TaxReversed);
+        var expectedNet = taxIsInclusive ? (10.01m - 1.00m) : (10.01m - 1.00m + 1.44m);
+        Assert.Equal(expectedNet, p1.NetPayableRefund + p2.NetPayableRefund + p3.NetPayableRefund);
+    }
 }

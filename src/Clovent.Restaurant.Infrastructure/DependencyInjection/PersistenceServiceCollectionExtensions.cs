@@ -81,6 +81,7 @@ public static class PersistenceServiceCollectionExtensions
 
         services.TryAddScoped<Clovent.Restaurant.Application.SmartCombos.ISmartComboStore, SmartComboStore>();
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
+        services.TryAddScoped<Clovent.Restaurant.Application.Concurrency.ITransactionLockProvider, SqlTransactionLockProvider>();
 
         services.AddScoped<IPersistenceInitializer, RestaurantPersistenceInitializer>();
 

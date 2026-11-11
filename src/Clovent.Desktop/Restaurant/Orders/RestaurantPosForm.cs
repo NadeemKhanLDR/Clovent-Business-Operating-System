@@ -359,6 +359,10 @@ public sealed partial class RestaurantPosForm : XtraForm
             _featurePolicy = new SerializedFeatureAuthorizationPolicy(_scope.ServiceProvider.GetRequiredService<IFeatureAuthorizationPolicy>(), _gate);
             _logger = _scope.ServiceProvider.GetService<ILogger<RestaurantPosForm>>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
             _currentSession = currentSession;
+            _paymentAttemptRecovery = new PaymentAttemptRecovery(new ProtectedPaymentAttemptJournal(
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Clovent", "Clovent.BusinessOperatingSystem", "PaymentAttempts-v1"),
+                Environment.MachineName, () => _currentSession.UserId));
             _activeCashierSessionUserId = currentSession.UserId;
             _currentSession.Changed += CurrentSession_Changed;
             _changeNotifier = changeNotifier;

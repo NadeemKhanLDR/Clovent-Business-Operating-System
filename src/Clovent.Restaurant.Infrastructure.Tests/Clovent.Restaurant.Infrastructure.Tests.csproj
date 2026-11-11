@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../Tools/Clovent.Transaction.TestWorker/Clovent.Transaction.TestWorker.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Clovent.Restaurant.Infrastructure\Clovent.Restaurant.Infrastructure.csproj" />
     <!-- Milestone 15 ("Restaurant POS Core") full-order-lifecycle integration
          test spans three bounded contexts (Restaurant, Catalog, Inventory) -
@@ -28,4 +29,12 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
   </ItemGroup>
 
+  <Target Name="CopyTransactionWorker" AfterTargets="Build">
+    <MSBuild Projects="../../Tools/Clovent.Transaction.TestWorker/Clovent.Transaction.TestWorker.csproj" Targets="GetTargetPath" BuildInParallel="false" Properties="Configuration=$(Configuration)">
+      <Output TaskParameter="TargetOutputs" ItemName="_TransactionWorkerTarget" />
+    </MSBuild>
+    <PropertyGroup><_TransactionWorkerDirectory>@(_TransactionWorkerTarget->'%(RootDir)%(Directory)')</_TransactionWorkerDirectory></PropertyGroup>
+    <ItemGroup><TransactionWorkerFiles Include="$(_TransactionWorkerDirectory)**/*" /></ItemGroup>
+    <Copy SourceFiles="@(TransactionWorkerFiles)" DestinationFiles="@(TransactionWorkerFiles->'$(OutDir)TransactionWorker/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>

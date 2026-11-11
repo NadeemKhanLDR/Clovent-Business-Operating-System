@@ -38,6 +38,7 @@ public class RefundOrderDialogTests
         await dialog.ExecuteSubmitRefundAsync();
         Assert.Equal(Assert.Single(mediator.ExistingRefunds).RefundId, dialog.ResultRefund?.RefundId);
         Assert.Equal(1m, dialog.LineRows[0].AlreadyRefundedQuantity);
+        Assert.Equal(500m, dialog.LineRows[0].AlreadyReversedGross);
         Assert.Equal(System.Windows.Forms.DialogResult.OK, dialog.DialogResult);
         await dialog.ExecuteSubmitRefundAsync();
         Assert.Single(mediator.SentRefundCommands);

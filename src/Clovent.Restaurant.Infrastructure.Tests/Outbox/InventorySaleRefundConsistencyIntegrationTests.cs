@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using System;
 
 using System.Collections.Generic;
@@ -184,7 +185,9 @@ public sealed class InventorySaleRefundConsistencyIntegrationTests : IAsyncLifet
 
         var inventoryDb = initScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
+        SqlTestDatabaseGuard.Validate(_connectionString);
         await restaurantDb.Database.EnsureCreatedAsync();
+        await SqlTestDatabaseGuard.CreatedAsync(restaurantDb);
 
         var inventoryCreator = (IRelationalDatabaseCreator)inventoryDb.Database.GetService<IDatabaseCreator>();
 
@@ -225,33 +228,15 @@ public sealed class InventorySaleRefundConsistencyIntegrationTests : IAsyncLifet
     }
 
     public async Task DisposeAsync()
-
     {
-
         try
-
         {
-
             using var cleanupScope = _serviceProvider.CreateScope();
-
-            var restaurantDb = cleanupScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-
-            await restaurantDb.Database.EnsureDeletedAsync();
-
+            var db = cleanupScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db);
         }
-
-        catch
-
-        {
-
-            // Suppress cleanup failure in tests
-
-        }
-
-        await _serviceProvider.DisposeAsync();
-
+        finally { await _serviceProvider.DisposeAsync(); }
     }
-
     private async Task<ProductVariantId> SeedTrackedStockAsync(decimal initialQuantity)
 
     {

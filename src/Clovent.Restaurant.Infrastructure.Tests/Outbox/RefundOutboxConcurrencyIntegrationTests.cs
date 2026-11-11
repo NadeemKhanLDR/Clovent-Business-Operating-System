@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -110,7 +111,9 @@ public sealed class RefundOutboxConcurrencyIntegrationTests : IAsyncLifetime
         var restaurantDb = initScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
         var inventoryDb = initScope.ServiceProvider.GetRequiredService<InventoryDbContext>();
 
+        SqlTestDatabaseGuard.Validate(_connectionString);
         await restaurantDb.Database.EnsureCreatedAsync();
+        await SqlTestDatabaseGuard.CreatedAsync(restaurantDb);
         var inventoryCreator = (Microsoft.EntityFrameworkCore.Storage.IRelationalDatabaseCreator)inventoryDb.Database.GetService<Microsoft.EntityFrameworkCore.Storage.IDatabaseCreator>();
         await inventoryCreator.CreateTablesAsync();
 
@@ -173,17 +176,11 @@ public sealed class RefundOutboxConcurrencyIntegrationTests : IAsyncLifetime
         try
         {
             using var cleanupScope = _serviceProvider.CreateScope();
-            var restaurantDb = cleanupScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
-            await restaurantDb.Database.EnsureDeletedAsync();
+            var db = cleanupScope.ServiceProvider.GetRequiredService<RestaurantDbContext>();
+            await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db);
         }
-        catch
-        {
-            // Suppress teardown errors
-        }
-
-        await _serviceProvider.DisposeAsync();
+        finally { await _serviceProvider.DisposeAsync(); }
     }
-
     [Fact]
     public async Task Refund_WhenBackgroundWorkerUpdatesOutboxConcurrently_MustSucceedAndPreserveQueryAndRetry()
     {

@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using System.Collections.Concurrent;
 using Clovent.Restaurant.Application.Outbox;
 using Clovent.Restaurant.Infrastructure.Outbox;
@@ -18,12 +19,13 @@ public sealed class SqlRestartRecoveryTests
     {
         var database = $"CBOS_Recovery_{Guid.NewGuid():N}";
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
-            .UseSqlServer($"Server=(localdb)\\MSSQLLocalDB;Database={database};Integrated Security=true;TrustServerCertificate=true").Options;
+            .UseSqlServer(SqlTestDatabaseGuard.ConnectionString(database)).Options;
         await using var db = new RestaurantDbContext(options);
         var deliveries = new ConcurrentDictionary<string, int>();
         try
         {
             await db.Database.EnsureCreatedAsync();
+            await SqlTestDatabaseGuard.CreatedAsync(db);
             OutboxMessage Message(string key) => OutboxMessage.Create(OutboxMessageType.ReceiptPrint, "Order", key, key, "{}", key);
             var pending = Message("pending");
             var retry = Message("retry");
@@ -74,7 +76,7 @@ public sealed class SqlRestartRecoveryTests
             Assert.Equal(0, await verify.Payments.CountAsync());
             Assert.Equal(0, await verify.Refunds.CountAsync());
         }
-        finally { await db.Database.EnsureDeletedAsync(); }
+        finally { await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db); }
     }
 
     private sealed class ReceiptHandler(ConcurrentDictionary<string, int> deliveries) : IOutboxMessageHandler

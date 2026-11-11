@@ -18,6 +18,7 @@ public static class ApplicationServiceCollectionExtensions
     {
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ApplicationServiceCollectionExtensions).Assembly));
         services.AddScopeEnforcement();
+        services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Clovent.Restaurant.Application.Concurrency.TransactionSerializationBehavior<,>));
         services.TryAddScoped<IOrderScopeValidator, OrderScopeValidator>();
 
         services.AddScoped<Clovent.Restaurant.Application.SmartCombos.SmartComboService>();

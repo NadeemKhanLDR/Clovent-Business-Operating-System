@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders;
 using Clovent.Restaurant.Application.Payments.Dtos;
 using Clovent.Restaurant.Customers;
@@ -32,16 +33,15 @@ public sealed class VoidPaymentCommandHandler(
         var payment = await repository.GetByIdAsync(new PaymentId(request.PaymentId), cancellationToken)
             ?? throw new NotFoundException(nameof(Payment), request.PaymentId);
 
-        var orderLock = OrderTransactionLocks.GetLock(payment.OrderId.Value);
-        await orderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return await HandleCoreAsync(payment.Id, cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            orderLock.Release();
-        }
+        var order = await orderRepository.GetByIdAsync(payment.OrderId, cancellationToken);
+        var keys = new List<TransactionLockKey>(3) { TransactionLockKey.ForOrder(payment.OrderId.Value) };
+        if (payment.ShiftId is { } sid) keys.Add(TransactionLockKey.ForShift(sid.Value));
+        if (order?.CustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid.Value));
+
+        return await TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => HandleCoreAsync(payment.Id, cancellationToken)).ConfigureAwait(false);
     }
 
     private async Task<PaymentDto> HandleCoreAsync(PaymentId paymentId, CancellationToken cancellationToken)

@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using Clovent.Restaurant.Application.Payments.Commands;
 using Clovent.Restaurant.Infrastructure.Persistence;
 using MediatR;
@@ -15,11 +16,12 @@ public sealed class SqlPaymentRecoveryTests
     {
         var database = $"CBOS_Recovery_{Guid.NewGuid():N}";
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
-            .UseSqlServer($"Server=(localdb)\\MSSQLLocalDB;Database={database};Integrated Security=true;TrustServerCertificate=true").Options;
+            .UseSqlServer(SqlTestDatabaseGuard.ConnectionString(database)).Options;
         await using var db = new RestaurantDbContext(options);
         try
         {
             await db.Database.EnsureCreatedAsync();
+            await SqlTestDatabaseGuard.CreatedAsync(db);
             var (order, method) = await FailedCommandRecoveryTests.SeedAsync(db);
             var customer = Clovent.Restaurant.Customers.Customer.Create(
                 Clovent.MasterData.Shared.ValueObjects.EntityCode.Create("RECOVERY-CREDIT"),
@@ -53,7 +55,7 @@ public sealed class SqlPaymentRecoveryTests
             Assert.Single(await verify.CustomerLedgerEntries.ToListAsync());
             Assert.Single(await verify.Payments.ToListAsync());
         }
-        finally { await db.Database.EnsureDeletedAsync(); }
+        finally { await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db); }
     }
 
     [Theory]
@@ -64,12 +66,13 @@ public sealed class SqlPaymentRecoveryTests
         var database = $"CBOS_Recovery_{Guid.NewGuid():N}";
         var interruption = new CommitAcknowledgementBarrier();
         var options = new DbContextOptionsBuilder<RestaurantDbContext>()
-            .UseSqlServer($"Server=(localdb)\\MSSQLLocalDB;Database={database};Integrated Security=true;TrustServerCertificate=true")
+            .UseSqlServer(SqlTestDatabaseGuard.ConnectionString(database))
             .AddInterceptors(interruption).Options;
         await using var db = new RestaurantDbContext(options);
         try
         {
             await db.Database.EnsureCreatedAsync();
+            await SqlTestDatabaseGuard.CreatedAsync(db);
             var (order, method) = await FailedCommandRecoveryTests.SeedAsync(db);
             using var provider = FailedCommandRecoveryTests.Pipeline(db, new());
             var mediator = provider.GetRequiredService<IMediator>();
@@ -95,7 +98,7 @@ public sealed class SqlPaymentRecoveryTests
         finally
         {
             // Only the GUID-named database created by this test is removed.
-            await db.Database.EnsureDeletedAsync();
+            await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db);
         }
     }
 

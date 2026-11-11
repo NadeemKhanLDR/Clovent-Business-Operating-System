@@ -26,6 +26,21 @@ namespace Clovent.Restaurant.Infrastructure.Tests.Persistence;
 public sealed class FailedCommandRecoveryTests : SqliteTestBase
 {
     [Fact]
+    public async Task VoidOpenOrder_WithReadOnlyPaymentLists_PersistsVoidAndKeepsPaymentHistory()
+    {
+        await using var db = CreateContext();
+        var (order, method) = await SeedAsync(db);
+        using var provider = Pipeline(db, new());
+        var mediator = provider.GetRequiredService<IMediator>();
+        await mediator.Send(new RecordPaymentCommand(order.Id.Value, method.Id.Value, 40m, IdempotencyKey: "void-merge"));
+        await mediator.Send(new Clovent.Restaurant.Application.Orders.Commands.VoidOrderCommand(order.Id.Value, "Synthetic erroneous payment"));
+        await using var verify = CreateContext();
+        Assert.Equal(OrderStatus.Voided, (await verify.Orders.SingleAsync()).Status);
+        var payment = Assert.Single(await verify.Payments.ToListAsync());
+        Assert.True(payment.IsVoided);
+        Assert.Equal(40m, payment.Amount);
+    }
+    [Fact]
     public async Task OldScope_AfterAnotherScopeVoidsPayment_UsesAuthoritativeBalance()
     {
         await using var db = CreateContext();
@@ -158,6 +173,7 @@ public sealed class FailedCommandRecoveryTests : SqliteTestBase
         services.AddSingleton<Clovent.Restaurant.Application.IUnitOfWork>(new UnitOfWork(db));
         services.AddSingleton(gate);
         services.AddSingleton<IOrderRepository>(new OrderRepository(db));
+        services.AddSingleton<Clovent.Restaurant.Tables.ITableRepository>(new TableRepository(db));
         services.AddSingleton<IPaymentRepository>(new PaymentRepository(db));
         services.AddSingleton<IPaymentMethodRepository>(new PaymentMethodRepository(db));
         services.AddSingleton<IOrderLineRepository>(new OrderLineRepository(db));

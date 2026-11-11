@@ -59,6 +59,9 @@ public sealed class RefundLineItemRow
     /// <summary>Total discount reversed on previous credit notes for this line.</summary>
     public decimal AlreadyReversedDiscount { get; set; }
 
+    /// <summary>Total gross value refunded on previous credit notes for this line.</summary>
+    public decimal AlreadyReversedGross { get; set; }
+
     /// <summary>Total tax reversed on previous credit notes for this line.</summary>
     public decimal AlreadyReversedTax { get; set; }
 
@@ -69,10 +72,11 @@ public sealed class RefundLineItemRow
         AllocatedDiscount,
         TaxAmount,
         TaxIsInclusive,
-        AlreadyRefundedQuantity,
-        AlreadyReversedDiscount,
-        AlreadyReversedTax,
-        RefundQuantity).NetPayableRefund;
+        Math.Min(AlreadyRefundedQuantity, OriginalQuantity),
+        Math.Min(AlreadyReversedDiscount, AllocatedDiscount),
+        Math.Min(AlreadyReversedTax, TaxAmount),
+        Math.Min(Math.Max(0m, RefundQuantity), RemainingQuantity),
+        AlreadyReversedGross).NetPayableRefund;
 
     /// <summary>Whether returned stock is restored to warehouse inventory or written off as waste.</summary>
     public InventoryDisposition Disposition { get; set; } = InventoryDisposition.Restock;
@@ -368,6 +372,11 @@ public sealed partial class RefundOrderDialog : XtraForm
                 .GroupBy(l => l.OrderLineId)
                 .ToDictionary(g => g.Key, g => g.Sum(l => l.DiscountReversed));
 
+            var reversedGrossByLineId = existingRefunds
+                .SelectMany(r => r.Lines)
+                .GroupBy(l => l.OrderLineId)
+                .ToDictionary(g => g.Key, g => g.Sum(l => l.GrossAmount));
+
             var reversedTaxByLineId = existingRefunds
                 .SelectMany(r => r.Lines)
                 .GroupBy(l => l.OrderLineId)
@@ -377,6 +386,7 @@ public sealed partial class RefundOrderDialog : XtraForm
             foreach (var line in lines)
             {
                 var prevRefunded = refundedQtyByLineId.GetValueOrDefault(line.OrderLineId, 0m);
+                var prevGross = reversedGrossByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var prevDiscount = reversedDiscountByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var prevTax = reversedTaxByLineId.GetValueOrDefault(line.OrderLineId, 0m);
                 var itemName = variantNames.GetValueOrDefault(line.ProductVariantId, line.Notes ?? "Menu Item");
@@ -391,6 +401,7 @@ public sealed partial class RefundOrderDialog : XtraForm
                     AllocatedDiscount = line.AllocatedDiscount,
                     TaxAmount = line.TaxAmount ?? 0m,
                     TaxIsInclusive = line.TaxIsInclusive,
+                    AlreadyReversedGross = prevGross,
                     AlreadyReversedDiscount = prevDiscount,
                     AlreadyReversedTax = prevTax,
                     RefundQuantity = 0,
@@ -635,6 +646,7 @@ public sealed partial class RefundOrderDialog : XtraForm
             {
                 var posted = history.SelectMany(r => r.Lines).Where(l => l.OrderLineId == row.OrderLineId).ToList();
                 row.AlreadyRefundedQuantity = posted.Sum(l => l.Quantity);
+                row.AlreadyReversedGross = posted.Sum(l => l.GrossAmount);
                 row.AlreadyReversedDiscount = posted.Sum(l => l.DiscountReversed);
                 row.AlreadyReversedTax = posted.Sum(l => l.TaxReversed);
             }

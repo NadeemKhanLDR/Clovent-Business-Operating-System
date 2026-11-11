@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Infrastructure.Tests.TestSupport;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,22 +38,16 @@ public sealed class OutboxClaimConcurrencyIntegrationTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         await using var db = CreateDbContext();
+        SqlTestDatabaseGuard.Validate(_connectionString);
         await db.Database.EnsureCreatedAsync();
+        await SqlTestDatabaseGuard.CreatedAsync(db);
     }
 
     public async Task DisposeAsync()
     {
-        try
-        {
-            await using var db = CreateDbContext();
-            await db.Database.EnsureDeletedAsync();
-        }
-        catch
-        {
-            // Suppress cleanup errors
-        }
+        await using var db = CreateDbContext();
+        await SqlTestDatabaseGuard.DeleteAndVerifyAsync(db);
     }
-
     private RestaurantDbContext CreateDbContext(ISaveChangesInterceptor? interceptor = null)
     {
         var builder = new DbContextOptionsBuilder<RestaurantDbContext>()

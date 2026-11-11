@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Clovent.Identity.Users;
 using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Shifts.Dtos;
 using Clovent.Restaurant.Shifts;
 using MediatR;
@@ -24,7 +25,13 @@ public sealed class RecordCashMovementCommandHandler(
     IActivityLogEntryRepository activityLogRepository) : IRequestHandler<RecordCashMovementCommand, CashMovementDto>
 {
     /// <inheritdoc/>
-    public async Task<CashMovementDto> Handle(RecordCashMovementCommand request, CancellationToken cancellationToken)
+    public Task<CashMovementDto> Handle(RecordCashMovementCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteWithLocksAsync(
+            [TransactionLockKey.ForShift(request.ShiftId)],
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken));
+
+    private async Task<CashMovementDto> HandleCoreAsync(RecordCashMovementCommand request, CancellationToken cancellationToken)
     {
         var shiftId = new ShiftId(request.ShiftId);
         var shift = await shiftRepository.GetByIdAsync(shiftId, cancellationToken)

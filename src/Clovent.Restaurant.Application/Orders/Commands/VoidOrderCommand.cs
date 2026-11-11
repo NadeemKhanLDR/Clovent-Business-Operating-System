@@ -1,4 +1,5 @@
 using Clovent.Platform.Execution;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
@@ -28,16 +29,24 @@ public sealed class VoidOrderCommandHandler(
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(VoidOrderCommand request, CancellationToken cancellationToken)
     {
-        var orderLock = OrderTransactionLocks.GetLock(request.OrderId);
-        await orderLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
+        var orderId = new OrderId(request.OrderId);
+        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken);
+        var payments = await paymentRepository.GetByOrderIdAsync(orderId, cancellationToken);
+
+        var keys = new List<TransactionLockKey> { TransactionLockKey.ForOrder(request.OrderId) };
+        if (order?.CustomerId is { } cid) keys.Add(TransactionLockKey.ForCustomer(cid.Value));
+        foreach (var p in payments)
         {
-            return await HandleCoreAsync(request, cancellationToken).ConfigureAwait(false);
+            if (!p.IsVoided && p.ShiftId is { } sid)
+            {
+                keys.Add(TransactionLockKey.ForShift(sid.Value));
+            }
         }
-        finally
-        {
-            orderLock.Release();
-        }
+
+        return await TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => HandleCoreAsync(request, cancellationToken)).ConfigureAwait(false);
     }
 
     private async Task<OrderDto> HandleCoreAsync(VoidOrderCommand request, CancellationToken cancellationToken)
@@ -53,8 +62,12 @@ public sealed class VoidOrderCommandHandler(
         order.Void(request.Reason);
 
         var payments = await paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-        foreach (var payment in payments.Where(p => !p.IsVoided))
+        foreach (var listedPayment in payments.Where(p => !p.IsVoided))
         {
+            // Lists are authoritative read-only snapshots; mutate a tracked entity.
+            var payment = await paymentRepository.GetByIdAsync(listedPayment.Id, cancellationToken)
+                ?? throw new NotFoundException(nameof(Payment), listedPayment.Id.Value);
+            if (payment.IsVoided) continue;
             var paymentMethod = await paymentMethodRepository.GetByIdAsync(payment.PaymentMethodId, cancellationToken);
             if (paymentMethod is not null)
             {
