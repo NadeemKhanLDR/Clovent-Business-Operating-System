@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Reports;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Application.EndOfDay.Dtos;
@@ -72,7 +73,7 @@ public sealed class GetEndOfDayReportQueryHandler(
                 return false;
             }
 
-            var orderDate = DateOnly.FromDateTime(order.UpdatedAtUtc.UtcDateTime);
+            var orderDate = DateOnly.FromDateTime((order.Status == OrderStatus.Completed ? CompletedSaleDate.For(order) : order.UpdatedAtUtc).UtcDateTime);
             return orderDate >= request.FromDate && orderDate <= request.ToDate;
         }
 
@@ -125,7 +126,7 @@ public sealed class GetEndOfDayReportQueryHandler(
             bills.Add(new EndOfDayBillDto(
                 order.Id.Value,
                 order.OrderNumber.Value,
-                order.UpdatedAtUtc,
+                CompletedSaleDate.For(order),
                 orderTotal,
                 methodNamesForOrder.Count > 0 ? string.Join(", ", methodNamesForOrder.Distinct()) : "(none)"));
         }
