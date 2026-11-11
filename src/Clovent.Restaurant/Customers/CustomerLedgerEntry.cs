@@ -8,6 +8,17 @@ namespace Clovent.Restaurant.Customers;
 /// </summary>
 public sealed class CustomerLedgerEntry : AggregateRoot<CustomerLedgerEntryId>
 {
+    /// <summary>Owning company, matching the customer's explicitly mapped owner.</summary>
+    public Guid? CompanyId { get; private set; }
+
+    /// <summary>Assigns ownership once without changing the immutable financial facts.</summary>
+    public void AssignCompany(Guid companyId)
+    {
+        if (companyId == Guid.Empty) throw new ArgumentException("Company is required.", nameof(companyId));
+        if (CompanyId.HasValue && CompanyId != companyId)
+            throw new InvalidOperationException("Ledger company ownership cannot be reassigned.");
+        CompanyId = companyId;
+    }
     /// <summary>The customer this ledger entry belongs to.</summary>
     public CustomerId CustomerId { get; }
 

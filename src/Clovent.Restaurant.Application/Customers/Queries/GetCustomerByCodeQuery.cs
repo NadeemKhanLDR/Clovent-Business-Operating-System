@@ -6,7 +6,7 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Customers.Queries;
 
 /// <summary>Queries a customer by their short code.</summary>
-public sealed record GetCustomerByCodeQuery(string Code) : IRequest<CustomerDto?>;
+public sealed record GetCustomerByCodeQuery(string Code) : IRequest<CustomerDto?>, Clovent.Platform.Execution.IRequireCompanyScope;
 
 /// <summary>Handles <see cref="GetCustomerByCodeQuery"/>.</summary>
 public sealed class GetCustomerByCodeQueryHandler(ICustomerRepository repository) : IRequestHandler<GetCustomerByCodeQuery, CustomerDto?>

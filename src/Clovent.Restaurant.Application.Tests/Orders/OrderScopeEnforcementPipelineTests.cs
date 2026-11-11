@@ -70,6 +70,7 @@ public sealed class OrderScopeEnforcementPipelineTests
         var (branchB, warehouseB) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch B", "Warehouse B");
         var customerB = Clovent.Restaurant.Customers.Customer.Create(EntityCode.Create("FOREIGN"),
             "B-only synthetic customer", "0000000000", "Synthetic", null, 200m, 1000m, null);
+        customerB.AssignCompany(branchB.CompanyId.Value);
         ((FakeCustomerRepository)_serviceProvider.GetRequiredService<Clovent.Restaurant.Customers.ICustomerRepository>()).Add(customerB);
         var orderB = Order.Create(OrderType.TakeAway, warehouseB.Id);
         orderB.SetCustomer(customerB.Id);

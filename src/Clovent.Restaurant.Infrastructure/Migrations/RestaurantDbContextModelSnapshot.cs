@@ -122,6 +122,8 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
 
             modelBuilder.Entity("Clovent.Restaurant.Customers.Customer", b =>
                 {
+                    b.Property<Guid?>("CompanyId").HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
@@ -197,6 +199,7 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                         .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
+                    b.HasIndex("CompanyId", "Id").IsUnique().HasFilter(null);
 
                     b.HasIndex("Code")
                         .IsUnique();
@@ -206,6 +209,8 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
 
             modelBuilder.Entity("Clovent.Restaurant.Customers.CustomerLedgerEntry", b =>
                 {
+                    b.Property<Guid?>("CompanyId").HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
@@ -245,6 +250,7 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+                    b.HasIndex("CompanyId", "CustomerId");
 
                     b.HasIndex("CustomerId");
 

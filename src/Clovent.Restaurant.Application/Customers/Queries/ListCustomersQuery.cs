@@ -5,7 +5,7 @@ using MediatR;
 namespace Clovent.Restaurant.Application.Customers.Queries;
 
 /// <summary>Queries the list of all registered customers.</summary>
-public sealed record ListCustomersQuery : IRequest<IReadOnlyList<CustomerDto>>;
+public sealed record ListCustomersQuery : IRequest<IReadOnlyList<CustomerDto>>, Clovent.Platform.Execution.IRequireCompanyScope;
 
 /// <summary>Handles <see cref="ListCustomersQuery"/>.</summary>
 public sealed class ListCustomersQueryHandler(

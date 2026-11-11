@@ -1,3 +1,4 @@
+using Clovent.Platform.Execution;
 using System;
 using System.Linq;
 using System.Threading;
@@ -182,6 +183,11 @@ public sealed class CustomerReceivablesLifecycleIntegrationTests
         Assert.Equal(0m, customer.OutstandingBalance);
         Assert.Equal(25000m, customer.AvailableCredit);
 
+        var companyScope = new Clovent.Platform.Execution.ExecutionContextAccessor();
+        var companyId = Guid.NewGuid();
+        using var companyLease = companyScope.BeginScope(new Clovent.Platform.Execution.PlatformExecutionContext { OrganizationId = Guid.NewGuid(), CompanyId = companyId });
+        customer.AssignCompany(companyId);
+        foreach (var entry in await ledgerRepo.GetByCustomerIdAsync(customer.Id)) entry.AssignCompany(companyId);
         // 3. Test Receivables Aging Report Query
         var receivablesQueryHandler = new GetCustomerReceivablesReportQueryHandler(
             customerRepo,
@@ -189,7 +195,7 @@ public sealed class CustomerReceivablesLifecycleIntegrationTests
             orderRepo,
             paymentRepo,
             paymentMethodRepo,
-            allocationRepo);
+            allocationRepo, companyScope);
 
         var report = await receivablesQueryHandler.Handle(
             new GetCustomerReceivablesReportQuery(DateTimeOffset.UtcNow),

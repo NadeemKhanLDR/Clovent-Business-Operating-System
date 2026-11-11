@@ -1,9 +1,11 @@
 # Reporting / transaction integration review
 
-**REVIEW BLOCKED: two enabled regression assertions still fail. This is not an accepted
-combined revision.** The aging residual allocation and customer ownership decisions are
-pending; neither assertion was skipped, weakened or filtered out of the full application run.
-Live UI and physical printing are **NOT VERIFIED**.
+The user approved company-owned customers/ledgers with explicit legacy mapping and
+proportional aging with largest fractional remainders. Both formerly failing assertions
+now pass. Current implementation, results and the remaining deployment prerequisite are
+recorded in [approved ownership and aging](company-ownership/README.md). The earlier
+results below remain historical evidence for commit 92a3984, not the current result.
+Live UI, physical printing and operational migration remain **NOT VERIFIED**.
 
 ## Revision provenance and coordination
 
@@ -111,7 +113,7 @@ sale taxable-only base remains 180. Existing invoice references, tax codes, clas
 rates, charged/reversed tax, payable amounts and credit-note references are retained.
 Fiscal/legal certification and actual printed output were not performed.
 
-## Reproduced unresolved gates
+## Historical gate reproductions (resolved by the approved follow-up)
 
 | Enabled assertion | Actual reproduction | Decision / work needed |
 |---|---|---|
@@ -215,10 +217,12 @@ Use dedicated synthetic nonproduction data. These checks are **NOT EXECUTED**.
 7. **As-of and security gate:** debit 100 Jan 9, pay 60 Jan 11; Jan 10 statement balance
    100 and last transaction Jan 9. In a two-company dataset, Company A must not see B's
    customer/contact/balance 200 or ledger through statements while being denied B's order.
-   **Currently failing automatically; do not sign off until ownership enforcement is fixed.**
+   **Now passes automatically with explicit company ownership; operational migration/mapping
+   and this manual check remain unverified.** Unmapped legacy accounts must remain quarantined.
 8. **Aging gate:** credit sales 0.25 aged 2 and 10 days; unallocated payment 0.49.
    Receivable and sum of aging buckets must both be 0.01 under the approved residual
-   policy. **Currently bucket sum 0.00; do not sign off.**
+   policy. **Now passes automatically: the older 8–15-day bucket gets 0.01, the 1–7-day
+   bucket 0.00, total 0.01.** Manual rendering remains unverified.
 
 No main merge, push, package, production-data access, Visual Studio control, Sandbox,
 Hyper-V operation or release acceptance occurred.

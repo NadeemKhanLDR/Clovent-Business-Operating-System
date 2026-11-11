@@ -12,6 +12,8 @@ internal sealed class CustomerLedgerEntryConfiguration : IEntityTypeConfiguratio
         builder.ToTable("CustomerLedgerEntries", "Restaurant");
 
         builder.HasKey(e => e.Id);
+        builder.Property(e => e.CompanyId);
+        builder.HasIndex(e => new { e.CompanyId, e.CustomerId });
         builder.Property(e => e.Id)
             .HasConversion(ValueConverters.CustomerLedgerEntryIdConverter)
             .ValueGeneratedNever();

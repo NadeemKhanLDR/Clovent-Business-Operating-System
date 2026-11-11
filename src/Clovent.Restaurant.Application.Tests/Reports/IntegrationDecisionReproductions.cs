@@ -19,6 +19,8 @@ public sealed partial class TransactionReportingAuditTests
         d.Entry(customer, 0m, .49m, .01m, "Cash", "Unallocated collection", d.At.AddMinutes(-1));
         var row = Assert.Single((await d.Receivables(d.At)).Rows);
         Assert.Equal(.01m, row.Receivable);
+        Assert.Equal(.01m, row.Days8To15Bucket); // Equal remainders: older bucket receives the penny.
+        Assert.Equal(0m, row.Days1To7Bucket);
         Assert.Equal(.01m, row.CurrentBucket + row.Days1To7Bucket + row.Days8To15Bucket +
             row.Days16To30Bucket + row.Days31To60Bucket + row.Days60PlusBucket);
     }

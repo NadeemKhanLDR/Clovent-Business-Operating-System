@@ -24,8 +24,75 @@ namespace Clovent.Restaurant.Infrastructure.Persistence;
 /// <c>Restaurant</c> schema, mirroring how <c>CatalogDbContext</c> uses the
 /// <c>Catalog</c> schema.
 /// </summary>
-public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options) : DbContext(options)
+public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> options,
+    Clovent.Platform.Execution.IExecutionContextAccessor? companyScope = null) : DbContext(options)
 {
+    // The application DI supplies the accessor. Explicit contexts without it are reserved
+    // for migration tooling and disposable test harnesses, not interactive data access.
+    private bool ScopeEnforced => companyScope is not null;
+    private Guid? ScopedCompanyId => companyScope?.Current?.CompanyId;
+
+    private void EnforceCompanyWrites()
+    {
+        if (!ScopeEnforced) return;
+        var customerChanges = ChangeTracker.Entries<Customer>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToArray();
+        var ledgerChanges = ChangeTracker.Entries<CustomerLedgerEntry>().Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToArray();
+        var orderChanges = ChangeTracker.Entries<Order>().Where(e => e.State is EntityState.Added or EntityState.Modified)
+            .Where(e => e.Entity.CustomerId.HasValue).ToArray();
+        var allocationChanges = ChangeTracker.Entries<CustomerPaymentAllocation>()
+            .Where(e => e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted).ToArray();
+        if (customerChanges.Length + ledgerChanges.Length + orderChanges.Length + allocationChanges.Length == 0) return;
+        var company = ScopedCompanyId;
+        if (!company.HasValue || company.Value == Guid.Empty)
+            throw new Clovent.Platform.Execution.ScopeUnresolvedException("Company scope is required for Restaurant persistence.");
+        foreach (var entry in customerChanges)
+        {
+            if (entry.State == EntityState.Deleted) throw new InvalidOperationException("Customer history cannot be physically deleted.");
+            if (entry.State == EntityState.Added && entry.Entity.CompanyId is null) entry.Entity.AssignCompany(company.Value);
+            if (entry.Entity.CompanyId != company || (entry.State == EntityState.Modified && entry.Property(c => c.CompanyId).IsModified))
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Customer ownership does not match the active company.");
+        }
+        foreach (var entry in ledgerChanges)
+        {
+            if (entry.State == EntityState.Deleted) throw new InvalidOperationException("Ledger history cannot be physically deleted.");
+            var customer = Customers.Local.FirstOrDefault(c => c.Id == entry.Entity.CustomerId)
+                ?? Customers.SingleOrDefault(c => c.Id == entry.Entity.CustomerId);
+            if (customer?.CompanyId != company)
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Ledger customer is not owned by the active company.");
+            if (entry.State == EntityState.Added && entry.Entity.CompanyId is null) entry.Entity.AssignCompany(company.Value);
+            if (entry.Entity.CompanyId != company || (entry.State == EntityState.Modified && entry.Property(e => e.CompanyId).IsModified))
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Ledger ownership does not match the active company.");
+        }
+        foreach (var order in orderChanges)
+        {
+            if (order.Entity.CustomerId is not { } customerId) continue;
+            var customer = Customers.Local.FirstOrDefault(c => c.Id == customerId)
+                ?? Customers.SingleOrDefault(c => c.Id == customerId);
+            if (customer?.CompanyId != company)
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Order customer is not owned by the active company.");
+        }
+        foreach (var allocation in allocationChanges)
+        {
+            var customer = Customers.Local.FirstOrDefault(c => c.Id == allocation.Entity.CustomerId)
+                ?? Customers.SingleOrDefault(c => c.Id == allocation.Entity.CustomerId);
+            if (customer?.CompanyId != company)
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Allocation customer is not owned by the active company.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        EnforceCompanyWrites();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    /// <inheritdoc/>
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        EnforceCompanyWrites();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
     /// <summary>DiningArea aggregates.</summary>
     public DbSet<DiningArea> DiningAreas => Set<DiningArea>();
 
@@ -122,5 +189,12 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
     {
         modelBuilder.HasDefaultSchema("Restaurant");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(RestaurantDbContext).Assembly);
+        modelBuilder.Entity<Customer>().HasQueryFilter(c =>
+            !ScopeEnforced || (ScopedCompanyId != null && ScopedCompanyId != Guid.Empty && c.CompanyId == ScopedCompanyId));
+        modelBuilder.Entity<CustomerLedgerEntry>().HasQueryFilter(e =>
+            !ScopeEnforced || (ScopedCompanyId != null && ScopedCompanyId != Guid.Empty &&
+                e.CompanyId == ScopedCompanyId && Customers.Any(c => c.Id == e.CustomerId)));
+        modelBuilder.Entity<CustomerPaymentAllocation>().HasQueryFilter(e =>
+            !ScopeEnforced || Customers.Any(c => c.Id == e.CustomerId));
     }
 }
