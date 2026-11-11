@@ -2,6 +2,7 @@ using System.Text.Json;
 using Clovent.Catalog.Variants;
 using Clovent.Domain;
 using Clovent.MasterData.Warehouses;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Continuity;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Application.Outbox;
@@ -30,6 +31,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
     private readonly IOutboxProcessor? _outboxProcessor;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<EmergencyJournalReplayer>? _logger;
+    private readonly ITransactionLockProvider? _transactionLockProvider;
 
     /// <summary>Initializes a new instance of <see cref="EmergencyJournalReplayer"/>.</summary>
     public EmergencyJournalReplayer(
@@ -41,7 +43,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         IUnitOfWork unitOfWork,
         IOutboxRepository? outboxRepository = null,
         IOutboxProcessor? outboxProcessor = null,
-        ILogger<EmergencyJournalReplayer>? logger = null)
+        ILogger<EmergencyJournalReplayer>? logger = null,
+        ITransactionLockProvider? transactionLockProvider = null)
     {
         _journalStore = journalStore;
         _orderRepository = orderRepository;
@@ -52,6 +55,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         _outboxRepository = outboxRepository;
         _outboxProcessor = outboxProcessor;
         _logger = logger;
+        _transactionLockProvider = transactionLockProvider;
     }
 
     /// <inheritdoc />
@@ -101,17 +105,22 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     continue;
                 }
 
-                // Step 2: Idempotency check against existing payments
-                var existingPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
-                if (existingPayment != null)
-                {
-                    tx.ReconciliationStatus = ReconciliationStatus.DuplicateIgnored;
-                    tx.ReconciliationDetails = $"Transaction already exists in primary database as Payment {existingPayment.Id.Value}.";
-                    tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
-                    await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
-                    duplicateCount++;
-                    continue;
-                }
+                var replayKeys = new[] { TransactionLockKey.ForContinuityTransaction(tx.TransactionId) };
+                var replayed = await ExecuteWithReplayLocksAsync(
+                    replayKeys,
+                    cancellationToken,
+                    async () =>
+                    {
+                        // Step 2: Idempotency check against existing payments
+                        var existingPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+                        if (existingPayment != null)
+                        {
+                            tx.ReconciliationStatus = ReconciliationStatus.DuplicateIgnored;
+                            tx.ReconciliationDetails = $"Transaction already exists in primary database as Payment {existingPayment.Id.Value}.";
+                            tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
+                            await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
+                            return (Replayed: false, OrderNumber: string.Empty, OrderId: Guid.Empty);
+                        }
 
                 // Step 3: Reconstruct Order and lines
                 var orderType = Enum.TryParse<OrderType>(tx.OrderSnapshot.OrderType, true, out var parsedType)
@@ -306,19 +315,29 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                         $"analytics:{order.Id.Value}"), cancellationToken).ConfigureAwait(false);
                 }
 
-                // Step 7: Commit primary DB transaction
-                await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                        // Step 7: Commit primary DB transaction while still holding continuity replay locks
+                        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-                // Step 8: Update local journal record
-                tx.ReconciliationStatus = ReconciliationStatus.Replayed;
-                tx.ReconciliationDetails = $"Replayed successfully as Order {order.OrderNumber.Value} ({order.Id.Value})" +
-                    (string.IsNullOrWhiteSpace(tx.LocalReceiptNumber) ? string.Empty : $" [Local: {tx.LocalReceiptNumber}]");
-                tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
-                await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
+                        // Step 8: Update local journal record
+                        tx.ReconciliationStatus = ReconciliationStatus.Replayed;
+                        tx.ReconciliationDetails = $"Replayed successfully as Order {order.OrderNumber.Value} ({order.Id.Value})" +
+                            (string.IsNullOrWhiteSpace(tx.LocalReceiptNumber) ? string.Empty : $" [Local: {tx.LocalReceiptNumber}]");
+                        tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
+                        await _journalStore.UpdateAsync(tx, cancellationToken).ConfigureAwait(false);
 
-                successCount++;
-                _logger?.LogInformation("Successfully replayed emergency transaction {TransactionId} as Order {OrderNumber}",
-                    tx.TransactionId, order.OrderNumber.Value);
+                        return (Replayed: true, OrderNumber: order.OrderNumber.Value, OrderId: order.Id.Value);
+                    }).ConfigureAwait(false);
+
+                if (replayed.Replayed)
+                {
+                    successCount++;
+                    _logger?.LogInformation("Successfully replayed emergency transaction {TransactionId} as Order {OrderNumber}",
+                        tx.TransactionId, replayed.OrderNumber);
+                }
+                else
+                {
+                    duplicateCount++;
+                }
             }
             catch (Exception ex)
             {
@@ -361,4 +380,15 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
             failedCount,
             errors.AsReadOnly());
     }
+
+    private Task<T> ExecuteWithReplayLocksAsync<T>(
+        IReadOnlyList<TransactionLockKey> keys,
+        CancellationToken cancellationToken,
+        Func<Task<T>> action) =>
+        TransactionLockManager.ExecuteWithLocksAsync(
+            keys,
+            cancellationToken,
+            () => _transactionLockProvider is null
+                ? action()
+                : _transactionLockProvider.ExecuteAsync(keys, cancellationToken, action));
 }

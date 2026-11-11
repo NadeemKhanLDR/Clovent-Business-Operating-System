@@ -17,8 +17,14 @@ public enum TransactionLockScope
     /// <summary>Customer-level shared state (OutstandingBalance, credit limit, advances, allocations).</summary>
     Customer = 2,
 
-    /// <summary>Order-level operations (payments, payment voids, completion, order voids, refunds).</summary>
-    Order = 3
+    /// <summary>Order-level operations (order/line/discount mutations, payments, payment voids, completion, order voids, refunds).</summary>
+    Order = 3,
+
+    /// <summary>Branch business-day lifecycle operations (open shift, close business day).</summary>
+    BusinessDay = 4,
+
+    /// <summary>Offline Continuity journal transaction replay serialization.</summary>
+    Continuity = 5
 }
 
 /// <summary>Comparable lock key uniquely identifying a locked aggregate in global acquisition order.</summary>
@@ -40,6 +46,12 @@ public readonly record struct TransactionLockKey(TransactionLockScope Scope, Gui
 
     /// <summary>Creates an order lock key.</summary>
     public static TransactionLockKey ForOrder(Guid orderId) => new(TransactionLockScope.Order, orderId);
+
+    /// <summary>Creates a branch business-day lock key.</summary>
+    public static TransactionLockKey ForBusinessDay(Guid branchId) => new(TransactionLockScope.BusinessDay, branchId);
+
+    /// <summary>Creates a continuity transaction replay lock key.</summary>
+    public static TransactionLockKey ForContinuityTransaction(Guid transactionId) => new(TransactionLockScope.Continuity, transactionId);
 }
 
 /// <summary>

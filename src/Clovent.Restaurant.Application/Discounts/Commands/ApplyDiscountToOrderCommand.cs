@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
 using Clovent.Restaurant.Application.Orders;
@@ -23,7 +24,14 @@ public sealed class ApplyDiscountToOrderCommandHandler(
     private const decimal MoneyEpsilon = 0.005m;
 
     /// <inheritdoc/>
-    public async Task<DiscountDto> Handle(ApplyDiscountToOrderCommand request, CancellationToken cancellationToken)
+    public Task<DiscountDto> Handle(ApplyDiscountToOrderCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
+            [TransactionLockKey.ForOrder(request.OrderId)],
+            cancellationToken,
+            () => ExecuteLockedAsync(request, cancellationToken));
+
+    private async Task<DiscountDto> ExecuteLockedAsync(ApplyDiscountToOrderCommand request, CancellationToken cancellationToken)
     {
         var orderId = new OrderId(request.OrderId);
         var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)

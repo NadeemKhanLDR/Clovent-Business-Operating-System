@@ -88,7 +88,7 @@ internal static class ValueConverters
     /// </summary>
     public static readonly ValueComparer<IReadOnlyCollection<RoleId>> RoleIdsComparer = new(
         (a, b) => (a ?? new List<RoleId>()).OrderBy(r => r.Value).SequenceEqual((b ?? new List<RoleId>()).OrderBy(r => r.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<RoleId>()).OrderBy(r => r.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToList());
 
     /// <summary><see cref="Role.PermissionIds"/>'s <see cref="PermissionId"/> counterpart to <see cref="RoleIdsConverter"/> - identical reasoning.</summary>
@@ -101,7 +101,7 @@ internal static class ValueConverters
     /// <summary><see cref="Role.PermissionIds"/>'s counterpart to <see cref="RoleIdsComparer"/> - identical reasoning.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<PermissionId>> PermissionIdsComparer = new(
         (a, b) => (a ?? new List<PermissionId>()).OrderBy(p => p.Value).SequenceEqual((b ?? new List<PermissionId>()).OrderBy(p => p.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<PermissionId>()).OrderBy(p => p.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToList());
 
     /// <summary><see cref="OrganizationId"/> &lt;-&gt; <see cref="Guid"/>.</summary>
@@ -176,7 +176,7 @@ internal static class ValueConverters
     /// <summary><see cref="Organizations.Organization.CompanyIds"/>'s counterpart to <see cref="RoleIdsComparer"/> - identical reasoning.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<CompanyId>> CompanyIdsComparer = new(
         (a, b) => (a ?? new List<CompanyId>()).OrderBy(c => c.Value).SequenceEqual((b ?? new List<CompanyId>()).OrderBy(c => c.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<CompanyId>()).OrderBy(c => c.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToList());
 
     /// <summary>
@@ -192,6 +192,6 @@ internal static class ValueConverters
     /// <summary><see cref="Companies.Company.BranchIds"/>'s counterpart to <see cref="RoleIdsComparer"/> - identical reasoning.</summary>
     public static readonly ValueComparer<IReadOnlyCollection<BranchId>> BranchIdsComparer = new(
         (a, b) => (a ?? new List<BranchId>()).OrderBy(b => b.Value).SequenceEqual((b ?? new List<BranchId>()).OrderBy(b => b.Value)),
-        v => v.Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
+        v => (v ?? Array.Empty<BranchId>()).OrderBy(b => b.Value).Aggregate(0, (hash, id) => HashCode.Combine(hash, id)),
         v => v.ToList());
 }

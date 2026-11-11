@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Clovent.Identity.Branches;
 using Clovent.Identity.Users;
 using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.DayClose.Dtos;
 using Clovent.Restaurant.Application.DayClose.Queries;
 using Clovent.Restaurant.DayClose;
@@ -26,7 +27,14 @@ public sealed class CloseBusinessDayCommandHandler(
     IActivityLogEntryRepository activityLogRepository) : IRequestHandler<CloseBusinessDayCommand, BusinessDayCloseDto>
 {
     /// <inheritdoc/>
-    public async Task<BusinessDayCloseDto> Handle(CloseBusinessDayCommand request, CancellationToken cancellationToken)
+    public Task<BusinessDayCloseDto> Handle(CloseBusinessDayCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
+            [TransactionLockKey.ForBusinessDay(request.BranchId)],
+            cancellationToken,
+            () => ExecuteLockedAsync(request, cancellationToken));
+
+    private async Task<BusinessDayCloseDto> ExecuteLockedAsync(CloseBusinessDayCommand request, CancellationToken cancellationToken)
     {
         var branchId = new BranchId(request.BranchId);
 

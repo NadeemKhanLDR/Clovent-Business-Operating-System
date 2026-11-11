@@ -1,4 +1,5 @@
 using Clovent.Platform.Execution;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
@@ -17,7 +18,14 @@ public sealed class CancelOrderCommandHandler(
     : IRequestHandler<CancelOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
-    public async Task<OrderDto> Handle(CancelOrderCommand request, CancellationToken cancellationToken)
+    public Task<OrderDto> Handle(CancelOrderCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
+            [TransactionLockKey.ForOrder(request.OrderId)],
+            cancellationToken,
+            () => ExecuteLockedAsync(request, cancellationToken));
+
+    private async Task<OrderDto> ExecuteLockedAsync(CancelOrderCommand request, CancellationToken cancellationToken)
     {
         var order = await orderRepository.GetByIdAsync(new OrderId(request.OrderId), cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);

@@ -6,6 +6,7 @@ using Clovent.Identity.Users;
 using Clovent.MasterData.Terminals;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.ActivityLogs;
+using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Shifts.Dtos;
 using Clovent.Restaurant.Shifts;
 using MediatR;
@@ -28,7 +29,14 @@ public sealed class OpenShiftCommandHandler(
     IActivityLogEntryRepository activityLogRepository) : IRequestHandler<OpenShiftCommand, ShiftDto>
 {
     /// <inheritdoc/>
-    public async Task<ShiftDto> Handle(OpenShiftCommand request, CancellationToken cancellationToken)
+    public Task<ShiftDto> Handle(OpenShiftCommand request, CancellationToken cancellationToken) =>
+        TransactionLockManager.ExecuteForRequestAsync(
+            request,
+            [TransactionLockKey.ForBusinessDay(request.BranchId)],
+            cancellationToken,
+            () => ExecuteLockedAsync(request, cancellationToken));
+
+    private async Task<ShiftDto> ExecuteLockedAsync(OpenShiftCommand request, CancellationToken cancellationToken)
     {
         var terminalId = new TerminalId(request.TerminalId);
         var cashierId = new UserId(request.CashierId);

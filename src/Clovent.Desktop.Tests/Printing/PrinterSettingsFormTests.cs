@@ -60,6 +60,21 @@ public class PrinterSettingsFormTests
     }
 
     [Fact]
+    public void CompactDimensions_UnderProductionGlobalTypography_RemainsCompactWithoutOverlaps()
+    {
+        // Program.cs applies Segoe UI 10pt globally via DesktopStyle.ApplyGlobalTypography before opening forms.
+        // AutoScaleMode must stay None so PerMonitorV2 DPI scaling does not compound with the 10pt default font.
+        Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGlobalTypography();
+
+        using var form = new PrinterSettingsForm();
+        Assert.True(form.Height <= 450, $"PrinterSettingsForm height {form.Height} under global typography should be <= 450px");
+        Assert.True(form.MinimumSize.Height <= 400, $"PrinterSettingsForm minimum height {form.MinimumSize.Height} under global typography should be <= 400px");
+
+        AssertProfilesTabLayoutHasNoCollisions(920, 720);
+        AssertProfilesTabLayoutHasNoCollisions(1440, 900);
+    }
+
+    [Fact]
     public void ReceiptCopyControls_AreInstantiatedAndConfigured()
     {
         using var form = new PrinterSettingsForm();
@@ -84,6 +99,11 @@ public class PrinterSettingsFormTests
     [InlineData(1440, 900)]
     [InlineData(2300, 1800)]
     public void ResponsiveLayout_ProfilesTab_HasNoCollisionsOrOverlaps(int width, int height)
+    {
+        AssertProfilesTabLayoutHasNoCollisions(width, height);
+    }
+
+    private static void AssertProfilesTabLayoutHasNoCollisions(int width, int height)
     {
         using var form = new PrinterSettingsForm();
         form.ClientSize = new Size(width, height);
