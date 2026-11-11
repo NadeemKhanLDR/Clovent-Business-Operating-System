@@ -46,7 +46,8 @@ public sealed class CompleteOrderCommandHandler(
     IDailySalesSequenceRepository dailySalesSequenceRepository,
     IMediator mediator,
     IOutboxRepository? outboxRepository = null,
-    IOutboxProcessor? outboxProcessor = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
+    IOutboxProcessor? outboxProcessor = null,
+    Clovent.Restaurant.PaymentMethods.IPaymentMethodRepository? paymentMethodRepository = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken) =>
@@ -169,9 +170,15 @@ public sealed class CompleteOrderCommandHandler(
                 snap?.TotalDiscountAmount ?? 0m);
         }).ToList();
 
-        var snapshotPayments = payments.Where(p => !p.IsVoided).Select(p => new ReceiptSnapshotPayment(
-            p.Amount,
-            "Payment")).ToList();
+        var snapshotPayments = new List<ReceiptSnapshotPayment>();
+        foreach (var payment in payments.Where(p => !p.IsVoided))
+        {
+            var method = paymentMethodRepository is null ? null
+                : await paymentMethodRepository.GetByIdAsync(payment.PaymentMethodId, cancellationToken);
+            // Freeze the sale-time label; historical receipts are never regenerated.
+            var label = method?.Name.Value ?? (paymentMethodRepository is null ? "Payment" : "(unknown)");
+            snapshotPayments.Add(new ReceiptSnapshotPayment(payment.Amount, label));
+        }
 
         var snapshot = new ReceiptSnapshot(
             order.Id.Value,

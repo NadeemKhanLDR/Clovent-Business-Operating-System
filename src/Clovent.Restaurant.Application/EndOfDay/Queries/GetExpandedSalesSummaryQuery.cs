@@ -448,6 +448,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             decimal advanceAppliedToAR = 0m;
             decimal advanceCreated = 0m;
             decimal advanceReceived = 0m;
+            decimal nonCashReceivableCredits = 0m;
             decimal advanceUsed = 0m;
             decimal totalCustomerPayments = 0m;
 
@@ -493,6 +494,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                         if (running > 0m)
                         {
                             decimal applied = Math.Min(pe.Credit, running);
+                            nonCashReceivableCredits += applied;
                             decimal excess = pe.Credit - applied;
                             advanceCreated += excess;
                         }
@@ -549,9 +551,11 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     advanceAppliedToAR,
                     closingReceivable,
                     openAdvance,
-                    advanceCreated,
+                    advanceReceived,
                     advanceUsed,
-                    closingAdvance));
+                    closingAdvance,
+                    nonCashReceivableCredits,
+                    advanceCreated - advanceReceived));
             }
 
             var (ordCount, qtyTotal, cItemSales, cDisc, cFees, cTax, cBillTotal, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);

@@ -122,12 +122,14 @@ public class CompleteOrderCommandHandlerTests
         public FakeDiscountRepository Discounts { get; } = new();
         public FakeServiceChargeRepository ServiceCharges { get; } = new();
         public FakePaymentRepository Payments { get; } = new();
+        public FakePaymentMethodRepository Methods { get; } = new();
         public FakeTableRepository Tables { get; } = new();
         public FakeDailySalesSequenceRepository DailySalesSequences { get; } = new();
         public FakeInventory Inventory { get; } = new();
 
         public CompleteOrderCommandHandler CreateHandler() => new(
-            Orders, OrderLines, Discounts, ServiceCharges, Payments, Tables, DailySalesSequences, Inventory.CreateMediator());
+            Orders, OrderLines, Discounts, ServiceCharges, Payments, Tables, DailySalesSequences, Inventory.CreateMediator(),
+            paymentMethodRepository: Methods);
 
         /// <summary>Adds a line to <paramref name="order"/> and registers it, returning the variant it sells.</summary>
         public Guid AddLine(Order order, decimal quantity, decimal unitPrice)
@@ -142,7 +144,9 @@ public class CompleteOrderCommandHandlerTests
         /// <summary>Settles <paramref name="order"/> in full, so completion is never blocked by an outstanding balance.</summary>
         public void PayInFull(Order order, decimal amount)
         {
-            var payment = Payment.Create(order.Id, PaymentMethodId.New(), amount);
+            var method = PaymentMethod.Create(Clovent.Restaurant.PaymentMethods.ValueObjects.PaymentMethodName.Create("Cash"));
+            Methods.Add(method);
+            var payment = Payment.Create(order.Id, method.Id, amount);
             order.RecordPayment(payment.Id);
             Payments.Add(payment);
         }
@@ -498,6 +502,26 @@ public class CompleteOrderCommandHandlerTests
 
         Assert.Equal("Completed", result.Status);
         Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
+    }
+
+    [Theory]
+    [InlineData("Cash")]
+    [InlineData("MasterCard")]
+    [InlineData("On Account")]
+    [InlineData("Customer Advance")]
+    public async Task Handle_FreezesActualCashPaymentLabel(string label)
+    {
+        var fixture = new Fixture();
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        fixture.Orders.Add(order);
+        var variant = fixture.AddLine(order, 1m, 100m);
+        fixture.Inventory.AddStock(variant, 10m);
+        fixture.PayInFull(order, 100m);
+        var method = Assert.Single(await fixture.Methods.GetAllAsync());
+        method.Rename(Clovent.Restaurant.PaymentMethods.ValueObjects.PaymentMethodName.Create(label));
+        await fixture.CreateHandler().Handle(new(order.Id.Value), default);
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<ReceiptSnapshot>(order.ReceiptSnapshotJson!);
+        Assert.Equal(label, Assert.Single(snapshot!.Payments).PaymentMethodName);
     }
 
     [Fact]
