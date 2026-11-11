@@ -141,7 +141,7 @@ public static class ReceiptFormatter
         AppendIfNonZero(sb, "Discounts", -totals.DiscountTotal);
         if (totals.TaxableBaseTotal > 0 && totals.TaxableBaseTotal != totals.Subtotal)
         {
-            sb.AppendLine($"Net Taxable Sales: {CurrencyDisplay.Format(totals.TaxableBaseTotal)}");
+            sb.AppendLine($"Item calculation base: {CurrencyDisplay.Format(totals.TaxableBaseTotal)}");
         }
         AppendIfNonZero(sb, "Service Charge", totals.ServiceChargeTotal);
         if (totals.ExclusiveTaxTotal > 0m)
@@ -219,7 +219,7 @@ public static class ReceiptFormatter
         AppendIfNonZero(sb, "Discounts", -snapshot.DiscountTotal);
         if (snapshot.TotalTaxableBase > 0 && snapshot.TotalTaxableBase != snapshot.Subtotal)
         {
-            sb.AppendLine($"Net Taxable Sales: {CurrencyDisplay.Format(snapshot.TotalTaxableBase)}");
+            sb.AppendLine($"Item calculation base: {CurrencyDisplay.Format(snapshot.TotalTaxableBase)}");
         }
         AppendIfNonZero(sb, "Service Charge", snapshot.ServiceChargeTotal);
         if (snapshot.TotalExclusiveTax > 0m)

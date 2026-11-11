@@ -61,7 +61,7 @@ public sealed class GetTaxSummaryReportQueryHandler(
         }
 
         var completedOrders = allOrders
-            .Where(o => o.WarehouseId == warehouseId && o.Status == OrderStatus.Completed && MatchesDate(o.UpdatedAtUtc))
+            .Where(o => o.WarehouseId == warehouseId && o.Status == OrderStatus.Completed && MatchesDate(CompletedSaleDate.For(o)))
             .ToList();
 
         decimal grossSales = 0m;
