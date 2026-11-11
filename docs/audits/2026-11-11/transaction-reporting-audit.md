@@ -1,5 +1,9 @@
 # Transaction reporting and reconciliation audit — 11 November 2026
 
+Historical reporting-branch checkpoint. For the combined revision, current results,
+unresolved failing gates and the single active manual checklist, use
+[reporting integration review](reporting-integration-review.md).
+
 ## Revision and isolation
 
 Baseline: **40f4b1c16f6655d853da6ba7a96fc749f9bfc61c**, integration branch
