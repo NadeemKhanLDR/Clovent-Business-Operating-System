@@ -38,6 +38,7 @@ public sealed class TransactionReportingAuditTests
         var tax = await d.Tax(d.Day, d.Day);
         Assert.Equal(250m, expanded.Kpis.GrossSales);
         Assert.Equal(25m, expanded.Kpis.Discounts);
+        Assert.Equal(225m, expanded.Kpis.NetSales);
         Assert.Equal(18m, expanded.Kpis.Tax);
         Assert.Equal(243m, Assert.Single(expanded.Orders).Total);
         Assert.Equal(243m, expanded.Kpis.TotalBillSales);
@@ -239,6 +240,79 @@ public sealed class TransactionReportingAuditTests
         var report = await d.Expanded(d.Day, d.Day);
         Assert.Single(report.Orders);
         Assert.Equal(100m, report.Kpis.TotalBillSales);
+    }
+
+    [Fact]
+    public async Task ContinuityReplayTodayForYesterdaysSale_AttributesToFrozenOfflineDateAndTrueCalculationBase()
+    {
+        var d = new Data();
+        var saleAt = d.At;
+        var replayedAt = d.At.AddDays(1);
+        var cashMethod = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        d.Methods.Add(cashMethod);
+
+        var txId = Guid.NewGuid();
+        const decimal total = 10.05m;
+        const string terminal = "POS-01";
+        const string cashier = "Offline Cashier";
+        var checksum = Clovent.Restaurant.Continuity.EmergencyTransaction.ComputeChecksum(
+            txId, 1L, saleAt, terminal, d.Branch.Value, d.Warehouse.Value, cashier, total, "Cash");
+        var hmac = Clovent.Restaurant.Continuity.EmergencyTransaction.ComputeHmacSignature(
+            txId, 1L, Clovent.Restaurant.Continuity.EmergencyTransaction.GenesisHash,
+            saleAt, terminal, d.Branch.Value, d.Warehouse.Value, cashier, total, "Cash");
+
+        var offlineTx = new Clovent.Restaurant.Continuity.EmergencyTransaction
+        {
+            TransactionId = txId,
+            SequenceNumber = 1L,
+            PreviousTransactionHash = Clovent.Restaurant.Continuity.EmergencyTransaction.GenesisHash,
+            TimestampUtc = saleAt,
+            TerminalId = terminal,
+            BranchId = d.Branch.Value,
+            WarehouseId = d.Warehouse.Value,
+            CashierId = Guid.NewGuid(),
+            CashierName = cashier,
+            OrderSnapshot = new Clovent.Restaurant.Continuity.EmergencyOrderSnapshot(
+                "TakeAway",
+                null,
+                null,
+                [new(Guid.NewGuid(), "INC-10", "Inclusive item", 1m, 10.05m, 10.05m, null, 10m, 0.91m, true, 0m)],
+                10.05m, 0.91m, 0m, 0m, 10.05m, null, null),
+            PaymentType = "Cash",
+            AmountTendered = 10.05m,
+            ChangeGiven = 0m,
+            Checksum = checksum,
+            HmacSignature = hmac
+        };
+
+        var journal = new FakeContinuityJournalStore();
+        await journal.AppendAsync(offlineTx);
+
+        var replayer = new Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer(
+            journal,
+            d.Orders,
+            d.Lines,
+            d.Payments,
+            d.Methods,
+            new FakeUnitOfWork(),
+            new FakeOutboxRepository());
+
+        var result = await replayer.ReplayPendingAsync();
+        Assert.Equal(1, result.SuccessCount);
+
+        var replayedOrder = Assert.Single(await d.Orders.GetAllAsync());
+        // Simulate persistence stamping UpdatedAtUtc on replay day (Jan 11) while offline sale occurred on Jan 10.
+        Data.Stamp(replayedOrder, "CreatedAtUtc", replayedAt);
+        Data.Stamp(replayedOrder, "UpdatedAtUtc", replayedAt);
+
+        var snap = JsonSerializer.Deserialize<ReceiptSnapshot>(replayedOrder.ReceiptSnapshotJson!)!;
+        Assert.Equal(9.14m, snap.TotalTaxableBase);
+        Assert.Equal(saleAt, snap.CompletedAtUtc);
+
+        Assert.Single((await d.Expanded(d.Day, d.Day)).Orders);
+        Assert.Empty((await d.Expanded(d.Day.AddDays(1), d.Day.AddDays(1))).Orders);
+        Assert.Equal(10.05m, (await d.Tax(d.Day, d.Day)).GrossSalesBeforeDiscounts);
+        Assert.Equal(0m, (await d.Tax(d.Day.AddDays(1), d.Day.AddDays(1))).GrossSalesBeforeDiscounts);
     }
 
     private sealed record Line(decimal Quantity, decimal Price, decimal Rate, bool Inclusive, decimal Discount, decimal Base, decimal Tax, string Classification = "Taxable");

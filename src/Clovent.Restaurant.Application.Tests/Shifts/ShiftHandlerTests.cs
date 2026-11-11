@@ -478,6 +478,43 @@ public class ShiftHandlerTests
         Assert.Equal(4000m, shift3Summary.ExpectedCash);
     }
 
+    [Fact]
+    public async Task CloseShift_UsesCanonicalCardAndCashClassificationMatchingShiftSummaryQuery()
+    {
+        var (branchId, warehouseId, terminalId, cashierId) = CreateGuids();
+        var openHandler = new OpenShiftCommandHandler(_shiftRepository, _activityLogRepository);
+        var shiftDto = await openHandler.Handle(
+            new OpenShiftCommand(branchId, warehouseId, terminalId, cashierId, "Cashier Card", 50m),
+            CancellationToken.None);
+
+        var masterCard = PaymentMethod.Create(PaymentMethodName.Create("MasterCard"));
+        var cash = PaymentMethod.Create(PaymentMethodName.Create("Cash"));
+        await _paymentMethodRepository.AddAsync(masterCard);
+        await _paymentMethodRepository.AddAsync(cash);
+
+        var orderId = new OrderId(Guid.NewGuid());
+        await _paymentRepository.AddAsync(Payment.Create(orderId, masterCard.Id, 60m, new ShiftId(shiftDto.ShiftId)));
+        await _paymentRepository.AddAsync(Payment.Create(orderId, cash.Id, 40m, new ShiftId(shiftDto.ShiftId)));
+
+        var summaryBeforeClose = await new GetShiftSummaryQueryHandler(
+            _shiftRepository,
+            _paymentRepository,
+            _paymentMethodRepository).Handle(new GetShiftSummaryQuery(shiftDto.ShiftId), CancellationToken.None);
+
+        var closed = await new CloseShiftCommandHandler(
+            _shiftRepository,
+            _paymentRepository,
+            _paymentMethodRepository,
+            _activityLogRepository).Handle(new CloseShiftCommand(shiftDto.ShiftId, 90m), CancellationToken.None);
+
+        Assert.Equal(summaryBeforeClose.CardSales, closed.CardSales);
+        Assert.Equal(summaryBeforeClose.CashSales, closed.CashSales);
+        Assert.Equal(summaryBeforeClose.OtherSales, closed.OtherSales);
+        Assert.Equal(60m, closed.CardSales);
+        Assert.Equal(40m, closed.CashSales);
+        Assert.Equal(90m, closed.ExpectedCash);
+    }
+
     private sealed class InMemoryRefundRepository : Clovent.Restaurant.Refunds.IRefundRepository
     {
         private readonly System.Collections.Generic.List<Clovent.Restaurant.Refunds.Refund> _refunds = [];

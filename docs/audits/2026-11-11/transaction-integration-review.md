@@ -122,3 +122,59 @@ Use a synthetic isolated database, one SKU RECOVERY-100, unit price 100.00, tax 
 | Two test instances | Race different full-payment keys against one 500.00 order | One payment 500.00; other attempt rejects. Reusing the same key returns that same payment ID |
 
 Capture IDs, attempt keys where exposed, balances, stock quantities, row counts, report exports and screenshots. Money totals alone are not evidence of stock movement. No commissioning or production fault injection is part of this checklist.
+
+## Combined transaction + reporting integration (`audit/final-transaction-reporting-integration-20261111`)
+
+Integrated reporting commit `7444d2375eeb00c486392613c180bf528d03ce15` (from `audit/transaction-reporting-20261111`, based on `40f4b1c16f6655d853da6ba7a96fc749f9bfc61c`) onto latest transaction hardening `27217fddf9e7adecc15e2cb6502c85f6a47b4bfc` (`audit/transaction-integration-review-20261111`) in a dedicated review branch `audit/final-transaction-reporting-integration-20261111` (cherry-pick `049c1e3` plus reconciliation commit). All source branch tips (`27217fd`, `7444d23`, `99f0659`, `11063d7`, `7aad813`, `main`) and unrelated work remain untouched.
+
+### Reconciliation fixes applied on this branch
+
+1. **`CloseShiftCommand` canonical payment-method classification (`CloseShiftCommand.cs`)**: Replaced legacy hardcoded `"Cash"` / `"Card"` / `"Credit Card"` / `"Debit Card"` string comparisons with `PaymentMethodClassifier.IsCash` and `PaymentMethodClassifier.IsCard` so shift closure reconciles cash/card aliases (e.g., `"MasterCard"`, `"Visa"`) identically to `GetShiftSummaryQuery` and `GetBusinessDaySummaryQuery`. Regression added in `ShiftHandlerTests.CloseShift_UsesCanonicalCardAndCashClassificationMatchingShiftSummaryQuery`.
+2. **Offline continuity receipt `TotalTaxableBase` (`EmergencyJournalReplayer.cs`)**: Changed `ReceiptSnapshot.TotalTaxableBase` from `tx.OrderSnapshot.Subtotal` to `MoneyRoundingPolicy.RoundMoney(snapshotItems.Sum(i => i.TaxableBase))` so offline/replayed receipts match `CompleteOrderCommandHandler` and `ReceiptFormatter.FormatFromSnapshot` (`Item calculation base`) on inclusive-tax and discounted orders. Regression added in `TransactionReportingAuditTests.ContinuityReplayTodayForYesterdaysSale_AttributesToFrozenOfflineDateAndTrueCalculationBase`.
+3. **Expanded sales summary `NetSales` vs `TotalBillSales` (`GetExpandedSalesSummaryQuery.cs`)**: Restored `SalesSummaryKpiDto.NetSales` to `grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges` (exclusive of exclusive tax) while retaining `totalBillSales = orderRows.Sum(o => o.Total)` on `SalesSummaryKpiDto.TotalBillSales` and `AverageOrderValue`. Fixed `EndToEndPosWorkflowAcceptanceTests.CategoryInheritedTaxProfile_OrderLineAndExpandedSalesReport_PreservesInheritedAndExemptSnapshots` (`NetSales` 990.00 vs 1134.00) and added `Assert.Equal(225m, expanded.Kpis.NetSales)` to `TransactionReportingAuditTests.MixedDiscountedSale_BillKpiMatchesRowsAndTaxSummary`.
+
+### Fresh post-edit verification (separate from earlier branch runs)
+
+All runs below executed sequentially after the final code edit on `audit/final-transaction-reporting-integration-20261111`:
+
+| Check | PASS | FAIL | SKIP | Notes |
+|---|---:|---:|---:|---|
+| `Clovent.Domain.Tests` | 15 | 0 | 0 | Full project |
+| `Clovent.Identity.Infrastructure.Tests` | 34 | 0 | 0 | Full project (includes 4 Identity `ValueComparer` suites) |
+| `Clovent.Inventory.Tests` | 23 | 0 | 0 | Full project |
+| `Clovent.Inventory.Application.Tests` | 30 | 0 | 0 | Full project |
+| `Clovent.Restaurant.Tests` | 244 | 0 | 0 | Full project |
+| `Clovent.Restaurant.Application.Tests` | 505 | 0 | 0 | Full project (13 `TransactionReportingAuditTests`, `ShiftHandlerTests`, lock/continuity tests) |
+| `Clovent.Restaurant.Infrastructure.Tests` | 168 | 0 | 0 | Full project; 35 disposable LocalDB `17.00.4025` DBs (`created=35`, `cleanup-verified=35`, `mismatch=0`) |
+| `Clovent.Desktop.Tests` (filtered) | 1015 | 0 | 7 | Excludes live-SQL `RuntimeVerificationTests` & `DevelopmentRestaurantReportingSeedLiveSqlServerExecutionTests` |
+| **Total tests verified** | **2034** | **0** | **7** | **Zero failures** |
+
+Full-solution `Debug` (`--no-restore`) and `Release` (`-p:UseArtifactsOutput=true -p:ArtifactsPath=%TEMP%\cbos-rel-artifacts`) builds of `Clovent.BusinessOperatingSystem.slnx` succeeded with `0 Warning(s), 0 Error(s)` (temp Release artifacts deleted afterward; a pre-existing October `CBOS_RefundConcurrency_ff95cae36d8844f09587ecbe6c693ea1` LocalDB database from `2026-10-14` predates this session and was left untouched).
+
+### Consolidated manual acceptance checklist — ALL NOT VERIFIED IN LIVE UI
+
+Run only against an isolated synthetic test database (never operational/production DBs). Record Order IDs, Payment IDs, attempt keys, Shift/BusinessDay IDs, stock balances, report exports, and screenshots.
+
+1. **Cash/change, split tenders, and customer balances**
+   - Record single cash tender with overpayment change (`tender > order total`): verify `Payment.Amount` and shift expected cash equal net order collection, receipt shows cash tendered and change returned, and shift drawer summary excludes returned change from net cash sales.
+   - Record split tender across cash + card alias (e.g., `MasterCard` / `Visa`) + `OnAccount`: verify card alias lands in **Card** (never `Other`) across both `GetShiftSummaryQuery`, `CloseShiftCommand`, `GetBusinessDaySummaryQuery`, and `ExpandedSalesSummary`; verify customer receivable increases strictly by the `OnAccount` amount.
+   - Collect a customer advance / credit settlement and test voiding an active advance settlement payment (and whole-order void): verify customer balance, ledger entries, allocations, payment active/voided status, and `ExpandedSalesSummary` (`CustomerPaymentsCollected` / `AdvancesReceived` stay unchanged while liability restores).
+   - Attempt a stale-screen submission or concurrent duplicate payment from two test instances against the same order/customer credit limit: verify one succeeds cleanly and the second rejects cleanly without double charge.
+2. **Partial refunds, rounding, and inventory reconciliation**
+   - Test an inclusive-tax fractional item split across repeated partial returns (`0.5` + `0.5` of a `10.05` item at 10% tax): verify cumulative refunded net, tax, and gross residuals equal original order totals with penny-exact final remainder (`5.03 + 5.02 = 10.05`, tax `0.46 + 0.45 = 0.91`), original completed sale/receipt stays immutable, and credit notes preserve stored residuals.
+   - Test restock vs non-restock partial/full refunds: verify on-hand stock increases only on restock returns, net inventory delta matches sold minus restocked quantities, and `Tax Summary`, `Refund Audit`, and `ExpandedSalesSummary` agree.
+3. **Restart/retry recovery**
+   - Inject lost acknowledgement after recording a partial payment (e.g., `40.00` on `100.00`), restart the desktop app under the same terminal/cashier/Windows profile, and retry unchanged: verify protected DPAPI attempt journal reuses the same attempt key and reconciles the single `40.00` payment (`60.00` balance due, zero duplicate payment, zero premature inventory Issue).
+   - Change amount/method/shift while an unresolved attempt exists: verify fail-closed block/reconciliation prompt rather than silently generating a duplicate attempt.
+   - Trigger offline continuity capture + emergency journal replay on a later day: verify replayed receipt uses frozen offline completion date and item calculation base.
+4. **Sales, tax, and refund reports across dates**
+   - Create an order on Day 1, complete it on Day 2, modify operational/delivery notes on Day 3, and refund partially on Day 3: verify Day 1 excludes it, Day 2 attributes the completed sale and frozen receipt timestamp (even after Day 3 operational edits), Day 3 includes only the refund in `Refund Audit` and net tax/sales adjustment, and `NetSales` (ex-exclusive-tax) vs `TotalBillSales` (including exclusive tax) match KPI tiles and row totals.
+   - Verify customer statement/receivables "as-of Day 2" excludes Day 3 customer payments for both closing balance and `LastTransactionDate`.
+5. **Shift and business-day closure**
+   - Open shift, post mixed cash/card-alias payments and a cash refund/movement, and close shift: verify `CloseShiftCommand` expected cash/card/other figures match `GetShiftSummaryQuery` exactly and zero subsequent payments can post to the closed shift.
+   - Race business-day closure against shift opening / late payment / continuity replay: verify business-day closure waits for in-flight postings or rejects new postings cleanly once closing/closed.
+6. **`PrinterSettingsForm` DPI & layout inspection (100%, 150%, 200% scaling) + preview/reprint**
+   - Open `PrinterSettingsForm` (MDI document tab and standalone resize) under Windows display scaling at **100%**, **150%**, and **200%**: verify readable `Segoe UI 10pt` typography, zero label truncation or overlapping controls in `grpInstalled` / `grpProfileDetails`, and that `lblStatus` / `btnClose` remain visible and unclipped down to `MinimumSize`.
+   - Exercise completion/refund receipt preview & unavailable-printer handling: verify committed status and no duplicate financial or stock mutations on print failure.
+
+**Explicitly NOT VERIFIED**: Live interactive WinForms UI, Visual Studio WinForms Designer, high-DPI rendering at 150%/200%, physical printing, runtime SQL Server login connectivity (only `EXECUTE AS USER ... WITHOUT LOGIN` on LocalDB `17.00.4025`), and SQL Server 2022/v16 compatibility (LocalDB tested is v17 `17.00.4025`).

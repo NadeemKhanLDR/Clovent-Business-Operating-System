@@ -281,7 +281,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                     tx.OrderSnapshot.CustomerNotes,
                     null,
                     "CBOS-TaxPolicy-NetOfDiscount-v1",
-                    tx.OrderSnapshot.Subtotal,
+                    Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundMoney(snapshotItems.Sum(i => i.TaxableBase)),
                     tx.OrderSnapshot.Lines.Where(l => !l.TaxIsInclusive).Sum(l => l.TaxAmount),
                     tx.OrderSnapshot.Lines.Where(l => l.TaxIsInclusive).Sum(l => l.TaxAmount));
 

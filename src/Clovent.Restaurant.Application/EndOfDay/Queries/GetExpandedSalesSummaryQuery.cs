@@ -677,6 +677,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         }
 
         decimal itemSales = grossSales;
+        decimal netSales = grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges;
         // Order totals already include exclusive tax and preserve inclusive-tax pricing.
         decimal totalBillSales = orderRows.Sum(o => o.Total);
         int totalOrders = completedOrders.Count;
@@ -688,7 +689,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             totalDiscounts,
             totalServiceCharges,
             totalDeliveryFees,
-            totalBillSales,
+            netSales,
             totalTax,
             totalCollected,
             cashCollected,
