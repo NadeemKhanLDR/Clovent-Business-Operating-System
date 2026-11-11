@@ -1,3 +1,4 @@
+using Clovent.Platform.Execution;
 using System.Reflection;
 using System.Text.Json;
 using Clovent.Catalog.Variants;
@@ -319,7 +320,13 @@ public sealed class TransactionReportingAuditTests
     private sealed class Data
     {
         internal readonly DateTimeOffset At;
-        internal Data(DateTimeOffset? at = null) => At = at ?? new DateTimeOffset(2026, 1, 10, 12, 0, 0, TimeSpan.Zero);
+        internal readonly Guid Company = Guid.NewGuid();
+        internal readonly Clovent.Platform.Execution.ExecutionContextAccessor Scope = new();
+        internal Data(DateTimeOffset? at = null)
+        {
+            At = at ?? new DateTimeOffset(2026, 1, 10, 12, 0, 0, TimeSpan.Zero);
+            Scope.BeginScope(new Clovent.Platform.Execution.PlatformExecutionContext { OrganizationId = Guid.NewGuid(), CompanyId = Company });
+        }
         internal DateOnly Day => DateOnly.FromDateTime(At.UtcDateTime);
         internal readonly WarehouseId Warehouse = WarehouseId.New();
         internal readonly BranchId Branch = BranchId.New();
@@ -346,6 +353,7 @@ public sealed class TransactionReportingAuditTests
         {
             var customer = Clovent.Restaurant.Customers.Customer.Create(EntityCode.Create("AUD-" + Guid.NewGuid().ToString("N")[..8]), "Synthetic customer", "0000000000", "Synthetic address", null, 0m, 1000m, null);
             Stamp(customer, "CreatedAtUtc", At.AddDays(-10));
+            customer.AssignCompany(Company);
             Customers.Add(customer);
             return customer;
         }
@@ -359,7 +367,11 @@ public sealed class TransactionReportingAuditTests
         }
 
         internal void Entry(Customer customer, decimal debit, decimal credit, decimal balance, string? method, string description, DateTimeOffset date, string reference = "AUDIT")
-            => Ledger.Add(CustomerLedgerEntry.Create(customer.Id, reference, description, debit, credit, balance, paymentMethod: method, date: date));
+        {
+            var entry = CustomerLedgerEntry.Create(customer.Id, reference, description, debit, credit, balance, paymentMethod: method, date: date);
+            entry.AssignCompany(Company);
+            Ledger.Add(entry);
+        }
 
         internal Order Sale(Line[] facts, (string Method, decimal Amount, bool Voided)[]? tenders = null,
             Customer? customer = null, DateTimeOffset? created = null, WarehouseId? warehouse = null, Shift? shift = null)
@@ -427,7 +439,7 @@ public sealed class TransactionReportingAuditTests
         internal Task<TaxSummaryReportDto> Tax(DateOnly from, DateOnly to)
             => new GetTaxSummaryReportQueryHandler(Orders, Lines, Refunds).Handle(new(Warehouse.Value, from, to), default);
         internal Task<CustomerReceivablesReportDto> Receivables(DateTimeOffset at)
-            => new GetCustomerReceivablesReportQueryHandler(Customers, Ledger, Orders, Payments, Methods, new FakeCustomerPaymentAllocationRepository())
+            => new GetCustomerReceivablesReportQueryHandler(Customers, Ledger, Orders, Payments, Methods, new FakeCustomerPaymentAllocationRepository(), Scope)
                 .Handle(new(at), default);
     }
 }

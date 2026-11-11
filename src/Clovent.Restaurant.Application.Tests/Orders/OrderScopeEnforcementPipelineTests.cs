@@ -64,6 +64,25 @@ public sealed class OrderScopeEnforcementPipelineTests
     }
 
     [Fact]
+    public async Task CompanyAReceivables_MustNotExposeCustomerOnlyAssociatedWithCompanyBOrder()
+    {
+        var (branchA, _) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch A", "Warehouse A");
+        var (branchB, warehouseB) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch B", "Warehouse B");
+        var customerB = Clovent.Restaurant.Customers.Customer.Create(EntityCode.Create("FOREIGN"),
+            "B-only synthetic customer", "0000000000", "Synthetic", null, 200m, 1000m, null);
+        customerB.AssignCompany(branchB.CompanyId.Value);
+        ((FakeCustomerRepository)_serviceProvider.GetRequiredService<Clovent.Restaurant.Customers.ICustomerRepository>()).Add(customerB);
+        var orderB = Order.Create(OrderType.TakeAway, warehouseB.Id);
+        orderB.SetCustomer(customerB.Id);
+        _orderRepository.Add(orderB);
+        using var scope = _accessor.BeginScope(new PlatformExecutionContext {
+            OrganizationId = Guid.NewGuid(), CompanyId = branchA.CompanyId.Value, BranchId = branchA.Id.Value });
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => _mediator.Send(new GetOrderByIdQuery(orderB.Id.Value)));
+        var report = await _mediator.Send(new Clovent.Restaurant.Application.Customers.Queries.GetCustomerReceivablesReportQuery(DateTimeOffset.UtcNow.AddSeconds(1)));
+        Assert.DoesNotContain(report.Rows, r => r.CustomerId == customerB.Id.Value);
+    }
+
+    [Fact]
     public async Task GetOrderByIdQuery_WithoutScope_ThrowsScopeUnresolvedException()
     {
         var query = new GetOrderByIdQuery(Guid.NewGuid());
