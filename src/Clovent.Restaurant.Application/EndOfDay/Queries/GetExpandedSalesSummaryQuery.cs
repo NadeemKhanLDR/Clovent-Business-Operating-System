@@ -1,3 +1,4 @@
+using Clovent.Restaurant.Application.Reports;
 using Clovent.Restaurant.DomainServices;
 using System;
 using System.Collections.Generic;
@@ -61,16 +62,14 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         bool MatchesRange(Order order)
         {
             if (order.WarehouseId != warehouseId) return false;
-            // Check completed/updated or created date against business range
-            var orderDate = ToBusinessDate(order.UpdatedAtUtc);
-            var createdDate = ToBusinessDate(order.CreatedAtUtc);
-            return (orderDate >= request.FromDate && orderDate <= request.ToDate) ||
-                   (createdDate >= request.FromDate && createdDate <= request.ToDate);
+            // Attribute completed sales once, using their frozen completion business date.
+            var orderDate = ToBusinessDate(CompletedSaleDate.For(order));
+            return orderDate >= request.FromDate && orderDate <= request.ToDate;
         }
 
         var completedOrders = allOrders
             .Where(o => o.Status == OrderStatus.Completed && MatchesRange(o))
-            .OrderByDescending(o => o.UpdatedAtUtc)
+            .OrderByDescending(CompletedSaleDate.For)
             .ToList();
 
         var voidedOrders = allOrders
@@ -350,8 +349,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     l.Quantity,
                     l.UnitPrice,
                     lineDiscount,
-                    l.TaxRatePercentage,
                     lineTax,
+                    0m,
                     l.LineTotal,
                     itemType));
 
@@ -448,6 +447,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             decimal collectionsAppliedToAR = 0m;
             decimal advanceAppliedToAR = 0m;
             decimal advanceCreated = 0m;
+            decimal advanceReceived = 0m;
             decimal advanceUsed = 0m;
             decimal totalCustomerPayments = 0m;
 
@@ -483,7 +483,12 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                 {
                     bool isRefundCredit = string.Equals(pe.PaymentMethod, "Refund Credit", StringComparison.OrdinalIgnoreCase) ||
                                           pe.Description.StartsWith("Refund credit note", StringComparison.OrdinalIgnoreCase);
-                    if (isRefundCredit)
+                    // Known void entries restore ledger balances; they are not new tender.
+                    bool isVoidCredit = pe.Reference.StartsWith("VOID-", StringComparison.OrdinalIgnoreCase) &&
+                        (pe.Description.StartsWith("Void Advance Settlement (", StringComparison.OrdinalIgnoreCase) ||
+                         pe.Description.StartsWith("Void Credit Sale (", StringComparison.OrdinalIgnoreCase) ||
+                         pe.Description.StartsWith("Void Order Reversal (", StringComparison.OrdinalIgnoreCase));
+                    if (isRefundCredit || isVoidCredit)
                     {
                         if (running > 0m)
                         {
@@ -499,6 +504,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     }
                     else
                     {
+                        advanceReceived += Math.Max(0m, pe.Credit - Math.Max(0m, running));
                         totalCustomerPayments += pe.Credit;
                         var pmName = !string.IsNullOrWhiteSpace(pe.PaymentMethod) ? pe.PaymentMethod : "Cash";
                         var cur = customerPaymentsByMethod.GetValueOrDefault(pmName);
@@ -528,7 +534,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             decimal closingReceivable = Math.Max(0m, closingNet);
             decimal closingAdvance = Math.Max(0m, -closingNet);
 
-            periodAdvancesReceived += advanceCreated;
+            periodAdvancesReceived += advanceReceived;
 
             // Only report customer if they have activity or non-zero balance
             if (openReceivable > 0 || newOnAccount > 0 || collectionsAppliedToAR > 0 || closingReceivable > 0 || openAdvance > 0 || advanceCreated > 0 || advanceUsed > 0 || closingAdvance > 0)
@@ -671,7 +677,8 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
         }
 
         decimal itemSales = grossSales;
-        decimal totalBillSales = grossSales - totalDiscounts + totalDeliveryFees + totalServiceCharges;
+        // Order totals already include exclusive tax and preserve inclusive-tax pricing.
+        decimal totalBillSales = orderRows.Sum(o => o.Total);
         int totalOrders = completedOrders.Count;
         decimal averageOrderValue = totalOrders > 0 ? totalBillSales / totalOrders : 0m;
         decimal closingTotalReceivables = receivableRows.Sum(r => r.ClosingReceivable);
@@ -848,7 +855,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             var oGross = oRows.Sum(r => r.Subtotal);
             var oDisc = oRows.Sum(r => r.Discount);
             var oFees = matchingOrders.Sum(o => o.DeliveryFee);
-            var oNet = oGross - oDisc + oFees;
+            var oNet = oRows.Sum(o => o.Total);
             var aov = oCount > 0 ? oNet / oCount : 0m;
             var pct = totalBillSales > 0 ? (oNet / totalBillSales) * 100m : 0m;
 

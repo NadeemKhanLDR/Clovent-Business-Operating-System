@@ -81,7 +81,7 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
     {
         var asOf = request.AsOfDate ?? DateTimeOffset.UtcNow;
         var customers = await customerRepository.GetAllAsync(cancellationToken);
-        var lastDates = await ledgerRepository.GetLastTransactionDatesAsync(cancellationToken);
+
         var allAllocations = await allocationRepository.GetAllAsync(cancellationToken);
         var allocationsUpToAsOf = allAllocations.Where(a => a.AllocatedAtUtc <= asOf).ToList();
         var allocationsByOrder = allocationsUpToAsOf.GroupBy(a => a.OrderId).ToDictionary(g => g.Key, g => g.Sum(a => a.Amount));
@@ -135,7 +135,7 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
             // Any customer with receivable > CreditLimit is over limit.
             var isOverLimit = receivable > customer.CreditLimit;
             var availableCredit = customer.IsCreditAllowed ? Math.Max(0m, customer.CreditLimit - receivable) : 0m;
-            var lastDate = lastDates.GetValueOrDefault(customer.Id);
+            var lastDate = entriesUpToAsOf.LastOrDefault()?.Date;
 
             decimal current = 0m;
             decimal d1to7 = 0m;
@@ -222,7 +222,7 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
                 customer.CreditLimit,
                 netBal,
                 availableCredit,
-                lastDate == default ? null : lastDate,
+                lastDate,
                 Math.Round(current, 2),
                 Math.Round(d1to7, 2),
                 Math.Round(d8to15, 2),

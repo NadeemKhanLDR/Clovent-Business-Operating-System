@@ -45,13 +45,11 @@ public sealed class GetShiftSummaryQueryHandler(
             if (paymentMethodsById.TryGetValue(p.PaymentMethodId, out var method))
             {
                 var name = method.Name.Value;
-                if (string.Equals(name, "Cash", StringComparison.OrdinalIgnoreCase))
+                if (PaymentMethodClassifier.IsCash(name))
                 {
                     cashSales += p.Amount;
                 }
-                else if (string.Equals(name, "Card", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(name, "Credit Card", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(name, "Debit Card", StringComparison.OrdinalIgnoreCase))
+                else if (PaymentMethodClassifier.IsCard(name))
                 {
                     cardSales += p.Amount;
                 }
