@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
@@ -47,7 +48,8 @@ public sealed class CompleteOrderCommandHandler(
     IMediator mediator,
     IOutboxRepository? outboxRepository = null,
     IOutboxProcessor? outboxProcessor = null,
-    Clovent.Restaurant.PaymentMethods.IPaymentMethodRepository? paymentMethodRepository = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
+    Clovent.Restaurant.PaymentMethods.IPaymentMethodRepository? paymentMethodRepository = null,
+    IServiceProvider? companyServices = null) : IRequestHandler<CompleteOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public Task<OrderDto> Handle(CompleteOrderCommand request, CancellationToken cancellationToken) =>
@@ -59,6 +61,7 @@ public sealed class CompleteOrderCommandHandler(
 
     private async Task<OrderDto> HandleCoreAsync(CompleteOrderCommand request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeOrderAsync(request.OrderId, request.BranchId, cancellationToken, organizationId: request.OrganizationId);
         if (outboxProcessor is not null && outboxRepository is null)
         {
             throw new InvalidOperationException(

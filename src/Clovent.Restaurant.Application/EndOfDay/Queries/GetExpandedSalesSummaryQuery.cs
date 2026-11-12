@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Restaurant.Application.Reports;
 using Clovent.Restaurant.DomainServices;
 using System;
@@ -45,7 +46,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     ITableRepository tableRepository,
     IMediator mediator,
     Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider? businessDateProvider = null,
-    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
+    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null, IServiceProvider? companyServices = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
 {
     private const string CashMethodName = "Cash";
     private const string CardFragment = "card";
@@ -53,6 +54,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     /// <inheritdoc/>
     public async Task<ExpandedSalesSummaryDto> Handle(GetExpandedSalesSummaryQuery request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeWarehouseAsync(request.WarehouseId, cancellationToken);
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 

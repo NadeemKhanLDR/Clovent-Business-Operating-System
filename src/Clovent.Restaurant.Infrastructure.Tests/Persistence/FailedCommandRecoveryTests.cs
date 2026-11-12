@@ -170,6 +170,7 @@ public sealed class FailedCommandRecoveryTests : SqliteTestBase
     internal static ServiceProvider Pipeline(RestaurantDbContext db, FailureGate gate)
     {
         var services = new ServiceCollection();
+        services.AddSingleton<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SyntheticFinancialScope>();
         services.AddSingleton<Clovent.Restaurant.Application.IUnitOfWork>(new UnitOfWork(db));
         services.AddSingleton(gate);
         services.AddSingleton<IOrderRepository>(new OrderRepository(db));

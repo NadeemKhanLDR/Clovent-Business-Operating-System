@@ -505,6 +505,26 @@ public class CompleteOrderCommandHandlerTests
         Assert.Equal(TableOccupancyStatus.Available, table.OccupancyStatus);
     }
 
+    [Theory]
+    [InlineData("Cash")]
+    [InlineData("MasterCard")]
+    [InlineData("On Account")]
+    [InlineData("Customer Advance")]
+    public async Task Handle_FreezesActualCashPaymentLabel(string label)
+    {
+        var fixture = new Fixture();
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        fixture.Orders.Add(order);
+        var variant = fixture.AddLine(order, 1m, 100m);
+        fixture.Inventory.AddStock(variant, 10m);
+        fixture.PayInFull(order, 100m);
+        var method = Assert.Single(await fixture.Methods.GetAllAsync());
+        method.Rename(Clovent.Restaurant.PaymentMethods.ValueObjects.PaymentMethodName.Create(label));
+        await fixture.CreateHandler().Handle(new(order.Id.Value), default);
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<ReceiptSnapshot>(order.ReceiptSnapshotJson!);
+        Assert.Equal(label, Assert.Single(snapshot!.Payments).PaymentMethodName);
+    }
+
     [Fact]
     public async Task Handle_PopulatesReceiptSnapshot_WithValidSkuAndNonEmptyItemNames()
     {

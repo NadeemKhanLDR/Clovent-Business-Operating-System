@@ -75,6 +75,7 @@ public sealed class RefundOutboxConcurrencyIntegrationTests : IAsyncLifetime
         _interceptor = new DeterministicOutboxSyncInterceptor();
 
         var services = new ServiceCollection();
+        services.AddSingleton<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SyntheticFinancialScope>();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
         services.AddSingleton<Clovent.Platform.CircuitBreakers.ICircuitBreakerRegistry, Clovent.Platform.CircuitBreakers.CircuitBreakerRegistry>();

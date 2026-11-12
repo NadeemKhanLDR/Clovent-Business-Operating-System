@@ -77,6 +77,17 @@ public sealed class RestaurantDbContext(DbContextOptions<RestaurantDbContext> op
                 ?? Customers.SingleOrDefault(c => c.Id == allocation.Entity.CustomerId);
             if (customer?.CompanyId != company)
                 throw new Clovent.Platform.Execution.ScopeMismatchException("Allocation customer is not owned by the active company.");
+            var order = Orders.Local.FirstOrDefault(o => o.Id == allocation.Entity.OrderId)
+                ?? Orders.SingleOrDefault(o => o.Id == allocation.Entity.OrderId);
+            if (order?.CustomerId != allocation.Entity.CustomerId)
+                throw new Clovent.Platform.Execution.ScopeMismatchException("Allocation order does not belong to its customer.");
+            if (allocation.Entity.CustomerLedgerEntryId is { } ledgerId)
+            {
+                var ledger = CustomerLedgerEntries.Local.FirstOrDefault(e => e.Id == ledgerId)
+                    ?? CustomerLedgerEntries.SingleOrDefault(e => e.Id == ledgerId);
+                if (ledger?.CustomerId != allocation.Entity.CustomerId || ledger.CompanyId != company)
+                    throw new Clovent.Platform.Execution.ScopeMismatchException("Allocation ledger does not belong to its customer and company.");
+            }
         }
     }
 

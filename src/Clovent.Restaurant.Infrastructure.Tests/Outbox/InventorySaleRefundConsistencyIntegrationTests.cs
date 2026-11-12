@@ -159,6 +159,8 @@ public sealed class InventorySaleRefundConsistencyIntegrationTests : IAsyncLifet
 
         Clovent.Platform.Sync.SyncServiceCollectionExtensions.AddTestPlatformSync(services);
 
+        services.AddScoped<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SyntheticFinancialScope>();
+
         Clovent.Restaurant.Application.DependencyInjection.ApplicationServiceCollectionExtensions.AddApplication(services, configuration);
 
         Clovent.Restaurant.Infrastructure.DependencyInjection.InfrastructureServiceCollectionExtensions.AddInfrastructure(services, configuration);

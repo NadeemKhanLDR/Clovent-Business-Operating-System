@@ -1,5 +1,9 @@
 # Approved company ownership and proportional aging
 
+Historical standalone checkpoint. The current combined revision, strengthened migration
+and active preflight/maintenance/recovery checklist are in
+[company/transaction review](../../2026-11-12/company-transaction-review.md).
+
 Continuation of review commit **92a39844932d8c29862d87b08dba6b964408ca9d** on
 `audit/reporting-integration-review-20261111`. Original transaction and reporting
 branches are preserved. The user approved company-owned customers/ledgers with explicit

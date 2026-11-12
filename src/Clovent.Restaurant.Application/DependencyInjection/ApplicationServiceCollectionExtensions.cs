@@ -20,6 +20,7 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScopeEnforcement();
         services.AddScoped(typeof(IPipelineBehavior<,>), typeof(Clovent.Restaurant.Application.Concurrency.TransactionSerializationBehavior<,>));
         services.TryAddScoped<IOrderScopeValidator, OrderScopeValidator>();
+        services.TryAddScoped<IFinancialCompanyScope, FinancialCompanyScope>();
 
         services.AddScoped<Clovent.Restaurant.Application.SmartCombos.SmartComboService>();
         services.AddSingleton<Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider, Clovent.Restaurant.Application.Shifts.Services.BusinessDateProvider>();
@@ -48,6 +49,8 @@ public static class ApplicationServiceCollectionExtensions
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.CatalogPriceDeltaSyncOutboxHandler>();
         services.AddScoped<Clovent.Restaurant.Application.Outbox.IOutboxMessageHandler, Clovent.Restaurant.Application.Outbox.Handlers.ShiftSummaryDeltaSyncOutboxHandler>();
 
+        services.AddScoped<Clovent.Restaurant.Application.Continuity.IContinuityReplayScopeValidator,
+            Clovent.Restaurant.Application.Continuity.ContinuityReplayScopeValidator>();
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IEmergencyJournalReplayer>(sp =>
             new Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer(
                 sp.GetRequiredService<Clovent.Restaurant.Continuity.IContinuityJournalStore>(),
@@ -59,7 +62,8 @@ public static class ApplicationServiceCollectionExtensions
                 sp.GetRequiredService<Clovent.Restaurant.Outbox.IOutboxRepository>(),
                 sp.GetRequiredService<Clovent.Restaurant.Application.Concurrency.ITransactionLockProvider>(),
                 sp.GetService<Clovent.Restaurant.Application.Outbox.IOutboxProcessor>(),
-                sp.GetService<Microsoft.Extensions.Logging.ILogger<Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>>()));
+                sp.GetService<Microsoft.Extensions.Logging.ILogger<Clovent.Restaurant.Application.Continuity.EmergencyJournalReplayer>>(),
+                sp.GetRequiredService<Clovent.Restaurant.Application.Continuity.IContinuityReplayScopeValidator>()));
         services.AddScoped<Clovent.Restaurant.Application.Continuity.IOperationalCacheSynchronizer, Clovent.Restaurant.Application.Continuity.OperationalCacheSynchronizer>();
 
         // Multi-Terminal Branch Replication & Sync Ingestion Handlers

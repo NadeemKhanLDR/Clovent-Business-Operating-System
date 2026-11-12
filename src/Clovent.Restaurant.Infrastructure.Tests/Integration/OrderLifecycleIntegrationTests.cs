@@ -119,6 +119,8 @@ public sealed class OrderLifecycleIntegrationTests : IDisposable
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Clovent.Catalog.Infrastructure.Persistence.UnitOfWorkBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(Clovent.Inventory.Infrastructure.Persistence.UnitOfWorkBehavior<,>));
 
+        services.AddScoped<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SyntheticFinancialScope>();
+
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblies(
             typeof(Clovent.Restaurant.Application.DependencyInjection.ApplicationServiceCollectionExtensions).Assembly,
             typeof(Clovent.Catalog.Application.DependencyInjection.ApplicationServiceCollectionExtensions).Assembly,

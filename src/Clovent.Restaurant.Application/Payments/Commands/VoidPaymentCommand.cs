@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders;
 using Clovent.Restaurant.Application.Payments.Dtos;
@@ -25,7 +26,7 @@ public sealed class VoidPaymentCommandHandler(
     ICustomerRepository customerRepository,
     ICustomerLedgerEntryRepository ledgerRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    ICustomerPaymentAllocationRepository allocationRepository) : IRequestHandler<VoidPaymentCommand, PaymentDto>
+    ICustomerPaymentAllocationRepository allocationRepository, IServiceProvider? companyServices = null) : IRequestHandler<VoidPaymentCommand, PaymentDto>
 {
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(VoidPaymentCommand request, CancellationToken cancellationToken)
@@ -55,6 +56,11 @@ public sealed class VoidPaymentCommandHandler(
 
     private async Task<PaymentDto> HandleCoreAsync(PaymentId paymentId, CancellationToken cancellationToken)
     {
+        if (companyServices is not null)
+        {
+            var target = await repository.GetByIdAsync(paymentId, cancellationToken) ?? throw new NotFoundException(nameof(Payment), paymentId.Value);
+            await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeOrderAsync(target.OrderId.Value, null, cancellationToken);
+        }
         var payment = await repository.GetByIdAsync(paymentId, cancellationToken)
             ?? throw new NotFoundException(nameof(Payment), paymentId.Value);
 

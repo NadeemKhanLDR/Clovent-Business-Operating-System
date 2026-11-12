@@ -35,6 +35,11 @@ namespace Clovent.Restaurant.Application.Tests.Concurrency;
 
 public sealed class FinancialLockGapRegressionTests
 {
+    // Synthetic journals in this suite test locks, not authorization.
+    private sealed class SyntheticReplayScope : IContinuityReplayScopeValidator
+    {
+        public Task ValidateAsync(Guid warehouse, Guid branch, CancellationToken ct) => Task.CompletedTask;
+    }
     [Fact]
     public async Task EmergencyJournalReplayer_AcquiresContinuityLockThroughSaveChanges_AndSerializesConcurrentReplay()
     {
@@ -47,7 +52,8 @@ public sealed class FinancialLockGapRegressionTests
 
         var txId = Guid.NewGuid();
         var tx1 = CreateValidEmergencyTx(txId);
-        var tx2 = CreateValidEmergencyTx(txId);
+        var tx2 = System.Text.Json.JsonSerializer.Deserialize<EmergencyTransaction>(
+            System.Text.Json.JsonSerializer.Serialize(tx1))!; // A real duplicate has the same signed payload.
 
         var journal1 = new FakeContinuityJournalStore();
         var journal2 = new FakeContinuityJournalStore();
@@ -69,7 +75,7 @@ public sealed class FinancialLockGapRegressionTests
             sharedMethodRepo,
             firstUow,
             sharedOutboxRepo,
-            transactionLockProvider: recordingProvider);
+            transactionLockProvider: recordingProvider, replayScope: new SyntheticReplayScope());
 
         var replayer2 = new EmergencyJournalReplayer(
             journal2,
@@ -79,7 +85,7 @@ public sealed class FinancialLockGapRegressionTests
             sharedMethodRepo,
             secondUow,
             sharedOutboxRepo,
-            transactionLockProvider: recordingProvider);
+            transactionLockProvider: recordingProvider, replayScope: new SyntheticReplayScope());
 
         var firstTask = Task.Run(() => replayer1.ReplayPendingAsync());
         await firstSaveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -283,7 +289,7 @@ public sealed class FinancialLockGapRegressionTests
         var recordingProvider = new RecordingPersistenceLockProvider();
 
         var replayer = new EmergencyJournalReplayer(
-            journal, orderRepo, lineRepo, paymentRepo, methodRepo, gateUow, outboxRepo, transactionLockProvider: recordingProvider);
+            journal, orderRepo, lineRepo, paymentRepo, methodRepo, gateUow, outboxRepo, transactionLockProvider: recordingProvider, replayScope: new SyntheticReplayScope());
 
         var paymentBehavior = new TransactionSerializationBehavior<RecordPaymentCommand, PaymentDto>(
             orderRepo, paymentRepo, persistenceLocks: recordingProvider, orderLineRepository: lineRepo);
