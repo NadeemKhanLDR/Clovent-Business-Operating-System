@@ -167,9 +167,11 @@ partial class EndOfDayReportView
             ("NewOnAccountSales", "+ On Account", 95),
             ("CustomerPayments", "- Collections", 95),
             ("AdvanceApplied", "- Adv Applied", 95),
+            ("NonCashReceivableCredits", "- Ledger Credits", 110),
             ("ClosingReceivable", "= Closing A/R", 100),
             ("OpeningAdvance", "Open Adv", 85),
             ("AdvanceReceived", "+ Adv Recv", 85),
+            ("NonCashAdvanceCredits", "+ Adv Credits", 95),
             ("AdvanceUsed", "- Adv Used", 85),
             ("ClosingAdvance", "= Close Adv", 90)
         ]);
@@ -492,7 +494,7 @@ partial class EndOfDayReportView
         "ServiceAndDeliveryFee", "Tax", "PaidAmount", "OnAccountAmount", "OutstandingAmount",
         "NetSales", "TotalPaid", "OnAccountIncurred", "AccountPaymentsCollected",
         "EndingReceivable", "AdvanceBalance", "TotalCollected", "OpeningReceivable",
-        "NewOnAccountSales", "CustomerPayments", "AdvanceApplied", "ClosingReceivable",
+        "NewOnAccountSales", "CustomerPayments", "AdvanceApplied", "NonCashReceivableCredits", "NonCashAdvanceCredits", "ClosingReceivable",
         "OpeningAdvance", "AdvanceReceived", "AdvanceUsed", "ClosingAdvance", "DeliveryFees",
         "AverageOrderValue", "LineTotal", "ServiceCharge", "Fees", "Subtotal",
         "OpeningFloat", "StartingCash", "CashSales", "CashCollections", "CashIn", "CashOut",

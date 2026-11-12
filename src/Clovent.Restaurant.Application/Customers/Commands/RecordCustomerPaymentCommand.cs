@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
@@ -37,7 +38,7 @@ public sealed class RecordCustomerPaymentCommandHandler(
     IPaymentRepository? paymentRepository = null,
     IPaymentMethodRepository? paymentMethodRepository = null,
     ICustomerPaymentAllocationRepository? allocationRepository = null,
-    IShiftRepository? shiftRepository = null) : IRequestHandler<RecordCustomerPaymentCommand, CustomerPaymentResult>
+    IShiftRepository? shiftRepository = null, IServiceProvider? companyServices = null) : IRequestHandler<RecordCustomerPaymentCommand, CustomerPaymentResult>
 {
     /// <inheritdoc/>
     public Task<CustomerPaymentResult> Handle(RecordCustomerPaymentCommand request, CancellationToken cancellationToken)
@@ -60,6 +61,7 @@ public sealed class RecordCustomerPaymentCommandHandler(
 
     private async Task<CustomerPaymentResult> HandleCoreAsync(RecordCustomerPaymentCommand request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeCollectionAsync(request.CustomerId, request.ShiftId, cancellationToken);
         if (request.AmountReceived <= 0)
             throw new ArgumentOutOfRangeException(nameof(request.AmountReceived), "Payment amount must be positive.");
 

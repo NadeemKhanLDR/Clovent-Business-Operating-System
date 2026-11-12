@@ -25,6 +25,11 @@ namespace Clovent.Restaurant.Infrastructure.Tests.Continuity;
 [System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBase
 {
+    // This suite isolates cryptography/persistence. Company authorization is tested separately.
+    private sealed class SyntheticReplayScope : IContinuityReplayScopeValidator
+    {
+        public Task ValidateAsync(Guid warehouse, Guid branch, CancellationToken ct) => Task.CompletedTask;
+    }
     private readonly string _tempDir;
     private readonly string _journalPath;
     private PaymentMethod _cashMethod = null!;
@@ -178,7 +183,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
             new OutboxRepository(replayDb),
             new SqlTransactionLockProvider(replayDb),
             null,
-            NullLogger<EmergencyJournalReplayer>.Instance);
+            NullLogger<EmergencyJournalReplayer>.Instance, replayScope: new SyntheticReplayScope());
 
         var replayResult = await replayer.ReplayPendingAsync();
 
@@ -294,7 +299,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentMethodRepository(db1),
                 new UnitOfWork(db1),
                 new OutboxRepository(db1),
-                new SqlTransactionLockProvider(db1));
+                new SqlTransactionLockProvider(db1), replayScope: new SyntheticReplayScope());
 
             var result1 = await replayer1.ReplayPendingAsync();
             Assert.Equal(count, result1.SuccessCount);
@@ -312,7 +317,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentMethodRepository(db2),
                 new UnitOfWork(db2),
                 new OutboxRepository(db2),
-                new SqlTransactionLockProvider(db2));
+                new SqlTransactionLockProvider(db2), replayScope: new SyntheticReplayScope());
 
             var result2 = await replayer2.ReplayPendingAsync();
             Assert.Equal(0, result2.TotalProcessed);
@@ -339,7 +344,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                 new PaymentMethodRepository(db3),
                 new UnitOfWork(db3),
                 new OutboxRepository(db3),
-                new SqlTransactionLockProvider(db3));
+                new SqlTransactionLockProvider(db3), replayScope: new SyntheticReplayScope());
 
             var result3 = await replayer3.ReplayPendingAsync();
             Assert.Equal(3, result3.TotalProcessed);
@@ -437,7 +442,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
                     new OutboxRepository(workerDb),
                     new SqlTransactionLockProvider(workerDb),
                     null,
-                    NullLogger<EmergencyJournalReplayer>.Instance);
+                    NullLogger<EmergencyJournalReplayer>.Instance, replayScope: new SyntheticReplayScope());
 
                 return await replayer.ReplayPendingAsync();
             }
@@ -566,7 +571,7 @@ public sealed class EmergencyJournalReplayStressIntegrationTests : SqliteTestBas
             new PaymentMethodRepository(db),
             new UnitOfWork(db),
             new OutboxRepository(db),
-            new SqlTransactionLockProvider(db));
+            new SqlTransactionLockProvider(db), replayScope: new SyntheticReplayScope());
 
         var result = await replayer.ReplayPendingAsync();
 

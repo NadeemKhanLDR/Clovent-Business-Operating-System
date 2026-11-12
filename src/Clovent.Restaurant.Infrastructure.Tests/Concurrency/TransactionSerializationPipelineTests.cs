@@ -140,6 +140,7 @@ public sealed class TransactionSerializationPipelineTests : IDisposable
     private ServiceProvider BuildTestServiceProvider(BarrierControl barrier)
     {
         var services = new ServiceCollection();
+        services.AddSingleton<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, Clovent.Restaurant.Infrastructure.Tests.TestSupport.SyntheticFinancialScope>();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {

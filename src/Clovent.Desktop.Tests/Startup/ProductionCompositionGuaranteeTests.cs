@@ -55,6 +55,8 @@ public sealed class ProductionCompositionGuaranteeTests
         services.AddApplication(config);
         services.AddInfrastructure(config);
         services.AddPersistence(config);
+        Clovent.Identity.Infrastructure.DependencyInjection.PersistenceServiceCollectionExtensions.AddPersistence(services, config);
+        Clovent.MasterData.Infrastructure.DependencyInjection.PersistenceServiceCollectionExtensions.AddPersistence(services, config);
 
         using var provider = services.BuildServiceProvider(validateScopes: true);
         using var scope = provider.CreateScope();
@@ -188,6 +190,8 @@ public sealed class ProductionCompositionGuaranteeTests
         services.AddApplication(config);
         services.AddInfrastructure(config);
         services.AddPersistence(config);
+        Clovent.Identity.Infrastructure.DependencyInjection.PersistenceServiceCollectionExtensions.AddPersistence(services, config);
+        Clovent.MasterData.Infrastructure.DependencyInjection.PersistenceServiceCollectionExtensions.AddPersistence(services, config);
 
         // Simulate incomplete composition missing ITransactionLockProvider
         var descriptor = services.First(d => d.ServiceType == typeof(ITransactionLockProvider));

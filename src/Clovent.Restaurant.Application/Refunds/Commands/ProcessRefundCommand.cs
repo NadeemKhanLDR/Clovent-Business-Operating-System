@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Text.Json;
 using Clovent.Catalog.Application.Variants.Dtos;
 using Clovent.Catalog.Application.Variants.Queries;
@@ -68,6 +69,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 {
     private const string RefundStockReferenceType = "Refund";
 
+    private readonly IServiceProvider? _companyServices;
     private readonly IRefundRepository _refundRepository;
     private readonly IOrderRepository _orderRepository;
     private readonly IOrderLineRepository _orderLineRepository;
@@ -98,8 +100,9 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         IFeatureAuthorizationPolicy? featureAuthorizationPolicy = null,
         IOutboxRepository? outboxRepository = null,
         IOutboxProcessor? outboxProcessor = null,
-        IPaymentMethodRepository? paymentMethodRepository = null)
+        IPaymentMethodRepository? paymentMethodRepository = null, IServiceProvider? companyServices = null)
     {
+        _companyServices = companyServices;
         _refundRepository = refundRepository;
         _orderRepository = orderRepository;
         _orderLineRepository = orderLineRepository;
@@ -172,6 +175,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
 
     private async Task<RefundDto> HandleCoreAsync(ProcessRefundCommand request, CancellationToken cancellationToken)
     {
+        Guid? authorizedBranch = _companyServices is null ? null : await _companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeOrderAsync(request.OrderId, request.BranchId, cancellationToken, request.ShiftId);
         if (_outboxProcessor != null && _outboxRepository == null)
         {
             throw new InvalidOperationException(
@@ -332,7 +336,7 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
         }
 
         var refundNumber = RefundNumber.Generate(request.RefundedAtUtc ?? DateTimeOffset.UtcNow);
-        var branchId = request.BranchId.HasValue
+        var branchId = authorizedBranch.HasValue ? new BranchId(authorizedBranch.Value) : request.BranchId.HasValue
             ? new BranchId(request.BranchId.Value)
             : new BranchId(order.WarehouseId.Value);
 

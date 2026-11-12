@@ -22,6 +22,7 @@ if (args.Length != 7 || !Regex.IsMatch(args[0], "^CBOS_CrossProcess_[a-f0-9]{32}
 var options = new DbContextOptionsBuilder<RestaurantDbContext>()
     .UseSqlServer($"Server=(localdb)\\MSSQLLocalDB;Database={args[0]};Integrated Security=true;TrustServerCertificate=true").Options;
 var services = new ServiceCollection();
+services.AddSingleton<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, DisposableWorkerScope>();
 services.AddSingleton(options);
 services.AddScoped<RestaurantDbContext>();
 services.AddScoped<ITransactionLockProvider, SqlTransactionLockProvider>();
@@ -76,4 +77,12 @@ sealed class BarrierUnitOfWork(UnitOfWork inner, string directory, bool pause) :
         }
         await inner.SaveChangesAsync(cancellationToken);
     }
+}
+
+// This executable already rejects all targets except generated disposable LocalDB databases.
+sealed class DisposableWorkerScope : Clovent.Restaurant.Application.Security.IFinancialCompanyScope
+{
+    public Task<Guid> AuthorizeOrderAsync(Guid order, Guid? branch, CancellationToken ct, Guid? shiftId = null, Guid? organizationId = null) => Task.FromResult(branch ?? Guid.Empty);
+    public Task AuthorizeCollectionAsync(Guid customer, Guid? shift, CancellationToken ct) => Task.CompletedTask;
+    public Task AuthorizeWarehouseAsync(Guid warehouse, CancellationToken ct) => Task.CompletedTask;
 }

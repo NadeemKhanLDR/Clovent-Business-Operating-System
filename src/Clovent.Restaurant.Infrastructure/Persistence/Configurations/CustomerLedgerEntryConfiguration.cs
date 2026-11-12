@@ -9,7 +9,11 @@ internal sealed class CustomerLedgerEntryConfiguration : IEntityTypeConfiguratio
 {
     public void Configure(EntityTypeBuilder<CustomerLedgerEntry> builder)
     {
-        builder.ToTable("CustomerLedgerEntries", "Restaurant");
+        builder.ToTable("CustomerLedgerEntries", "Restaurant", t => {
+            t.HasTrigger("TR_CustomerLedgerEntries_CompanyImmutable");
+            t.HasTrigger("TR_CustomerLedgerEntries_NoDelete");
+            t.UseSqlOutputClause(false);
+        });
 
         builder.HasKey(e => e.Id);
         builder.Property(e => e.CompanyId);

@@ -33,6 +33,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
     private readonly ILogger<EmergencyJournalReplayer>? _logger;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITransactionLockProvider? _transactionLockProvider;
+    private readonly IContinuityReplayScopeValidator? _replayScope;
+    private readonly bool _requiresReplayScope;
 
     /// <summary>
     /// Initializes a new instance of <see cref="EmergencyJournalReplayer"/> requiring durable outbox persistence
@@ -48,7 +50,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         IOutboxRepository? outboxRepository,
         ITransactionLockProvider transactionLockProvider,
         IOutboxProcessor? outboxProcessor = null,
-        ILogger<EmergencyJournalReplayer>? logger = null)
+        ILogger<EmergencyJournalReplayer>? logger = null,
+        IContinuityReplayScopeValidator? replayScope = null)
     {
         ArgumentNullException.ThrowIfNull(transactionLockProvider);
 
@@ -62,6 +65,8 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
         _outboxProcessor = outboxProcessor;
         _logger = logger;
         _transactionLockProvider = transactionLockProvider;
+        _replayScope = replayScope;
+        _requiresReplayScope = true;
     }
 
     /// <summary>Initializes a new instance of <see cref="EmergencyJournalReplayer"/> for isolated unit testing without external DB locks.</summary>
@@ -127,6 +132,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
 
         foreach (var tx in pending)
         {
+            var scopeAuthorized = !_requiresReplayScope;
             var idempotencyKey = $"emergency:{tx.TransactionId}";
             try
             {
@@ -142,6 +148,11 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 }
 
                 var replayKeys = new List<TransactionLockKey>(2);
+                if (_requiresReplayScope && _replayScope is null)
+                    throw new InvalidOperationException("Runtime continuity replay requires a trusted scope validator.");
+                if (_replayScope is not null)
+                    await _replayScope.ValidateAsync(tx.WarehouseId, tx.BranchId, cancellationToken).ConfigureAwait(false);
+                scopeAuthorized = true;
                 if (tx.BranchId != Guid.Empty)
                 {
                     replayKeys.Add(TransactionLockKey.ForBusinessDay(tx.BranchId, TransactionLockAccessMode.Shared));
@@ -156,6 +167,7 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                         var existingPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
                         if (existingPayment != null)
                         {
+                            await ValidateDuplicateOwnershipAsync(existingPayment, tx, cancellationToken).ConfigureAwait(false);
                             tx.ReconciliationStatus = ReconciliationStatus.DuplicateIgnored;
                             tx.ReconciliationDetails = $"Transaction already exists in primary database as Payment {existingPayment.Id.Value}.";
                             tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
@@ -357,6 +369,12 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 }
 
                         // Step 7: Commit primary DB transaction while still holding continuity replay locks
+                        if (_replayScope is not null)
+                        {
+                            scopeAuthorized = false;
+                            await _replayScope.ValidateAsync(tx.WarehouseId, tx.BranchId, cancellationToken).ConfigureAwait(false);
+                            scopeAuthorized = true;
+                        }
                         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
                         // Step 8: Update local journal record
@@ -385,9 +403,25 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
                 // Concurrency & idempotency check: did a concurrent replay thread already commit this payment?
                 try
                 {
-                    var committedPayment = await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false);
+                    if (_requiresReplayScope)
+                    {
+                        scopeAuthorized = false;
+                        if (_replayScope is not null)
+                        {
+                            try
+                            {
+                                await _replayScope.ValidateAsync(tx.WarehouseId, tx.BranchId, cancellationToken).ConfigureAwait(false);
+                                scopeAuthorized = true;
+                            }
+                            catch { /* Authorization failure must not fall back to an unscoped lookup. */ }
+                        }
+                    }
+                    var committedPayment = scopeAuthorized
+                        ? await _paymentRepository.GetByIdempotencyKeyAsync(idempotencyKey, cancellationToken).ConfigureAwait(false)
+                        : null; // An authorization failure must never acknowledge another company's payment.
                     if (committedPayment != null)
                     {
+                        await ValidateDuplicateOwnershipAsync(committedPayment, tx, cancellationToken).ConfigureAwait(false);
                         tx.ReconciliationStatus = ReconciliationStatus.DuplicateIgnored;
                         tx.ReconciliationDetails = $"Transaction already committed by concurrent replay as Payment {committedPayment.Id.Value}.";
                         tx.ReconciledAtUtc = DateTimeOffset.UtcNow;
@@ -420,6 +454,18 @@ public sealed class EmergencyJournalReplayer : IEmergencyJournalReplayer
             duplicateCount,
             failedCount,
             errors.AsReadOnly());
+    }
+
+    private async Task ValidateDuplicateOwnershipAsync(Payment payment, EmergencyTransaction tx, CancellationToken ct)
+    {
+        if (!_requiresReplayScope) return; // Legacy isolated unit seam, never runtime DI.
+        var order = await _orderRepository.GetByIdAsync(payment.OrderId, ct).ConfigureAwait(false);
+        if (order is null || order.WarehouseId.Value != tx.WarehouseId || order.Status != OrderStatus.Completed ||
+            payment.IsVoided || payment.Amount != tx.OrderSnapshot.GrandTotal)
+            throw new Clovent.Platform.Execution.ScopeMismatchException(
+                "Replay identity belongs to a different warehouse or does not represent a completed matching payment.");
+        if (_replayScope is null) throw new InvalidOperationException("Runtime replay scope validator is required.");
+        await _replayScope.ValidateAsync(order.WarehouseId.Value, tx.BranchId, ct).ConfigureAwait(false);
     }
 
     private Task<T> ExecuteWithReplayLocksAsync<T>(

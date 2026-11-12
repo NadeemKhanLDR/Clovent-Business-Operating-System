@@ -9,7 +9,12 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 {
     public void Configure(EntityTypeBuilder<Customer> builder)
     {
-        builder.ToTable("Customers", "Restaurant");
+        builder.ToTable("Customers", "Restaurant", t => {
+            t.HasTrigger("TR_Customers_CompanyImmutable");
+            t.HasTrigger("TR_Customers_NoDelete");
+            t.HasTrigger("TR_Customers_RequireApprovedLegacyOwner");
+            t.UseSqlOutputClause(false);
+        });
 
         builder.HasKey(c => c.Id);
         builder.Property(c => c.CompanyId);

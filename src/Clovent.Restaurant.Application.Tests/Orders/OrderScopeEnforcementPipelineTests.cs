@@ -64,6 +64,56 @@ public sealed class OrderScopeEnforcementPipelineTests
     }
 
     [Fact]
+    public async Task FinancialScope_RejectsForeignOrdersCustomersAndClaimedAuthority()
+    {
+        var (a, wa) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch A", "Warehouse A");
+        var (b, wb) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch B", "Warehouse B");
+        var own = Order.Create(OrderType.TakeAway, wa.Id);
+        var foreign = Order.Create(OrderType.TakeAway, wb.Id);
+        _orderRepository.Add(own); _orderRepository.Add(foreign);
+        var customers = (FakeCustomerRepository)_serviceProvider.GetRequiredService<Clovent.Restaurant.Customers.ICustomerRepository>();
+        var customer = Clovent.Restaurant.Customers.Customer.Create(EntityCode.Create("B-ONLY"), "Synthetic B",
+            "0000000000", "Synthetic address", null, 0m, 100m, null);
+        customer.AssignCompany(b.CompanyId.Value); customers.Add(customer);
+        var ownCustomer = Clovent.Restaurant.Customers.Customer.Create(EntityCode.Create("A-ONLY"), "Synthetic A",
+            "0000000000", "Synthetic address", null, 0m, 100m, null);
+        ownCustomer.AssignCompany(a.CompanyId.Value); customers.Add(ownCustomer);
+        var shifts = new FakeShiftRepository();
+        var foreignShift = Clovent.Restaurant.Shifts.Shift.Open(1, b.Id, wb.Id,
+            Clovent.MasterData.Terminals.TerminalId.New(), Clovent.Identity.Users.UserId.New(), "Synthetic", 0m);
+        await shifts.AddAsync(foreignShift);
+        var guard = new Clovent.Restaurant.Application.Security.FinancialCompanyScope(_accessor,
+            _serviceProvider.GetRequiredService<Clovent.Restaurant.Application.Security.IOrderScopeValidator>(),
+            _orderRepository, customers, _warehouseRepository, _branchRepository, shifts);
+        await Assert.ThrowsAsync<ScopeUnresolvedException>(() => guard.AuthorizeOrderAsync(own.Id.Value, null, default));
+        using var scope = _accessor.BeginScope(new PlatformExecutionContext {
+            OrganizationId = Guid.NewGuid(), CompanyId = a.CompanyId.Value, BranchId = a.Id.Value });
+        Assert.Equal(a.Id.Value, await guard.AuthorizeOrderAsync(own.Id.Value, null, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeOrderAsync(foreign.Id.Value, a.Id.Value, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeOrderAsync(own.Id.Value, b.Id.Value, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeOrderAsync(own.Id.Value, null, default, organizationId: Guid.NewGuid()));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeCollectionAsync(customer.Id.Value, null, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeCollectionAsync(ownCustomer.Id.Value, foreignShift.Id.Value, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeOrderAsync(own.Id.Value, null, default, foreignShift.Id.Value));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => guard.AuthorizeWarehouseAsync(wb.Id.Value, default));
+    }
+
+    [Fact]
+    public async Task ContinuityTargets_RequireTrustedCompanyAndMatchingPersistedBranch()
+    {
+        var (a, warehouseA) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch A", "Warehouse A");
+        var (b, warehouseB) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch B", "Warehouse B");
+        var validator = new Clovent.Restaurant.Application.Continuity.ContinuityReplayScopeValidator(
+            _serviceProvider.GetRequiredService<Clovent.Restaurant.Application.Security.IOrderScopeValidator>(), _warehouseRepository);
+        await Assert.ThrowsAsync<ScopeUnresolvedException>(() => validator.ValidateAsync(warehouseA.Id.Value, a.Id.Value, default));
+        using var scope = _accessor.BeginScope(new PlatformExecutionContext {
+            OrganizationId = Guid.NewGuid(), CompanyId = a.CompanyId.Value, BranchId = a.Id.Value });
+        await validator.ValidateAsync(warehouseA.Id.Value, a.Id.Value, default);
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => validator.ValidateAsync(warehouseB.Id.Value, b.Id.Value, default));
+        await Assert.ThrowsAsync<ScopeMismatchException>(() => validator.ValidateAsync(warehouseA.Id.Value, b.Id.Value, default));
+    }
+
+    [Fact]
     public async Task CompanyAReceivables_MustNotExposeCustomerOnlyAssociatedWithCompanyBOrder()
     {
         var (branchA, _) = CreateBranchAndWarehouse(Guid.NewGuid(), "Branch A", "Warehouse A");

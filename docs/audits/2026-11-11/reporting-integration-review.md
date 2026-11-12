@@ -1,5 +1,9 @@
 # Reporting / transaction integration review
 
+Historical checkpoint. Use the current
+[company/transaction review](../2026-11-12/company-transaction-review.md) for the combined
+revision, actual results and active deployment/recovery checklist.
+
 The user approved company-owned customers/ledgers with explicit legacy mapping and
 proportional aging with largest fractional remainders. Both formerly failing assertions
 now pass. Current implementation, results and the remaining deployment prerequisite are

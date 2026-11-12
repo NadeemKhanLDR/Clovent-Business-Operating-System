@@ -28,7 +28,7 @@ namespace Clovent.Restaurant.Application.Tests.Reports;
 
 // Synthetic persisted facts, not commissioning or command/persistence qualification.
 // Expectations below are literal independently calculated amounts.
-public sealed class TransactionReportingAuditTests
+public sealed partial class TransactionReportingAuditTests
 {
     [Fact]
     public async Task MixedDiscountedSale_BillKpiMatchesRowsAndTaxSummary()
@@ -43,6 +43,7 @@ public sealed class TransactionReportingAuditTests
         Assert.Equal(18m, expanded.Kpis.Tax);
         Assert.Equal(243m, Assert.Single(expanded.Orders).Total);
         Assert.Equal(243m, expanded.Kpis.TotalBillSales);
+        Assert.Equal(225m, expanded.Kpis.BillSalesExcludingTax);
         Assert.Equal(expanded.Orders.Sum(o => o.Total), expanded.Kpis.TotalBillSales);
         Assert.Equal(243m, expanded.OrderTypes.Sum(o => o.TotalSales));
         Assert.Equal(243m, expanded.Kpis.CashCollected);
@@ -118,6 +119,11 @@ public sealed class TransactionReportingAuditTests
         Assert.Equal(0m, report.Kpis.CustomerPaymentsCollected);
         Assert.Equal(0m, report.Kpis.CustomerAdvancesReceived);
         Assert.Equal(0m, report.Kpis.CustomerAdvancesApplied);
+        var movement = Assert.Single(report.Receivables);
+        Assert.Equal(0m, movement.AdvanceReceived);
+        Assert.Equal(100m, movement.NonCashAdvanceCredits);
+        Assert.Equal(movement.ClosingAdvance, movement.OpeningAdvance + movement.AdvanceReceived +
+            movement.NonCashAdvanceCredits - movement.AdvanceUsed);
         var ar = await d.Receivables(d.At.AddHours(1));
         Assert.Equal(300m, ar.TotalAdvances);
         Assert.Equal(-300m, ar.NetPosition);

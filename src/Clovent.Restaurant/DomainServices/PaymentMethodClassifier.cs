@@ -49,6 +49,12 @@ public static class PaymentMethodClassifier
             return false;
         }
 
-        return normalized.Contains("Card", StringComparison.OrdinalIgnoreCase);
+        // Only established card aliases qualify. Names such as Discarded or
+        // Gift Card Voucher must not silently become bank-card collections.
+        return string.Equals(normalized, "Card", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Credit Card", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Debit Card", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "MasterCard", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Visa Card", StringComparison.OrdinalIgnoreCase);
     }
 }

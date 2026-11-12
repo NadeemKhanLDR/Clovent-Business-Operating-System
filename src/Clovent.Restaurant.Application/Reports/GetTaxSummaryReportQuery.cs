@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.OrderLines;
@@ -46,11 +47,12 @@ public sealed record GetTaxSummaryReportQuery(
 public sealed class GetTaxSummaryReportQueryHandler(
     IOrderRepository orderRepository,
     IOrderLineRepository orderLineRepository,
-    IRefundRepository refundRepository) : IRequestHandler<GetTaxSummaryReportQuery, TaxSummaryReportDto>
+    IRefundRepository refundRepository, IServiceProvider? companyServices = null) : IRequestHandler<GetTaxSummaryReportQuery, TaxSummaryReportDto>
 {
     /// <inheritdoc/>
     public async Task<TaxSummaryReportDto> Handle(GetTaxSummaryReportQuery request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeWarehouseAsync(request.WarehouseId, cancellationToken);
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 

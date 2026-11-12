@@ -40,6 +40,8 @@ public sealed record SalesSummaryKpiDto(
     public decimal ItemSalesValue => ItemSales > 0m ? ItemSales : GrossSales;
     /// <summary>Resolved total bill sales (including delivery/service fees).</summary>
     public decimal TotalBillSalesValue => TotalBillSales > 0m ? TotalBillSales : NetSales;
+    /// <summary>Bill payable excluding all charged tax, including fees, before refund reversals.</summary>
+    public decimal BillSalesExcludingTax => TotalBillSalesValue - Tax;
 }
 
 /// <summary>Order line item for master-detail expansion in Sales Summary.</summary>
@@ -142,7 +144,9 @@ public sealed record ExpandedReceivableActivityRowDto(
     decimal OpeningAdvance,
     decimal AdvanceReceived,
     decimal AdvanceUsed,
-    decimal ClosingAdvance);
+    decimal ClosingAdvance,
+    decimal NonCashReceivableCredits = 0m,
+    decimal NonCashAdvanceCredits = 0m);
 
 /// <summary>Order type channel breakdown row.</summary>
 public sealed record ExpandedOrderTypeBreakdownDto(

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.MasterData.Warehouses;
 using Clovent.Restaurant.Application.Refunds.Dtos;
 using Clovent.Restaurant.DomainServices;
@@ -29,12 +30,13 @@ public sealed record GetRefundReportQuery(
     DateOnly ToDate) : IRequest<RefundReportDto>;
 
 /// <summary>Handles <see cref="GetRefundReportQuery"/>.</summary>
-public sealed class GetRefundReportQueryHandler(IRefundRepository refundRepository)
+public sealed class GetRefundReportQueryHandler(IRefundRepository refundRepository, IServiceProvider? companyServices = null)
     : IRequestHandler<GetRefundReportQuery, RefundReportDto>
 {
     /// <inheritdoc/>
     public async Task<RefundReportDto> Handle(GetRefundReportQuery request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeWarehouseAsync(request.WarehouseId, cancellationToken);
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allRefunds = await refundRepository.GetAllAsync(cancellationToken);
 

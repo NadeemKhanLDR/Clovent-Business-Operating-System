@@ -204,7 +204,7 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
                     b.HasIndex("Code")
                         .IsUnique();
 
-                    b.ToTable("Customers", "Restaurant");
+                    b.ToTable("Customers", "Restaurant", t => { t.HasTrigger("TR_Customers_CompanyImmutable"); t.HasTrigger("TR_Customers_NoDelete"); t.HasTrigger("TR_Customers_RequireApprovedLegacyOwner"); t.UseSqlOutputClause(false); });
                 });
 
             modelBuilder.Entity("Clovent.Restaurant.Customers.CustomerLedgerEntry", b =>
@@ -256,7 +256,7 @@ namespace Clovent.Restaurant.Infrastructure.Migrations
 
                     b.HasIndex("ShiftId");
 
-                    b.ToTable("CustomerLedgerEntries", "Restaurant");
+                    b.ToTable("CustomerLedgerEntries", "Restaurant", t => { t.HasTrigger("TR_CustomerLedgerEntries_CompanyImmutable"); t.HasTrigger("TR_CustomerLedgerEntries_NoDelete"); t.UseSqlOutputClause(false); });
                 });
 
             modelBuilder.Entity("Clovent.Restaurant.Customers.CustomerPaymentAllocation", b =>

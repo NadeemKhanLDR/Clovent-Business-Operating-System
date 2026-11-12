@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Restaurant.Application.Reports;
 using Clovent.Restaurant.DomainServices;
 using System;
@@ -45,7 +46,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     ITableRepository tableRepository,
     IMediator mediator,
     Clovent.Restaurant.Application.Shifts.Services.IBusinessDateProvider? businessDateProvider = null,
-    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
+    Clovent.Restaurant.Refunds.IRefundRepository? refundRepository = null, IServiceProvider? companyServices = null) : IRequestHandler<GetExpandedSalesSummaryQuery, ExpandedSalesSummaryDto>
 {
     private const string CashMethodName = "Cash";
     private const string CardFragment = "card";
@@ -53,6 +54,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
     /// <inheritdoc/>
     public async Task<ExpandedSalesSummaryDto> Handle(GetExpandedSalesSummaryQuery request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeWarehouseAsync(request.WarehouseId, cancellationToken);
         var warehouseId = new WarehouseId(request.WarehouseId);
         var allOrders = await orderRepository.GetAllAsync(cancellationToken);
 
@@ -448,6 +450,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
             decimal advanceAppliedToAR = 0m;
             decimal advanceCreated = 0m;
             decimal advanceReceived = 0m;
+            decimal nonCashReceivableCredits = 0m;
             decimal advanceUsed = 0m;
             decimal totalCustomerPayments = 0m;
 
@@ -493,6 +496,7 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                         if (running > 0m)
                         {
                             decimal applied = Math.Min(pe.Credit, running);
+                            nonCashReceivableCredits += applied;
                             decimal excess = pe.Credit - applied;
                             advanceCreated += excess;
                         }
@@ -549,9 +553,11 @@ public sealed class GetExpandedSalesSummaryQueryHandler(
                     advanceAppliedToAR,
                     closingReceivable,
                     openAdvance,
-                    advanceCreated,
+                    advanceReceived,
                     advanceUsed,
-                    closingAdvance));
+                    closingAdvance,
+                    nonCashReceivableCredits,
+                    advanceCreated - advanceReceived));
             }
 
             var (ordCount, qtyTotal, cItemSales, cDisc, cFees, cTax, cBillTotal, cPaid, cOnAcc) = customerSales.GetValueOrDefault(customer.Id.Value);

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Discounts.Dtos;
 using Clovent.Restaurant.Application.OrderLines.Dtos;
@@ -37,7 +38,7 @@ public sealed class RecordPaymentCommandHandler(
     IDiscountRepository discountRepository,
     IServiceChargeRepository serviceChargeRepository,
     ICustomerPaymentAllocationRepository allocationRepository,
-    IShiftRepository? shiftRepository = null)
+    IShiftRepository? shiftRepository = null, IServiceProvider? companyServices = null)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
     /// <summary>
@@ -96,6 +97,7 @@ public sealed class RecordPaymentCommandHandler(
 
     private async Task<PaymentDto> HandleCoreAsync(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
+        if (companyServices is not null) await companyServices.GetRequiredService<Clovent.Restaurant.Application.Security.IFinancialCompanyScope>().AuthorizeOrderAsync(request.OrderId, null, cancellationToken, request.ShiftId);
         if (!string.IsNullOrWhiteSpace(request.IdempotencyKey))
         {
             var existingPayment = await paymentRepository.GetByIdempotencyKeyAsync(request.IdempotencyKey, cancellationToken);
