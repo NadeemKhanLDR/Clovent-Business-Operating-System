@@ -56,6 +56,9 @@ public class PaymentMethodClassifierTests
     [InlineData("On Account", false)]
     [InlineData("Customer Advance", false)]
     [InlineData("Gift Card", false)]
+    [InlineData("Gift Card Voucher", false)]
+    [InlineData("Discarded", false)]
+    [InlineData("Cardboard", false)]
     [InlineData("Easy Paisa", false)]
     [InlineData("Cash", false)]
     public void IsCard_ClassifiesCardTendersWithoutCollidingWithCreditOrGiftCards(string? name, bool expected)

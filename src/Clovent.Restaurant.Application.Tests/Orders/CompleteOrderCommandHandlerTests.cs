@@ -122,12 +122,14 @@ public class CompleteOrderCommandHandlerTests
         public FakeDiscountRepository Discounts { get; } = new();
         public FakeServiceChargeRepository ServiceCharges { get; } = new();
         public FakePaymentRepository Payments { get; } = new();
+        public FakePaymentMethodRepository Methods { get; } = new();
         public FakeTableRepository Tables { get; } = new();
         public FakeDailySalesSequenceRepository DailySalesSequences { get; } = new();
         public FakeInventory Inventory { get; } = new();
 
         public CompleteOrderCommandHandler CreateHandler() => new(
-            Orders, OrderLines, Discounts, ServiceCharges, Payments, Tables, DailySalesSequences, Inventory.CreateMediator());
+            Orders, OrderLines, Discounts, ServiceCharges, Payments, Tables, DailySalesSequences, Inventory.CreateMediator(),
+            paymentMethodRepository: Methods);
 
         /// <summary>Adds a line to <paramref name="order"/> and registers it, returning the variant it sells.</summary>
         public Guid AddLine(Order order, decimal quantity, decimal unitPrice)
@@ -142,7 +144,10 @@ public class CompleteOrderCommandHandlerTests
         /// <summary>Settles <paramref name="order"/> in full, so completion is never blocked by an outstanding balance.</summary>
         public void PayInFull(Order order, decimal amount)
         {
-            var payment = Payment.Create(order.Id, PaymentMethodId.New(), amount);
+            var method = Clovent.Restaurant.PaymentMethods.PaymentMethod.Create(
+                Clovent.Restaurant.PaymentMethods.ValueObjects.PaymentMethodName.Create("Cash"));
+            Methods.Add(method);
+            var payment = Payment.Create(order.Id, method.Id, amount);
             order.RecordPayment(payment.Id);
             Payments.Add(payment);
         }
@@ -522,5 +527,30 @@ public class CompleteOrderCommandHandlerTests
         Assert.Equal("PAK-KARAHI-FULL", line.Sku);
         Assert.Equal("Karahi - Full Pot", line.Name);
         Assert.Equal(2, line.Quantity);
+    }
+
+    [Theory]
+    [InlineData("Cash")]
+    [InlineData("MasterCard")]
+    [InlineData("On Account")]
+    [InlineData("Customer Advance")]
+    public async Task Handle_FreezesActualPaymentMethodLabel(string label)
+    {
+        var fixture = new Fixture();
+        var method = Clovent.Restaurant.PaymentMethods.PaymentMethod.Create(
+            Clovent.Restaurant.PaymentMethods.ValueObjects.PaymentMethodName.Create(label));
+        fixture.Methods.Add(method);
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        fixture.Orders.Add(order);
+        var variantId = fixture.AddLine(order, quantity: 1, unitPrice: 100m);
+        fixture.Inventory.AddStock(variantId, quantityOnHand: 10);
+        var payment = Payment.Create(order.Id, method.Id, 100m);
+        order.RecordPayment(payment.Id);
+        fixture.Payments.Add(payment);
+
+        await fixture.CreateHandler().Handle(new CompleteOrderCommand(order.Id.Value), CancellationToken.None);
+
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<Clovent.Restaurant.Orders.ReceiptSnapshot>(order.ReceiptSnapshotJson!)!;
+        Assert.Equal(label, Assert.Single(snapshot.Payments).PaymentMethodName);
     }
 }

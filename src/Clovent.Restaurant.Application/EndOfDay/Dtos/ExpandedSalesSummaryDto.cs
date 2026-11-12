@@ -4,6 +4,14 @@ using System.Collections.Generic;
 namespace Clovent.Restaurant.Application.EndOfDay.Dtos;
 
 /// <summary>Summary KPIs for the sales reporting period.</summary>
+/// <remarks>
+/// GrossSales: Item shelf-price subtotal before discounts; inclusive tax remains in inclusive shelf prices.
+/// NetSales: GrossSales - Discounts + ServiceCharges + DeliveryFees (before exclusive tax; matches TaxSummaryReportDto.NetSales).
+/// Tax: Tax charged on completed sales, before refund reversals.
+/// TotalCollected: External order tender collected; excludes on-account and pre-collected advance settlement.
+/// TotalBillSales: Gross bill payable including tax and fees, before refunds.
+/// BillSalesExcludingTax: TotalBillSalesValue - Tax (removes both exclusive and inclusive tax).
+/// </remarks>
 public sealed record SalesSummaryKpiDto(
     decimal GrossSales,
     decimal Discounts,
@@ -40,6 +48,8 @@ public sealed record SalesSummaryKpiDto(
     public decimal ItemSalesValue => ItemSales > 0m ? ItemSales : GrossSales;
     /// <summary>Resolved total bill sales (including delivery/service fees).</summary>
     public decimal TotalBillSalesValue => TotalBillSales > 0m ? TotalBillSales : NetSales;
+    /// <summary>Bill payable excluding charged tax, including fees, before refund reversals.</summary>
+    public decimal BillSalesExcludingTax => TotalBillSalesValue - Tax;
 }
 
 /// <summary>Order line item for master-detail expansion in Sales Summary.</summary>
@@ -142,7 +152,9 @@ public sealed record ExpandedReceivableActivityRowDto(
     decimal OpeningAdvance,
     decimal AdvanceReceived,
     decimal AdvanceUsed,
-    decimal ClosingAdvance);
+    decimal ClosingAdvance,
+    decimal NonCashReceivableCredits = 0m,
+    decimal NonCashAdvanceCredits = 0m);
 
 /// <summary>Order type channel breakdown row.</summary>
 public sealed record ExpandedOrderTypeBreakdownDto(

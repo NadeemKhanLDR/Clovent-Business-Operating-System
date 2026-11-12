@@ -43,6 +43,7 @@ public sealed partial class TransactionReportingAuditTests
         Assert.Equal(18m, expanded.Kpis.Tax);
         Assert.Equal(243m, Assert.Single(expanded.Orders).Total);
         Assert.Equal(243m, expanded.Kpis.TotalBillSales);
+        Assert.Equal(225m, expanded.Kpis.BillSalesExcludingTax);
         Assert.Equal(expanded.Orders.Sum(o => o.Total), expanded.Kpis.TotalBillSales);
         Assert.Equal(243m, expanded.OrderTypes.Sum(o => o.TotalSales));
         Assert.Equal(243m, expanded.Kpis.CashCollected);
@@ -118,9 +119,33 @@ public sealed partial class TransactionReportingAuditTests
         Assert.Equal(0m, report.Kpis.CustomerPaymentsCollected);
         Assert.Equal(0m, report.Kpis.CustomerAdvancesReceived);
         Assert.Equal(0m, report.Kpis.CustomerAdvancesApplied);
+        var movement = Assert.Single(report.Receivables);
+        Assert.Equal(0m, movement.AdvanceReceived);
+        Assert.Equal(100m, movement.NonCashAdvanceCredits);
+        Assert.Equal(0m, movement.NonCashReceivableCredits);
+        Assert.Equal(movement.ClosingAdvance, movement.OpeningAdvance + movement.AdvanceReceived +
+            movement.NonCashAdvanceCredits - movement.AdvanceUsed);
         var ar = await d.Receivables(d.At.AddHours(1));
         Assert.Equal(300m, ar.TotalAdvances);
         Assert.Equal(-300m, ar.NetPosition);
+    }
+
+    [Fact]
+    public async Task VoidedCreditSale_IsNonCashReceivableCredit_NotCollection()
+    {
+        var d = new Data();
+        var customer = d.Customer();
+        d.Entry(customer, 100m, 0m, 100m, "On Account", "Credit sale", d.At.AddDays(-1));
+        d.Entry(customer, 0m, 100m, 0m, null, "Void Credit Sale (AUDIT)", d.At, "VOID-AUDIT");
+        var report = await d.Expanded(d.Day, d.Day);
+        var row = Assert.Single(report.Receivables);
+        Assert.Equal(100m, row.OpeningReceivable);
+        Assert.Equal(100m, row.NonCashReceivableCredits);
+        Assert.Equal(0m, row.CustomerPayments);
+        Assert.Equal(0m, row.ClosingReceivable);
+        Assert.Equal(0m, report.Kpis.CustomerPaymentsCollected);
+        Assert.Equal(row.ClosingReceivable, row.OpeningReceivable + row.NewOnAccountSales -
+            row.CustomerPayments - row.AdvanceApplied - row.NonCashReceivableCredits);
     }
 
     [Fact]
@@ -222,6 +247,30 @@ public sealed partial class TransactionReportingAuditTests
             .Handle(new(d.Warehouse.Value, d.Day, d.Day), default);
         Assert.Equal(100m, daily.TotalSales);
         Assert.Equal(d.At, Assert.Single(daily.Bills).CompletedAtUtc);
+    }
+
+    [Theory]
+    [InlineData("missing")]
+    [InlineData("malformed")]
+    [InlineData("default-time")]
+    [InlineData("wrong-order")]
+    public async Task LegacyReceiptDateFallback_RemainsExplicitUpdatedTime(string state)
+    {
+        var d = new Data();
+        var order = d.Sale([new(1m, 100m, 0m, false, 0m, 100m, 0m)]);
+        var snapshot = JsonSerializer.Deserialize<ReceiptSnapshot>(order.ReceiptSnapshotJson!)!;
+        var json = state switch
+        {
+            "missing" => null,
+            "malformed" => "{",
+            "default-time" => JsonSerializer.Serialize(snapshot with { CompletedAtUtc = default }),
+            _ => JsonSerializer.Serialize(snapshot with { OrderId = Guid.NewGuid() })
+        };
+        Data.Stamp(order, "ReceiptSnapshotJson", json!);
+        Data.Stamp(order, "UpdatedAtUtc", d.At.AddDays(1));
+        Assert.Empty((await d.Expanded(d.Day, d.Day)).Orders);
+        Assert.Single((await d.Expanded(d.Day.AddDays(1), d.Day.AddDays(1))).Orders);
+        Assert.Equal(100m, (await d.Tax(d.Day.AddDays(1), d.Day.AddDays(1))).GrossSalesBeforeDiscounts);
     }
 
     [Fact]
