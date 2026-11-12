@@ -11,8 +11,8 @@ namespace Clovent.Desktop.Forms.Base.Localization;
 /// </summary>
 internal static class LanguagePreferenceStore
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "language.txt");
+    private static string FilePath =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("language.txt");
 
     /// <summary>The default/fallback culture code when nothing has been saved yet.</summary>
     public const string DefaultCultureCode = "en";

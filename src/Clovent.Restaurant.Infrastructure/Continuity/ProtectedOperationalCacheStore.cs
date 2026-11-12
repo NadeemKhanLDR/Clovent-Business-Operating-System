@@ -54,32 +54,39 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
         _logger = logger;
         _protectionScope = protectionScope;
 
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customDirectory))
         {
             _cacheDirectory = customDirectory;
         }
+        else if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
+        {
+            var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            _cacheDirectory = Path.Combine(localData, "Clovent", "BusinessOperatingSystem", "OperationalCache");
+        }
         else
         {
-            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            if (string.IsNullOrWhiteSpace(programData))
-            {
-                programData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            }
-            _cacheDirectory = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "OperationalCache");
+            _cacheDirectory = scope.OperationalCacheDirectory;
         }
 
         if (!Directory.Exists(_cacheDirectory))
         {
-            try
+            if (scope.IsQaMode)
             {
                 Directory.CreateDirectory(_cacheDirectory);
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            else
             {
-                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                _cacheDirectory = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "OperationalCache");
-                Directory.CreateDirectory(_cacheDirectory);
-                _logger?.LogWarning(ex, "Failed to create directory in ProgramData. Falling back to LocalAppData: {FallbackPath}", _cacheDirectory);
+                try
+                {
+                    Directory.CreateDirectory(_cacheDirectory);
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    _cacheDirectory = scope.FallbackOperationalCacheDirectory;
+                    Directory.CreateDirectory(_cacheDirectory);
+                    _logger?.LogWarning(ex, "Failed to create directory in ProgramData. Falling back to LocalAppData: {FallbackPath}", _cacheDirectory);
+                }
             }
         }
     }

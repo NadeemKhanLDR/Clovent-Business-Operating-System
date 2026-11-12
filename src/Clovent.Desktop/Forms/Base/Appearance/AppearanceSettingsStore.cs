@@ -22,8 +22,8 @@ namespace Clovent.Desktop.Forms.Base.Appearance;
 /// </summary>
 internal static class AppearanceSettingsStore
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "appearance.json");
+    private static string FilePath =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("appearance.json");
 
     /// <summary>Reads every configured rule, or an empty list if none has been saved yet (or the file is unreadable/corrupt).</summary>
     public static IReadOnlyList<AppearanceRule> Load()

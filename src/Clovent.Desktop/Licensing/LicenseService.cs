@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Clovent.Platform.Configuration;
 
 namespace Clovent.Desktop.Licensing;
 
@@ -27,15 +28,15 @@ public static class LicenseService
     }
 
     /// <summary>
-    /// Path to the system-wide protected license file in %ProgramData%.
+    /// Path to the system-wide protected license file in %ProgramData% (or QA root in QA mode).
     /// </summary>
     public static string GetProgramDataLicensePath()
     {
-        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "License");
+        var path = CbosInstanceScope.Current.PrimaryLicenseFilePath;
+        var dir = Path.GetDirectoryName(path);
         try
         {
-            if (!Directory.Exists(dir))
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
@@ -43,21 +44,21 @@ public static class LicenseService
         catch (Exception ex) when (ex is UnauthorizedAccessException || ex is System.Security.SecurityException)
         {
         }
-        return Path.Combine(dir, "clovent.lic");
+        return path;
     }
 
     /// <summary>
-    /// Path to the per-user protected license file in %LocalAppData%.
+    /// Path to the per-user protected license file in %LocalAppData% (or QA root in QA mode).
     /// </summary>
     public static string GetLocalAppDataLicensePath()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(localAppData, "Clovent", "Clovent.BusinessOperatingSystem");
-        if (!Directory.Exists(dir))
+        var path = CbosInstanceScope.Current.FallbackLicenseFilePath;
+        var dir = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
         {
             Directory.CreateDirectory(dir);
         }
-        return Path.Combine(dir, "clovent.lic");
+        return path;
     }
 
     /// <summary>
@@ -84,7 +85,7 @@ public static class LicenseService
 
     /// <summary>
     /// Locates an active license file across protected storage locations.
-    /// Checks %ProgramData% first, then falls back to %LocalAppData%.
+    /// Checks %ProgramData% first, then falls back to %LocalAppData% (confined to QA root in QA mode).
     /// BaseDirectory universal license loading is completely removed per Requirement 2.
     /// </summary>
     public static string? FindLicenseFilePath()
@@ -94,9 +95,10 @@ public static class LicenseService
             return _customLicenseFilePath;
         }
 
+        var scope = CbosInstanceScope.Current;
         try
         {
-            var programDataPath = GetProgramDataLicensePath();
+            var programDataPath = scope.PrimaryLicenseFilePath;
             if (File.Exists(programDataPath))
             {
                 return programDataPath;
@@ -107,9 +109,14 @@ public static class LicenseService
             // Ignore access errors on restricted environments
         }
 
+        if (scope.IsQaMode)
+        {
+            return null;
+        }
+
         try
         {
-            var localAppDataPath = GetLocalAppDataLicensePath();
+            var localAppDataPath = scope.FallbackLicenseFilePath;
             if (File.Exists(localAppDataPath))
             {
                 return localAppDataPath;
@@ -498,10 +505,11 @@ public static class LicenseService
             return validationResult;
         }
 
-        // Try %ProgramData% first, fallback to %LocalAppData%
+        // Try primary location first; fallback to %LocalAppData% only outside QA isolation mode
+        var scope = CbosInstanceScope.Current;
         try
         {
-            var programDataTarget = GetProgramDataLicensePath();
+            var programDataTarget = scope.PrimaryLicenseFilePath;
             var dir = Path.GetDirectoryName(programDataTarget);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {
@@ -509,10 +517,10 @@ public static class LicenseService
             }
             File.Copy(sourceFilePath, programDataTarget, overwrite: true);
         }
-        catch
+        catch when (!scope.IsQaMode)
         {
             // Non-administrator permission fallback
-            var localAppDataTarget = GetLocalAppDataLicensePath();
+            var localAppDataTarget = scope.FallbackLicenseFilePath;
             var dir = Path.GetDirectoryName(localAppDataTarget);
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
             {

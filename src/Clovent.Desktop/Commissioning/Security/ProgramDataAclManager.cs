@@ -15,55 +15,55 @@ public static class ProgramDataAclManager
     private static readonly SecurityIdentifier UsersSid = new(WellKnownSidType.BuiltinUsersSid, null);
 
     /// <summary>
-    /// Root directory in %ProgramData% for Clovent Business Operating System data.
+    /// Root directory in %ProgramData% (or QA instance root in QA mode) for Clovent Business Operating System data.
     /// </summary>
     public static string BaseDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Clovent", "BusinessOperatingSystem");
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.MachineDataDirectory;
 
     /// <summary>
     /// Subdirectory for system and database configuration files.
     /// </summary>
-    public static string ConfigDirectory => Path.Combine(BaseDirectory, "Config");
+    public static string ConfigDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.ConfigDirectory;
 
     /// <summary>
     /// Subdirectory for machine-bound software licenses.
     /// </summary>
-    public static string LicenseDirectory => Path.Combine(BaseDirectory, "License");
+    public static string LicenseDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.LicenseDirectory;
 
     /// <summary>
     /// Subdirectory for application, audit, and diagnostic logs.
     /// </summary>
-    public static string LogsDirectory => Path.Combine(BaseDirectory, "Logs");
+    public static string LogsDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.ProgramDataLogsDirectory;
 
     /// <summary>
     /// Subdirectory for machine-specific runtime state and heartbeat files.
     /// </summary>
-    public static string StateDirectory => Path.Combine(BaseDirectory, "State");
+    public static string StateDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.StateDirectory;
 
     /// <summary>
     /// Subdirectory for encrypted continuity transactions journal.
     /// </summary>
-    public static string ContinuityJournalDirectory => Path.Combine(BaseDirectory, "ContinuityJournal");
+    public static string ContinuityJournalDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.ContinuityJournalDirectory;
 
     /// <summary>
     /// Subdirectory for operational catalog and pricing cache.
     /// </summary>
-    public static string OperationalCacheDirectory => Path.Combine(BaseDirectory, "OperationalCache");
+    public static string OperationalCacheDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.OperationalCacheDirectory;
 
     /// <summary>
     /// Subdirectory for active cart recovery checkpoints.
     /// </summary>
-    public static string CartCheckpointsDirectory => Path.Combine(BaseDirectory, "CartCheckpoints");
+    public static string CartCheckpointsDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.CartCheckpointsDirectory;
 
     /// <summary>
     /// Subdirectory for durable print job tracking and quarantined print jobs.
     /// </summary>
-    public static string PrintJobsDirectory => Path.Combine(BaseDirectory, "PrintJobs");
+    public static string PrintJobsDirectory => Clovent.Platform.Configuration.CbosInstanceScope.Current.PrintJobsDirectory;
 
     /// <summary>
-    /// All managed subdirectories under %ProgramData%\Clovent\BusinessOperatingSystem\.
+    /// All managed subdirectories under <see cref="BaseDirectory"/>.
     /// </summary>
-    public static readonly string[] ManagedSubdirectories =
+    public static string[] ManagedSubdirectories =>
     [
         ConfigDirectory,
         LicenseDirectory,
@@ -101,6 +101,31 @@ public static class ProgramDataAclManager
         {
             errorMessage = "Directory ACLs can only be configured on Windows.";
             return false;
+        }
+
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            // In isolated QA mode, create the instance-owned directory tree without modifying shared %ProgramData% ACLs
+            // or locking out standard-user QA launches.
+            try
+            {
+                EnsureDirectoryExists(BaseDirectory);
+                foreach (var sub in ManagedSubdirectories)
+                {
+                    EnsureDirectoryExists(sub);
+                }
+                EnsureDirectoryExists(scope.UserRootDirectory);
+                EnsureDirectoryExists(scope.UserAppDirectory);
+                EnsureDirectoryExists(scope.PaymentAttemptJournalDirectory);
+                EnsureDirectoryExists(scope.BackupsDirectory);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Failed to initialize QA instance directories: {ex.Message}";
+                return false;
+            }
         }
 
         try

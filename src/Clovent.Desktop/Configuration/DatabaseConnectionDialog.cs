@@ -49,13 +49,18 @@ public partial class DatabaseConnectionDialog : XtraForm
     {
         txtServer.Text = _currentSettings.Server;
 
-        var initialDb = string.IsNullOrWhiteSpace(_currentSettings.Database)
-            ? DatabaseConnectionSettings.DefaultDatabaseName
-            : _currentSettings.Database;
+        var isQaMode = Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode;
+        var initialDb = !string.IsNullOrWhiteSpace(_currentSettings.Database)
+            ? _currentSettings.Database
+            : (isQaMode ? string.Empty : DatabaseConnectionSettings.DefaultDatabaseName);
 
         cmbDatabase.Properties.Items.Clear();
-        cmbDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
-        if (!string.Equals(initialDb, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
+        if (!isQaMode)
+        {
+            cmbDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+        }
+        if (!string.IsNullOrWhiteSpace(initialDb) &&
+            (isQaMode || !string.Equals(initialDb, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase)))
         {
             cmbDatabase.Properties.Items.Add(initialDb);
         }
@@ -189,10 +194,16 @@ public partial class DatabaseConnectionDialog : XtraForm
     private DatabaseConnectionSettings BuildSettingsFromUi()
     {
         var isWindowsAuth = cmbAuth.SelectedIndex == 0;
+        var isQaMode = Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode;
+        var database = cmbDatabase.Text.Trim();
+        if (!isQaMode && string.IsNullOrWhiteSpace(database))
+        {
+            database = DatabaseConnectionSettings.DefaultDatabaseName;
+        }
         return new DatabaseConnectionSettings
         {
             Server = string.IsNullOrWhiteSpace(txtServer.Text) ? DatabaseConnectionSettings.DefaultServer : txtServer.Text.Trim(),
-            Database = string.IsNullOrWhiteSpace(cmbDatabase.Text) ? DatabaseConnectionSettings.DefaultDatabaseName : cmbDatabase.Text.Trim(),
+            Database = database,
             UseWindowsAuthentication = isWindowsAuth,
             UserId = isWindowsAuth ? null : txtUsername.Text.Trim(),
             PlainTextPassword = isWindowsAuth ? null : txtPassword.Text,

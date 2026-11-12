@@ -87,9 +87,11 @@ public partial class SupportDiagnosticsForm : XtraForm
         var appVersion = entryAssembly.GetName().Version?.ToString(3) ?? "1.0.1";
         var infoVersion = entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? appVersion;
 
+        var instanceScope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         var dbSettings = DatabaseSecretStore.Load();
-        var serverName = dbSettings?.Server ?? "Not Configured";
-        var dbName = dbSettings?.Database ?? DatabaseConnectionSettings.DefaultDatabaseName;
+        var serverName = dbSettings?.Server ?? instanceScope.DataSource ?? "Not Configured";
+        var dbName = dbSettings?.Database
+            ?? (instanceScope.IsQaMode ? (instanceScope.DatabaseName ?? "Not Configured") : DatabaseConnectionSettings.DefaultDatabaseName);
         var isWindowsAuth = dbSettings?.UseWindowsAuthentication ?? true;
         var authMode = isWindowsAuth
             ? "Windows Authentication (Integrated Security)"
@@ -130,6 +132,7 @@ public partial class SupportDiagnosticsForm : XtraForm
         sb.AppendLine($"  Version:              {appVersion} ({infoVersion})");
         sb.AppendLine($"  Target Platform:      win-x64 (.NET {Environment.Version})");
         sb.AppendLine($"  High-DPI Mode:        PerMonitorV2 (Current: {dpiScalePercent}% / {DeviceDpi} DPI)");
+        sb.AppendLine($"  Instance Isolation:   {(instanceScope.IsQaMode ? $"QA Isolated ({instanceScope.QaInstanceRoot})" : "Production (Standard)")}");
 #if DEBUG
         sb.AppendLine("  Build Configuration:  Debug");
 #else

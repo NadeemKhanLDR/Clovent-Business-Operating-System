@@ -360,8 +360,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             _logger = _scope.ServiceProvider.GetService<ILogger<RestaurantPosForm>>() ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RestaurantPosForm>.Instance;
             _currentSession = currentSession;
             _paymentAttemptRecovery = new PaymentAttemptRecovery(new ProtectedPaymentAttemptJournal(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Clovent", "Clovent.BusinessOperatingSystem", "PaymentAttempts-v1"),
+                Clovent.Platform.Configuration.CbosInstanceScope.Current.PaymentAttemptJournalDirectory,
                 Environment.MachineName, () => _currentSession.UserId));
             _activeCashierSessionUserId = currentSession.UserId;
             _currentSession.Changed += CurrentSession_Changed;
@@ -436,7 +435,7 @@ public sealed partial class RestaurantPosForm : XtraForm
     {
         try
         {
-            var logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "Logs");
+            var logDir = Clovent.Platform.Configuration.CbosInstanceScope.Current.UserLogsDirectory;
             System.IO.Directory.CreateDirectory(logDir);
             var logPath = System.IO.Path.Combine(logDir, "designer_exception.txt");
             System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] Context: {context}\r\nException: {ex}\r\n\r\n");

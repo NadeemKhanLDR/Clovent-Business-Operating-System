@@ -52,35 +52,41 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
     {
         _logger = logger;
         _protectionScope = protectionScope;
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customJournalPath))
         {
             _journalFilePath = customJournalPath;
         }
+        else if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
+        {
+            var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            _journalFilePath = Path.Combine(localData, "Clovent", "BusinessOperatingSystem", "ContinuityJournal", "journal.dat");
+        }
         else
         {
-            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            if (string.IsNullOrWhiteSpace(programData))
-            {
-                programData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            }
-            var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "ContinuityJournal");
-            _journalFilePath = Path.Combine(dir, "journal.dat");
+            _journalFilePath = scope.PrimaryContinuityJournalFilePath;
         }
 
         var dirPath = Path.GetDirectoryName(_journalFilePath);
         if (!string.IsNullOrWhiteSpace(dirPath) && !Directory.Exists(dirPath))
         {
-            try
+            if (scope.IsQaMode)
             {
                 Directory.CreateDirectory(dirPath);
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            else
             {
-                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                var fallbackDir = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "ContinuityJournal");
-                _journalFilePath = Path.Combine(fallbackDir, "journal.dat");
-                Directory.CreateDirectory(fallbackDir);
-                _logger?.LogWarning(ex, "Failed to create directory {DirPath}. Falling back to LocalAppData: {FallbackPath}", dirPath, _journalFilePath);
+                try
+                {
+                    Directory.CreateDirectory(dirPath);
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    _journalFilePath = scope.FallbackContinuityJournalFilePath;
+                    var fallbackDir = Path.GetDirectoryName(_journalFilePath)!;
+                    Directory.CreateDirectory(fallbackDir);
+                    _logger?.LogWarning(ex, "Failed to create directory {DirPath}. Falling back to LocalAppData: {FallbackPath}", dirPath, _journalFilePath);
+                }
             }
         }
     }

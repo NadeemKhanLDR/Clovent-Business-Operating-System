@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using Clovent.Platform.Configuration;
 
 namespace Clovent.Desktop.Licensing;
 
@@ -37,22 +38,11 @@ public static class LicenseTamperGuard
         {
             if (!string.IsNullOrEmpty(_customGuardFilePath))
             {
-                var customDir = Path.GetDirectoryName(_customGuardFilePath);
-                if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
-                {
-                    Directory.CreateDirectory(customDir);
-                }
                 return _customGuardFilePath;
             }
         }
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(localAppData, "Clovent", "Clovent.BusinessOperatingSystem");
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        return Path.Combine(dir, "license_guard.dat");
+        return CbosInstanceScope.Current.LicenseGuardFilePath;
     }
 
     /// <summary>
@@ -95,8 +85,8 @@ public static class LicenseTamperGuard
             }
         }
 
-        // In automated test execution without explicit testing override, prevent modifying the real workstation file
-        if (IsTestEnvironment() && string.IsNullOrEmpty(_customGuardFilePath))
+        // In automated test execution without explicit testing override or QA scope, prevent modifying the real workstation file
+        if (IsTestEnvironment() && string.IsNullOrEmpty(_customGuardFilePath) && !CbosInstanceScope.Current.IsQaMode)
         {
             needsWrite = false;
         }
@@ -106,6 +96,11 @@ public static class LicenseTamperGuard
             // Record updated time
             try
             {
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
                 var plainBytes = Encoding.UTF8.GetBytes(now.ToString("O"));
                 var cipherBytes = ProtectedData.Protect(plainBytes, Entropy, DataProtectionScope.CurrentUser);
                 File.WriteAllBytes(path, cipherBytes);

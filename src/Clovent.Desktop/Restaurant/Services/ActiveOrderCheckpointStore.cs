@@ -25,18 +25,14 @@ public sealed class ActiveOrderCheckpointStore : IActiveOrderCheckpointStore
         ILogger<ActiveOrderCheckpointStore>? logger = null)
     {
         _logger = logger;
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customDirectory))
         {
             _checkpointDirectory = customDirectory;
         }
         else
         {
-            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            if (string.IsNullOrWhiteSpace(programData))
-            {
-                programData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            }
-            _checkpointDirectory = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "CartCheckpoints");
+            _checkpointDirectory = scope.CartCheckpointsDirectory;
         }
 
         if (!Directory.Exists(_checkpointDirectory))
@@ -45,10 +41,9 @@ public sealed class ActiveOrderCheckpointStore : IActiveOrderCheckpointStore
             {
                 Directory.CreateDirectory(_checkpointDirectory);
             }
-            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+            catch (Exception ex) when (!scope.IsQaMode && (ex is UnauthorizedAccessException or IOException))
             {
-                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                _checkpointDirectory = Path.Combine(localData, "Clovent", "Clovent.BusinessOperatingSystem", "CartCheckpoints");
+                _checkpointDirectory = scope.FallbackCartCheckpointsDirectory;
                 Directory.CreateDirectory(_checkpointDirectory);
                 _logger?.LogWarning(ex, "Failed to create directory in ProgramData. Falling back to LocalAppData: {FallbackPath}", _checkpointDirectory);
             }

@@ -43,11 +43,7 @@ public sealed class FileLoggerProvider : ILoggerProvider
     /// <summary>Creates a provider with an injectable clock (tests/rolling simulation).</summary>
     public FileLoggerProvider(FileLoggerOptions options, TimeProvider timeProvider)
     {
-        _directory = options.Directory
-            ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Clovent",
-                "Logs");
+        _directory = Clovent.Platform.Configuration.CbosInstanceScope.Current.ResolveLogDirectory(options.Directory);
         _retainedFileCountLimit = options.RetainedFileCountLimit;
         _timeProvider = timeProvider;
         Directory.CreateDirectory(_directory);

@@ -14,8 +14,8 @@ namespace Clovent.Desktop.Forms.Base;
 /// </summary>
 internal static class WindowPlacementStore
 {
-    private static readonly string RootDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "WindowPlacements");
+    private static string RootDirectory =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("WindowPlacements");
 
     /// <summary>
     /// Restores <paramref name="form"/>'s last saved size/position, if one

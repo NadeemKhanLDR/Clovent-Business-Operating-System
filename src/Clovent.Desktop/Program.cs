@@ -59,6 +59,23 @@ internal static class Program
     private static void Main(string[] args)
     {
         ApplicationConfiguration.Initialize();
+
+        try
+        {
+            Clovent.Platform.Configuration.CbosInstanceScope.InitializeFromStartup(args);
+        }
+        catch (Clovent.Platform.Configuration.InvalidQaConfigurationException qaEx)
+        {
+            Environment.ExitCode = 1;
+            Console.Error.WriteLine($"QA isolation configuration error: {qaEx.Message}");
+            MessageBox.Show(
+                $"QA isolation startup failed before any shared-state writes or database access:\n\n{qaEx.Message}",
+                "Invalid QA Configuration",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+            return;
+        }
+
         Clovent.Desktop.Forms.Base.DesktopStyle.ApplyGlobalTypography();
 
         try

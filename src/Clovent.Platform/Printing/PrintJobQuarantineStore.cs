@@ -38,22 +38,30 @@ public sealed class PrintJobQuarantineStore : IPrintJobQuarantineStore
 
     private static string ResolveDefaultQuarantineDirectory()
     {
-        var commonPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var dir = Path.Combine(commonPath, "Clovent", "BusinessOperatingSystem", "PrintJobs", "quarantined");
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        var primaryDir = scope.PrimaryPrintJobQuarantineDirectory;
+
+        if (scope.IsQaMode)
+        {
+            if (!Directory.Exists(primaryDir))
+            {
+                Directory.CreateDirectory(primaryDir);
+            }
+            return primaryDir;
+        }
 
         try
         {
-            if (!Directory.Exists(dir))
+            if (!Directory.Exists(primaryDir))
             {
-                Directory.CreateDirectory(dir);
+                Directory.CreateDirectory(primaryDir);
             }
-            return dir;
+            return primaryDir;
         }
         catch
         {
             // Fallback for restricted user environments
-            var localPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(localPath, "Clovent", "Clovent.BusinessOperatingSystem", "PrintJobs", "quarantined");
+            return scope.FallbackPrintJobQuarantineDirectory;
         }
     }
 

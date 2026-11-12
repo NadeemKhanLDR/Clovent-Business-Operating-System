@@ -518,12 +518,12 @@ public sealed class InitialMasterDataProvisioningService(ILogger<InitialMasterDa
 
         var json = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { WriteIndented = true });
 
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+
         // 1. Try writing to machine config
         try
         {
-            var machinePath = _testingMachineTerminalPath ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
+            var machinePath = _testingMachineTerminalPath ?? scope.MachineTerminalFilePath;
             var dir = Path.GetDirectoryName(machinePath)!;
             Directory.CreateDirectory(dir);
             await File.WriteAllTextAsync(machinePath, json, ct).ConfigureAwait(false);
@@ -533,12 +533,15 @@ public sealed class InitialMasterDataProvisioningService(ILogger<InitialMasterDa
             // Fall through to user-level store
         }
 
+        if (scope.IsQaMode && string.IsNullOrEmpty(_testingUserTerminalPath))
+        {
+            return;
+        }
+
         // 2. Also write to user config for local access
         try
         {
-            var userPath = _testingUserTerminalPath ?? Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
+            var userPath = _testingUserTerminalPath ?? scope.UserTerminalFilePath;
             var userDir = Path.GetDirectoryName(userPath)!;
             Directory.CreateDirectory(userDir);
             await File.WriteAllTextAsync(userPath, json, ct).ConfigureAwait(false);

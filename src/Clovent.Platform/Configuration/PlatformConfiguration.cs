@@ -63,5 +63,22 @@ public static class PlatformConfiguration
         {
             builder.AddCommandLine(commandLineArgs);
         }
+
+        var scope = CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            // Enforce strict isolation in QA mode: prevent appsettings.json defaults from leaking
+            // a production ConnectionStrings:Default or an out-of-root Logging:File:Directory.
+            var intermediate = builder.Build();
+            var resolvedLogDir = scope.ResolveLogDirectory(intermediate["Logging:File:Directory"]);
+
+            var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Logging:File:Directory"] = resolvedLogDir,
+                ["ConnectionStrings:Default"] = scope.ExplicitConnectionString ?? string.Empty
+            };
+
+            builder.AddInMemoryCollection(overrides);
+        }
     }
 }

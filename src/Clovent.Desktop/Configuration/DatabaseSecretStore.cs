@@ -46,57 +46,47 @@ public static class DatabaseSecretStore
     }
 
     /// <summary>
-    /// Gets the path to the machine-level database configuration file in %ProgramData%.
+    /// Gets the path to the machine-level database configuration file in %ProgramData% (or QA instance config in QA mode).
     /// </summary>
     public static string GetMachineConfigFilePath()
     {
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            return scope.MachineDatabaseConfigFilePath;
+        }
+
         lock (SyncLock)
         {
             if (!string.IsNullOrEmpty(_customMachineConfigPath))
             {
-                var customDir = Path.GetDirectoryName(_customMachineConfigPath);
-                if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
-                {
-                    Directory.CreateDirectory(customDir);
-                }
                 return _customMachineConfigPath;
             }
         }
 
-        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem");
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        return Path.Combine(dir, "database.config.json");
+        return scope.MachineDatabaseConfigFilePath;
     }
 
     /// <summary>
-    /// Gets the path to the local user database configuration file in %LocalAppData%.
+    /// Gets the path to the local user database configuration file in %LocalAppData% (or QA instance config in QA mode).
     /// </summary>
     public static string GetUserConfigFilePath()
     {
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            return scope.UserDatabaseConfigFilePath;
+        }
+
         lock (SyncLock)
         {
             if (!string.IsNullOrEmpty(_customUserConfigPath))
             {
-                var customDir = Path.GetDirectoryName(_customUserConfigPath);
-                if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
-                {
-                    Directory.CreateDirectory(customDir);
-                }
                 return _customUserConfigPath;
             }
         }
 
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(localAppData, "Clovent", "Clovent.BusinessOperatingSystem");
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        return Path.Combine(dir, "database.config.json");
+        return scope.UserDatabaseConfigFilePath;
     }
 
     /// <summary>
@@ -171,9 +161,32 @@ public static class DatabaseSecretStore
     /// <summary>
     /// Loads custom database connection settings from user or machine config if present.
     /// User-level configuration overrides machine-level configuration.
+    /// In QA mode, loads ONLY the QA-instance-owned config or explicit startup QA connection target.
     /// </summary>
     public static DatabaseConnectionSettings? Load()
     {
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            if (!string.IsNullOrWhiteSpace(scope.ExplicitConnectionString))
+            {
+                return ParseSettingsFromConnectionString(scope.ExplicitConnectionString);
+            }
+
+            var qaConfigPath = scope.MachineDatabaseConfigFilePath;
+            if (File.Exists(qaConfigPath))
+            {
+                var json = File.ReadAllText(qaConfigPath);
+                var settings = JsonSerializer.Deserialize<DatabaseConnectionSettings>(json)
+                    ?? throw new Clovent.Platform.Configuration.InvalidQaConfigurationException(
+                        $"QA database configuration file '{qaConfigPath}' is empty or invalid.");
+                scope.ValidateTargetDatabaseName(settings.Database);
+                return settings;
+            }
+
+            return null;
+        }
+
         var userPath = GetUserConfigFilePath();
         if (File.Exists(userPath))
         {
@@ -213,25 +226,51 @@ public static class DatabaseSecretStore
         return null;
     }
 
+    private static DatabaseConnectionSettings ParseSettingsFromConnectionString(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        return new DatabaseConnectionSettings
+        {
+            Server = string.IsNullOrWhiteSpace(builder.DataSource) ? DatabaseConnectionSettings.DefaultServer : builder.DataSource,
+            Database = builder.InitialCatalog,
+            UseWindowsAuthentication = builder.IntegratedSecurity,
+            UserId = builder.IntegratedSecurity ? null : builder.UserID,
+            PlainTextPassword = builder.IntegratedSecurity ? null : builder.Password,
+            TrustServerCertificate = builder.TrustServerCertificate,
+            ConnectionTimeout = builder.ConnectTimeout > 0 ? builder.ConnectTimeout : 15
+        };
+    }
+
     /// <summary>
     /// Saves custom database connection settings to user-level (or optionally machine-level) config,
     /// securely encrypting passwords with DPAPI and guaranteeing plain text passwords are never stored.
     /// </summary>
     public static void Save(DatabaseConnectionSettings settings, bool machineLevel = false)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            scope.ValidateTargetDatabaseName(settings.Database);
+            machineLevel = false;
+        }
+
         var toSave = settings.Clone();
-        var scope = machineLevel ? DataProtectionScope.LocalMachine : DataProtectionScope.CurrentUser;
+        var dpapiScope = machineLevel ? DataProtectionScope.LocalMachine : DataProtectionScope.CurrentUser;
 
         if (!string.IsNullOrEmpty(toSave.PlainTextPassword))
         {
-            toSave.EncryptedPassword = Protect(toSave.PlainTextPassword, scope);
+            toSave.EncryptedPassword = Protect(toSave.PlainTextPassword, dpapiScope);
             toSave.PlainTextPassword = null;
         }
 
         // Guarantee plain text password is null before persisting
         toSave.PlainTextPassword = null;
 
-        var path = machineLevel ? GetMachineConfigFilePath() : GetUserConfigFilePath();
+        var path = scope.IsQaMode
+            ? scope.MachineDatabaseConfigFilePath
+            : (machineLevel ? GetMachineConfigFilePath() : GetUserConfigFilePath());
         var dir = Path.GetDirectoryName(path);
         try
         {
@@ -243,7 +282,7 @@ public static class DatabaseSecretStore
             var json = JsonSerializer.Serialize(toSave, JsonOptions);
             File.WriteAllText(path, json);
         }
-        catch (Exception ex) when (machineLevel && (ex is UnauthorizedAccessException || ex is System.Security.SecurityException))
+        catch (Exception ex) when (machineLevel && !scope.IsQaMode && (ex is UnauthorizedAccessException || ex is System.Security.SecurityException))
         {
             // Fallback to user-level config if machine-level access is restricted (e.g. non-elevated user or test harness)
             path = GetUserConfigFilePath();
@@ -261,9 +300,35 @@ public static class DatabaseSecretStore
     /// <summary>
     /// Resolves the effective SQL Server connection string.
     /// Prioritizes saved local connection configuration over appsettings.json.
+    /// In QA mode, requires an explicit QA connection target and never falls back to production config or default database.
     /// </summary>
     public static string ResolveConnectionString(IConfiguration? configuration = null)
     {
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (scope.IsQaMode)
+        {
+            if (!string.IsNullOrWhiteSpace(scope.ExplicitConnectionString))
+            {
+                Clovent.Platform.Configuration.CbosInstanceScope.ParseAndValidateConnectionString(scope.ExplicitConnectionString);
+                return scope.ExplicitConnectionString;
+            }
+
+            var qaConfigPath = scope.MachineDatabaseConfigFilePath;
+            if (File.Exists(qaConfigPath))
+            {
+                var qaSettings = Load();
+                if (qaSettings != null)
+                {
+                    var built = qaSettings.BuildConnectionString();
+                    Clovent.Platform.Configuration.CbosInstanceScope.ParseAndValidateConnectionString(built);
+                    return built;
+                }
+            }
+
+            throw new Clovent.Platform.Configuration.InvalidQaConfigurationException(
+                "QA mode has no explicit connection target or QA-scoped database.config.json. Refusing to fall back to production or default configuration.");
+        }
+
         var localSettings = Load();
         if (localSettings != null)
         {

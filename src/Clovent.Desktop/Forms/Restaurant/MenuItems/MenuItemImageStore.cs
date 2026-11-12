@@ -18,8 +18,8 @@ namespace Clovent.Desktop.Forms.Restaurant.MenuItems;
 /// </summary>
 internal static class MenuItemImageStore
 {
-    private static readonly string RootDirectory = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "MenuItemImages");
+    private static string RootDirectory =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("MenuItemImages");
 
     /// <summary>The conventional file path for <paramref name="productId"/>'s image, whether or not it currently exists.</summary>
     public static string GetPath(Guid productId) => Path.Combine(RootDirectory, $"{productId:N}.png");

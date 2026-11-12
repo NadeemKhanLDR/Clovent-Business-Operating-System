@@ -134,35 +134,17 @@ public static class TrialStateManager
         {
             return Path.Combine(_customDirectory, "trial.state");
         }
-        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-        var dir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "License");
-        try
-        {
-            if (!Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException || ex is System.Security.SecurityException)
-        {
-        }
-        return Path.Combine(dir, "trial.state");
+        return Clovent.Platform.Configuration.CbosInstanceScope.Current.PrimaryTrialStateFilePath;
     }
 
-    /// <summary>Gets fallback trial state file path in %LocalAppData%.</summary>
+    /// <summary>Gets fallback trial state file path in %LocalAppData% (or QA root in QA mode).</summary>
     public static string GetFallbackTrialStatePath()
     {
         if (!string.IsNullOrEmpty(_customDirectory))
         {
             return Path.Combine(_customDirectory, "trial.fallback.state");
         }
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var dir = Path.Combine(localAppData, "Clovent", "Clovent.BusinessOperatingSystem");
-        if (!Directory.Exists(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-        return Path.Combine(dir, "trial.state");
+        return Clovent.Platform.Configuration.CbosInstanceScope.Current.FallbackTrialStateFilePath;
     }
 
     /// <summary>
@@ -356,7 +338,11 @@ public static class TrialStateManager
     /// <summary>Loads trial state from disk.</summary>
     public static TrialState? LoadTrialState()
     {
-        var paths = new[] { GetPrimaryTrialStatePath(), GetFallbackTrialStatePath() };
+        var primary = GetPrimaryTrialStatePath();
+        var fallback = GetFallbackTrialStatePath();
+        var paths = string.Equals(primary, fallback, StringComparison.OrdinalIgnoreCase)
+            ? new[] { primary }
+            : new[] { primary, fallback };
         foreach (var path in paths)
         {
             if (!File.Exists(path)) continue;
@@ -411,7 +397,7 @@ public static class TrialStateManager
             }
             File.WriteAllBytes(path, protectedBytes);
         }
-        catch
+        catch when (!Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode || !string.IsNullOrEmpty(_customDirectory))
         {
             var fallbackPath = GetFallbackTrialStatePath();
             var fallbackDir = Path.GetDirectoryName(fallbackPath);

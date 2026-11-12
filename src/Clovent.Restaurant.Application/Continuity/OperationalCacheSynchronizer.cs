@@ -300,7 +300,9 @@ public sealed class OperationalCacheSynchronizer : IOperationalCacheSynchronizer
             CurrencyCode: currencyCode,
             CurrencySymbol: currencySymbol,
             CurrencyDecimalPlaces: currencyDecimals,
-            SourceDatabaseIdentity: "Clovent_BusinessOperatingSystem",
+            SourceDatabaseIdentity: Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode
+                ? (Clovent.Platform.Configuration.CbosInstanceScope.Current.DatabaseName ?? "QA_UNCONFIGURED")
+                : "Clovent_BusinessOperatingSystem",
             SourceRevision: $"{cachedProducts.Count}:{cachedVariants.Count}:{nowUtc.Ticks}",
             TotalCategories: cachedCategories.Count,
             TotalProducts: cachedProducts.Count,

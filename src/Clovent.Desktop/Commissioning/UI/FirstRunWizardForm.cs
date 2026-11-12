@@ -445,9 +445,14 @@ public partial class FirstRunWizardForm : XtraForm
 
         UpdateAuthControlState();
 
+        var isQaMode = Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode;
         txtDatabase.Properties.Items.Clear();
-        txtDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
-        if (!string.Equals(txtDatabase.Text, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(txtDatabase.Text))
+        if (!isQaMode)
+        {
+            txtDatabase.Properties.Items.Add(DatabaseConnectionSettings.DefaultDatabaseName);
+        }
+        if (!string.IsNullOrWhiteSpace(txtDatabase.Text) &&
+            (isQaMode || !string.Equals(txtDatabase.Text, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase)))
         {
             txtDatabase.Properties.Items.Add(txtDatabase.Text);
         }
@@ -523,10 +528,16 @@ public partial class FirstRunWizardForm : XtraForm
     private DatabaseConnectionSettings BuildSettingsFromUi()
     {
         bool isWindowsAuth = cmbAuth.SelectedIndex == 0;
+        var isQaMode = Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode;
+        var database = txtDatabase.Text.Trim();
+        if (!isQaMode && string.IsNullOrWhiteSpace(database))
+        {
+            database = DatabaseConnectionSettings.DefaultDatabaseName;
+        }
         return new DatabaseConnectionSettings
         {
             Server = string.IsNullOrWhiteSpace(txtServer.Text) ? DatabaseConnectionSettings.DefaultServer : txtServer.Text.Trim(),
-            Database = string.IsNullOrWhiteSpace(txtDatabase.Text) ? DatabaseConnectionSettings.DefaultDatabaseName : txtDatabase.Text.Trim(),
+            Database = database,
             UseWindowsAuthentication = isWindowsAuth,
             UserId = isWindowsAuth ? null : txtUsername.Text.Trim(),
             PlainTextPassword = isWindowsAuth ? null : txtPassword.Text,

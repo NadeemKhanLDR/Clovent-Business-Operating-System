@@ -24,9 +24,6 @@ public sealed class CompanyDisplaySettings
 /// </summary>
 public static class CompanyDisplaySettingsStore
 {
-    private static readonly string SettingsFilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "company_display_settings.json");
-
     private static readonly object _lock = new();
     private static CompanyDisplaySettings? _cached;
     private static string? _testingFilePath;
@@ -51,7 +48,8 @@ public static class CompanyDisplaySettingsStore
         }
     }
 
-    private static string EffectiveFilePath => _testingFilePath ?? SettingsFilePath;
+    private static string EffectiveFilePath =>
+        _testingFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("company_display_settings.json");
 
     /// <summary>Resets the in-memory cache for unit testing.</summary>
     internal static void ResetCacheForTesting()

@@ -13,8 +13,8 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// </summary>
 internal static class PosPaymentMethodPreferenceStore
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "pos-payment-method.txt");
+    private static string FilePath =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("pos-payment-method.txt");
 
     /// <summary>Reads the persisted payment method id, or <see langword="null"/> if none has been saved yet.</summary>
     public static Guid? Load()

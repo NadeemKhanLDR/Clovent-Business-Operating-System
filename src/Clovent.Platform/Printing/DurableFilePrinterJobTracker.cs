@@ -44,12 +44,16 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
         }
         else
         {
-            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-            if (string.IsNullOrWhiteSpace(programData))
+            var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+            if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
             {
-                programData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                _storageDirectory = Path.Combine(localData, "Clovent", "BusinessOperatingSystem", "PrintJobs");
             }
-            _storageDirectory = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "PrintJobs");
+            else
+            {
+                _storageDirectory = scope.PrintJobsDirectory;
+            }
         }
 
         if (!Directory.Exists(_storageDirectory))

@@ -223,7 +223,7 @@ public sealed class CommissioningStateService(
     }
 
     /// <summary>
-    /// Gets the primary path to commissioning.json in %ProgramData%.
+    /// Gets the primary path to commissioning.json in %ProgramData% (or QA instance root in QA mode).
     /// </summary>
     public static string MarkerFilePath
     {
@@ -231,13 +231,13 @@ public sealed class CommissioningStateService(
         {
             lock (SyncLock)
             {
-                return _customMarkerFilePath ?? Path.Combine(ProgramDataAclManager.ConfigDirectory, "commissioning.json");
+                return _customMarkerFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.PrimaryCommissioningMarkerPath;
             }
         }
     }
 
     /// <summary>
-    /// Gets the fallback path to commissioning.json in %LocalAppData%.
+    /// Gets the fallback path to commissioning.json in %LocalAppData% (or QA instance root in QA mode).
     /// </summary>
     public static string FallbackMarkerFilePath
     {
@@ -245,9 +245,7 @@ public sealed class CommissioningStateService(
         {
             lock (SyncLock)
             {
-                return _customFallbackMarkerFilePath ?? Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                    "Clovent", "Clovent.BusinessOperatingSystem", "commissioning.json");
+                return _customFallbackMarkerFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.FallbackCommissioningMarkerPath;
             }
         }
     }
@@ -324,6 +322,17 @@ public sealed class CommissioningStateService(
         }
 
         var json = JsonSerializer.Serialize(marker, JsonOptions);
+
+        if (Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode)
+        {
+            var qaDir = Path.GetDirectoryName(MarkerFilePath)!;
+            if (!Directory.Exists(qaDir))
+            {
+                Directory.CreateDirectory(qaDir);
+            }
+            File.WriteAllText(MarkerFilePath, json);
+            return;
+        }
 
         try
         {

@@ -7,10 +7,12 @@ namespace Clovent.Desktop.Restaurant.Orders;
 /// </summary>
 internal static class QueueRushModeStore
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "queue-rush-mode.txt");
+    private static string FilePath =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("queue-rush-mode.txt");
 
     private static bool? s_cached;
+
+    internal static void ResetCacheForTesting() => s_cached = null;
 
     /// <summary>Checks whether Queue Rush Mode is currently enabled for this station.</summary>
     public static bool IsEnabled()

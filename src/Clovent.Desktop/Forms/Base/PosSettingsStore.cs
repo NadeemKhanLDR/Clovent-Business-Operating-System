@@ -10,9 +10,6 @@ namespace Clovent.Desktop.Forms.Base;
 /// </summary>
 public static class PosSettingsStore
 {
-    private static readonly string FilePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "pos_settings.json");
-
     private static readonly object _lock = new();
     private static PosSettingsData? _cachedData;
     private static string? _testingFilePath;
@@ -37,7 +34,8 @@ public static class PosSettingsStore
         }
     }
 
-    private static string EffectiveFilePath => _testingFilePath ?? FilePath;
+    private static string EffectiveFilePath =>
+        _testingFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.GetUserSettingPath("pos_settings.json");
 
     internal static void ResetCacheForTesting()
     {

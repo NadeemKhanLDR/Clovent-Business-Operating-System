@@ -48,7 +48,13 @@ public sealed class DatabaseBackupService(ILogger<DatabaseBackupService>? logger
         }
 
         // 1. Resolve backup destination directory
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         string backupDir = targetDirectory?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(backupDir) && scope.IsQaMode)
+        {
+            backupDir = scope.BackupsDirectory;
+        }
+
         if (string.IsNullOrWhiteSpace(backupDir))
         {
             try
@@ -69,8 +75,7 @@ public sealed class DatabaseBackupService(ILogger<DatabaseBackupService>? logger
 
             if (string.IsNullOrWhiteSpace(backupDir))
             {
-                var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-                backupDir = Path.Combine(programData, "Clovent", "Backups");
+                backupDir = scope.BackupsDirectory;
             }
         }
 

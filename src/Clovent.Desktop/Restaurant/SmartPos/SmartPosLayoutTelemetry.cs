@@ -17,7 +17,8 @@ namespace Clovent.Desktop.Restaurant.SmartPos;
 public static class SmartPosLayoutTelemetry
 {
     /// <summary>Directory path where runtime layout telemetry logs are written.</summary>
-    public static readonly string TelemetryDir = FindTelemetryDir();
+    public static string TelemetryDir =>
+        Clovent.Platform.Configuration.CbosInstanceScope.Current.GetSmartPosTelemetryDirectory(FindDefaultTelemetryDir());
 
     private static bool IsLiveDesktopProcess()
     {
@@ -25,7 +26,7 @@ public static class SmartPosLayoutTelemetry
         return string.Equals(entryName, "Clovent.Desktop", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string FindTelemetryDir()
+    private static string FindDefaultTelemetryDir()
     {
         try
         {
@@ -302,8 +303,9 @@ public static class SmartPosLayoutTelemetry
     {
         try
         {
-            var logDir = IsLiveDesktopProcess()
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Clovent", "Clovent.BusinessOperatingSystem", "Logs")
+            var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+            var logDir = (IsLiveDesktopProcess() || scope.IsQaMode)
+                ? scope.DiagnosticLogsDirectory
                 : Path.Combine(TelemetryDir, "Logs");
             if (!Directory.Exists(logDir))
             {
