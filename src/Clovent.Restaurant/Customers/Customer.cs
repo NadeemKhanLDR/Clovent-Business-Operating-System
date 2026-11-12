@@ -9,6 +9,17 @@ namespace Clovent.Restaurant.Customers;
 /// </summary>
 public sealed class Customer : AggregateRoot<CustomerId>
 {
+    /// <summary>Immutable owning company; null legacy rows remain quarantined until explicitly mapped.</summary>
+    public Guid? CompanyId { get; private set; }
+
+    /// <summary>Assigns an unmapped account once. Financial amounts and timestamps are unchanged.</summary>
+    public void AssignCompany(Guid companyId)
+    {
+        if (companyId == Guid.Empty) throw new ArgumentException("Company is required.", nameof(companyId));
+        if (CompanyId.HasValue && CompanyId != companyId)
+            throw new InvalidOperationException("Customer company ownership cannot be reassigned.");
+        CompanyId = companyId;
+    }
     /// <summary>Unique customer code (e.g. "CUST-001").</summary>
     public EntityCode Code { get; private set; }
 

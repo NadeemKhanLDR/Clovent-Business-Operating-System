@@ -12,6 +12,8 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.ToTable("Customers", "Restaurant");
 
         builder.HasKey(c => c.Id);
+        builder.Property(c => c.CompanyId);
+        builder.HasIndex(c => new { c.CompanyId, c.Id }).IsUnique().HasFilter(null);
         builder.Property(c => c.Id)
             .HasConversion(ValueConverters.CustomerIdConverter)
             .ValueGeneratedNever();

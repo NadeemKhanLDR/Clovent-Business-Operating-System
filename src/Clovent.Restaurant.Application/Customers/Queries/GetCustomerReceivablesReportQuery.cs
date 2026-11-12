@@ -64,7 +64,7 @@ public sealed record CustomerReceivablesReportDto(
 public sealed record GetCustomerReceivablesReportQuery(
     DateTimeOffset? AsOfDate = null,
     CustomerReceivablesFilter Filter = CustomerReceivablesFilter.All,
-    string? SearchText = null) : IRequest<CustomerReceivablesReportDto>;
+    string? SearchText = null) : IRequest<CustomerReceivablesReportDto>, Clovent.Platform.Execution.IRequireCompanyScope;
 
 /// <summary>Handles <see cref="GetCustomerReceivablesReportQuery"/>.</summary>
 public sealed class GetCustomerReceivablesReportQueryHandler(
@@ -73,14 +73,18 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
     IOrderRepository orderRepository,
     IPaymentRepository paymentRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    ICustomerPaymentAllocationRepository allocationRepository)
+    ICustomerPaymentAllocationRepository allocationRepository,
+    Clovent.Platform.Execution.IExecutionContextAccessor companyScope)
     : IRequestHandler<GetCustomerReceivablesReportQuery, CustomerReceivablesReportDto>
 {
     /// <inheritdoc/>
     public async Task<CustomerReceivablesReportDto> Handle(GetCustomerReceivablesReportQuery request, CancellationToken cancellationToken)
     {
         var asOf = request.AsOfDate ?? DateTimeOffset.UtcNow;
-        var customers = await customerRepository.GetAllAsync(cancellationToken);
+        var company = companyScope.Current?.CompanyId;
+        if (!company.HasValue || company == Guid.Empty)
+            throw new Clovent.Platform.Execution.ScopeUnresolvedException("Company scope is required for customer statements.");
+        var customers = (await customerRepository.GetAllAsync(cancellationToken)).Where(c => c.CompanyId == company);
 
         var allAllocations = await allocationRepository.GetAllAsync(cancellationToken);
         var allocationsUpToAsOf = allAllocations.Where(a => a.AllocatedAtUtc <= asOf).ToList();
@@ -111,7 +115,7 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
 
         foreach (var customer in customers)
         {
-            var customerLedger = await ledgerRepository.GetByCustomerIdAsync(customer.Id, cancellationToken);
+            var customerLedger = (await ledgerRepository.GetByCustomerIdAsync(customer.Id, cancellationToken)).Where(e => e.CompanyId == company);
             var entriesUpToAsOf = customerLedger.Where(e => e.Date <= asOf).OrderBy(e => e.Date).ToList();
 
             decimal netBal;
@@ -192,6 +196,8 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
                 }
             }
 
+            var buckets = ProportionalAgingRounding.Reconcile(receivable, current, d1to7, d8to15, d16to30, d31to60, d60plus);
+
             string statusText;
             if (advance > 0)
             {
@@ -223,12 +229,12 @@ public sealed class GetCustomerReceivablesReportQueryHandler(
                 netBal,
                 availableCredit,
                 lastDate,
-                Math.Round(current, 2),
-                Math.Round(d1to7, 2),
-                Math.Round(d8to15, 2),
-                Math.Round(d16to30, 2),
-                Math.Round(d31to60, 2),
-                Math.Round(d60plus, 2),
+                buckets[0],
+                buckets[1],
+                buckets[2],
+                buckets[3],
+                buckets[4],
+                buckets[5],
                 isOverLimit,
                 customer.IsCreditAllowed,
                 statusText,

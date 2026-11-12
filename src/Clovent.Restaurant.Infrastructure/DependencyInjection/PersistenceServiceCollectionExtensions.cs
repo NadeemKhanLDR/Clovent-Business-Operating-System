@@ -42,6 +42,10 @@ public static class PersistenceServiceCollectionExtensions
     /// <exception cref="InvalidOperationException">No <c>ConnectionStrings:Restaurant</c> value is configured.</exception>
     public static IServiceCollection AddPersistence(this IServiceCollection services, IConfiguration configuration)
     {
+        // Runtime persistence must never silently become unscoped when only Infrastructure
+        // is composed. Design-time and disposable contexts opt out only by explicit construction.
+        services.TryAddSingleton<Clovent.Platform.Execution.IExecutionContextAccessor,
+            Clovent.Platform.Execution.ExecutionContextAccessor>();
         var connectionString = configuration.GetConnectionString("Default")
             ?? configuration.GetConnectionString(ConnectionStringName)
             ?? throw new InvalidOperationException(
