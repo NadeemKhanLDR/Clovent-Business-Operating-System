@@ -13,16 +13,31 @@ public static class LicenseService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true, WriteIndented = true };
     private static LicenseValidationResult? _cachedResult;
+    private static CbosInstanceScope? _cachedScope;
 
     /// <summary>The canonical product name expected in valid CBOS license payloads.</summary>
     public const string ExpectedProductName = "Clovent Business Operating System";
 
-    /// <summary>Gets the cached license validation result, evaluating the current license if not yet cached.</summary>
-    public static LicenseValidationResult CurrentResult => _cachedResult ??= ValidateCurrentLicense();
+    /// <summary>Gets the cached license validation result, evaluating the current license if not yet cached for the active scope.</summary>
+    public static LicenseValidationResult CurrentResult
+    {
+        get
+        {
+            var activeScope = CbosInstanceScope.Current;
+            if (!ReferenceEquals(_cachedScope, activeScope) || _cachedResult == null)
+            {
+                _cachedScope = activeScope;
+                _cachedResult = ValidateCurrentLicense();
+            }
+
+            return _cachedResult;
+        }
+    }
 
     /// <summary>Forces a re-evaluation of the installed license or trial state and updates the cached result.</summary>
     public static LicenseValidationResult Refresh()
     {
+        _cachedScope = CbosInstanceScope.Current;
         _cachedResult = ValidateCurrentLicense();
         return _cachedResult;
     }
@@ -74,6 +89,7 @@ public static class LicenseService
         _customLicensePathSet = true;
         _customLicenseFilePath = path;
         _cachedResult = null;
+        _cachedScope = null;
     }
 
     internal static void ResetTestingOverrides()
@@ -81,6 +97,7 @@ public static class LicenseService
         _customLicensePathSet = false;
         _customLicenseFilePath = null;
         _cachedResult = null;
+        _cachedScope = null;
     }
 
     /// <summary>
@@ -90,19 +107,26 @@ public static class LicenseService
     /// </summary>
     public static string? FindLicenseFilePath()
     {
-        if (_customLicensePathSet)
+        var scope = CbosInstanceScope.Current;
+        if (_customLicensePathSet &&
+            (!scope.IsQaMode || (!string.IsNullOrWhiteSpace(_customLicenseFilePath) && scope.IsPathInsideQaRoot(_customLicenseFilePath))))
         {
             return _customLicenseFilePath;
         }
 
-        var scope = CbosInstanceScope.Current;
         try
         {
-            var programDataPath = scope.PrimaryLicenseFilePath;
+            var programDataPath = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.PrimaryLicenseFilePath, "license file")
+                : scope.PrimaryLicenseFilePath;
             if (File.Exists(programDataPath))
             {
                 return programDataPath;
             }
+        }
+        catch (InvalidQaConfigurationException)
+        {
+            throw;
         }
         catch
         {

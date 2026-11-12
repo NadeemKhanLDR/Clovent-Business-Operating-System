@@ -32,7 +32,22 @@ public sealed class PrintJobQuarantineStore : IPrintJobQuarantineStore
         ILogger<PrintJobQuarantineStore>? logger = null)
     {
         _logger = logger;
-        _quarantineDirectory = customDirectoryPath ?? ResolveDefaultQuarantineDirectory();
+        var scope = CbosInstanceScope.Current;
+        if (!string.IsNullOrWhiteSpace(customDirectoryPath))
+        {
+            _quarantineDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customDirectoryPath, "print job quarantine directory")
+                : customDirectoryPath;
+        }
+        else
+        {
+            _quarantineDirectory = ResolveDefaultQuarantineDirectory();
+            if (scope.IsQaMode)
+            {
+                _quarantineDirectory = scope.EnsurePathInsideQaRoot(_quarantineDirectory, "print job quarantine directory");
+            }
+        }
+
         EnsureDirectoryExists();
     }
 

@@ -28,11 +28,15 @@ public sealed class ActiveOrderCheckpointStore : IActiveOrderCheckpointStore
         var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customDirectory))
         {
-            _checkpointDirectory = customDirectory;
+            _checkpointDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customDirectory, "cart checkpoint directory")
+                : customDirectory;
         }
         else
         {
-            _checkpointDirectory = scope.CartCheckpointsDirectory;
+            _checkpointDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.CartCheckpointsDirectory, "cart checkpoint directory")
+                : scope.CartCheckpointsDirectory;
         }
 
         if (!Directory.Exists(_checkpointDirectory))

@@ -15,12 +15,8 @@ public class DesignerSafetyTests
     [Fact]
     public void BranchEditForm_InitializeComponent_DoesNotUseUnsupportedDesignerLoops()
     {
-        var root = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
-        while (root != null && !System.IO.File.Exists(System.IO.Path.Combine(root.FullName, "Clovent.BusinessOperatingSystem.slnx")))
-            root = root.Parent;
-        Assert.NotNull(root);
-        var source = System.IO.File.ReadAllText(System.IO.Path.Combine(root.FullName,
-            "src", "Clovent.Desktop", "MasterData", "Branches", "BranchEditForm.Designer.cs"));
+        var source = System.IO.File.ReadAllText(
+            Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("MasterData", "Branches", "BranchEditForm.Designer.cs"));
         Assert.DoesNotMatch(@"\b(for|foreach|while)\s*\(", source);
     }
 
@@ -69,23 +65,13 @@ public class DesignerSafetyTests
     public void DesignerFiles_DoNotContainReportPeriodCalculatorCalls()
     {
         // The Visual Studio WinForms Designer fails when InitializeComponent calls external procedural methods
-        var baseDir = AppContext.BaseDirectory;
-        // Search upwards for src/Clovent.Desktop
-        var dir = new System.IO.DirectoryInfo(baseDir);
-        while (dir != null && !System.IO.File.Exists(System.IO.Path.Combine(dir.FullName, "Clovent.BusinessOperatingSystem.slnx")))
-        {
-            dir = dir.Parent;
-        }
-
-        Assert.NotNull(dir);
-
-        var ledgerDesigner = System.IO.Path.Combine(dir.FullName, "src", "Clovent.Desktop", "Restaurant", "Customers", "CustomerLedgerDialog.Designer.cs");
+        var ledgerDesigner = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("Restaurant", "Customers", "CustomerLedgerDialog.Designer.cs");
         Assert.True(System.IO.File.Exists(ledgerDesigner));
         var ledgerContent = System.IO.File.ReadAllText(ledgerDesigner);
         Assert.DoesNotContain("ReportPeriodCalculator", ledgerContent);
         Assert.DoesNotContain("foreach", ledgerContent);
 
-        var eodDesigner = System.IO.Path.Combine(dir.FullName, "src", "Clovent.Desktop", "Restaurant", "EndOfDay", "EndOfDayReportView.Designer.cs");
+        var eodDesigner = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("Restaurant", "EndOfDay", "EndOfDayReportView.Designer.cs");
         Assert.True(System.IO.File.Exists(eodDesigner));
         var eodContent = System.IO.File.ReadAllText(eodDesigner);
         Assert.DoesNotContain("ReportPeriodCalculator", eodContent);

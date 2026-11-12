@@ -34,15 +34,19 @@ public static class LicenseTamperGuard
     /// <summary>Gets the effective path of license_guard.dat.</summary>
     public static string GetGuardFilePath()
     {
+        var scope = CbosInstanceScope.Current;
         lock (SyncLock)
         {
-            if (!string.IsNullOrEmpty(_customGuardFilePath))
+            if (!string.IsNullOrEmpty(_customGuardFilePath) &&
+                (!scope.IsQaMode || scope.IsPathInsideQaRoot(_customGuardFilePath)))
             {
                 return _customGuardFilePath;
             }
         }
 
-        return CbosInstanceScope.Current.LicenseGuardFilePath;
+        return scope.IsQaMode
+            ? scope.EnsurePathInsideQaRoot(scope.LicenseGuardFilePath, "license tamper guard file")
+            : scope.LicenseGuardFilePath;
     }
 
     /// <summary>

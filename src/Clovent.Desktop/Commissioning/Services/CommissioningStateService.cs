@@ -229,10 +229,19 @@ public sealed class CommissioningStateService(
     {
         get
         {
+            var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
             lock (SyncLock)
             {
-                return _customMarkerFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.PrimaryCommissioningMarkerPath;
+                if (!string.IsNullOrEmpty(_customMarkerFilePath) &&
+                    (!scope.IsQaMode || scope.IsPathInsideQaRoot(_customMarkerFilePath)))
+                {
+                    return _customMarkerFilePath;
+                }
             }
+
+            return scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.PrimaryCommissioningMarkerPath, "commissioning marker")
+                : scope.PrimaryCommissioningMarkerPath;
         }
     }
 
@@ -243,10 +252,19 @@ public sealed class CommissioningStateService(
     {
         get
         {
+            var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
             lock (SyncLock)
             {
-                return _customFallbackMarkerFilePath ?? Clovent.Platform.Configuration.CbosInstanceScope.Current.FallbackCommissioningMarkerPath;
+                if (!string.IsNullOrEmpty(_customFallbackMarkerFilePath) &&
+                    (!scope.IsQaMode || scope.IsPathInsideQaRoot(_customFallbackMarkerFilePath)))
+                {
+                    return _customFallbackMarkerFilePath;
+                }
             }
+
+            return scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.FallbackCommissioningMarkerPath, "fallback commissioning marker")
+                : scope.FallbackCommissioningMarkerPath;
         }
     }
 

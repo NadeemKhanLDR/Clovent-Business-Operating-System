@@ -53,11 +53,7 @@ public sealed class DesignerSerializationRegressionTests
 
     private static string ReadSource(string relativePath)
     {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName,
-                   "Clovent.BusinessOperatingSystem.slnx")))
-            directory = directory.Parent;
-        Assert.NotNull(directory);
-        return File.ReadAllText(Path.Combine(directory.FullName, "src", "Clovent.Desktop", relativePath));
+        var segments = relativePath.Split(['/', '\\'], StringSplitOptions.RemoveEmptyEntries);
+        return File.ReadAllText(Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile(segments));
     }
 }

@@ -38,13 +38,15 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
         _maxCompletedCapacity = maxCompletedCapacity;
         _logger = logger;
 
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customDirectory))
         {
-            _storageDirectory = customDirectory;
+            _storageDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customDirectory, "printer job tracker directory")
+                : customDirectory;
         }
         else
         {
-            var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
             if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
             {
                 var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
@@ -52,7 +54,9 @@ public sealed class DurableFilePrinterJobTracker : IPrinterJobTracker
             }
             else
             {
-                _storageDirectory = scope.PrintJobsDirectory;
+                _storageDirectory = scope.IsQaMode
+                    ? scope.EnsurePathInsideQaRoot(scope.PrintJobsDirectory, "printer job tracker directory")
+                    : scope.PrintJobsDirectory;
             }
         }
 

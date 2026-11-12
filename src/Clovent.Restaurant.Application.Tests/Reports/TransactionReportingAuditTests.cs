@@ -28,7 +28,7 @@ namespace Clovent.Restaurant.Application.Tests.Reports;
 
 // Synthetic persisted facts, not commissioning or command/persistence qualification.
 // Expectations below are literal independently calculated amounts.
-public sealed class TransactionReportingAuditTests
+public sealed partial class TransactionReportingAuditTests
 {
     [Fact]
     public async Task MixedDiscountedSale_BillKpiMatchesRowsAndTaxSummary()

@@ -55,7 +55,9 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
         var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customJournalPath))
         {
-            _journalFilePath = customJournalPath;
+            _journalFilePath = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customJournalPath, "continuity journal file")
+                : customJournalPath;
         }
         else if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
         {
@@ -64,7 +66,9 @@ public sealed class ProtectedContinuityJournalStore : IContinuityJournalStore
         }
         else
         {
-            _journalFilePath = scope.PrimaryContinuityJournalFilePath;
+            _journalFilePath = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.PrimaryContinuityJournalFilePath, "continuity journal file")
+                : scope.PrimaryContinuityJournalFilePath;
         }
 
         var dirPath = Path.GetDirectoryName(_journalFilePath);

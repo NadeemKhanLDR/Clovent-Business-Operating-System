@@ -15,11 +15,20 @@ internal interface IPaymentAttemptJournal
 /// <summary>Versioned, user-protected attempt identity; never stores manager approval.</summary>
 internal sealed class ProtectedPaymentAttemptJournal(string directory, string terminal, Func<Guid?> cashier) : IPaymentAttemptJournal
 {
+    private readonly string _directory = ValidateDirectory(directory);
     private sealed record Envelope(int Version, string Owner, Guid OrderId, Guid MethodId, decimal Amount, Guid? ShiftId, string Key);
     public string OwnerIdentity => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         terminal + ":" + (cashier() ?? throw new InvalidOperationException("An authenticated cashier is required to preserve a payment attempt.")))));
 
-    private string PathFor(Guid orderId) => Path.Combine(directory, $"attempt-{OwnerIdentity}-{orderId:N}.bin");
+    private static string ValidateDirectory(string candidateDirectory)
+    {
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        return scope.IsQaMode
+            ? scope.EnsurePathInsideQaRoot(candidateDirectory, "payment attempt journal directory")
+            : candidateDirectory;
+    }
+
+    private string PathFor(Guid orderId) => Path.Combine(_directory, $"attempt-{OwnerIdentity}-{orderId:N}.bin");
 
     private static async Task<FileStream> LockAsync(string path)
     {
@@ -44,7 +53,7 @@ internal sealed class ProtectedPaymentAttemptJournal(string directory, string te
     public async Task<RecordPaymentCommand> GetOrCreateAsync(RecordPaymentCommand candidate)
     {
         var owner = OwnerIdentity;
-        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(_directory);
         var path = PathFor(candidate.OrderId);
         await using var gate = await LockAsync(path);
         var existing = await ReadAsync(path, candidate.OrderId);

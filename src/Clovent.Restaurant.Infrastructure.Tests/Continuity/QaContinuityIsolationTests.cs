@@ -91,4 +91,42 @@ public sealed class QaContinuityIsolationTests : IDisposable
             Assert.False(File.Exists(Path.Combine(qaRootB, "ContinuityJournal", "journal.dat")));
         }
     }
+
+    [Fact]
+    public void ContinuityStores_InQaMode_RejectExplicitConstructorPathsAndJunctionsOutsideQaRoot()
+    {
+        var qaRoot = CreateTempRoot("cbos-qa-cont-escape");
+        var outsideDir = CreateTempRoot("cbos-qa-cont-outside");
+        const string conn = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_ContEscape;Trusted_Connection=True;";
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRoot, conn))
+        {
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new ProtectedContinuityJournalStore(Path.Combine(outsideDir, "journal.dat")));
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new ProtectedOperationalCacheStore(outsideDir));
+            Assert.False(Directory.Exists(outsideDir));
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            Directory.CreateDirectory(qaRoot);
+            Directory.CreateDirectory(outsideDir);
+            var linkPath = Path.Combine(qaRoot, "ContinuityJournal");
+            using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c mklink /J \"{linkPath}\" \"{outsideDir}\"",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            })!;
+            process.WaitForExit();
+            Assert.Equal(0, process.ExitCode);
+
+            using (CbosInstanceScope.EnterQaScopeForTesting(qaRoot, conn))
+            {
+                Assert.Throws<InvalidQaConfigurationException>(() => new ProtectedContinuityJournalStore());
+            }
+        }
+    }
 }

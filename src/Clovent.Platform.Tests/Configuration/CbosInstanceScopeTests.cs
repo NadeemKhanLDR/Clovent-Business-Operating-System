@@ -252,4 +252,168 @@ public sealed class CbosInstanceScopeTests : IDisposable
             Assert.DoesNotContain(qaRootA, trackerB.StorageDirectory, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    [Fact]
+    public void PlatformStores_InQaMode_RejectExplicitConstructorPathsOutsideQaRootBeforeTouchDisk()
+    {
+        var qaRoot = AllocateCleanQaRootPath();
+        var outsideDir = AllocateCleanQaRootPath();
+        const string conn = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_ExplicitPath;Trusted_Connection=True;";
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRoot, conn))
+        {
+            Assert.Throws<InvalidQaConfigurationException>(() => new FileLoggerProvider(new FileLoggerOptions
+            {
+                Directory = outsideDir
+            }));
+            Assert.Throws<InvalidQaConfigurationException>(() => new DurableFilePrinterJobTracker(outsideDir));
+            Assert.Throws<InvalidQaConfigurationException>(() => new PrintJobQuarantineStore(outsideDir));
+
+            Assert.False(Directory.Exists(outsideDir), "Invalid explicit constructor paths must fail before creating directories.");
+
+            // Custom subdirectory inside QA root succeeds cleanly.
+            var insideDir = Path.Combine(qaRoot, "CustomSub", "PrintJobs");
+            var tracker = new DurableFilePrinterJobTracker(insideDir);
+            Assert.StartsWith(Path.GetFullPath(qaRoot), tracker.StorageDirectory, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void PlatformConfiguration_InQaMode_OverridesAllModuleConnectionStringsFromJsonAndEnv()
+    {
+        var qaRoot = AllocateCleanQaRootPath();
+        const string qaConn = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_AllModules;Trusted_Connection=True;";
+        using var configDir = new TempDirectory();
+        configDir.WriteFile("appsettings.json", """
+            {
+              "ConnectionStrings": {
+                "Default": "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;",
+                "DefaultConnection": "Server=.;Database=Clovent_BusinessOperatingSystem;Trusted_Connection=True;",
+                "Authentication": "Server=.;Database=AuthProd;Trusted_Connection=True;",
+                "Catalog": "Server=.;Database=CatalogProd;Trusted_Connection=True;",
+                "Identity": "Server=.;Database=IdentityProd;Trusted_Connection=True;",
+                "Inventory": "Server=.;Database=InventoryProd;Trusted_Connection=True;",
+                "MasterData": "Server=.;Database=MasterDataProd;Trusted_Connection=True;",
+                "Restaurant": "Server=.;Database=RestaurantProd;Trusted_Connection=True;"
+              }
+            }
+            """);
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRoot, qaConn))
+        {
+            var cfg = PlatformConfiguration.Build(configDir.Path);
+            string[] keys = ["Default", "DefaultConnection", "Authentication", "Catalog", "Identity", "Inventory", "MasterData", "Restaurant"];
+            foreach (var key in keys)
+            {
+                Assert.Equal(qaConn, cfg[$"ConnectionStrings:{key}"]);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=master;Trusted_Connection=True;")]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=Clovent_BusinessOperatingSystem_Copy;Trusted_Connection=True;")]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_Production;Trusted_Connection=True;")]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_Live;Trusted_Connection=True;")]
+    [InlineData("Server=(localdb)\\MSSQLLocalDB;Database=RandomAppDatabase;Trusted_Connection=True;")]
+    [InlineData("Server=.;Database=CBOS_QA_UnapprovedRemote;Trusted_Connection=True;")]
+    public void InitializeFromStartup_UnapprovedOrUnsafeTarget_FailsBeforeCreatingDirectories(string badConnection)
+    {
+        var qaRoot = AllocateCleanQaRootPath();
+        Assert.False(Directory.Exists(qaRoot));
+
+        Assert.Throws<InvalidQaConfigurationException>(() =>
+            CbosInstanceScope.InitializeFromStartup(
+                ["--qa-root", qaRoot, "--qa-connection", badConnection],
+                _ => null));
+
+        Assert.False(Directory.Exists(qaRoot));
+    }
+
+    [Fact]
+    public void InitializeFromStartup_ExplicitTargetApproval_GovernsNonLocalDbAndPinnedTargets()
+    {
+        var qaRoot = AllocateCleanQaRootPath();
+        const string nonLocalDbConn = "Server=localhost;Database=CBOS_QA_ApprovedHost;Trusted_Connection=True;";
+
+        // Approved via CLI
+        var cliApproved = CbosInstanceScope.InitializeFromStartup(
+            ["--qa-root", qaRoot, "--qa-connection", nonLocalDbConn, "--qa-approved-target", "localhost|CBOS_QA_ApprovedHost"],
+            _ => null);
+        Assert.True(cliApproved.IsQaMode);
+        Assert.Equal("CBOS_QA_ApprovedHost", cliApproved.DatabaseName);
+
+        // Approved via file under <QaRoot>\Config\qa-target.approved.json, rejects mismatching connection
+        Directory.CreateDirectory(Path.Combine(qaRoot, "Config"));
+        File.WriteAllText(
+            Path.Combine(qaRoot, "Config", CbosInstanceScope.QaApprovedTargetFileName),
+            """{"Server":"(localdb)\\MSSQLLocalDB","Database":"CBOS_QA_Pinned"}""");
+
+        Assert.Throws<InvalidQaConfigurationException>(() =>
+            CbosInstanceScope.InitializeFromStartup(
+                ["--qa-root", qaRoot, "--qa-connection", "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_Other;Trusted_Connection=True;"],
+                _ => null));
+
+        var fileApproved = CbosInstanceScope.InitializeFromStartup(
+            ["--qa-root", qaRoot, "--qa-connection", "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_Pinned;Trusted_Connection=True;"],
+            _ => null);
+        Assert.Equal("CBOS_QA_Pinned", fileApproved.DatabaseName);
+    }
+
+    [Fact]
+    public void ReparsePointAndJunctions_EscapingQaRootOrPointingToSharedDirs_AreRejected()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var parentDir = AllocateCleanQaRootPath();
+        Directory.CreateDirectory(parentDir);
+
+        // 1. Junction root pointing directly into %LocalAppData%\Clovent\QaEscapeTest (without creating inside LocalAppData if absent? Wait: create & delete or test existing temp? Never write to real Clovent dir -> create link target inside ProgramData? No, mklink /J works even BEFORE target check? Better: test LocalAppData\Clovent\... ONLY against non-Clovent or check if exists; wait - mklink /J accepts non-existent target too? Let's test!).
+        var localAppDataCloventSub = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Clovent",
+            "QaJunctionProbe_NonExistent");
+        var badRootJunction = Path.Combine(parentDir, "bad-root-junction");
+        CreateJunction(badRootJunction, localAppDataCloventSub);
+        _nonExistentRootsToClean.Add(badRootJunction);
+
+        const string validConn = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_Junction;Trusted_Connection=True;";
+        Assert.Throws<InvalidQaConfigurationException>(() =>
+            CbosInstanceScope.InitializeFromStartup(["--qa-root", badRootJunction, "--qa-connection", validConn], _ => null));
+
+        // 2. Valid junction root pointing to safe isolated directory, PLUS internal junction Logs -> outside dir must be rejected!
+        var realQaRoot = Path.Combine(parentDir, "real-qa-root");
+        var safeRootJunction = Path.Combine(parentDir, "safe-qa-junction");
+        var outsideEscapeTarget = Path.Combine(parentDir, "outside-escape-target");
+        Directory.CreateDirectory(realQaRoot);
+        Directory.CreateDirectory(outsideEscapeTarget);
+        CreateJunction(safeRootJunction, realQaRoot);
+        CreateJunction(Path.Combine(realQaRoot, "Logs"), outsideEscapeTarget);
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(safeRootJunction, validConn))
+        {
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new FileLoggerProvider(new FileLoggerOptions()));
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                CbosInstanceScope.Current.EnsurePathInsideQaRoot(Path.Combine(safeRootJunction, "Logs", "nested"), "test"));
+        }
+    }
+
+    private static void CreateJunction(string linkPath, string targetPath)
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "cmd.exe",
+            Arguments = $"/c mklink /J \"{linkPath}\" \"{targetPath}\"",
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        })!;
+        process.WaitForExit();
+        Assert.True(process.ExitCode == 0, $"Failed to create junction '{linkPath}' -> '{targetPath}': {process.StandardError.ReadToEnd()}");
+    }
 }

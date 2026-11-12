@@ -12,6 +12,12 @@
     <ProjectReference Include="..\Clovent.Desktop\Clovent.Desktop.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyMetadata Include="CbosRepoRoot" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))" />
+    <AssemblyMetadata Include="CbosBuildConfiguration" Value="$(Configuration)" />
+    <AssemblyMetadata Condition="'$(ArtifactsPath)' != ''" Include="CbosArtifactsPath" Value="$([System.IO.Path]::GetFullPath('$(ArtifactsPath)'))" />
+  </ItemGroup>
+
   <!--
     Copies the desktop host's real shipped configuration files into a
     Config\ subfolder of the test output so SeedConfigurationTests can

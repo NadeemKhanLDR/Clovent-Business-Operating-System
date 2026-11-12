@@ -180,7 +180,7 @@ public static class DatabaseSecretStore
                 var settings = JsonSerializer.Deserialize<DatabaseConnectionSettings>(json)
                     ?? throw new Clovent.Platform.Configuration.InvalidQaConfigurationException(
                         $"QA database configuration file '{qaConfigPath}' is empty or invalid.");
-                scope.ValidateTargetDatabaseName(settings.Database);
+                scope.ValidateTargetApproval(settings.Server, settings.Database);
                 return settings;
             }
 
@@ -252,7 +252,7 @@ public static class DatabaseSecretStore
         var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (scope.IsQaMode)
         {
-            scope.ValidateTargetDatabaseName(settings.Database);
+            scope.ValidateTargetApproval(settings.Server, settings.Database);
             machineLevel = false;
         }
 

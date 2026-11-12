@@ -177,11 +177,8 @@ public sealed class DatabaseCommissioningTests
     [InlineData("--provision", "--verify-only")]
     public async Task ProvisionerCli_InvalidArguments_FailsBeforeSideEffectsWithExitCode64(params string[] invalidArgs)
     {
-        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var debugDll = Path.Combine(repoRoot, "tools", "Clovent.Installer.Provisioner", "bin", "Debug", "net10.0-windows", "win-x64", "Clovent.Installer.Provisioner.dll");
-        var releaseDll = Path.Combine(repoRoot, "tools", "Clovent.Installer.Provisioner", "bin", "Release", "net10.0-windows", "win-x64", "Clovent.Installer.Provisioner.dll");
-        var targetDll = File.Exists(debugDll) ? debugDll : releaseDll;
-        Assert.True(File.Exists(targetDll), $"Expected compiled provisioner assembly at '{debugDll}' or '{releaseDll}'.");
+        var targetDll = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.ResolveProvisionerAssembly();
+        Assert.True(File.Exists(targetDll), $"Expected compiled provisioner assembly at '{targetDll}'.");
 
         var tempLogPath = Path.Combine(Path.GetTempPath(), $"cbos-prov-should-not-exist-{Guid.NewGuid():N}.log");
         var argsWithLog = invalidArgs.Concat(["--log-file", tempLogPath]).ToArray();

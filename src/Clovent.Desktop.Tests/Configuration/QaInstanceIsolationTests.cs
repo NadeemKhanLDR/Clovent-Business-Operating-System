@@ -230,4 +230,96 @@ public sealed class QaInstanceIsolationTests : IDisposable
             Assert.StartsWith(Path.GetFullPath(qaRootB), SmartPosLayoutTelemetry.TelemetryDir, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    [Fact]
+    public void DesktopStores_InQaMode_RejectExplicitPathsOutsideQaRootAndUnapprovedTargetSaves()
+    {
+        var qaRoot = CreateCleanTempRoot("cbos-qa-desktop-escape");
+        var outsideDir = CreateCleanTempRoot("cbos-qa-desktop-outside");
+        const string conn = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_DesktopEscape;Trusted_Connection=True;";
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRoot, conn, approvedTarget: "(localdb)\\MSSQLLocalDB|CBOS_QA_DesktopEscape"))
+        {
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new WindowsPrinterConfigurationStore(Path.Combine(outsideDir, "printers.json")));
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new ActiveOrderCheckpointStore(outsideDir));
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                new ProtectedPaymentAttemptJournal(outsideDir, "TERM-1", () => Guid.NewGuid()));
+
+            Assert.False(Directory.Exists(outsideDir));
+
+            // Saving a different target when pinned via approved target must throw before writing.
+            Assert.Throws<InvalidQaConfigurationException>(() =>
+                DatabaseSecretStore.Save(new DatabaseConnectionSettings
+                {
+                    Server = "(localdb)\\MSSQLLocalDB",
+                    Database = "CBOS_QA_WrongTarget"
+                }));
+            Assert.False(File.Exists(Path.Combine(qaRoot, "Config", "database.config.json")));
+        }
+    }
+
+    [Fact]
+    public void LicensingAndTrial_InQaMode_EnforceEntitlementsAndDoNotMutateNonQaOverrides()
+    {
+        var nonQaMockDir = CreateCleanTempRoot("cbos-nonqa-lic-mock");
+        Directory.CreateDirectory(nonQaMockDir);
+        var nonQaLicenseFile = Path.Combine(nonQaMockDir, "nonqa.lic");
+        var nonQaGuardFile = Path.Combine(nonQaMockDir, "nonqa_guard.dat");
+        var nonQaMarkerFile = Path.Combine(nonQaMockDir, "nonqa_commissioning.json");
+
+        // Configure test overrides pointing OUTSIDE any QA root (simulating non-QA host files).
+        LicenseService.SetLicenseFilePathForTesting(nonQaLicenseFile);
+        LicenseTamperGuard.SetTestingOverrides(nonQaGuardFile);
+        CommissioningStateService.SetTestingOverrides(nonQaMarkerFile, nonQaMarkerFile);
+
+        var qaRootA = CreateCleanTempRoot("cbos-qa-lic-a");
+        var qaRootB = CreateCleanTempRoot("cbos-qa-lic-b");
+        const string connA = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_LicA;Trusted_Connection=True;";
+        const string connB = "Server=(localdb)\\MSSQLLocalDB;Database=CBOS_QA_LicB;Trusted_Connection=True;";
+
+        // Write a malformed/tampered license only inside QA root A -> must fail signature verification & block transactions.
+        Directory.CreateDirectory(Path.Combine(qaRootA, "License"));
+        File.WriteAllText(Path.Combine(qaRootA, "License", "clovent.lic"), """{"Product":"Clovent Business Operating System","KeyId":"bad","Signature":"invalid"}""");
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRootA, connA))
+        {
+            var resA = LicenseService.CurrentResult;
+            Assert.Equal(LicenseStatus.InvalidSignature, resA.Status);
+            Assert.False(LicenseService.CanCreateTransactions());
+        }
+
+        // Entering clean QA root B automatically invalidates cached scope result and evaluates clean active trial inside QA root B.
+        var fixedNow = new DateTimeOffset(2026, 11, 12, 10, 0, 0, TimeSpan.Zero);
+        TrialStateManager.SetTestingOverrides(
+            storageDirectory: null,
+            timeProvider: () => fixedNow,
+            machineId: "QA-MACHINE-LIC-B");
+
+        using (CbosInstanceScope.EnterQaScopeForTesting(qaRootB, connB))
+        {
+            var trialB = TrialStateManager.StartTrial(startedAtUtc: fixedNow);
+            Assert.Equal(TrialStateStatus.Active, trialB.Status);
+            Assert.True(File.Exists(Path.Combine(qaRootB, "License", "trial.state")));
+
+            var activeResB = LicenseService.CurrentResult;
+            Assert.Equal(LicenseStatus.Valid, activeResB.Status);
+            Assert.True(LicenseService.CanCreateTransactions());
+
+            // Advance simulated clock past 30-day evaluation window: QA mode enforces expiration.
+            TrialStateManager.SetTestingOverrides(
+                storageDirectory: null,
+                timeProvider: () => fixedNow.AddDays(31),
+                machineId: "QA-MACHINE-LIC-B");
+            var expiredResB = LicenseService.Refresh();
+            Assert.Equal(LicenseStatus.Expired, expiredResB.Status);
+            Assert.False(LicenseService.CanCreateTransactions());
+        }
+
+        // Host/non-QA mock files were never touched by QA operations.
+        Assert.False(File.Exists(nonQaLicenseFile));
+        Assert.False(File.Exists(nonQaGuardFile));
+        Assert.False(File.Exists(nonQaMarkerFile));
+    }
 }

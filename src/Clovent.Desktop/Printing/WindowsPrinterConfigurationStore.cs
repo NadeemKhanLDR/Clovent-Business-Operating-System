@@ -26,7 +26,20 @@ public sealed class WindowsPrinterConfigurationStore : IPrinterConfigurationStor
         ILogger<WindowsPrinterConfigurationStore>? logger = null)
     {
         _logger = logger;
-        _configFilePath = customFilePath ?? ResolveConfigFilePath();
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (!string.IsNullOrWhiteSpace(customFilePath))
+        {
+            _configFilePath = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customFilePath, "printer configuration file")
+                : customFilePath;
+        }
+        else
+        {
+            var resolved = ResolveConfigFilePath();
+            _configFilePath = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(resolved, "printer configuration file")
+                : resolved;
+        }
     }
 
     private static string ResolveConfigFilePath()

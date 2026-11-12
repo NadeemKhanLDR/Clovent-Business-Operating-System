@@ -67,15 +67,24 @@ public static class PlatformConfiguration
         var scope = CbosInstanceScope.Current;
         if (scope.IsQaMode)
         {
-            // Enforce strict isolation in QA mode: prevent appsettings.json defaults from leaking
-            // a production ConnectionStrings:Default or an out-of-root Logging:File:Directory.
+            // Enforce strict isolation in QA mode: prevent appsettings.json defaults, environment variables,
+            // or module-specific ConnectionStrings:* keys from leaking a production database or an
+            // out-of-root Logging:File:Directory.
             var intermediate = builder.Build();
             var resolvedLogDir = scope.ResolveLogDirectory(intermediate["Logging:File:Directory"]);
+            var qaConnection = scope.ExplicitConnectionString ?? string.Empty;
 
             var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
             {
                 ["Logging:File:Directory"] = resolvedLogDir,
-                ["ConnectionStrings:Default"] = scope.ExplicitConnectionString ?? string.Empty
+                ["ConnectionStrings:Default"] = qaConnection,
+                ["ConnectionStrings:DefaultConnection"] = qaConnection,
+                ["ConnectionStrings:Authentication"] = qaConnection,
+                ["ConnectionStrings:Catalog"] = qaConnection,
+                ["ConnectionStrings:Identity"] = qaConnection,
+                ["ConnectionStrings:Inventory"] = qaConnection,
+                ["ConnectionStrings:MasterData"] = qaConnection,
+                ["ConnectionStrings:Restaurant"] = qaConnection
             };
 
             builder.AddInMemoryCollection(overrides);

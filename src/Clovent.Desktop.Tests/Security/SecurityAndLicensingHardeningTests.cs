@@ -339,7 +339,7 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
     [Fact]
     public void Test_K_DevelopmentLicense_ExcludedFromReleasePublish()
     {
-        var csprojPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Clovent.Desktop", "Clovent.Desktop.csproj"));
+        var csprojPath = Path.Combine(Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopProjectDirectory(), "Clovent.Desktop.csproj");
         Assert.True(File.Exists(csprojPath), $"Clovent.Desktop.csproj not found at {csprojPath}");
 
         var csprojText = File.ReadAllText(csprojPath);
@@ -352,21 +352,16 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
     [Fact]
     public void Test_L_PrivateSigningKey_AbsentFromRepoAndTrackedFiles()
     {
-        var solutionDir = Directory.GetParent(AppContext.BaseDirectory);
-        while (solutionDir != null && !File.Exists(Path.Combine(solutionDir.FullName, "Clovent.BusinessOperatingSystem.slnx")))
-        {
-            solutionDir = solutionDir.Parent;
-        }
-        Assert.NotNull(solutionDir);
+        var solutionDir = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.FindRepositoryRoot();
 
-        var forbiddenKeysInRepo = Directory.GetFiles(solutionDir.FullName, "*vendor_private_key*", SearchOption.AllDirectories)
+        var forbiddenKeysInRepo = Directory.GetFiles(solutionDir, "*vendor_private_key*", SearchOption.AllDirectories)
             .Where(f => !f.Contains("obj") && !f.Contains("bin"))
             .ToList();
 
         Assert.Empty(forbiddenKeysInRepo);
 
         // Verify .gitignore ignores private keys
-        var gitignorePath = Path.Combine(solutionDir.FullName, ".gitignore");
+        var gitignorePath = Path.Combine(solutionDir, ".gitignore");
         Assert.True(File.Exists(gitignorePath));
         var gitignoreContent = File.ReadAllText(gitignorePath);
         Assert.Contains("*.privatekey", gitignoreContent);
@@ -378,7 +373,7 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
     [Fact]
     public void Test_M_UniversalWildcardLicense_AbsentFromDesktopProject()
     {
-        var desktopDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Clovent.Desktop"));
+        var desktopDir = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopProjectDirectory();
         var cloventLicPath = Path.Combine(desktopDir, "clovent.lic");
 
         Assert.False(File.Exists(cloventLicPath), "Universal commercial clovent.lic must NOT exist in Clovent.Desktop directory.");
@@ -388,14 +383,9 @@ public sealed class SecurityAndLicensingHardeningTests : IDisposable
     [Fact]
     public void Test_N_RuntimeDatabaseUserDocumentation_DoesNotGrantDdlAdmin()
     {
-        var solutionDir = Directory.GetParent(AppContext.BaseDirectory);
-        while (solutionDir != null && !File.Exists(Path.Combine(solutionDir.FullName, "Clovent.BusinessOperatingSystem.slnx")))
-        {
-            solutionDir = solutionDir.Parent;
-        }
-        Assert.NotNull(solutionDir);
+        var solutionDir = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.FindRepositoryRoot();
 
-        var docPath = Path.Combine(solutionDir.FullName, "docs", "SecurityDeployment.md");
+        var docPath = Path.Combine(solutionDir, "docs", "SecurityDeployment.md");
         if (File.Exists(docPath))
         {
             var content = File.ReadAllText(docPath);

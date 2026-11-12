@@ -57,7 +57,9 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
         var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
         if (!string.IsNullOrWhiteSpace(customDirectory))
         {
-            _cacheDirectory = customDirectory;
+            _cacheDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(customDirectory, "operational cache directory")
+                : customDirectory;
         }
         else if (!scope.IsQaMode && string.IsNullOrWhiteSpace(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)))
         {
@@ -66,7 +68,9 @@ public sealed class ProtectedOperationalCacheStore : IOperationalCacheStore
         }
         else
         {
-            _cacheDirectory = scope.OperationalCacheDirectory;
+            _cacheDirectory = scope.IsQaMode
+                ? scope.EnsurePathInsideQaRoot(scope.OperationalCacheDirectory, "operational cache directory")
+                : scope.OperationalCacheDirectory;
         }
 
         if (!Directory.Exists(_cacheDirectory))

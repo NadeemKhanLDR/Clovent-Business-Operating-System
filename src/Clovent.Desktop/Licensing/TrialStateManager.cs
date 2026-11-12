@@ -127,24 +127,32 @@ public static class TrialStateManager
     internal static string ComputeHmacForTest(TrialState state) => ComputeHmac(state);
     internal static void SaveTrialStateRawForTest(TrialState state) => SaveTrialState(state);
 
-    /// <summary>Gets primary trial state file path in %ProgramData%.</summary>
+    /// <summary>Gets primary trial state file path in %ProgramData% (or QA root in QA mode).</summary>
     public static string GetPrimaryTrialStatePath()
     {
-        if (!string.IsNullOrEmpty(_customDirectory))
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (!string.IsNullOrEmpty(_customDirectory) && (!scope.IsQaMode || scope.IsPathInsideQaRoot(_customDirectory)))
         {
             return Path.Combine(_customDirectory, "trial.state");
         }
-        return Clovent.Platform.Configuration.CbosInstanceScope.Current.PrimaryTrialStateFilePath;
+
+        return scope.IsQaMode
+            ? scope.EnsurePathInsideQaRoot(scope.PrimaryTrialStateFilePath, "trial state file")
+            : scope.PrimaryTrialStateFilePath;
     }
 
     /// <summary>Gets fallback trial state file path in %LocalAppData% (or QA root in QA mode).</summary>
     public static string GetFallbackTrialStatePath()
     {
-        if (!string.IsNullOrEmpty(_customDirectory))
+        var scope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
+        if (!string.IsNullOrEmpty(_customDirectory) && (!scope.IsQaMode || scope.IsPathInsideQaRoot(_customDirectory)))
         {
             return Path.Combine(_customDirectory, "trial.fallback.state");
         }
-        return Clovent.Platform.Configuration.CbosInstanceScope.Current.FallbackTrialStateFilePath;
+
+        return scope.IsQaMode
+            ? scope.EnsurePathInsideQaRoot(scope.FallbackTrialStateFilePath, "fallback trial state file")
+            : scope.FallbackTrialStateFilePath;
     }
 
     /// <summary>
@@ -397,7 +405,8 @@ public static class TrialStateManager
             }
             File.WriteAllBytes(path, protectedBytes);
         }
-        catch when (!Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode || !string.IsNullOrEmpty(_customDirectory))
+        catch when (!Clovent.Platform.Configuration.CbosInstanceScope.Current.IsQaMode ||
+                    (!string.IsNullOrEmpty(_customDirectory) && Clovent.Platform.Configuration.CbosInstanceScope.Current.IsPathInsideQaRoot(_customDirectory)))
         {
             var fallbackPath = GetFallbackTrialStatePath();
             var fallbackDir = Path.GetDirectoryName(fallbackPath);

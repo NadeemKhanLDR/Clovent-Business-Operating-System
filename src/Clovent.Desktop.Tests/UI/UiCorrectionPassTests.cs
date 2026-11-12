@@ -158,7 +158,7 @@ public sealed class UiCorrectionPassTests
     [Fact]
     public void TableManagementView_Grid_ExposesNameColumn()
     {
-        var path = System.IO.Path.GetFullPath(System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "../../../../Clovent.Desktop/Restaurant/Tables/TableManagementView.Designer.cs"));
+        var path = Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("Restaurant", "Tables", "TableManagementView.Designer.cs");
         Assert.True(System.IO.File.Exists(path), $"TableManagementView.Designer.cs not found at: {path}");
         var content = System.IO.File.ReadAllText(path);
         Assert.Contains("new MasterDataColumn(\"Name\", \"Table Name\", 120)", content);

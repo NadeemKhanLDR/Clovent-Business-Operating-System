@@ -36,8 +36,7 @@ public sealed class RecallOrderDialogTests
     public void CancelOrderButton_Click_IsWired_OnlyInDesigner()
     {
         var posSource = File.ReadAllText(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-                "Clovent.Desktop", "Restaurant", "Orders", "RestaurantPosForm.cs"));
+            Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("Restaurant", "Orders", "RestaurantPosForm.cs"));
 
         // The Designer's InitializeComponent owns the wiring; a second
         // subscription in the code-behind is what produced the double dialog.
@@ -48,8 +47,7 @@ public sealed class RecallOrderDialogTests
     public void CancelOrderButton_Click_IsWired_ExactlyOnce_InDesigner()
     {
         var designerSource = File.ReadAllText(
-            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-                "Clovent.Desktop", "Restaurant", "Orders", "RestaurantPosForm.Designer.cs"));
+            Clovent.Desktop.Tests.TestSupport.RepositoryPaths.GetDesktopSourceFile("Restaurant", "Orders", "RestaurantPosForm.Designer.cs"));
 
         var count = designerSource.Split("_cancelOrderButton.Click += ").Length - 1;
         Assert.Equal(1, count);

@@ -41,29 +41,64 @@ public sealed class CbosInstanceScope
     /// <summary>Long command-line flag asserting QA mode (requires an explicit root).</summary>
     public const string QaModeLongCliFlag = "--qa-mode";
 
+    /// <summary>Environment variable supplying an explicitly approved <c>Server|Database</c> target in QA mode.</summary>
+    public const string QaApprovedTargetEnvironmentVariable = "CBOS_QA_APPROVED_TARGET";
+
+    /// <summary>Command-line option supplying an explicitly approved <c>Server|Database</c> target in QA mode.</summary>
+    public const string QaApprovedTargetCliOption = "--qa-approved-target";
+
+    /// <summary>File name under <see cref="ConfigDirectory"/> recording an approved QA SQL target.</summary>
+    public const string QaApprovedTargetFileName = "qa-target.approved.json";
+
     /// <summary>Default production database catalog name, forbidden in QA mode.</summary>
     public const string ForbiddenDefaultDatabaseName = "Clovent_BusinessOperatingSystem";
+
+    private static readonly string[] AllowedQaDatabasePrefixes =
+    [
+        "CBOS_QA_",
+        "CBOS_ManualQA_",
+        "CBOS_Disposable_",
+        "CBOS_Test_"
+    ];
+
+    private static readonly HashSet<string> ForbiddenExactCatalogNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ForbiddenDefaultDatabaseName,
+        "master",
+        "model",
+        "msdb",
+        "tempdb"
+    };
 
     private static readonly object SyncLock = new();
     private static CbosInstanceScope _current = CreateProduction();
 
     private readonly string _commonAppDataCloventDir;
     private readonly string _localAppDataCloventDir;
+    private readonly string? _resolvedQaInstanceRoot;
+    private readonly string? _approvedServer;
+    private readonly string? _approvedDatabase;
 
     private CbosInstanceScope(
         bool isQaMode,
         string? qaInstanceRoot,
+        string? resolvedQaInstanceRoot,
         string? explicitConnectionString,
         string? dataSource,
         string? databaseName,
+        string? approvedServer,
+        string? approvedDatabase,
         string commonAppDataRoot,
         string localAppDataRoot)
     {
         IsQaMode = isQaMode;
         QaInstanceRoot = qaInstanceRoot;
+        _resolvedQaInstanceRoot = resolvedQaInstanceRoot;
         ExplicitConnectionString = explicitConnectionString;
         DataSource = dataSource;
         DatabaseName = databaseName;
+        _approvedServer = approvedServer;
+        _approvedDatabase = approvedDatabase;
         _commonAppDataCloventDir = Path.Combine(commonAppDataRoot, "Clovent");
         _localAppDataCloventDir = Path.Combine(localAppDataRoot, "Clovent");
     }
@@ -238,21 +273,56 @@ public sealed class CbosInstanceScope
             return string.IsNullOrWhiteSpace(configuredDirectory) ? UserLogsDirectory : configuredDirectory;
         }
 
-        if (string.IsNullOrWhiteSpace(configuredDirectory))
-        {
-            return UserLogsDirectory;
-        }
-
-        if (!IsPathInsideQaRoot(configuredDirectory))
-        {
-            throw new InvalidQaConfigurationException(
-                $"Configured log directory '{configuredDirectory}' escapes the QA instance root '{QaInstanceRoot}'.");
-        }
-
-        return Path.GetFullPath(configuredDirectory);
+        var candidate = string.IsNullOrWhiteSpace(configuredDirectory) ? UserLogsDirectory : configuredDirectory;
+        return EnsurePathInsideQaRoot(candidate, "log directory");
     }
 
-    /// <summary>Checks whether a candidate path is equal to or nested beneath <see cref="QaInstanceRoot"/>.</summary>
+    /// <summary>
+    /// Validates that <paramref name="candidatePath"/> (and its resolved reparse-point/junction target)
+    /// stays strictly confined inside <see cref="QaInstanceRoot"/> when running in QA mode.
+    /// </summary>
+    public string EnsurePathInsideQaRoot(string candidatePath, string purpose)
+    {
+        if (!IsQaMode)
+        {
+            return Path.GetFullPath(candidatePath);
+        }
+
+        if (string.IsNullOrWhiteSpace(candidatePath))
+        {
+            throw new InvalidQaConfigurationException($"QA {purpose} path cannot be empty.");
+        }
+
+        string fullCandidate;
+        try
+        {
+            fullCandidate = NormalizeDirectoryPath(candidatePath);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA {purpose} path '{candidatePath}' is invalid: {ex.Message}", ex);
+        }
+
+        if (!IsSyntacticallyInsideRoot(fullCandidate, QaInstanceRoot!))
+        {
+            throw new InvalidQaConfigurationException(
+                $"Configured {purpose} '{candidatePath}' escapes the QA instance root '{QaInstanceRoot}'.");
+        }
+
+        var resolvedCandidate = ResolveRealPathIncludingReparseAncestors(fullCandidate, purpose);
+        var resolvedRoot = _resolvedQaInstanceRoot ?? ResolveRealPathIncludingReparseAncestors(QaInstanceRoot!, "instance root");
+        if (!IsSyntacticallyInsideRoot(resolvedCandidate, resolvedRoot))
+        {
+            throw new InvalidQaConfigurationException(
+                $"Configured {purpose} '{candidatePath}' resolves through a reparse point/junction to '{resolvedCandidate}', escaping the QA instance root '{resolvedRoot}'.");
+        }
+
+        RejectForbiddenSharedOverlap(resolvedCandidate, _commonAppDataCloventDir, _localAppDataCloventDir, isCloventDirsAlready: true);
+        return fullCandidate;
+    }
+
+    /// <summary>Checks whether a candidate path (and any reparse-point target) is equal to or nested beneath <see cref="QaInstanceRoot"/>.</summary>
     public bool IsPathInsideQaRoot(string candidatePath)
     {
         if (!IsQaMode || string.IsNullOrWhiteSpace(QaInstanceRoot) || string.IsNullOrWhiteSpace(candidatePath))
@@ -263,8 +333,14 @@ public sealed class CbosInstanceScope
         try
         {
             var normalizedCandidate = NormalizeDirectoryPath(candidatePath);
-            return string.Equals(normalizedCandidate, QaInstanceRoot, StringComparison.OrdinalIgnoreCase)
-                || normalizedCandidate.StartsWith(QaInstanceRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            if (!IsSyntacticallyInsideRoot(normalizedCandidate, QaInstanceRoot))
+            {
+                return false;
+            }
+
+            var resolvedCandidate = ResolveRealPathIncludingReparseAncestors(normalizedCandidate, "candidate path");
+            var resolvedRoot = _resolvedQaInstanceRoot ?? ResolveRealPathIncludingReparseAncestors(QaInstanceRoot, "instance root");
+            return IsSyntacticallyInsideRoot(resolvedCandidate, resolvedRoot);
         }
         catch
         {
@@ -272,7 +348,7 @@ public sealed class CbosInstanceScope
         }
     }
 
-    /// <summary>Rejects the default production catalog name when running in QA mode.</summary>
+    /// <summary>Rejects forbidden, production, or non-QA catalog names when running in QA mode.</summary>
     public void ValidateTargetDatabaseName(string? databaseName)
     {
         if (!IsQaMode)
@@ -280,17 +356,33 @@ public sealed class CbosInstanceScope
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(databaseName))
+        ValidateQaCatalogName(databaseName);
+    }
+
+    /// <summary>
+    /// Validates that the supplied SQL Server and database satisfy QA target identification and
+    /// explicit target approval rules when running in QA mode.
+    /// </summary>
+    public void ValidateTargetApproval(string? dataSource, string? databaseName)
+    {
+        if (!IsQaMode)
         {
-            throw new InvalidQaConfigurationException("QA mode requires a non-empty SQL Database / Initial Catalog name.");
+            return;
         }
 
-        if (string.Equals(databaseName.Trim(), ForbiddenDefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
+        ValidateQaCatalogName(databaseName);
+
+        if (string.IsNullOrWhiteSpace(dataSource))
         {
-            throw new InvalidQaConfigurationException(
-                $"QA mode refuses to target the default production database name '{ForbiddenDefaultDatabaseName}'.");
+            throw new InvalidQaConfigurationException("QA mode requires a non-empty SQL Server / Data Source.");
         }
+
+        ValidateTargetApprovalCore(dataSource.Trim(), databaseName!.Trim(), _approvedServer, _approvedDatabase);
     }
+
+    private static bool IsSyntacticallyInsideRoot(string normalizedPath, string normalizedRoot) =>
+        string.Equals(normalizedPath, normalizedRoot, StringComparison.OrdinalIgnoreCase) ||
+        normalizedPath.StartsWith(normalizedRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Creates the default production instance scope.</summary>
     public static CbosInstanceScope CreateProduction()
@@ -300,9 +392,12 @@ public sealed class CbosInstanceScope
         return new CbosInstanceScope(
             isQaMode: false,
             qaInstanceRoot: null,
+            resolvedQaInstanceRoot: null,
             explicitConnectionString: null,
             dataSource: null,
             databaseName: null,
+            approvedServer: null,
+            approvedDatabase: null,
             commonAppDataRoot: commonAppData,
             localAppDataRoot: localAppData);
     }
@@ -338,12 +433,19 @@ public sealed class CbosInstanceScope
     }
 
     /// <summary>Enters an explicit validated QA scope for isolated automated tests and restores production scope on dispose.</summary>
-    public static IDisposable EnterQaScopeForTesting(string qaInstanceRoot, string qaConnectionString)
+    public static IDisposable EnterQaScopeForTesting(string qaInstanceRoot, string qaConnectionString, string? approvedTarget = null)
     {
         var commonAppData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-        var scope = CreateValidatedQaScope(qaInstanceRoot, qaConnectionString, hasExplicitConnectionInput: true, commonAppData, localAppData);
+        var scope = CreateValidatedQaScope(
+            qaInstanceRoot,
+            qaConnectionString,
+            hasExplicitConnectionInput: true,
+            hasExplicitApprovedTargetInput: !string.IsNullOrWhiteSpace(approvedTarget),
+            rawApprovedTarget: approvedTarget,
+            commonAppData,
+            localAppData);
         CbosInstanceScope previous;
         lock (SyncLock)
         {
@@ -380,6 +482,8 @@ public sealed class CbosInstanceScope
         string? cliRoot = null;
         bool hasCliConnection = false;
         string? cliConnection = null;
+        bool hasCliApprovedTarget = false;
+        string? cliApprovedTarget = null;
 
         if (args is { Length: > 0 })
         {
@@ -401,6 +505,11 @@ public sealed class CbosInstanceScope
                     hasCliConnection = true;
                     cliConnection = connValue;
                 }
+                else if (TryReadCliOption(args, ref i, QaApprovedTargetCliOption, out var approvedTargetValue))
+                {
+                    hasCliApprovedTarget = true;
+                    cliApprovedTarget = approvedTargetValue;
+                }
             }
         }
 
@@ -408,6 +517,8 @@ public sealed class CbosInstanceScope
         var hasEnvRoot = envRootRaw is not null;
         var envConnRaw = getEnvironmentVariable(QaConnectionEnvironmentVariable);
         var hasEnvConn = envConnRaw is not null;
+        var envApprovedRaw = getEnvironmentVariable(QaApprovedTargetEnvironmentVariable);
+        var hasEnvApproved = envApprovedRaw is not null;
 
         // Validate explicit flags with missing/empty values before falling back.
         if (hasCliRoot && string.IsNullOrWhiteSpace(cliRoot))
@@ -422,6 +533,12 @@ public sealed class CbosInstanceScope
                 $"CLI option '{QaConnectionCliOption}' was specified with a missing or empty connection string.");
         }
 
+        if (hasCliApprovedTarget && string.IsNullOrWhiteSpace(cliApprovedTarget))
+        {
+            throw new InvalidQaConfigurationException(
+                $"CLI option '{QaApprovedTargetCliOption}' was specified with a missing or empty Server|Database pair.");
+        }
+
         if (hasEnvRoot && string.IsNullOrWhiteSpace(envRootRaw))
         {
             throw new InvalidQaConfigurationException(
@@ -434,10 +551,16 @@ public sealed class CbosInstanceScope
                 $"Environment variable '{QaConnectionEnvironmentVariable}' is present but empty.");
         }
 
-        bool anyQaSignal = qaFlagRequested || hasCliRoot || hasEnvRoot || hasCliConnection || hasEnvConn;
+        if (hasEnvApproved && string.IsNullOrWhiteSpace(envApprovedRaw))
+        {
+            throw new InvalidQaConfigurationException(
+                $"Environment variable '{QaApprovedTargetEnvironmentVariable}' is present but empty.");
+        }
+
+        bool anyQaSignal = qaFlagRequested || hasCliRoot || hasEnvRoot || hasCliConnection || hasEnvConn || hasCliApprovedTarget || hasEnvApproved;
         if (!anyQaSignal)
         {
-            return new CbosInstanceScope(false, null, null, null, null, commonAppData, localAppData);
+            return new CbosInstanceScope(false, null, null, null, null, null, null, null, commonAppData, localAppData);
         }
 
         var effectiveRoot = !string.IsNullOrWhiteSpace(cliRoot) ? cliRoot : envRootRaw;
@@ -449,11 +572,15 @@ public sealed class CbosInstanceScope
 
         bool hasExplicitConnectionInput = hasCliConnection || hasEnvConn;
         var effectiveConnection = hasCliConnection ? cliConnection : envConnRaw;
+        bool hasExplicitApprovedTargetInput = hasCliApprovedTarget || hasEnvApproved;
+        var effectiveApprovedTarget = hasCliApprovedTarget ? cliApprovedTarget : envApprovedRaw;
 
         return CreateValidatedQaScope(
             effectiveRoot,
             effectiveConnection,
             hasExplicitConnectionInput,
+            hasExplicitApprovedTargetInput,
+            effectiveApprovedTarget,
             commonAppData,
             localAppData);
     }
@@ -493,6 +620,8 @@ public sealed class CbosInstanceScope
         string rawRoot,
         string? rawConnectionString,
         bool hasExplicitConnectionInput,
+        bool hasExplicitApprovedTargetInput,
+        string? rawApprovedTarget,
         string commonAppData,
         string localAppData)
     {
@@ -519,13 +648,7 @@ public sealed class CbosInstanceScope
                 $"QA instance root '{trimmedRoot}' is not a valid path: {ex.Message}", ex);
         }
 
-        var pathRoot = Path.GetPathRoot(fullRoot);
-        if (!string.IsNullOrWhiteSpace(pathRoot) &&
-            string.Equals(fullRoot, NormalizeDirectoryPath(pathRoot), StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidQaConfigurationException(
-                $"QA instance root '{fullRoot}' cannot be a drive or filesystem root.");
-        }
+        RejectDriveRoot(fullRoot, rawRoot);
 
         if (File.Exists(fullRoot))
         {
@@ -533,12 +656,48 @@ public sealed class CbosInstanceScope
                 $"QA instance root '{fullRoot}' points to an existing file rather than a directory.");
         }
 
-        RejectForbiddenSharedOverlap(fullRoot, commonAppData, localAppData);
+        RejectForbiddenSharedOverlap(fullRoot, commonAppData, localAppData, isCloventDirsAlready: false);
+
+        var resolvedRoot = ResolveRealPathIncludingReparseAncestors(fullRoot, "instance root");
+        RejectDriveRoot(resolvedRoot, rawRoot);
+        if (File.Exists(resolvedRoot))
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA instance root '{fullRoot}' resolves to an existing file '{resolvedRoot}' rather than a directory.");
+        }
+
+        RejectForbiddenSharedOverlap(resolvedRoot, commonAppData, localAppData, isCloventDirsAlready: false);
+
+        string? approvedServer = null;
+        string? approvedDatabase = null;
+        if (hasExplicitApprovedTargetInput)
+        {
+            (approvedServer, approvedDatabase) = ParseApprovedTargetPair(rawApprovedTarget!);
+        }
+        else
+        {
+            var approvedFile = Path.Combine(fullRoot, "Config", QaApprovedTargetFileName);
+            if (File.Exists(approvedFile))
+            {
+                (approvedServer, approvedDatabase) = ReadApprovedTargetFile(approvedFile);
+            }
+        }
 
         if (hasExplicitConnectionInput)
         {
             var (dataSource, databaseName) = ParseAndValidateConnectionString(rawConnectionString);
-            return new CbosInstanceScope(true, fullRoot, rawConnectionString!.Trim(), dataSource, databaseName, commonAppData, localAppData);
+            ValidateTargetApprovalCore(dataSource, databaseName, approvedServer, approvedDatabase);
+            return new CbosInstanceScope(
+                isQaMode: true,
+                qaInstanceRoot: fullRoot,
+                resolvedQaInstanceRoot: resolvedRoot,
+                explicitConnectionString: rawConnectionString!.Trim(),
+                dataSource: dataSource,
+                databaseName: databaseName,
+                approvedServer: approvedServer,
+                approvedDatabase: approvedDatabase,
+                commonAppDataRoot: commonAppData,
+                localAppDataRoot: localAppData);
         }
 
         // Support restarting an already-configured QA root ONLY when its own <QaRoot>\Config\database.config.json
@@ -552,7 +711,108 @@ public sealed class CbosInstanceScope
         }
 
         var (savedServer, savedDb) = ValidateSavedQaConfigFile(qaConfigFile);
-        return new CbosInstanceScope(true, fullRoot, null, savedServer, savedDb, commonAppData, localAppData);
+        ValidateTargetApprovalCore(savedServer, savedDb, approvedServer, approvedDatabase);
+        return new CbosInstanceScope(
+            isQaMode: true,
+            qaInstanceRoot: fullRoot,
+            resolvedQaInstanceRoot: resolvedRoot,
+            explicitConnectionString: null,
+            dataSource: savedServer,
+            databaseName: savedDb,
+            approvedServer: approvedServer,
+            approvedDatabase: approvedDatabase,
+            commonAppDataRoot: commonAppData,
+            localAppDataRoot: localAppData);
+    }
+
+    private static void RejectDriveRoot(string normalizedPath, string rawInput)
+    {
+        var pathRoot = Path.GetPathRoot(normalizedPath);
+        if (!string.IsNullOrWhiteSpace(pathRoot) &&
+            string.Equals(normalizedPath, NormalizeDirectoryPath(pathRoot), StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA instance root '{rawInput}' (resolved '{normalizedPath}') cannot be a drive or filesystem root.");
+        }
+    }
+
+    private static (string Server, string Database) ParseApprovedTargetPair(string rawPair)
+    {
+        if (string.IsNullOrWhiteSpace(rawPair))
+        {
+            throw new InvalidQaConfigurationException(
+                $"Approved QA target cannot be empty. Expected '<Server>|<Database>'.");
+        }
+
+        var parts = rawPair.Split('|', 2, StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            throw new InvalidQaConfigurationException(
+                $"Approved QA target '{rawPair}' must use the format '<Server>|<Database>'.");
+        }
+
+        ValidateQaCatalogName(parts[1]);
+        return (parts[0], parts[1]);
+    }
+
+    private static (string Server, string Database) ReadApprovedTargetFile(string approvedFilePath)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(approvedFilePath));
+            var root = doc.RootElement;
+            string? server = root.TryGetProperty("Server", out var serverProp) ? serverProp.GetString() : null;
+            string? database = root.TryGetProperty("Database", out var dbProp) ? dbProp.GetString() : null;
+
+            if (string.IsNullOrWhiteSpace(server))
+            {
+                throw new InvalidQaConfigurationException(
+                    $"Approved QA target file '{approvedFilePath}' must specify a non-empty 'Server'.");
+            }
+
+            ValidateQaCatalogName(database);
+            return (server.Trim(), database!.Trim());
+        }
+        catch (InvalidQaConfigurationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidQaConfigurationException(
+                $"Approved QA target file '{approvedFilePath}' is unreadable or invalid JSON: {ex.Message}", ex);
+        }
+    }
+
+    private static bool IsLocalDbDataSource(string dataSource) =>
+        dataSource.StartsWith("(localdb)\\", StringComparison.OrdinalIgnoreCase);
+
+    private static void ValidateTargetApprovalCore(
+        string dataSource,
+        string databaseName,
+        string? approvedServer,
+        string? approvedDatabase)
+    {
+        bool hasExplicitApproval = !string.IsNullOrWhiteSpace(approvedServer) && !string.IsNullOrWhiteSpace(approvedDatabase);
+        if (hasExplicitApproval)
+        {
+            if (!string.Equals(dataSource, approvedServer, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(databaseName, approvedDatabase, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidQaConfigurationException(
+                    $"QA SQL target '{dataSource}|{databaseName}' does not match the approved target '{approvedServer}|{approvedDatabase}'.");
+            }
+
+            return;
+        }
+
+        if (!IsLocalDbDataSource(dataSource))
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA SQL target '{dataSource}|{databaseName}' uses a non-LocalDB server without explicit approval. " +
+                $"Approve the target via '{QaApprovedTargetCliOption} \"{dataSource}|{databaseName}\"', " +
+                $"'{QaApprovedTargetEnvironmentVariable}', or '<QaRoot>\\Config\\{QaApprovedTargetFileName}'.");
+        }
     }
 
     private static (string DataSource, string DatabaseName) ValidateSavedQaConfigFile(string qaConfigFile)
@@ -570,14 +830,8 @@ public sealed class CbosInstanceScope
                     $"QA database config '{qaConfigFile}' does not contain a valid Server.");
             }
 
-            if (string.IsNullOrWhiteSpace(database) ||
-                string.Equals(database.Trim(), ForbiddenDefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidQaConfigurationException(
-                    $"QA database config '{qaConfigFile}' targets missing or forbidden database '{database}'.");
-            }
-
-            return (server.Trim(), database.Trim());
+            ValidateQaCatalogName(database);
+            return (server.Trim(), database!.Trim());
         }
         catch (InvalidQaConfigurationException)
         {
@@ -590,7 +844,7 @@ public sealed class CbosInstanceScope
         }
     }
 
-    /// <summary>Validates that a QA SQL Server connection string is well-formed and does not target the default production database.</summary>
+    /// <summary>Validates that a QA SQL Server connection string is well-formed and targets an allowed QA database.</summary>
     public static (string DataSource, string DatabaseName) ParseAndValidateConnectionString(string? connectionString)
     {
         if (string.IsNullOrWhiteSpace(connectionString))
@@ -616,18 +870,44 @@ public sealed class CbosInstanceScope
             throw new InvalidQaConfigurationException("QA SQL connection string must specify a Server / Data Source.");
         }
 
-        if (string.IsNullOrWhiteSpace(database))
+        ValidateQaCatalogName(database);
+        return (server.Trim(), database!.Trim());
+    }
+
+    private static void ValidateQaCatalogName(string? databaseName)
+    {
+        if (string.IsNullOrWhiteSpace(databaseName))
         {
-            throw new InvalidQaConfigurationException("QA SQL connection string must specify an explicit Database / Initial Catalog.");
+            throw new InvalidQaConfigurationException("QA mode requires an explicit non-empty SQL Database / Initial Catalog name.");
         }
 
-        if (string.Equals(database.Trim(), ForbiddenDefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
+        var trimmed = databaseName.Trim();
+        if (ForbiddenExactCatalogNames.Contains(trimmed) ||
+            trimmed.StartsWith(ForbiddenDefaultDatabaseName, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidQaConfigurationException(
-                $"QA mode refuses to target the default production database '{ForbiddenDefaultDatabaseName}'.");
+                $"QA mode refuses to target forbidden or production database catalog '{trimmed}'.");
         }
 
-        return (server.Trim(), database.Trim());
+        var tokens = trimmed.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
+        if (tokens.Any(t =>
+                string.Equals(t, "prod", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t, "production", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(t, "live", StringComparison.OrdinalIgnoreCase)) ||
+            trimmed.Contains("production", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA mode refuses to target production-named database catalog '{trimmed}'.");
+        }
+
+        bool hasAllowedPrefix = AllowedQaDatabasePrefixes.Any(
+            prefix => trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && trimmed.Length > prefix.Length);
+
+        if (!hasAllowedPrefix)
+        {
+            throw new InvalidQaConfigurationException(
+                $"QA database catalog '{trimmed}' must start with an explicit QA prefix ({string.Join(", ", AllowedQaDatabasePrefixes)}) so arbitrary or production databases cannot be opened implicitly.");
+        }
     }
 
     private static string? ExtractValue(DbConnectionStringBuilder builder, params string[] keys)
@@ -646,16 +926,22 @@ public sealed class CbosInstanceScope
         return null;
     }
 
-    private static void RejectForbiddenSharedOverlap(string fullRoot, string commonAppData, string localAppData)
+    private static void RejectForbiddenSharedOverlap(
+        string fullRoot,
+        string commonAppDataOrClovent,
+        string localAppDataOrClovent,
+        bool isCloventDirsAlready)
     {
         var forbiddenPrefixes = new List<string>();
-        if (!string.IsNullOrWhiteSpace(commonAppData))
+        if (!string.IsNullOrWhiteSpace(commonAppDataOrClovent))
         {
-            forbiddenPrefixes.Add(NormalizeDirectoryPath(Path.Combine(commonAppData, "Clovent")));
+            var dir = isCloventDirsAlready ? commonAppDataOrClovent : Path.Combine(commonAppDataOrClovent, "Clovent");
+            forbiddenPrefixes.Add(NormalizeDirectoryPath(dir));
         }
-        if (!string.IsNullOrWhiteSpace(localAppData))
+        if (!string.IsNullOrWhiteSpace(localAppDataOrClovent))
         {
-            forbiddenPrefixes.Add(NormalizeDirectoryPath(Path.Combine(localAppData, "Clovent")));
+            var dir = isCloventDirsAlready ? localAppDataOrClovent : Path.Combine(localAppDataOrClovent, "Clovent");
+            forbiddenPrefixes.Add(NormalizeDirectoryPath(dir));
         }
 
         var winDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
@@ -679,6 +965,105 @@ public sealed class CbosInstanceScope
                     $"QA instance root '{fullRoot}' overlaps shared system/production directory '{forbidden}'. Choose a dedicated isolated directory.");
             }
         }
+    }
+
+    private static string ResolveRealPathIncludingReparseAncestors(string candidatePath, string purpose)
+    {
+        var currentPath = NormalizeDirectoryPath(candidatePath);
+
+        for (int hops = 0; hops < 8; hops++)
+        {
+            var pathRoot = Path.GetPathRoot(currentPath);
+            if (string.IsNullOrWhiteSpace(pathRoot))
+            {
+                throw new InvalidQaConfigurationException($"QA {purpose} path '{candidatePath}' has no root.");
+            }
+
+            var relative = Path.GetRelativePath(pathRoot, currentPath);
+            if (relative == ".")
+            {
+                return currentPath;
+            }
+
+            var segments = relative.Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+
+            var probe = pathRoot;
+            bool redirected = false;
+
+            for (int i = 0; i < segments.Length; i++)
+            {
+                probe = Path.Combine(probe, segments[i]);
+
+                FileAttributes attrs;
+                try
+                {
+                    attrs = File.GetAttributes(probe);
+                }
+                catch (FileNotFoundException)
+                {
+                    break;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    break;
+                }
+                catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+                {
+                    throw new InvalidQaConfigurationException(
+                        $"QA {purpose} path '{candidatePath}' failed filesystem attribute inspection at '{probe}': {ex.Message}",
+                        ex);
+                }
+
+                if ((attrs & FileAttributes.ReparsePoint) != 0)
+                {
+                    FileSystemInfo info = (attrs & FileAttributes.Directory) != 0
+                        ? new DirectoryInfo(probe)
+                        : new FileInfo(probe);
+
+                    string? targetPath = null;
+                    try
+                    {
+                        targetPath = info.ResolveLinkTarget(returnFinalTarget: true)?.FullName;
+                    }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FileNotFoundException or DirectoryNotFoundException)
+                    {
+                        targetPath = null;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(targetPath) && !string.IsNullOrWhiteSpace(info.LinkTarget))
+                    {
+                        var parent = Path.GetDirectoryName(probe) ?? pathRoot;
+                        targetPath = Path.IsPathFullyQualified(info.LinkTarget)
+                            ? info.LinkTarget
+                            : Path.Combine(parent, info.LinkTarget);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(targetPath))
+                    {
+                        throw new InvalidQaConfigurationException(
+                            $"QA {purpose} path '{candidatePath}' contains a reparse point at '{probe}' whose target could not be resolved.");
+                    }
+
+                    var remaining = segments.Skip(i + 1).ToArray();
+                    currentPath = NormalizeDirectoryPath(
+                        remaining.Length == 0
+                            ? targetPath
+                            : Path.Combine([targetPath, .. remaining]));
+                    redirected = true;
+                    break;
+                }
+            }
+
+            if (!redirected)
+            {
+                return currentPath;
+            }
+        }
+
+        throw new InvalidQaConfigurationException(
+            $"QA {purpose} path '{candidatePath}' exceeded reparse-point resolution depth.");
     }
 
     private static string NormalizeDirectoryPath(string path)
