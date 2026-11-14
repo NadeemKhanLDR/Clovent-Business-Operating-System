@@ -126,6 +126,16 @@ public sealed class QaInstallerPackagingTests
     }
 
     [Fact]
+    public void QaSetupScript_BlocksDestinationCollisionWithOperationalProductionDirectory()
+    {
+        // Must contain NextButtonClick check preventing user override to operational folder or registered install
+        Assert.Contains("NextButtonClick", _qaIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("wpSelectDir", _qaIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("{autopf}\\Clovent\\Business Operating System", _qaIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("{C107E47D-CB05-47F1-9BD7-A107CB052026}", _qaIssContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void QaLaunchScript_RequiresValidatedQaRootAndApprovedTarget()
     {
         var launchScript = File.ReadAllText(_qaLaunchCmdPath);
@@ -134,8 +144,15 @@ public sealed class QaInstallerPackagingTests
         Assert.Contains("--qa-root", launchScript, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("qa-target.approved.json", launchScript, StringComparison.OrdinalIgnoreCase);
 
+        // Ensures application contract environment variables are supported and cleared
+        Assert.Contains("CBOS_QA_INSTANCE_ROOT", launchScript, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CBOS_QA_CONNECTION_STRING=", launchScript, StringComparison.OrdinalIgnoreCase);
+
         // Ensures ambient production variables are cleared
         Assert.Contains("ConnectionStrings__Default=", launchScript, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ConnectionStrings__Restaurant=", launchScript, StringComparison.OrdinalIgnoreCase);
+
+        // Ensures empty approved target file is rejected
+        Assert.Contains("%%~zF", launchScript, StringComparison.OrdinalIgnoreCase);
     }
 }
