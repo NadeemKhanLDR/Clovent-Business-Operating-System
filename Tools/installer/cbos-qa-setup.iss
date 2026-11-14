@@ -93,9 +93,9 @@ begin
     // Invariant 1: Prevent choosing the operational production install folder
     if TargetDir = ForbiddenOperationalDir then
     begin
-      MsgBox('SAFETY COLLISION GUARD:' #13#10#13#10 +
-             'The internal QA installer cannot be installed into the operational production directory:' #13#10 +
-             ExpandConstant('{autopf}\Clovent\Business Operating System') #13#10#13#10 +
+      MsgBox('SAFETY COLLISION GUARD:' + #13#10#13#10 +
+             'The internal QA installer cannot be installed into the operational production directory:' + #13#10 +
+             ExpandConstant('{autopf}\Clovent\Business Operating System') + #13#10#13#10 +
              'Please choose an isolated QA destination directory.', mbCriticalError, MB_OK);
       Result := False;
       Exit;
@@ -107,9 +107,9 @@ begin
     begin
       if (RegInstallLoc <> '') and (TargetDir = Uppercase(RemoveBackslashUnlessRoot(RegInstallLoc))) then
       begin
-        MsgBox('SAFETY COLLISION GUARD:' #13#10#13#10 +
-               'An existing operational production installation is registered at:' #13#10 +
-               RegInstallLoc #13#10#13#10 +
+        MsgBox('SAFETY COLLISION GUARD:' + #13#10#13#10 +
+               'An existing operational production installation is registered at:' + #13#10 +
+               RegInstallLoc + #13#10#13#10 +
                'The QA variant cannot overwrite the registered operational installation.', mbCriticalError, MB_OK);
         Result := False;
         Exit;
