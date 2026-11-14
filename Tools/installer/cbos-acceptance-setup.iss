@@ -6,15 +6,16 @@
 ; Invariant Guarantees:
 ;   1. Distinct internal acceptance AppId, display name, and installation directory.
 ;   2. Prevents collision with or override into operational production directories (GUI and silent).
-;   3. SQL Server instance selection (existing instance or dedicated test instance).
-;   4. Default synthetic QA database (CBOS_QA_Acceptance) with strict rejection of operational targets (Clovent_BusinessOperatingSystem).
-;   5. Explicit user confirmation before creating database or applying migrations.
-;   6. Complete payload with self-contained .NET 10 win-x64 binaries, config templates, and provisioner.
-;   7. Offline vs online prerequisite transparency (clearly flags SQL Express download if chosen).
-;   8. Bounded execution timeouts and explicit exit code validation.
-;   9. Optional post-install application launch (unchecked by default).
-;  10. Preserves external configuration, licensing, journals, and databases on uninstall.
-;  11. Preserves normal First-Run Commissioning and evaluation licensing behavior without mock markers.
+;   3. SQL Server instance selection (existing instance or dedicated test instance .\CLOVENT_QA).
+;   4. Optional SSMS 20.2 installation with existing installation detection.
+;   5. Default synthetic QA database (CBOS_QA_Acceptance) with strict rejection of operational targets (Clovent_BusinessOperatingSystem).
+;   6. Explicit user confirmation before creating database or applying migrations.
+;   7. Complete offline payload with self-contained .NET 10 win-x64 binaries, provisioner, and Microsoft prerequisites.
+;   8. Dynamic disk space, 0 MB offline requirement, and deferred reboot notification.
+;   9. Bounded execution timeouts and explicit exit code validation.
+;  10. Optional post-install application launch (unchecked by default).
+;  11. Preserves external configuration, licensing, journals, and databases on uninstall.
+;  12. Preserves normal First-Run Commissioning and evaluation licensing behavior without mock markers.
 ; ==============================================================================
 
 #define MyAppName "Clovent Business Operating System (Internal Acceptance)"
@@ -28,6 +29,9 @@
 #endif
 #ifndef ProvisionerDir
   #define ProvisionerDir "..\Clovent.Installer.Provisioner\bin\publish"
+#endif
+#ifndef PrerequisitesDir
+  #define PrerequisitesDir "C:\CBOS_ManualQA_20261111\prerequisites_cache"
 #endif
 #ifndef OutputDir
   #define OutputDir "..\..\artifacts\installer"
@@ -45,7 +49,7 @@ AllowNoIcons=yes
 OutputDir={#OutputDir}
 OutputBaseFilename=Clovent.BusinessOperatingSystem-1.3.0-Acceptance-Setup
 UninstallDisplayIcon={app}\{#MyAppExeName}
-Compression=lzma2/max
+Compression=lzma2/normal
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -78,6 +82,15 @@ Source: "Launch-Acceptance.cmd"; DestDir: "{app}"; Flags: ignoreversion
 ; 4. Internal silent database provisioner CLI (Single-file win-x64 extracted to {tmp} and deleted on setup completion)
 Source: "{#ProvisionerDir}\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
 
+; 5. Offline Microsoft prerequisites (bundled when EmbedPrerequisites is defined)
+#ifdef EmbedPrerequisites
+Source: "{#PrerequisitesDir}\SQLEXPR_x64_ENU.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
+Source: "{#PrerequisitesDir}\SSMS-Setup-ENU.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
+Source: "{#PrerequisitesDir}\VC_redist.x64.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
+Source: "{#PrerequisitesDir}\VC_redist.x86.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
+Source: "{#PrerequisitesDir}\msoledbsql.msi"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
+#endif
+
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\Launch CBOS (Acceptance Mode)"; Filename: "{app}\Launch-Acceptance.cmd"; Parameters: """{code:GetEffectiveQaRoot}"""; IconFilename: "{app}\Resources\cbos.ico"
 Name: "{autoprograms}\{#MyAppName}\Support Diagnostics (Acceptance Mode)"; Filename: "{app}\Launch-Acceptance.cmd"; Parameters: """{code:GetEffectiveQaRoot}"" --diagnostics"; IconFilename: "{app}\Resources\cbos.ico"
@@ -97,15 +110,19 @@ var
   LblDatabase: TLabel;
   TxtDatabase: TEdit;
   ChkProvisionDb: TCheckBox;
-  LblNotice: TLabel;
+  ChkInstallSsms: TCheckBox;
+  LblRequirementsSummary: TLabel;
 
   DetectedSqlInstance: String;
   DetectedSqlServer: String;
+  DetectedExistingSsms: String;
   SelectedSqlServer: String;
   SelectedDatabase: String;
   ShouldInstallSqlExpress: Boolean;
+  ShouldInstallSsms: Boolean;
   ShouldProvisionDb: Boolean;
   IsUpgradeMode: Boolean;
+  RequiresReboot: Boolean;
 
 // Helper: Resolve effective QA root path
 function GetEffectiveQaRoot(Param: String): String;
@@ -124,6 +141,42 @@ begin
   TimeStamp := GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':');
   SaveStringToFile(LogFile, '[' + TimeStamp + '] ' + Msg + #13#10, True);
   Log(Msg);
+end;
+
+// Helper: Resolve prerequisite file path from delivery folder or embedded temporary extraction
+function ResolvePrerequisitePath(FileName: String): String;
+var
+  Candidate: String;
+begin
+  Candidate := ExpandConstant('{src}\prerequisites\' + FileName);
+  if FileExists(Candidate) then
+  begin
+    Result := Candidate;
+    Exit;
+  end;
+
+  Candidate := ExpandConstant('{src}\' + FileName);
+  if FileExists(Candidate) then
+  begin
+    Result := Candidate;
+    Exit;
+  end;
+
+  Candidate := ExpandConstant('{tmp}\prerequisites\' + FileName);
+  if FileExists(Candidate) then
+  begin
+    Result := Candidate;
+    Exit;
+  end;
+
+  Candidate := 'C:\CBOS_ManualQA_20261111\prerequisites_cache\' + FileName;
+  if FileExists(Candidate) then
+  begin
+    Result := Candidate;
+    Exit;
+  end;
+
+  Result := '';
 end;
 
 // Helper: Check if a Windows Service is running
@@ -289,13 +342,97 @@ begin
     Exit;
   end;
 
-  LogInstallerMessage('No running local SQL Server instance detected. Defaulting to (localdb)\MSSQLLocalDB or .\SQLEXPRESS.');
+  LogInstallerMessage('No running local SQL Server instance detected. Defaulting to .\SQLEXPRESS.');
   DetectedSqlServer := '.\SQLEXPRESS';
   Result := False;
 end;
 
-// Event handler for radio button toggles
-procedure OnSqlOptionChanged(Sender: TObject);
+// Detect existing SSMS installation
+function DetectExistingSsms(var SsmsDisplay: String): Boolean;
+var
+  AppPath: String;
+begin
+  Result := False;
+  SsmsDisplay := '';
+
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Ssms.exe', '', AppPath) then
+  begin
+    if FileExists(AppPath) then
+    begin
+      SsmsDisplay := AppPath;
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  AppPath := ExpandConstant('{pf32}\Microsoft SQL Server Management Studio 20\Common7\IDE\Ssms.exe');
+  if FileExists(AppPath) then
+  begin
+    SsmsDisplay := 'SSMS 20 (' + AppPath + ')';
+    Result := True;
+    Exit;
+  end;
+
+  AppPath := ExpandConstant('{pf32}\Microsoft SQL Server Management Studio 19\Common7\IDE\Ssms.exe');
+  if FileExists(AppPath) then
+  begin
+    SsmsDisplay := 'SSMS 19 (' + AppPath + ')';
+    Result := True;
+    Exit;
+  end;
+
+  AppPath := ExpandConstant('{pf32}\Microsoft SQL Server Management Studio 18\Common7\IDE\Ssms.exe');
+  if FileExists(AppPath) then
+  begin
+    SsmsDisplay := 'SSMS 18 (' + AppPath + ')';
+    Result := True;
+    Exit;
+  end;
+end;
+
+// Detect if Visual C++ 2015-2022 x64 runtime is installed
+function IsVcRedistInstalled(): Boolean;
+var
+  Installed: Cardinal;
+begin
+  Result := False;
+  if RegQueryDWordValue(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\X64', 'Installed', Installed) then
+    Result := (Installed = 1);
+end;
+
+// Detect if Microsoft OLE DB Driver for SQL Server is installed
+function IsMsoledbsqlInstalled(): Boolean;
+begin
+  Result := RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\MSOLEDBSQL19') or
+            RegKeyExists(HKEY_CLASSES_ROOT, 'MSOLEDBSQL19') or
+            RegKeyExists(HKEY_LOCAL_MACHINE, 'SOFTWARE\Microsoft\MSOLEDBSQL') or
+            RegKeyExists(HKEY_CLASSES_ROOT, 'MSOLEDBSQL');
+end;
+
+// Update dynamic disk space, offline requirement, and reboot notices
+procedure UpdateRequirementsSummary();
+var
+  RequiredSpaceMB: Integer;
+  SummaryText: String;
+begin
+  RequiredSpaceMB := 300; // Base CBOS application
+
+  if RbInstallSql.Checked then
+    RequiredSpaceMB := RequiredSpaceMB + 1500;
+
+  if ChkInstallSsms.Checked then
+    RequiredSpaceMB := RequiredSpaceMB + 3500;
+
+  SummaryText := Format('Resource Requirements: Disk space ~%d MB | Network: 0 MB (100%% Offline Bundled Media)' + #13#10 + 'Execution: Elevated Admin Required | Reboot: Handled explicitly (Windows will NOT restart automatically)', [RequiredSpaceMB]);
+
+  if DetectedExistingSsms <> '' then
+    SummaryText := SummaryText + #13#10 + 'Detected existing SSMS: ' + DetectedExistingSsms;
+
+  LblRequirementsSummary.Caption := SummaryText;
+end;
+
+// Event handler for radio button and checkbox toggles
+procedure OnConfigurationOptionChanged(Sender: TObject);
 begin
   if RbExistingSql.Checked then
   begin
@@ -310,45 +447,47 @@ begin
     TxtServer.Text := '.\CLOVENT_QA';
     TxtServer.Enabled := False;
   end;
+
+  UpdateRequirementsSummary();
 end;
 
 // Create Custom Database & Provisioning Configuration Page
 procedure CreateDatabaseConfigWizardPage();
 begin
   DbConfigPage := CreateCustomPage(wpSelectDir,
-    'Database Configuration & Provisioning',
-    'Specify the target SQL Server instance and synthetic QA database for acceptance testing.');
+    'Database & Prerequisite Configuration',
+    'Configure the target SQL Server instance, synthetic QA database, and optional tooling.');
 
   RbExistingSql := TRadioButton.Create(DbConfigPage);
   RbExistingSql.Parent := DbConfigPage.Surface;
   RbExistingSql.Left := ScaleX(8);
-  RbExistingSql.Top := ScaleY(12);
+  RbExistingSql.Top := ScaleY(6);
   RbExistingSql.Width := ScaleX(400);
-  RbExistingSql.Height := ScaleY(20);
-  RbExistingSql.Caption := 'Use an existing Microsoft SQL Server instance (Recommended)';
+  RbExistingSql.Height := ScaleY(18);
+  RbExistingSql.Caption := 'Use an existing Microsoft SQL Server instance (Recommended if installed)';
   RbExistingSql.Checked := True;
-  RbExistingSql.OnClick := @OnSqlOptionChanged;
+  RbExistingSql.OnClick := @OnConfigurationOptionChanged;
 
   RbInstallSql := TRadioButton.Create(DbConfigPage);
   RbInstallSql.Parent := DbConfigPage.Surface;
   RbInstallSql.Left := ScaleX(8);
-  RbInstallSql.Top := ScaleY(36);
+  RbInstallSql.Top := ScaleY(26);
   RbInstallSql.Width := ScaleX(400);
-  RbInstallSql.Height := ScaleY(20);
+  RbInstallSql.Height := ScaleY(18);
   RbInstallSql.Caption := 'Install dedicated Microsoft SQL Server 2022 Express instance (.\CLOVENT_QA)';
   RbInstallSql.Checked := False;
-  RbInstallSql.OnClick := @OnSqlOptionChanged;
+  RbInstallSql.OnClick := @OnConfigurationOptionChanged;
 
   LblServer := TLabel.Create(DbConfigPage);
   LblServer.Parent := DbConfigPage.Surface;
   LblServer.Left := ScaleX(24);
-  LblServer.Top := ScaleY(68);
+  LblServer.Top := ScaleY(48);
   LblServer.Caption := 'Target SQL Server / Instance:';
 
   TxtServer := TEdit.Create(DbConfigPage);
   TxtServer.Parent := DbConfigPage.Surface;
   TxtServer.Left := ScaleX(24);
-  TxtServer.Top := ScaleY(86);
+  TxtServer.Top := ScaleY(64);
   TxtServer.Width := ScaleX(360);
   if DetectedSqlServer <> '' then
     TxtServer.Text := DetectedSqlServer
@@ -358,77 +497,197 @@ begin
   LblDatabase := TLabel.Create(DbConfigPage);
   LblDatabase.Parent := DbConfigPage.Surface;
   LblDatabase.Left := ScaleX(24);
-  LblDatabase.Top := ScaleY(118);
+  LblDatabase.Top := ScaleY(90);
   LblDatabase.Caption := 'Target Synthetic QA Database Catalog:';
 
   TxtDatabase := TEdit.Create(DbConfigPage);
   TxtDatabase.Parent := DbConfigPage.Surface;
   TxtDatabase.Left := ScaleX(24);
-  TxtDatabase.Top := ScaleY(136);
+  TxtDatabase.Top := ScaleY(106);
   TxtDatabase.Width := ScaleX(360);
   TxtDatabase.Text := 'CBOS_QA_Acceptance';
 
   ChkProvisionDb := TCheckBox.Create(DbConfigPage);
   ChkProvisionDb.Parent := DbConfigPage.Surface;
   ChkProvisionDb.Left := ScaleX(24);
-  ChkProvisionDb.Top := ScaleY(172);
+  ChkProvisionDb.Top := ScaleY(134);
   ChkProvisionDb.Width := ScaleX(400);
-  ChkProvisionDb.Height := ScaleY(20);
+  ChkProvisionDb.Height := ScaleY(18);
   ChkProvisionDb.Caption := 'Provision database schemas, apply EF migrations, and seed initial payment methods';
   ChkProvisionDb.Checked := True;
+  ChkProvisionDb.OnClick := @OnConfigurationOptionChanged;
 
-  LblNotice := TLabel.Create(DbConfigPage);
-  LblNotice.Parent := DbConfigPage.Surface;
-  LblNotice.Left := ScaleX(24);
-  LblNotice.Top := ScaleY(204);
-  LblNotice.Width := ScaleX(380);
-  LblNotice.Height := ScaleY(48);
-  LblNotice.WordWrap := True;
-  LblNotice.Font.Style := [fsItalic];
-  LblNotice.Caption := 'Safety Notice: Operational targets (Clovent_BusinessOperatingSystem) are strictly rejected. SQL Server Express requires download from official Microsoft CDN if not present locally.';
+  ChkInstallSsms := TCheckBox.Create(DbConfigPage);
+  ChkInstallSsms.Parent := DbConfigPage.Surface;
+  ChkInstallSsms.Left := ScaleX(24);
+  ChkInstallSsms.Top := ScaleY(154);
+  ChkInstallSsms.Width := ScaleX(400);
+  ChkInstallSsms.Height := ScaleY(18);
+  if DetectedExistingSsms <> '' then
+    ChkInstallSsms.Caption := 'Install Microsoft SQL Server Management Studio 20.2 (SSMS) [Existing detected]'
+  else
+    ChkInstallSsms.Caption := 'Install Microsoft SQL Server Management Studio 20.2 (SSMS) [Optional, offline]';
+  ChkInstallSsms.Checked := False;
+  ChkInstallSsms.OnClick := @OnConfigurationOptionChanged;
+
+  LblRequirementsSummary := TLabel.Create(DbConfigPage);
+  LblRequirementsSummary.Parent := DbConfigPage.Surface;
+  LblRequirementsSummary.Left := ScaleX(24);
+  LblRequirementsSummary.Top := ScaleY(178);
+  LblRequirementsSummary.Width := ScaleX(380);
+  LblRequirementsSummary.Height := ScaleY(56);
+  LblRequirementsSummary.WordWrap := True;
+  LblRequirementsSummary.Font.Style := [fsItalic];
+
+  UpdateRequirementsSummary();
 end;
 
-// Download and install SQL Server Express
-function InstallSqlServerExpress(): Boolean;
+// Install Microsoft Visual C++ 2015-2022 Redistributable
+function InstallVcRedist(): Boolean;
 var
-  SqlSetupPath, SqlParams, DownloadUrl, TempSqlExe: String;
+  VcExe, VcParams, LogDir, LogFile: String;
   ResultCode: Integer;
 begin
-  LogInstallerMessage('Initiating automatic SQL Server Express installation...');
-
-  SqlSetupPath := ExpandConstant('{src}\SQLEXPR_x64_ENU.exe');
-  if not FileExists(SqlSetupPath) then
-    SqlSetupPath := ExpandConstant('{src}\prerequisites\SQLEXPR_x64_ENU.exe');
-
-  if not FileExists(SqlSetupPath) then
+  if IsVcRedistInstalled() then
   begin
-    DownloadUrl := 'https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SQLEXPR_x64_ENU.exe';
-    TempSqlExe := ExpandConstant('{tmp}\SQLEXPR_x64_ENU.exe');
-    LogInstallerMessage('Downloading Microsoft SQL Server 2022 Express from official CDN: ' + DownloadUrl);
+    LogInstallerMessage('Visual C++ 2015-2022 x64 runtime already detected. Skipping installation.');
+    Result := True;
+    Exit;
+  end;
 
-    WizardForm.StatusLabel.Caption := 'Downloading Microsoft SQL Server 2022 Express...';
-    try
-      DownloadTemporaryFile(DownloadUrl, 'SQLEXPR_x64_ENU.exe', '', nil);
-      SqlSetupPath := TempSqlExe;
-      LogInstallerMessage('SQL Server Express downloaded successfully.');
-    except
-      LogInstallerMessage('ERROR: Failed to download SQL Server Express from Microsoft CDN: ' + GetExceptionMessage);
-      MsgBox('Failed to download Microsoft SQL Server Express installer.' + #13#10 +
-             'Please ensure an internet connection is available, or place SQLEXPR_x64_ENU.exe in the installer folder and run setup again.',
-             mbError, MB_OK);
-      Result := False;
-      Exit;
-    end;
+  VcExe := ResolvePrerequisitePath('VC_redist.x64.exe');
+  if VcExe = '' then
+  begin
+    LogInstallerMessage('ERROR: VC_redist.x64.exe was not found in prerequisites bundle.');
+    MsgBox('Microsoft Visual C++ Redistributable prerequisite was not found.' + #13#10 +
+           'Please verify the offline prerequisites folder or media.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  LogDir := ExpandConstant('{commonappdata}\CBOS_QA_Acceptance\Logs');
+  ForceDirectories(LogDir);
+  LogFile := LogDir + '\VC_redist_x64.log';
+
+  LogInstallerMessage('Installing Microsoft Visual C++ 2015-2022 Redistributable (x64): ' + VcExe);
+  WizardForm.StatusLabel.Caption := 'Installing Microsoft Visual C++ Redistributable...';
+
+  VcParams := '/install /quiet /norestart /log "' + LogFile + '"';
+  ResultCode := -1;
+  if not Exec(VcExe, VcParams, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    LogInstallerMessage('ERROR: Failed to launch VC_redist.x64.exe.');
+    Result := False;
+    Exit;
+  end;
+
+  LogInstallerMessage('VC_redist.x64.exe completed with exit code: ' + IntToStr(ResultCode));
+  if ResultCode = 3010 then
+  begin
+    LogInstallerMessage('VC_redist requested deferred system reboot (Exit code 3010).');
+    RequiresReboot := True;
+    Result := True;
+  end
+  else if (ResultCode = 0) or (ResultCode = 1638) then
+  begin
+    Result := True;
   end
   else
   begin
-    LogInstallerMessage('Using local offline SQL Server Express installer: ' + SqlSetupPath);
+    LogInstallerMessage('ERROR: VC_redist installation failed with exit code: ' + IntToStr(ResultCode));
+    MsgBox('Microsoft Visual C++ Redistributable installation failed (Exit code: ' + IntToStr(ResultCode) + ').' + #13#10 +
+           'Log file: ' + LogFile, mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
+// Install Microsoft OLE DB Driver 19 for SQL Server
+function InstallMsoledbsql(): Boolean;
+var
+  MsiPath, MsiParams, LogDir, LogFile: String;
+  ResultCode: Integer;
+begin
+  if IsMsoledbsqlInstalled() then
+  begin
+    LogInstallerMessage('Microsoft OLE DB Driver for SQL Server already detected. Skipping installation.');
+    Result := True;
+    Exit;
   end;
 
-  WizardForm.StatusLabel.Caption := 'Installing Microsoft SQL Server Express (Instance: CLOVENT_QA)...';
+  MsiPath := ResolvePrerequisitePath('msoledbsql.msi');
+  if MsiPath = '' then
+  begin
+    LogInstallerMessage('ERROR: msoledbsql.msi was not found in prerequisites bundle.');
+    MsgBox('Microsoft OLE DB Driver 19 prerequisite was not found.' + #13#10 +
+           'Please verify the offline prerequisites folder or media.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  LogDir := ExpandConstant('{commonappdata}\CBOS_QA_Acceptance\Logs');
+  ForceDirectories(LogDir);
+  LogFile := LogDir + '\msoledbsql_install.log';
+
+  LogInstallerMessage('Installing Microsoft OLE DB Driver 19 for SQL Server: ' + MsiPath);
+  WizardForm.StatusLabel.Caption := 'Installing Microsoft OLE DB Driver 19 for SQL Server...';
+
+  MsiParams := '/i "' + MsiPath + '" /quiet /norestart IACCEPTMSOLDBSQLLICENSETERMS=YES /l*v "' + LogFile + '"';
+  ResultCode := -1;
+  if not Exec('msiexec.exe', MsiParams, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    LogInstallerMessage('ERROR: Failed to launch msiexec for msoledbsql.msi.');
+    Result := False;
+    Exit;
+  end;
+
+  LogInstallerMessage('msoledbsql.msi completed with exit code: ' + IntToStr(ResultCode));
+  if ResultCode = 3010 then
+  begin
+    LogInstallerMessage('msoledbsql requested deferred system reboot (Exit code 3010).');
+    RequiresReboot := True;
+    Result := True;
+  end
+  else if (ResultCode = 0) or (ResultCode = 1638) then
+  begin
+    Result := True;
+  end
+  else
+  begin
+    LogInstallerMessage('ERROR: msoledbsql installation failed with exit code: ' + IntToStr(ResultCode));
+    MsgBox('Microsoft OLE DB Driver 19 installation failed (Exit code: ' + IntToStr(ResultCode) + ').' + #13#10 +
+           'Log file: ' + LogFile, mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
+// Install dedicated Microsoft SQL Server 2022 Express instance
+function InstallSqlServerExpress(): Boolean;
+var
+  SqlSetupPath, SqlParams, LogDir, LogFile: String;
+  ResultCode: Integer;
+begin
+  LogInstallerMessage('Initiating dedicated Microsoft SQL Server 2022 Express installation...');
+
+  SqlSetupPath := ResolvePrerequisitePath('SQLEXPR_x64_ENU.exe');
+  if SqlSetupPath = '' then
+  begin
+    LogInstallerMessage('ERROR: SQLEXPR_x64_ENU.exe was not found in prerequisites bundle.');
+    MsgBox('Microsoft SQL Server 2022 Express installation media was not found.' + #13#10 +
+           'Please verify that SQLEXPR_x64_ENU.exe is present in the prerequisites directory or embedded payload.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  LogDir := ExpandConstant('{commonappdata}\CBOS_QA_Acceptance\Logs');
+  ForceDirectories(LogDir);
+  LogFile := LogDir + '\sqlexpress-setup.log';
+
+  LogInstallerMessage('Using offline SQL Server Express installer: ' + SqlSetupPath);
+  WizardForm.StatusLabel.Caption := 'Installing Microsoft SQL Server 2022 Express (Instance: CLOVENT_QA)...';
+
   SqlParams := '/QS /ACTION=Install /FEATURES=SQLEngine /INSTANCENAME=CLOVENT_QA ' +
                '/SQLSVCSTARTUPTYPE=Automatic /SQLSYSADMINACCOUNTS="BUILTIN\Administrators" ' +
-               '/TCPENABLED=0 /NPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS';
+               '/TCPENABLED=0 /NPENABLED=1 /IACCEPTSQLSERVERLICENSETERMS /UPDATEENABLED=0';
 
   LogInstallerMessage('Executing SQL Server Express setup: ' + SqlSetupPath + ' ' + SqlParams);
   ResultCode := -1;
@@ -440,7 +699,12 @@ begin
   end;
 
   LogInstallerMessage('SQL Server setup process completed with exit code: ' + IntToStr(ResultCode));
-  if (ResultCode <> 0) and (ResultCode <> 3010) then
+  if ResultCode = 3010 then
+  begin
+    LogInstallerMessage('SQL Server setup requested deferred reboot (Exit code: 3010).');
+    RequiresReboot := True;
+  end
+  else if ResultCode <> 0 then
   begin
     LogInstallerMessage('ERROR: SQL Server Express setup reported failure code: ' + IntToStr(ResultCode));
     MsgBox('Microsoft SQL Server Express installation failed (Exit code: ' + IntToStr(ResultCode) + ').' + #13#10 +
@@ -460,6 +724,63 @@ begin
   SelectedSqlServer := '.\CLOVENT_QA';
   LogInstallerMessage('SQL Server Express installed and verified on ' + SelectedSqlServer);
   Result := True;
+end;
+
+// Install Microsoft SQL Server Management Studio 20.2
+function InstallSsms(): Boolean;
+var
+  SsmsExe, SsmsParams, LogDir, LogFile: String;
+  ResultCode: Integer;
+begin
+  LogInstallerMessage('Initiating SQL Server Management Studio (SSMS) installation...');
+
+  SsmsExe := ResolvePrerequisitePath('SSMS-Setup-ENU.exe');
+  if SsmsExe = '' then
+  begin
+    LogInstallerMessage('ERROR: SSMS-Setup-ENU.exe was not found in prerequisites bundle.');
+    MsgBox('Microsoft SQL Server Management Studio setup media was not found.' + #13#10 +
+           'Please verify that SSMS-Setup-ENU.exe is present in the prerequisites directory or embedded payload.', mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  LogDir := ExpandConstant('{commonappdata}\CBOS_QA_Acceptance\Logs');
+  ForceDirectories(LogDir);
+  LogFile := LogDir + '\ssms-setup.log';
+
+  LogInstallerMessage('Using offline SSMS installer: ' + SsmsExe);
+  WizardForm.StatusLabel.Caption := 'Installing Microsoft SQL Server Management Studio 20.2...';
+
+  SsmsParams := '/install /quiet /norestart /log "' + LogFile + '"';
+
+  LogInstallerMessage('Executing SSMS setup: ' + SsmsExe + ' ' + SsmsParams);
+  ResultCode := -1;
+  if not Exec(SsmsExe, SsmsParams, '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+  begin
+    LogInstallerMessage('ERROR: Failed to launch SSMS setup executable.');
+    Result := False;
+    Exit;
+  end;
+
+  LogInstallerMessage('SSMS setup process completed with exit code: ' + IntToStr(ResultCode));
+  if ResultCode = 3010 then
+  begin
+    LogInstallerMessage('SSMS setup requested deferred reboot (Exit code: 3010).');
+    RequiresReboot := True;
+    Result := True;
+  end
+  else if (ResultCode = 0) or (ResultCode = 1638) then
+  begin
+    LogInstallerMessage('SSMS setup completed successfully.');
+    Result := True;
+  end
+  else
+  begin
+    LogInstallerMessage('ERROR: SSMS setup reported failure code: ' + IntToStr(ResultCode));
+    MsgBox('Microsoft SQL Server Management Studio installation failed (Exit code: ' + IntToStr(ResultCode) + ').' + #13#10 +
+           'Log file: ' + LogFile, mbError, MB_OK);
+    Result := False;
+  end;
 end;
 
 // Provision synthetic QA database using Clovent.Installer.Provisioner.exe
@@ -541,6 +862,11 @@ begin
   Result := True;
 end;
 
+function NeedRestart(): Boolean;
+begin
+  Result := RequiresReboot;
+end;
+
 function InitializeSetup(): Boolean;
 var
   PrevVersion: String;
@@ -564,6 +890,7 @@ begin
   end;
 
   DetectLocalSqlServer();
+  DetectExistingSsms(DetectedExistingSsms);
 
   Result := True;
 end;
@@ -675,6 +1002,7 @@ begin
     SelectedSqlServer := Trim(TxtServer.Text);
     SelectedDatabase := Trim(TxtDatabase.Text);
     ShouldInstallSqlExpress := RbInstallSql.Checked;
+    ShouldInstallSsms := ChkInstallSsms.Checked;
     ShouldProvisionDb := ChkProvisionDb.Checked;
   end;
 end;
@@ -698,13 +1026,23 @@ begin
     S := S + Space + 'Provisioning Action: Skip automatic provisioning (Manual setup required)' + NewLine;
   S := S + NewLine;
 
-  S := S + 'Prerequisite Inventory:' + NewLine;
+  S := S + 'Prerequisite Inventory (100% Offline Bundled):' + NewLine;
   S := S + Space + '- .NET 10.0.13 Runtime: Bundled offline (Self-contained win-x64)' + NewLine;
   S := S + Space + '- Database Provisioner: Bundled offline (Single-file CLI)' + NewLine;
   if ShouldInstallSqlExpress then
-    S := S + Space + '- Microsoft SQL Server Express: Will be downloaded from official Microsoft CDN' + NewLine
+    S := S + Space + '- Microsoft SQL Server 2022 Express: Offline bundled media (SQLEXPR_x64_ENU.exe, 279 MB)' + NewLine
   else
     S := S + Space + '- Microsoft SQL Server Express: Using existing instance (' + SelectedSqlServer + ')' + NewLine;
+
+  if ShouldInstallSsms then
+    S := S + Space + '- Microsoft SSMS 20.2: Offline bundled standalone setup (SSMS-Setup-ENU.exe, 495 MB)' + NewLine
+  else if DetectedExistingSsms <> '' then
+    S := S + Space + '- Microsoft SSMS: Existing detected (' + DetectedExistingSsms + ')' + NewLine
+  else
+    S := S + Space + '- Microsoft SSMS: Not selected for installation' + NewLine;
+
+  S := S + Space + '- Visual C++ 2015-2022 / OLE DB Driver 19: Offline bundled prerequisites' + NewLine;
+  S := S + Space + '- Internet Requirements: 0 MB (No internet access required during installation)' + NewLine;
 
   Result := S;
 end;
@@ -726,13 +1064,31 @@ begin
                      ExpandConstant('{autopf}\Clovent\Business Operating System'));
     end;
 
+    // Prerequisite execution in documented order:
+    // 1. Visual C++ Redistributable & OLE DB Driver (if SQL Express or SSMS is being installed)
+    if ShouldInstallSqlExpress or ShouldInstallSsms then
+    begin
+      if not InstallVcRedist() then
+        RaiseException('Setup cannot continue because Visual C++ prerequisite installation failed.');
+
+      if not InstallMsoledbsql() then
+        RaiseException('Setup cannot continue because OLE DB Driver prerequisite installation failed.');
+    end;
+
+    // 2. Microsoft SQL Server 2022 Express (if selected)
     if ShouldInstallSqlExpress then
     begin
       if not InstallSqlServerExpress() then
-      begin
         RaiseException('Setup cannot continue because SQL Server Express installation failed.');
-      end;
       ShouldInstallSqlExpress := False;
+    end;
+
+    // 3. Microsoft SQL Server Management Studio 20.2 (if selected)
+    if ShouldInstallSsms then
+    begin
+      if not InstallSsms() then
+        RaiseException('Setup cannot continue because SQL Server Management Studio installation failed.');
+      ShouldInstallSsms := False;
     end;
   end
   else if CurStep = ssPostInstall then
@@ -742,9 +1098,7 @@ begin
     if ShouldProvisionDb then
     begin
       if not ProvisionDatabase() then
-      begin
         RaiseException('Setup cannot continue because database provisioning failed.');
-      end;
     end
     else
     begin
@@ -761,5 +1115,7 @@ begin
   begin
     LogInstallerMessage('Uninstaller removed application binaries and shortcuts.');
     LogInstallerMessage('Preserved: Synthetic database [' + SelectedDatabase + '] and %ProgramData%\CBOS_QA_Acceptance configurations remain intact.');
+    LogInstallerMessage('Preserved: Microsoft SQL Server and SSMS installations are system components and remain intact.');
+    LogInstallerMessage('Notice: To remove SQL Server or SSMS, use Windows Settings -> Installed apps -> Microsoft SQL Server 2022 / Microsoft SQL Server Management Studio.');
   end;
 end;

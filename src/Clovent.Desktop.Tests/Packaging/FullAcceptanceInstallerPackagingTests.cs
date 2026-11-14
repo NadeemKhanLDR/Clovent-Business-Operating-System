@@ -188,4 +188,59 @@ public sealed class FullAcceptanceInstallerPackagingTests
         Assert.Contains("QaApprovedTargetFileName", provContent, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("approvedData", provContent, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void AcceptanceSetupScript_IncludesSqlAndSsmsOptions_AndDetectsExistingComponents()
+    {
+        // SQL Server Express offline media and detection
+        Assert.Contains("SQLEXPR_x64_ENU.exe", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DetectLocalSqlServer", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CLOVENT_QA", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+
+        // SSMS standalone setup and existing installation detection
+        Assert.Contains("SSMS-Setup-ENU.exe", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("DetectExistingSsms", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ChkInstallSsms", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InstallSsms", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+
+        // Visual C++ and OLE DB prerequisites
+        Assert.Contains("VC_redist.x64.exe", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("msoledbsql.msi", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InstallVcRedist", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InstallMsoledbsql", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AcceptanceSetupScript_DisplaysResourceRequirements_AndOfflineStatus()
+    {
+        Assert.Contains("UpdateRequirementsSummary", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("100% Offline", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("0 MB", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Elevated Admin Required", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Windows will NOT restart automatically", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AcceptanceSetupScript_CapturesPrerequisiteLogsAndExitCodes_WithRebootHandling()
+    {
+        // Individual prerequisite logs
+        Assert.Contains("sqlexpress-setup.log", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ssms-setup.log", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("VC_redist_x64.log", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("msoledbsql_install.log", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+
+        // Bounded exit codes and reboot handling without automatic restart
+        Assert.Contains("NeedRestart", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("RequiresReboot", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("3010", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1638", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AcceptanceSetupScript_PreservesSqlAndSsmsOnUninstall()
+    {
+        Assert.Contains("CurUninstallStepChanged", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Microsoft SQL Server and SSMS installations are system components and remain intact", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Installed apps", _acceptanceIssContent, StringComparison.OrdinalIgnoreCase);
+    }
 }
