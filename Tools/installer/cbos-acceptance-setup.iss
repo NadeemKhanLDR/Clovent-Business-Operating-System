@@ -491,8 +491,7 @@ begin
     Exit;
   end;
 
-  ProvParams := Format('--server "%s" --database "%s" --auth windows --provision --qa-root "%s" --log-file "%s"',
-                       [SelectedSqlServer, SelectedDatabase, QaRoot, ProvLog]);
+  ProvParams := Format('--server "%s" --database "%s" --auth windows --provision --qa-root "%s" --log-file "%s"', [SelectedSqlServer, SelectedDatabase, QaRoot, ProvLog]);
 
   LogInstallerMessage('Running: ' + ProvExe + ' ' + ProvParams);
   ResultCode := -1;
@@ -697,7 +696,7 @@ begin
     S := S + Space + 'Provisioning Action: Create database schemas, apply EF migrations, seed payment methods' + NewLine
   else
     S := S + Space + 'Provisioning Action: Skip automatic provisioning (Manual setup required)' + NewLine;
-  NewLine;
+  S := S + NewLine;
 
   S := S + 'Prerequisite Inventory:' + NewLine;
   S := S + Space + '- .NET 10.0.13 Runtime: Bundled offline (Self-contained win-x64)' + NewLine;
