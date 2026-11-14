@@ -30,7 +30,9 @@ public static class Program
         string? Password,
         string? LogFilePath,
         bool VerifyOnly,
-        bool Provision);
+        bool Provision,
+        string? QaRoot,
+        bool QaMode);
 
     public static bool TryParseArguments(
         string[]? args,
@@ -45,7 +47,9 @@ public static class Program
             null,
             null,
             false,
-            true);
+            true,
+            null,
+            false);
         errorMessage = null;
 
         if (args is null)
@@ -62,6 +66,8 @@ public static class Program
         string? logFilePath = null;
         bool verifyOnly = false;
         bool provision = false;
+        string? qaRoot = null;
+        bool qaMode = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -157,9 +163,41 @@ public static class Program
             {
                 provision = true;
             }
+            else if (string.Equals(arg, "--qa-root", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --qa-root.";
+                    return false;
+                }
+                qaRoot = args[++i];
+                qaMode = true;
+            }
+            else if (string.Equals(arg, "--qa-mode", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "--qa", StringComparison.OrdinalIgnoreCase))
+            {
+                qaMode = true;
+            }
             else
             {
                 errorMessage = $"Unrecognized command-line argument '{arg}'.";
+                return false;
+            }
+        }
+
+        if (qaMode || !string.IsNullOrWhiteSpace(qaRoot))
+        {
+            if (string.Equals(database, DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase) ||
+                database.StartsWith(DatabaseConnectionSettings.DefaultDatabaseName, StringComparison.OrdinalIgnoreCase) ||
+                database.Contains("production", StringComparison.OrdinalIgnoreCase))
+            {
+                errorMessage = $"Operational database target '{database}' is rejected in QA acceptance mode. Specify a synthetic QA database (e.g. CBOS_QA_Acceptance).";
+                return false;
+            }
+
+            var tokens = database.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Any(t => string.Equals(t, "prod", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "production", StringComparison.OrdinalIgnoreCase) || string.Equals(t, "live", StringComparison.OrdinalIgnoreCase)))
+            {
+                errorMessage = $"Operational database target '{database}' is rejected in QA acceptance mode. Specify a synthetic QA database (e.g. CBOS_QA_Acceptance).";
                 return false;
             }
         }
@@ -195,7 +233,9 @@ public static class Program
             password,
             logFilePath,
             verifyOnly,
-            provision);
+            provision,
+            qaRoot,
+            qaMode);
         return true;
     }
 
@@ -215,16 +255,41 @@ public static class Program
         string? logFilePath = parsedArgs.LogFilePath;
         bool verifyOnly = parsedArgs.VerifyOnly;
         bool provision = parsedArgs.Provision;
+        string? qaRoot = parsedArgs.QaRoot;
+        bool qaMode = parsedArgs.QaMode;
+
+        // Initialize QA instance scope if qaRoot is specified
+        if (!string.IsNullOrWhiteSpace(qaRoot))
+        {
+            try
+            {
+                Clovent.Platform.Configuration.CbosInstanceScope.InitializeFromStartup(["--qa-root", qaRoot]);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[ERROR] Failed to initialize QA instance scope at '{qaRoot}': {ex.Message}");
+                return ExitCodeInvalidArguments;
+            }
+        }
 
         // Initialize logging
         if (string.IsNullOrWhiteSpace(logFilePath))
         {
             try
             {
-                var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
-                var logDir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "Logs");
-                Directory.CreateDirectory(logDir);
-                logFilePath = Path.Combine(logDir, "installer-provisioning.log");
+                if (!string.IsNullOrWhiteSpace(qaRoot))
+                {
+                    var logDir = Path.Combine(qaRoot, "Logs");
+                    Directory.CreateDirectory(logDir);
+                    logFilePath = Path.Combine(logDir, "installer-provisioning.log");
+                }
+                else
+                {
+                    var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+                    var logDir = Path.Combine(programData, "Clovent", "BusinessOperatingSystem", "Logs");
+                    Directory.CreateDirectory(logDir);
+                    logFilePath = Path.Combine(logDir, "installer-provisioning.log");
+                }
             }
             catch
             {
@@ -258,6 +323,7 @@ public static class Program
         Log("================================================================================");
         Log("CLOVENT BUSINESS OPERATING SYSTEM - INSTALLER DATABASE PROVISIONER");
         Log($"Mode: {(verifyOnly ? "Verify Only" : "Full Provisioning")}");
+        Log($"QA Mode: {(qaMode ? $"Enabled (QA Root: {qaRoot ?? "N/A"})" : "Disabled (Production/Shared)")}");
         Log($"Target Server: {server}");
         Log($"Target Database: {database}");
         Log($"Auth Mode: {(useWindowsAuth ? "Windows Authentication (Integrated)" : $"SQL Server Authentication (User: {userId})")}");
@@ -265,15 +331,27 @@ public static class Program
 
         try
         {
-            // 1. Configure ProgramData directory tree and ACLs
-            Log("Configuring Windows directory security and ACLs for %ProgramData%...");
-            if (ProgramDataAclManager.ConfigureDirectorySecurity(out var aclError))
+            // 1. Directory Tree Security Initialization
+            if (!string.IsNullOrWhiteSpace(qaRoot))
             {
-                Log("Protected directory tree and ACLs successfully initialized.");
+                Log($"Initializing isolated QA directories under '{qaRoot}'...");
+                Directory.CreateDirectory(Path.Combine(qaRoot, "Config"));
+                Directory.CreateDirectory(Path.Combine(qaRoot, "Logs"));
+                Directory.CreateDirectory(Path.Combine(qaRoot, "State"));
+                Directory.CreateDirectory(Path.Combine(qaRoot, "License"));
+                Log("QA directories initialized successfully.");
             }
             else
             {
-                Log($"Warning: Could not configure directory ACLs: {aclError}");
+                Log("Configuring Windows directory security and ACLs for %ProgramData%...");
+                if (ProgramDataAclManager.ConfigureDirectorySecurity(out var aclError))
+                {
+                    Log("Protected directory tree and ACLs successfully initialized.");
+                }
+                else
+                {
+                    Log($"Warning: Could not configure directory ACLs: {aclError}");
+                }
             }
 
             // 2. Build Connection Settings
@@ -406,13 +484,28 @@ public static class Program
                 Log($"Warning during payment methods verification: {pmEx.Message}");
             }
 
-            // 7. Persist Machine-Level Connection Configuration (DPAPI encrypted)
-            Log("Persisting machine-level database configuration in %ProgramData%...");
-            DatabaseSecretStore.Save(settings, machineLevel: true);
-            var effectiveConfigPath = File.Exists(DatabaseSecretStore.GetMachineConfigFilePath())
-                ? DatabaseSecretStore.GetMachineConfigFilePath()
-                : DatabaseSecretStore.GetUserConfigFilePath();
-            Log($"Database configuration saved successfully to {effectiveConfigPath}.");
+            // 7. Persist Connection Configuration (DPAPI encrypted)
+            if (!string.IsNullOrWhiteSpace(qaRoot))
+            {
+                Log($"Persisting QA database configuration inside QA root: {qaRoot}...");
+                DatabaseSecretStore.Save(settings, machineLevel: true);
+                var effectiveConfigPath = DatabaseSecretStore.GetMachineConfigFilePath();
+                Log($"Database configuration saved successfully to {effectiveConfigPath}.");
+
+                var approvedTargetFile = Path.Combine(qaRoot, "Config", Clovent.Platform.Configuration.CbosInstanceScope.QaApprovedTargetFileName);
+                var approvedData = new { Server = server, Database = database };
+                File.WriteAllText(approvedTargetFile, System.Text.Json.JsonSerializer.Serialize(approvedData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                Log($"Approved QA target pin written to {approvedTargetFile}.");
+            }
+            else
+            {
+                Log("Persisting machine-level database configuration in %ProgramData%...");
+                DatabaseSecretStore.Save(settings, machineLevel: true);
+                var effectiveConfigPath = File.Exists(DatabaseSecretStore.GetMachineConfigFilePath())
+                    ? DatabaseSecretStore.GetMachineConfigFilePath()
+                    : DatabaseSecretStore.GetUserConfigFilePath();
+                Log($"Database configuration saved successfully to {effectiveConfigPath}.");
+            }
 
             // 8. Validate Schema Compatibility Final Gate
             Log("Executing final database compatibility validation...");
