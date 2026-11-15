@@ -89,8 +89,8 @@ Source: "templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recurses
 ; 3. Internal silent database provisioner CLI (Single-file win-x64 extracted to {tmp} and deleted on setup completion)
 Source: "{#ProvisionerDir}\Clovent.Installer.Provisioner.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall ignoreversion
 
-; 4. Embedded Offline Microsoft Prerequisites (when EmbedPrerequisites == 1)
-#if EmbedPrerequisites == 1
+; 4. Embedded Offline Microsoft Prerequisites (when EmbedPrerequisites is defined)
+#ifdef EmbedPrerequisites
 Source: "{#PrerequisitesDir}\SQLEXPR_x64_ENU.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
 Source: "{#PrerequisitesDir}\SSMS-Setup-ENU.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
 Source: "{#PrerequisitesDir}\VC_redist.x64.exe"; DestDir: "{tmp}\prerequisites"; Flags: deleteafterinstall ignoreversion
@@ -891,8 +891,7 @@ begin
   else
     AuthCreds := '';
 
-  ProvParams := Format('--server "%s" --database "%s" --auth %s %s --backup-before-migration --log-file "%s" --provision',
-    [SelectedSqlServer, SelectedDatabase, SelectedAuthMode, AuthCreds, ProvLog]);
+  ProvParams := Format('--server "%s" --database "%s" --auth %s %s --backup-before-migration --log-file "%s" --provision', [SelectedSqlServer, SelectedDatabase, SelectedAuthMode, AuthCreds, ProvLog]);
 
   LogInstallerMessage('Running database provisioner with verified pre-migration backup enabled.');
   ResultCode := -1;
