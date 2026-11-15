@@ -549,7 +549,8 @@ begin
   LblPassword.Caption := 'SQL Login Password:';
   LblPassword.Enabled := False;
 
-  TxtPassword := TPasswordEdit.Create(DbConfigPage);
+  TxtPassword := TEdit.Create(DbConfigPage);
+  TxtPassword.PasswordChar := '*';
   TxtPassword.Parent := DbConfigPage.Surface;
   TxtPassword.Left := ScaleX(150);
   TxtPassword.Top := ScaleY(147);
