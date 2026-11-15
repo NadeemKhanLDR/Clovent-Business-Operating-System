@@ -145,6 +145,15 @@ begin
   Result := RequiresReboot;
 end;
 
+// Helper: Convert boolean to string for logging
+function BooleanToStr(B: Boolean): String;
+begin
+  if B then
+    Result := 'True'
+  else
+    Result := 'False';
+end;
+
 // Helper: Append line to installer log file in %ProgramData%\Clovent\BusinessOperatingSystem\Logs
 procedure LogInstallerMessage(Msg: String);
 var
@@ -1013,11 +1022,11 @@ begin
     end;
 
     LogInstallerMessage('Operator configured database settings:');
-    LogInstallerMessage('  Install SQL Server Express: ' + BoolToStr(ShouldInstallSqlExpress));
+    LogInstallerMessage('  Install SQL Server Express: ' + BooleanToStr(ShouldInstallSqlExpress));
     LogInstallerMessage('  Target SQL Server: ' + SelectedSqlServer);
     LogInstallerMessage('  Authentication: ' + SelectedAuthMode);
     LogInstallerMessage('  Target Database: ' + SelectedDatabase);
-    LogInstallerMessage('  Install SSMS: ' + BoolToStr(ShouldInstallSsms));
+    LogInstallerMessage('  Install SSMS: ' + BooleanToStr(ShouldInstallSsms));
   end
   else if CurPageID = wpReady then
   begin
