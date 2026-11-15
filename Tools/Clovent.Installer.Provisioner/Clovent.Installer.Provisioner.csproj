@@ -40,6 +40,8 @@
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseProvisioningService.cs" Link="Shared\DatabaseProvisioningService.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseProvisioningService.cs" Link="Shared\IDatabaseProvisioningService.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseErrorMasker.cs" Link="Shared\DatabaseErrorMasker.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseBackupService.cs" Link="Shared\DatabaseBackupService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseBackupService.cs" Link="Shared\IDatabaseBackupService.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseSchemaCompatibilityValidator.cs" Link="Shared\DatabaseSchemaCompatibilityValidator.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseSchemaCompatibilityValidator.cs" Link="Shared\IDatabaseSchemaCompatibilityValidator.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Security\ProgramDataAclManager.cs" Link="Shared\ProgramDataAclManager.cs" />

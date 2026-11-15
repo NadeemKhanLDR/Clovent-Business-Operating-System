@@ -21,6 +21,7 @@ namespace Clovent.Installer.Provisioner;
 public static class Program
 {
     public const int ExitCodeInvalidArguments = 64;
+    public const int ExitCodeBackupFailed = 5;
 
     public sealed record ProvisionerArguments(
         string Server,
@@ -32,7 +33,9 @@ public static class Program
         bool VerifyOnly,
         bool Provision,
         string? QaRoot,
-        bool QaMode);
+        bool QaMode,
+        bool BackupBeforeMigration = false,
+        string? BackupDirectory = null);
 
     public static bool TryParseArguments(
         string[]? args,
@@ -68,6 +71,8 @@ public static class Program
         bool provision = false;
         string? qaRoot = null;
         bool qaMode = false;
+        bool backupBeforeMigration = false;
+        string? backupDirectory = null;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -177,6 +182,20 @@ public static class Program
             {
                 qaMode = true;
             }
+            else if (string.Equals(arg, "--backup-before-migration", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "--backup", StringComparison.OrdinalIgnoreCase))
+            {
+                backupBeforeMigration = true;
+            }
+            else if (string.Equals(arg, "--backup-dir", StringComparison.OrdinalIgnoreCase) || string.Equals(arg, "--backup-directory", StringComparison.OrdinalIgnoreCase))
+            {
+                if (i + 1 >= args.Length || string.IsNullOrWhiteSpace(args[i + 1]) || args[i + 1].StartsWith("--", StringComparison.Ordinal))
+                {
+                    errorMessage = "Missing value for --backup-dir.";
+                    return false;
+                }
+                backupDirectory = args[++i];
+                backupBeforeMigration = true;
+            }
             else
             {
                 errorMessage = $"Unrecognized command-line argument '{arg}'.";
@@ -235,7 +254,9 @@ public static class Program
             verifyOnly,
             provision,
             qaRoot,
-            qaMode);
+            qaMode,
+            backupBeforeMigration,
+            backupDirectory);
         return true;
     }
 
@@ -257,6 +278,8 @@ public static class Program
         bool provision = parsedArgs.Provision;
         string? qaRoot = parsedArgs.QaRoot;
         bool qaMode = parsedArgs.QaMode;
+        bool backupBeforeMigration = parsedArgs.BackupBeforeMigration;
+        string? backupDirectory = parsedArgs.BackupDirectory;
 
         // Initialize QA instance scope if qaRoot is specified
         if (!string.IsNullOrWhiteSpace(qaRoot))
@@ -327,6 +350,7 @@ public static class Program
         Log($"Target Server: {server}");
         Log($"Target Database: {database}");
         Log($"Auth Mode: {(useWindowsAuth ? "Windows Authentication (Integrated)" : $"SQL Server Authentication (User: {userId})")}");
+        Log($"Backup Before Migration: {(backupBeforeMigration ? $"Enabled (Target Dir: {backupDirectory ?? "Default"})" : "Disabled")}");
         Log("================================================================================");
 
         try
@@ -410,7 +434,68 @@ public static class Program
                 return result.Status == SchemaCompatibilityStatus.Compatible ? 0 : 4;
             }
 
-            // 4. Create Database if missing
+            // 4. Probe existing database & perform pre-migration safety checks
+            bool databaseExistedInitially = await provisioningService.DatabaseExistsAsync(settings).ConfigureAwait(false);
+            Log($"Database '{database}' initial probe: {(databaseExistedInitially ? "EXISTS (Upgrade / Migration Mode)" : "DOES NOT EXIST (Fresh Installation)")}");
+
+            if (databaseExistedInitially)
+            {
+                Log("Executing pre-migration schema compatibility inspection...");
+                var preValidator = new DatabaseSchemaCompatibilityValidator();
+                var preCompatResult = await preValidator.ValidateCompatibilityAsync(connectionString).ConfigureAwait(false);
+                Log($"Pre-migration compatibility result: {preCompatResult.Status} - {preCompatResult.Message}");
+
+                if (preCompatResult.Status == SchemaCompatibilityStatus.DatabaseNewer)
+                {
+                    Log($"ERROR: Existing database '{database}' was upgraded by a newer version of CBOS and cannot be downgraded.");
+                    return 4;
+                }
+
+                if (backupBeforeMigration)
+                {
+                    Log("Executing verified pre-migration backup (COPY_ONLY)...");
+                    var backupLogger = loggerFactory.CreateLogger<DatabaseBackupService>();
+                    var backupService = new DatabaseBackupService(backupLogger);
+                    var (backupSuccess, backupPath, backupError) = await backupService.CreateBackupAsync(
+                        connectionString,
+                        backupDirectory).ConfigureAwait(false);
+
+                    if (!backupSuccess)
+                    {
+                        Log($"ERROR: Verified pre-migration backup failed: {backupError}");
+                        return ExitCodeBackupFailed;
+                    }
+                    Log($"Verified pre-migration backup completed successfully: {backupPath}");
+                }
+
+                // Check customer company ownership mapping status to ensure no invented assignments
+                try
+                {
+                    await using var ownConn = new SqlConnection(connectionString);
+                    await ownConn.OpenAsync().ConfigureAwait(false);
+                    await using var ownCmd = ownConn.CreateCommand();
+                    ownCmd.CommandText = @"
+                        IF OBJECT_ID('Restaurant.CustomerCompanyOwnershipMap', 'U') IS NOT NULL
+                        BEGIN
+                            SELECT COUNT(1) FROM Restaurant.CustomerCompanyOwnershipMap WHERE ApprovedBy IS NULL OR ApprovedBy = '';
+                        END
+                        ELSE
+                        BEGIN
+                            SELECT 0;
+                        END";
+                    var unapprovedCount = Convert.ToInt32(await ownCmd.ExecuteScalarAsync().ConfigureAwait(false));
+                    if (unapprovedCount > 0)
+                    {
+                        Log($"[OWNERSHIP BOUNDARY] Found {unapprovedCount} unapproved customer-company ownership mappings. Legacy unmapped owners remain quarantined; no assignments will be invented.");
+                    }
+                }
+                catch (Exception ownEx)
+                {
+                    Log($"[OWNERSHIP BOUNDARY] Note during ownership check: {ownEx.Message}");
+                }
+            }
+
+            // Ensure physical database exists
             Log($"Ensuring physical database '{database}' exists...");
             var (dbCreated, createDbMsg) = await provisioningService.CreateDatabaseAsync(
                 settings,
