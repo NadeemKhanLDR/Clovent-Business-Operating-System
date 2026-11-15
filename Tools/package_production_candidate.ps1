@@ -173,7 +173,7 @@ if (-not (Test-Path $installerExe)) {
 
 # 6. Verify Shipped Runtime Pack Resolution
 Write-Host "`n=== 6. Verifying Shipped Runtime Pack Resolution ===" -ForegroundColor Green
-$runtimePacks = Get-ChildItem -Path $releaseDir -Filter "*coreclr.dll"
+$runtimePacks = @(Get-ChildItem -Path $releaseDir -Filter "*coreclr.dll")
 if ($runtimePacks.Count -eq 0) {
     throw "Verification failure: coreclr.dll missing in release payload."
 }
@@ -200,7 +200,7 @@ $provenanceData = [PSCustomObject]@{
     CandidateCommit = (git -C $RepoRoot rev-parse HEAD)
     CandidateShortCommit = (git -C $RepoRoot rev-parse --short HEAD)
     CandidateBranch = (git -C $RepoRoot rev-parse --abbrev-ref HEAD)
-    SourceTreeClean = ((git -C $RepoRoot status --porcelain).Count -eq 0)
+    SourceTreeClean = (@(git -C $RepoRoot status --porcelain).Count -eq 0)
     GeneratedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
     AuthenticodeSignature = [PSCustomObject]@{
         Status = "Unsigned (RELEASE CANDIDATE - PENDING COMMERCIAL AUTHENTICODE SIGNING)"
@@ -292,9 +292,9 @@ Write-Host "Wrote provenance JSON to $provenanceJson"
 
 # Generate complete SHA-256 manifest
 $manifestPath = Join-Path $checksumsDir "production-payload-sha256-manifest.txt"
-$filesToHash = Get-ChildItem -Path $StagingRoot -Recurse -File | Where-Object {
+$filesToHash = @(Get-ChildItem -Path $StagingRoot -Recurse -File | Where-Object {
     $_.FullName -notmatch '\\build\\' -and $_.FullName -notmatch '\\logs\\' -and $_.Name -ne "production-payload-sha256-manifest.txt"
-}
+})
 
 $manifestLines = [System.Collections.Generic.List[string]]::new()
 $manifestLines.Add("# ==============================================================================")
