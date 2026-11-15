@@ -183,13 +183,21 @@ To ensure seamless onboarding across varying clean-machine environments (e.g., W
 
 ## 8. Authenticode Signing Specification
 
-When commercial EV Code Signing credentials are provided, sign the installer using Windows `signtool.exe`:
+When commercial EV Code Signing credentials are provided, sign the first-party payloads and the final installer using the official signing script:
 
-```cmd
-signtool.exe sign /tr http://timestamp.digicert.com /td sha256 /fd sha256 /a "artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe"
+```powershell
+# Sign application payloads and installer with official corporate certificate
+.\Tools\sign_release_payloads.ps1 -FilesToSign @("installer\Clovent.BusinessOperatingSystem-1.3.0-Production-Setup.exe") -CertificateThumbprint "<Thumbprint>"
 ```
 
 To verify the Authenticode signature:
-```cmd
-signtool.exe verify /pa /v "artifacts\installer\Clovent.BusinessOperatingSystem-1.1.2-Setup.exe"
+```powershell
+.\Tools\sign_release_payloads.ps1 -FilesToSign @("installer\Clovent.BusinessOperatingSystem-1.3.0-Production-Setup.exe") -VerifyOnly
 ```
+
+---
+
+## 9. Application Control & Installer Troubleshooting
+
+For diagnosing and troubleshooting Windows Sandbox, Smart App Control, or WDAC execution blocks (e.g., *"An Application Control policy has blocked this file"*), see the dedicated runbook:
+- [Application Control & Installer Integrity Runbook](troubleshooting/application-control-and-installer-integrity.md)

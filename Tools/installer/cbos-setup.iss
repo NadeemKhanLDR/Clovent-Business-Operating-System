@@ -30,6 +30,9 @@
 #ifndef EmbedPrerequisites
   #define EmbedPrerequisites 1
 #endif
+#ifndef SetupIconPath
+  #define SetupIconPath "..\..\src\Clovent.Desktop\Resources\cbos.ico"
+#endif
 
 [Setup]
 AppId={#MyAppId}
@@ -42,7 +45,8 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir={#OutputDir}
 OutputBaseFilename={#OutputBaseFilename}
-UninstallDisplayIcon={app}\Clovent.Desktop.exe
+SetupIconFile={#SetupIconPath}
+UninstallDisplayIcon={app}\Clovent.Desktop.exe,0
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
@@ -83,7 +87,10 @@ Name: "{commonappdata}\Clovent\BusinessOperatingSystem\Backups"; Permissions: sy
 ; 1. Main application payload (Self-contained .NET 10 win-x64 release binaries)
 Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; 2. Configuration reference templates for administrators
+; 2. Application icon asset
+Source: "{#SetupIconPath}"; DestDir: "{app}\Resources"; DestName: "cbos.ico"; Flags: ignoreversion
+
+; 3. Configuration reference templates for administrators
 Source: "templates\*"; DestDir: "{app}\templates"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; 3. Internal silent database provisioner CLI (Single-file win-x64 extracted to {tmp} and deleted on setup completion)

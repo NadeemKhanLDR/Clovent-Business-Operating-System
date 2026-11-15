@@ -2,14 +2,19 @@
 .SYNOPSIS
     Builds the production installer bundle for Clovent Business Operating System (CBOS).
     Packages self-contained Release win-x64 application, Database Provisioner,
-    and embeds verified Microsoft SQL Server Express and SSMS offline prerequisites.
+    embeds verified Microsoft SQL Server Express and SSMS offline prerequisites,
+    enforces CBOS multi-resolution icon embedding and verification, and executes
+    pre- and post-packaging Authenticode signing workflows.
 #>
 [CmdletBinding()]
 param(
-    [string]$StagingRoot = "C:\CBOS_ManualQA_20261111\production-release-variant-20e413d",
+    [string]$StagingRoot = "C:\CBOS_ManualQA_20261111\production-release-variant-20e413d-rev2",
     [string]$PrerequisitesCache = "C:\CBOS_ManualQA_20261111\prerequisites_cache",
     [string]$BuildArtifacts = "C:\CBOS_ManualQA_20261111\build_artifacts",
-    [string]$RepoRoot = ""
+    [string]$RepoRoot = "",
+    [string]$CertificateThumbprint = $env:CBOS_SIGNING_THUMBPRINT,
+    [string]$CertificatePath = $env:CBOS_SIGNING_CERT_PATH,
+    [string]$CertificatePassword = $env:CBOS_SIGNING_CERT_PASSWORD
 )
 
 Set-StrictMode -Version Latest
@@ -32,9 +37,10 @@ $provisionerDir = Join-Path $StagingRoot "provisioner"
 $prereqDir = Join-Path $StagingRoot "prerequisites"
 $installerDir = Join-Path $StagingRoot "installer"
 $checksumsDir = Join-Path $StagingRoot "checksums"
+$toolsDir = Join-Path $StagingRoot "tools"
 $logsDir = Join-Path $StagingRoot "logs"
 
-foreach ($dir in @($StagingRoot, $releaseDir, $provisionerDir, $prereqDir, $installerDir, $checksumsDir, $logsDir, $BuildArtifacts)) {
+foreach ($dir in @($StagingRoot, $releaseDir, $provisionerDir, $prereqDir, $installerDir, $checksumsDir, $toolsDir, $logsDir, $BuildArtifacts)) {
     if (-not (Test-Path $dir)) {
         New-Item -Path $dir -ItemType Directory -Force | Out-Null
     }
@@ -131,8 +137,38 @@ if ($secProc.ExitCode -ne 0) {
 }
 Get-Content $securityScanLog | Write-Host
 
-# 5. Compile Inno Setup Script
-Write-Host "`n=== 5. Compiling Inno Setup 6 Production Installer ===" -ForegroundColor Green
+# 5. Verify Multi-Resolution Icon Asset Presence
+Write-Host "`n=== 5. Verifying Multi-Resolution Brand Icon Asset ===" -ForegroundColor Green
+$iconAssetPath = Join-Path $RepoRoot "src\Clovent.Desktop\Resources\cbos.ico"
+if (-not (Test-Path $iconAssetPath)) {
+    throw "Required CBOS multi-resolution brand icon missing at: $iconAssetPath"
+}
+Write-Host "Found approved multi-resolution brand icon: $iconAssetPath" -ForegroundColor Green
+
+# 6. Authenticode Code Signing (Stage 1: Pre-Packaging Owned Binaries)
+Write-Host "`n=== 6. Authenticode Code Signing (Stage 1: Owned Payloads) ===" -ForegroundColor Green
+$signScript = Join-Path $RepoRoot "Tools\sign_release_payloads.ps1"
+$ownedFilesToSign = [System.Collections.Generic.List[string]]::new()
+$ownedFilesToSign.Add($desktopExe)
+$ownedFilesToSign.Add($provisionerExe)
+
+$ownedDlls = @(Get-ChildItem -Path $releaseDir -Filter "Clovent.*.dll" -File)
+foreach ($d in $ownedDlls) {
+    $ownedFilesToSign.Add($d.FullName)
+}
+
+$preSignParams = @{
+    FilesToSign = $ownedFilesToSign.ToArray()
+    AllowUnsignedCandidate = $true
+}
+if (-not [string]::IsNullOrWhiteSpace($CertificateThumbprint)) { $preSignParams["CertificateThumbprint"] = $CertificateThumbprint }
+if (-not [string]::IsNullOrWhiteSpace($CertificatePath)) { $preSignParams["CertificatePath"] = $CertificatePath }
+if (-not [string]::IsNullOrWhiteSpace($CertificatePassword)) { $preSignParams["CertificatePassword"] = $CertificatePassword }
+
+$preSignResult = & $signScript @preSignParams
+
+# 7. Compile Inno Setup Script
+Write-Host "`n=== 7. Compiling Inno Setup 6 Production Installer ===" -ForegroundColor Green
 $isccPath = "C:\Users\NexGen\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
 if (-not (Test-Path $isccPath)) {
     $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
@@ -151,11 +187,12 @@ $isccArgs = @(
     "/DPublishDir=""$releaseDir""",
     "/DProvisionerDir=""$provisionerDir""",
     "/DPrerequisitesDir=""$prereqDir""",
+    "/DSetupIconPath=""$iconAssetPath""",
     "/DEmbedPrerequisites=1",
     $issScript
 )
 
-Write-Host "Compiling $issScript with embedded prerequisites..." -ForegroundColor Cyan
+Write-Host "Compiling $issScript with embedded prerequisites and brand icon..." -ForegroundColor Cyan
 $compileStart = Get-Date
 $compileProc = Start-Process -FilePath $isccPath -ArgumentList $isccArgs -NoNewWindow -Wait -PassThru -RedirectStandardOutput $isccLog
 $compileDuration = (Get-Date) - $compileStart
@@ -171,16 +208,47 @@ if (-not (Test-Path $installerExe)) {
     throw "Installer executable not found at $installerExe"
 }
 
-# 6. Verify Shipped Runtime Pack Resolution
-Write-Host "`n=== 6. Verifying Shipped Runtime Pack Resolution ===" -ForegroundColor Green
+# 8. Verify Embedded PE Icon Resources
+Write-Host "`n=== 8. Verifying Embedded PE Icon Resources ===" -ForegroundColor Green
+$verifyIconScript = Join-Path $RepoRoot "Tools\verify_installer_icon.ps1"
+
+Write-Host "Checking Clovent.Desktop.exe icon resources..." -ForegroundColor Cyan
+& $verifyIconScript -PePath $desktopExe -ExpectedIconPath $iconAssetPath -FailOnMismatch
+
+Write-Host "`nChecking Setup executable icon resources..." -ForegroundColor Cyan
+& $verifyIconScript -PePath $installerExe -ExpectedIconPath $iconAssetPath -FailOnMismatch
+Write-Host "PE Icon verification completed successfully." -ForegroundColor Green
+
+# 9. Authenticode Code Signing (Stage 2: Post-Packaging Installer Executable)
+Write-Host "`n=== 9. Authenticode Code Signing (Stage 2: Installer Executable) ===" -ForegroundColor Green
+$postSignParams = @{
+    FilesToSign = @($installerExe)
+    AllowUnsignedCandidate = $true
+}
+if (-not [string]::IsNullOrWhiteSpace($CertificateThumbprint)) { $postSignParams["CertificateThumbprint"] = $CertificateThumbprint }
+if (-not [string]::IsNullOrWhiteSpace($CertificatePath)) { $postSignParams["CertificatePath"] = $CertificatePath }
+if (-not [string]::IsNullOrWhiteSpace($CertificatePassword)) { $postSignParams["CertificatePassword"] = $CertificatePassword }
+
+$postSignResult = & $signScript @postSignParams
+
+# 10. Verify Shipped Runtime Pack Resolution
+Write-Host "`n=== 10. Verifying Shipped Runtime Pack Resolution ===" -ForegroundColor Green
 $runtimePacks = @(Get-ChildItem -Path $releaseDir -Filter "*coreclr.dll")
 if ($runtimePacks.Count -eq 0) {
     throw "Verification failure: coreclr.dll missing in release payload."
 }
 Write-Host "Desktop runtime pack 10.0.13 resolution verified." -ForegroundColor Green
 
-# 7. Generate Complete Package Manifest & Checksums
-Write-Host "`n=== 7. Generating Complete Package Manifest & Checksums ===" -ForegroundColor Green
+# 11. Stage Diagnostic Evidence Collector
+Write-Host "`n=== 11. Staging Diagnostic Evidence Collector ===" -ForegroundColor Green
+$diagScript = Join-Path $RepoRoot "Tools\diagnostics\Collect-AppControlEvidence.ps1"
+if (Test-Path $diagScript) {
+    Copy-Item -Path $diagScript -Destination (Join-Path $toolsDir "Collect-AppControlEvidence.ps1") -Force
+    Write-Host "Copied Collect-AppControlEvidence.ps1 to $toolsDir" -ForegroundColor Green
+}
+
+# 12. Generate Complete Package Manifest & Checksums
+Write-Host "`n=== 12. Generating Complete Package Manifest & Checksums ===" -ForegroundColor Green
 $installerHash = (Get-FileHash -Path $installerExe -Algorithm SHA256).Hash
 $installerSize = (Get-Item $installerExe).Length
 
@@ -190,9 +258,11 @@ $desktopSize = (Get-Item $desktopExe).Length
 $provisionerHash = (Get-FileHash -Path $provisionerExe -Algorithm SHA256).Hash
 $provisionerSize = (Get-Item $provisionerExe).Length
 
+$signingStatusString = if ($postSignResult.Signed) { "Signed" } else { "Unsigned (RELEASE CANDIDATE - PENDING COMMERCIAL AUTHENTICODE SIGNING)" }
+
 $provenanceJson = Join-Path $checksumsDir "package_provenance_production.json"
 $provenanceData = [PSCustomObject]@{
-    ReleaseDesignation = "PRODUCTION RELEASE CANDIDATE / PILOT DEPLOYMENT"
+    ReleaseDesignation = "PRODUCTION RELEASE CANDIDATE / MANUAL ACCEPTANCE"
     Product = "Clovent Business Operating System"
     Version = "1.3.0"
     Milestone = "1.3.0-production-release-candidate"
@@ -203,9 +273,17 @@ $provenanceData = [PSCustomObject]@{
     SourceTreeClean = (@(git -C $RepoRoot status --porcelain).Count -eq 0)
     GeneratedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
     AuthenticodeSignature = [PSCustomObject]@{
-        Status = "Unsigned (RELEASE CANDIDATE - PENDING COMMERCIAL AUTHENTICODE SIGNING)"
-        SigningCertificateAvailable = $false
-        SigningRequirements = "Commercial GA customer deployment requires valid Microsoft Authenticode code signing using an enterprise code signing certificate or HSM-backed key."
+        Status = $signingStatusString
+        SigningCertificateAvailable = [bool]$postSignResult.Signed
+        SigningRequirements = "Commercial distribution requires valid Microsoft Authenticode code signing using an enterprise EV/OV code signing certificate or HSM-backed key. Self-signed certificates are prohibited."
+        ApplicationControlPolicyNote = "Signing satisfies standard Smart App Control / SmartScreen requirements once reputation is established; custom enterprise WDAC policies still require publisher-rule whitelisting."
+    }
+    IconVerification = [PSCustomObject]@{
+        Status = "Verified"
+        AssetPath = "src/Clovent.Desktop/Resources/cbos.ico"
+        ResolutionsVerified = @("16x16@32bpp", "24x24@32bpp", "32x32@32bpp", "48x48@32bpp", "64x64@32bpp", "128x128@32bpp", "256x256@32bpp")
+        DesktopExeVerified = $true
+        InstallerExeVerified = $true
     }
     PrerequisiteInventory = [PSCustomObject]@{
         DotNetRuntime = [PSCustomObject]@{
@@ -318,7 +396,7 @@ $readmePath = Join-Path $StagingRoot "README.txt"
 $readmeContent = @"
 ================================================================================
 CLOVENT BUSINESS OPERATING SYSTEM (CBOS)
-Version 1.3.0 Production Release Candidate
+Version 1.3.0 Production Release Candidate (Manual Acceptance)
 ================================================================================
 
 This delivery bundle contains the official production installation package for
@@ -332,6 +410,7 @@ PACKAGE CONTENTS:
      All-in-one offline setup executable embedding the application, provisioner,
      Visual C++ 2015-2022 runtimes, OLE DB Driver 19, SQL Server 2022 Express,
      and SQL Server Management Studio 20.2 (SSMS).
+     Embedded with official CBOS multi-resolution brand icon (up to 256x256@32bpp).
 
 2. prerequisites\
    - SQLEXPR_x64_ENU.exe: Microsoft SQL Server 2022 Express (16.0.1000.6 RTM)
@@ -341,7 +420,11 @@ PACKAGE CONTENTS:
    - msoledbsql.msi: Microsoft OLE DB Driver 19 for SQL Server (x64)
    - prerequisites_provenance.json: Hashes, digital signatures, and provenance
 
-3. checksums\
+3. tools\
+   - Collect-AppControlEvidence.ps1: Read-only diagnostic script for collecting
+     Code Integrity, WDAC, and AppLocker XML event logs inside Windows Sandbox.
+
+4. checksums\
    - package_provenance_production.json
    - production-payload-sha256-manifest.txt
 
@@ -361,6 +444,12 @@ INSTALLATION INSTRUCTIONS:
    the database (with verified backup if upgrading an existing database), and
    create desktop/start menu shortcuts.
 6. Launch Clovent Business Operating System from the Start Menu or Desktop.
+
+APPLICATION CONTROL & WINDOWS SANDBOX NOTE:
+-------------------------------------------
+If Windows Sandbox or an Application Control policy blocks setup, run:
+powershell.exe -ExecutionPolicy Bypass -File .\tools\Collect-AppControlEvidence.ps1 -TargetFilePath .\installer\Clovent.BusinessOperatingSystem-1.3.0-Production-Setup.exe
+See docs\troubleshooting\application-control-and-installer-integrity.md for complete details.
 
 UNINSTALLATION POLICY:
 ----------------------
