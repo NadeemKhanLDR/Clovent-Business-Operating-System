@@ -1191,6 +1191,103 @@ public partial class FirstRunWizardForm : XtraForm
             button.MinimumSize = new Size(DesktopDpi.Scale(92, this), DesktopDpi.Scale(32, this));
         foreach (var label in new[] { lblSidebarHeader, lblStep1, lblStep2, lblStep3, lblStep4, lblStep5, lblStep6, lblStep7, lblStep8 })
             label.MinimumSize = new Size(0, DesktopDpi.Scale(30, this));
+
+        // Step titles and descriptions
+        int titleMarginBottom = DesktopDpi.Scale(6, this);
+        int descMarginBottom = DesktopDpi.Scale(12, this);
+        foreach (var title in new[] { lblStep1Title, lblStep2Title, lblStep3Title, lblStep4Title, lblStep5Title, lblStep6Title, lblStep7Title, lblStep8Title })
+        {
+            title.Margin = new Padding(0, 0, 0, titleMarginBottom);
+        }
+        foreach (var desc in new[] { lblStep1Desc, lblStep2Desc, lblStep3Desc, lblStep4Desc, lblStep5Desc, lblStep6Desc, lblStep7Desc, lblStep8Desc })
+        {
+            desc.Margin = new Padding(0, 0, 0, descMarginBottom);
+        }
+
+        // Single-line inputs (TextEdit and ComboBoxEdit)
+        int inputH = DesktopDpi.Scale(32, this);
+        var inputMargin = new Padding(0, 0, 0, DesktopDpi.Scale(12, this));
+        var singleLineInputs = new BaseEdit[]
+        {
+            txtServer, txtDatabase, cmbAuth, txtUsername, txtPassword,
+            txtOrgName, txtTaxId, txtCompanyName, txtBranchName,
+            txtAdminUsername, txtAdminFullName, txtAdminEmail, txtAdminPassword, txtAdminConfirmPassword,
+            cmbTimeZone, cmbDateFormat, cmbTimeFormat, cmbCurrency, txtTerminalName,
+            txtHardwareId
+        };
+        foreach (var input in singleLineInputs)
+        {
+            if (input is TextEdit textEdit)
+            {
+                textEdit.Properties.AutoHeight = false;
+            }
+            input.MinimumSize = new Size(0, inputH);
+            input.Height = inputH;
+            input.Margin = inputMargin;
+        }
+
+        // Field labels (preceding inputs)
+        int labelH = DesktopDpi.Scale(18, this);
+        var labelMargin = new Padding(0, DesktopDpi.Scale(6, this), 0, DesktopDpi.Scale(4, this));
+        var fieldLabels = new[]
+        {
+            lblServer, lblDatabase, lblAuth, lblUsername, lblPassword,
+            lblOrgName, lblTaxId, lblCompanyName, lblBranchName,
+            lblAdminUsername, lblAdminFullName, lblAdminEmail, lblAdminPassword, lblAdminConfirmPassword,
+            lblPasswordStrength, lblTimeZone, lblDateFormat, lblTimeFormat, lblCurrency, lblTerminalName,
+            lblHardwareId, lblLicenseStatus, lblLicensedTo
+        };
+        foreach (var label in fieldLabels)
+        {
+            label.MinimumSize = new Size(0, labelH);
+            label.Margin = labelMargin;
+        }
+
+        // In-step action buttons
+        int btnH = DesktopDpi.Scale(32, this);
+        var btnMargin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(10, this));
+        foreach (var btn in new[] { btnTestConnection, btnApplyMigrations, btnCopyHardwareId, btnImportLicense })
+        {
+            btn.MinimumSize = new Size(0, btnH);
+            btn.Height = btnH;
+            btn.Margin = btnMargin;
+        }
+
+        // Checkboxes
+        int chkH = DesktopDpi.Scale(24, this);
+        var chkMargin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(8, this));
+        foreach (var chk in new[] { chkCreateDbIfMissing, chkApplyMigrations, chkEvaluationMode })
+        {
+            chk.MinimumSize = new Size(0, chkH);
+            chk.Margin = chkMargin;
+        }
+
+        // Progress bars
+        int progH = DesktopDpi.Scale(22, this);
+        var progMargin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(10, this));
+        foreach (var prog in new[] { progressMigrations, progressPasswordStrength })
+        {
+            prog.MinimumSize = new Size(0, progH);
+            prog.Height = progH;
+            prog.Margin = progMargin;
+        }
+
+        // Status and notice labels
+        var statusMargin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(8, this));
+        foreach (var status in new[] { lblConnectionStatus, lblMigrationStatus, lblPasswordPolicy, lblSamplePreview, lblFinishNotice })
+        {
+            status.MinimumSize = new Size(0, labelH);
+            status.Margin = statusMargin;
+        }
+
+        // Multi-line memo edits
+        int memoH = DesktopDpi.Scale(160, this);
+        var memoMargin = new Padding(0, DesktopDpi.Scale(4, this), 0, DesktopDpi.Scale(12, this));
+        foreach (var memo in new[] { memoMigrationLog, memoSummary })
+        {
+            memo.MinimumSize = new Size(0, memoH);
+            memo.Margin = memoMargin;
+        }
     }
 
     #endregion

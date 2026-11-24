@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
 using Clovent.Desktop.Commissioning.UI;
@@ -400,6 +401,56 @@ public sealed class FirstRunWizardLayoutTests
         int totalContentHeight = DesktopDpi.Scale(34, dpi) + cardHeight + cardGap + cardHeight;
         // At 1080p with 250% scaling, available height in window is approx 720 * 2.5 = 1800, client area > 1000
         Assert.True(cardGap >= (int)(8 * scaleFactor), $"Card gap ({cardGap}px) is too small at {dpi} DPI.");
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void FirstRunWizardForm_StepLayouts_ControlsHaveProperHeight_AndDoNotOverlapVertically(int step)
+    {
+        using var form = new FirstRunWizardForm();
+        form.Size = new Size(1020, 720);
+        form.CreateControl();
+
+        var setStepMethod = typeof(FirstRunWizardForm).GetMethod("SetStep", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        setStepMethod.Invoke(form, [step]);
+
+        var layoutField = typeof(FirstRunWizardForm).GetField($"step{step}Layout", BindingFlags.NonPublic | BindingFlags.Instance)!;
+        Assert.NotNull(layoutField);
+        var layout = (TableLayoutPanel)layoutField.GetValue(form)!;
+        Assert.NotNull(layout);
+
+        var sortedControls = layout.Controls.Cast<Control>().OrderBy(c => layout.GetRow(c)).ToList();
+        Assert.NotEmpty(sortedControls);
+
+        for (int i = 0; i < sortedControls.Count; i++)
+        {
+            var ctrl = sortedControls[i];
+
+            // Verify inputs have sufficient touch- and readability-friendly vertical height
+            if (ctrl is TextEdit && ctrl is not MemoEdit)
+            {
+                Assert.True(ctrl.Height >= 30, $"Control '{ctrl.Name}' on Step {step} height was {ctrl.Height}, expected >= 30.");
+                Assert.True(ctrl.MinimumSize.Height >= 30, $"Control '{ctrl.Name}' on Step {step} MinimumSize.Height was {ctrl.MinimumSize.Height}, expected >= 30.");
+            }
+            else if (ctrl is SimpleButton)
+            {
+                Assert.True(ctrl.Height >= 30, $"Button '{ctrl.Name}' on Step {step} height was {ctrl.Height}, expected >= 30.");
+            }
+
+            // Verify consecutive controls strictly do not overlap vertically
+            if (i > 0)
+            {
+                var prevCtrl = sortedControls[i - 1];
+                Assert.True(ctrl.Top >= prevCtrl.Bottom,
+                    $"Control '{ctrl.Name}' (Top={ctrl.Top}) overlaps previous control '{prevCtrl.Name}' (Bottom={prevCtrl.Bottom}) on Step {step}.");
+            }
+        }
     }
 }
 
