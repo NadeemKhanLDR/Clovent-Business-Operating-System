@@ -288,6 +288,103 @@ public class LoginServiceTests
         Assert.Equal(RefreshSessionStatus.Revoked, refreshSession.Status);
     }
 
+    [Fact]
+    public async Task LoginAsync_CorrectPassword_WithIncorrectPin_FailsWithInvalidPin()
+    {
+        var fixture = BuildFixture();
+        CreateActiveUserWithPasswordAndPin(fixture, "alice", "Correct123!", "482913");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("alice", "Correct123!", "999999", RememberMe: false));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Invalid PIN.", result.ErrorMessage);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task LoginAsync_CorrectPassword_WithCorrectPin_Succeeds()
+    {
+        var fixture = BuildFixture();
+        var (user, _) = CreateActiveUserWithPasswordAndPin(fixture, "alice", "Correct123!", "482913");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("alice", "Correct123!", "482913", RememberMe: false));
+
+        Assert.True(result.Succeeded);
+        Assert.True(fixture.CurrentSession.IsAuthenticated);
+        Assert.Equal(user.Id.Value, fixture.CurrentSession.UserId);
+    }
+
+    [Fact]
+    public async Task LoginAsync_UsernameAndPin_IncorrectPin_FailsWithInvalidPin()
+    {
+        var fixture = BuildFixture();
+        CreateActiveUserWithPasswordAndPin(fixture, "alice", "Correct123!", "482913");
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("alice", null, "999999", RememberMe: false));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal("Invalid PIN.", result.ErrorMessage);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task LoginAsync_InactiveUser_FailsWithInactiveMessage()
+    {
+        var fixture = BuildFixture();
+        var user = User.Create(Email.Create("inactive@example.com"), UserName.Create("inactive"), DisplayName.Create("Inactive User"));
+        // Left in PendingActivation status
+        fixture.Users.Add(user);
+
+        var hasher = new Pbkdf2PasswordHasher();
+        var credentials = UserCredentials.Create(user.Id, DateTimeOffset.UtcNow);
+        credentials.SetPassword(PasswordHash.Create(hasher.Hash("Correct123!")), DateTimeOffset.UtcNow);
+        await fixture.Credentials.AddAsync(credentials);
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("inactive", "Correct123!", null, RememberMe: false));
+
+        Assert.False(result.Succeeded);
+        Assert.Contains("not active", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.False(fixture.CurrentSession.IsAuthenticated);
+    }
+
+    [Fact]
+    public async Task LoginAsync_AcceptanceAdminCredentials_Succeeds()
+    {
+        var fixture = BuildFixture();
+        var user = User.Create(Email.Create("admin_acceptance@clovent.local"), UserName.Create("admin_acceptance"), DisplayName.Create("Acceptance Admin"));
+        user.Activate();
+        fixture.Users.Add(user);
+
+        var hasher = new Pbkdf2PasswordHasher();
+        var credentials = UserCredentials.Create(user.Id, DateTimeOffset.UtcNow);
+        credentials.SetPassword(PasswordHash.Create(hasher.Hash("Password@2026!")), DateTimeOffset.UtcNow);
+        await fixture.Credentials.AddAsync(credentials);
+
+        var result = await fixture.LoginService.LoginAsync(new LoginRequest("admin_acceptance", "Password@2026!", null, RememberMe: false));
+
+        Assert.True(result.Succeeded);
+        Assert.True(fixture.CurrentSession.IsAuthenticated);
+        Assert.Equal(user.Id.Value, fixture.CurrentSession.UserId);
+        Assert.Equal("Acceptance Admin", fixture.CurrentSession.DisplayName);
+    }
+
+    private static (User user, UserCredentials credentials) CreateActiveUserWithPasswordAndPin(
+        Fixture fixture, string userName, string password, string pin)
+    {
+        var user = User.Create(Email.Create($"{userName}@example.com"), UserName.Create(userName), DisplayName.Create(userName));
+        user.Activate();
+        fixture.Users.Add(user);
+
+        var passwordHasher = new Pbkdf2PasswordHasher();
+        var pinHasher = new Pbkdf2PinHasher();
+        var credentials = UserCredentials.Create(user.Id, DateTimeOffset.UtcNow);
+        credentials.SetPassword(PasswordHash.Create(passwordHasher.Hash(password)), DateTimeOffset.UtcNow);
+        credentials.SetPin(PinHash.Create(pinHasher.Hash(pin)), DateTimeOffset.UtcNow);
+        fixture.Credentials.AddAsync(credentials).GetAwaiter().GetResult();
+
+        return (user, credentials);
+    }
+
     private static async Task<(User user, UserCredentials credentials)> CreateActiveUserWithPinAsync(
         Fixture fixture, string userName, string pin)
     {

@@ -106,7 +106,7 @@ public sealed class LoginService(
         }
 
         var credentials = await credentialsRepository.GetByUserIdAsync(user.Id, cancellationToken);
-        var verified = credentials is not null && VerifyCredentials(credentials, request, passwordHasher, pinHasher);
+        var (verified, pinFailure) = VerifyCredentials(credentials, request, passwordHasher, pinHasher);
 
         if (!verified)
         {
@@ -117,7 +117,7 @@ public sealed class LoginService(
                 await mediator.Send(new RecordCredentialCheckCommand(user.Id.Value, Succeeded: false), cancellationToken);
             }
 
-            return LoginResult.Failure(GenericFailureMessage);
+            return LoginResult.Failure(pinFailure ? "Invalid PIN." : GenericFailureMessage);
         }
 
         await mediator.Send(new RecordCredentialCheckCommand(user.Id.Value, Succeeded: true), cancellationToken);
@@ -255,18 +255,54 @@ public sealed class LoginService(
         return null;
     }
 
-    private static bool VerifyCredentials(UserCredentials credentials, LoginRequest request, IPasswordHasher passwordHasher, IPinHasher pinHasher)
+    private static (bool Verified, bool PinFailure) VerifyCredentials(
+        UserCredentials? credentials,
+        LoginRequest request,
+        IPasswordHasher passwordHasher,
+        IPinHasher pinHasher)
     {
-        if (!string.IsNullOrWhiteSpace(request.Password) && credentials.PasswordHash is not null)
+        if (credentials is null)
         {
-            return passwordHasher.Verify(request.Password, credentials.PasswordHash.Value);
+            return (false, false);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Pin) && credentials.PinHash is not null)
+        var hasPasswordInput = !string.IsNullOrWhiteSpace(request.Password);
+        var hasPinInput = !string.IsNullOrWhiteSpace(request.Pin);
+
+        // Case 1: Both password and PIN were submitted
+        if (hasPasswordInput && hasPinInput)
         {
-            return pinHasher.Verify(request.Pin, credentials.PinHash.Value);
+            var passwordValid = credentials.PasswordHash is not null &&
+                                passwordHasher.Verify(request.Password!, credentials.PasswordHash.Value);
+
+            var pinValid = credentials.PinHash is not null &&
+                           pinHasher.Verify(request.Pin!, credentials.PinHash.Value);
+
+            if (passwordValid && !pinValid)
+            {
+                // Password was correct, but submitted PIN was invalid
+                return (false, true);
+            }
+
+            return (passwordValid && pinValid, false);
         }
 
-        return false;
+        // Case 2: Only password was submitted
+        if (hasPasswordInput)
+        {
+            var passwordValid = credentials.PasswordHash is not null &&
+                                passwordHasher.Verify(request.Password!, credentials.PasswordHash.Value);
+            return (passwordValid, false);
+        }
+
+        // Case 3: Only PIN was submitted (with or without username)
+        if (hasPinInput)
+        {
+            var pinValid = credentials.PinHash is not null &&
+                           pinHasher.Verify(request.Pin!, credentials.PinHash.Value);
+            return (pinValid, !pinValid);
+        }
+
+        return (false, false);
     }
 }
