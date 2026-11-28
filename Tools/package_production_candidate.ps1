@@ -60,6 +60,8 @@ $desktopArgs = @(
     "-p:PublishSingleFile=false",
     "-p:UseArtifactsOutput=true",
     "-p:ArtifactsPath=$BuildArtifacts",
+    "-p:DebugType=None",
+    "-p:DebugSymbols=false",
     "-p:UseSharedCompilation=false",
     "-nr:false",
     "-o", $releaseDir
@@ -86,6 +88,8 @@ $provArgs = @(
     "-p:IncludeNativeLibrariesForSelfExtract=true",
     "-p:UseArtifactsOutput=true",
     "-p:ArtifactsPath=$BuildArtifacts",
+    "-p:DebugType=None",
+    "-p:DebugSymbols=false",
     "-p:UseSharedCompilation=false",
     "-nr:false",
     "-o", $provisionerDir
@@ -172,6 +176,9 @@ Write-Host "`n=== 7. Compiling Inno Setup 6 Production Installer ===" -Foregroun
 $isccPath = "C:\Users\NexGen\AppData\Local\Programs\Inno Setup 6\ISCC.exe"
 if (-not (Test-Path $isccPath)) {
     $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+}
+if (-not (Test-Path $isccPath)) {
+    $isccPath = Join-Path $RepoRoot "Tools\InnoSetup\ISCC.exe"
 }
 if (-not (Test-Path $isccPath)) {
     throw "Inno Setup compiler not found at $isccPath"
