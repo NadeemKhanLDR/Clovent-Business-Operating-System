@@ -1,21 +1,37 @@
-# Clovent Business Operating System (CBOS) — Release 1.3.0 Release Notes & Pilot Sign-Off Summary
+# Clovent Business Operating System (CBOS) — Release 1.3.0-rc2 Integration Candidate Notes
 
-**Target Baseline:** CBOS 1.3.0 (Release Candidate 1)  
+**Target Baseline:** CBOS 1.3.0-rc2 (Internal Integration & Hardening Candidate — **NOT Commercial GA / NOT Pilot-Certified**)  
 **Distribution Target:** Windows x64 (`net10.0-windows` / `net10.0` Self-Contained)  
 **Installer Package:** `Clovent.BusinessOperatingSystem-1.3.0-Setup.exe`  
-**Date:** October 9, 2026  
-**Status:** Certified Release Candidate (100% Test Green, 0 ReleaseGuard Violations)  
+**Date:** November 28, 2026  
+**Status:** Internal Integration Candidate (Requires Remaining Hardware, Signing & Non-Elevated Sandbox Qualification Gates)  
 
 ---
 
-## 1. Executive Summary & Release Scope
+## 1. Executive Summary & Capability Classification
 
-CBOS 1.3.0 introduces enterprise-grade multi-terminal retail and restaurant operation resilience, statutory tax compliance, and automated accounting synchronization. Building upon the frozen CBOS 1.2.2 baseline, CBOS 1.3.0 delivers four core functional pillars:
+CBOS 1.3.0-rc2 consolidates the core POS, Inventory/Recipe, Refund, Tax Profile, Company Ownership, and Commissioning/Backup workstreams on a single stabilized integration baseline (`integration/cbos-baseline-20261128`). **No commercial GA or statutory fiscal certification is claimed.**
 
-1. **Offline Continuity Mode:** Fail-safe cash-only POS operation during network and SQL Server database outages, secured by DPAPI encryption and HMAC-SHA256 signature chains, backed by automatic idempotent replay upon reconnection.
-2. **Multi-Terminal Delta-Sync Engine:** Distributed real-time synchronization across multiple checkout terminals, utilizing outbox messaging, transactional inbox ingestion, vector-based version tracking, and deterministic conflict resolution.
-3. **Pakistan Tax & Refund Management:** Comprehensive fiscal compliance for provincial authorities (PRA, SRB, KPRA, BRA) and federal FBR integration, immutable receipt tax snapshots, and auditable itemized refunds with strict `MidpointRounding.AwayFromZero` calculation.
-4. **Bi-Directional QuickBooks Integration:** Asynchronous, outbox-driven automated accounting synchronization mapping sales receipts, payments, refunds, and shift closures to QuickBooks Desktop / Online without locking operational POS workflows.
+### Capability Maturity Classification
+- **Implemented and Tested (Automated Unit/Integration):**
+  - 6 schema-isolated bounded contexts (`Authentication`, `Identity`, `MasterData`, `Catalog`, `Inventory`, `Restaurant`) on `Clovent_BusinessOperatingSystem`.
+  - Restaurant POS order lifecycle, closed-order immutability, split tenders, exact `0.00m` settlement, shift cash drawer reconciliation, and Day Close aggregation.
+  - Compensating `Refund` & `RefundLine` ledger, `TaxProfile` rate configuration, `MoneyRoundingPolicy` (`AwayFromZero`), and `ReceiptSnapshot` persistence.
+  - Recipe costing, UOM conversion, and idempotent outbox inventory explosion/restock (`TASK-11`).
+  - `PDR-0002` expired-license read-only enforcement (`LicenseReadOnlyEnforcementBehavior`), RSA-2048 offline licensing, and DPAPI+HMAC Continuity Mode.
+  - `ScheduledBackupHostedService`, `DatabaseBackupService`, `SystemDiagnosticsService`, and `Clovent.Installer.Provisioner` (`--provision` / `--upgrade`).
+- **Implemented but Not Fully Qualified (Pending Live/Clean-Machine Gates):**
+  - Windows Spooler thermal printing (`WindowsSpoolerPrinterAdapter`) — physical thermal/kitchen printer hardware not yet tested.
+  - High-DPI WinForms UI & Visual Studio Designer inspection (`LIVE UI NOT EXECUTED`; `VISUAL STUDIO DESIGNER UI NOT EXECUTED`).
+  - Authenticode signing (`SignReleaseArtifacts.ps1` requires external signing certificate) and non-elevated Windows user ACL installation/upgrade qualification.
+  - `20261112010000_PreventCompanyOwnershipReassignment` trigger migration — requires explicit legacy `ApplyExplicitMapping.sql` preflight on existing customer databases.
+- **Simulated:**
+  - QuickBooks integration (`DefaultQuickBooksGateway` is an in-memory simulation; live QBO OAuth2 / QBFC is not implemented).
+  - `DefaultReceiptPrintService` fallback (used only when desktop spooler service is absent).
+- **Designed / Deferred:**
+  - Multi-terminal LAN delta-sync / cross-terminal order handoff (`v1.4.0+` target; `SyncInboxRecord`/`SyncConflictRecord` schema exists, but multi-terminal runtime concurrency is unqualified).
+  - Built-in Double-Entry General Ledger (`[Accounting]` schema).
+  - Direct ESC/POS raw socket/USB adapter, integrated EMV/EFTPOS terminals, and live FBR/PRA/SRB/KPRA/BRA/ZATCA/UAE VAT statutory e-invoicing APIs.
 
 ---
 
@@ -178,8 +194,8 @@ Full-solution compilation and automated test execution across all 21 test projec
 
 ---
 
-## 7. Pilot Sign-Off Certification
+## 7. Release Qualification Status (RC2)
 
-- **Build Quality:** Solution compiles with 0 Errors and 0 Warnings in Release configuration.
-- **Architectural Conformance:** Strict alignment with `AGENTS.md` and `.agents/rules/` regarding financial ledger immutability, DPAPI security, single physical database schema isolation, and exact tested artifact packaging.
-- **Release Qualification:** CBOS 1.3.0 Release Candidate 1 is fully packaged, signed/hashed, and ready for deployment to pilot restaurant terminals.
+- **Build Quality:** Solution compiles with 0 Errors in Debug and Release configurations (with 0 `CS9113` warnings).
+- **Architectural Conformance:** Aligned with `AGENTS.md` and `.agents/rules/` regarding financial ledger immutability, DPAPI security, single physical database schema isolation, and `PDR-0002` read-only license enforcement.
+- **Release Qualification:** **CBOS 1.3.0-rc2 is an internal integration candidate only.** Paid-pilot and commercial GA deployment remain blocked pending: (1) external Authenticode code signing (`TASK-10`), (2) non-elevated Windows Sandbox install/upgrade acceptance with Smart App Control enabled, (3) physical thermal/kitchen printer hardware validation, and (4) Visual Studio Designer & live UI acceptance sign-off.

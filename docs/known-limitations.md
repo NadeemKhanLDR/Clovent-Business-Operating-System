@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Area** | Architecture, Engineering & Field Support |
 | **Audience** | Technical Leadership, Architects, Operations, QA, Support |
-| **Last Reviewed Version** | CBOS 1.2.2 |
+| **Last Reviewed Version** | CBOS 1.3.0-rc2 (Internal Integration Candidate) |
 | **Status** | **FACTUAL BASELINE** |
 | **Classification** | **PUBLIC-SAFE** |
 
@@ -12,7 +12,7 @@
 
 ## 1. Executive Summary
 
-This document captures verified, factual limitations and architectural boundaries present in the **Clovent Business Operating System (CBOS) 1.2.2** internal acceptance baseline. Recording these boundaries prevents unsupported assumptions, ensures honest representation during evaluations, and guides engineering hardening for the CBOS 1.2.3 pilot milestone and beyond.
+This document captures verified, factual limitations and architectural boundaries present in the **Clovent Business Operating System (CBOS) 1.3.0-rc2** internal integration candidate. Recording these boundaries prevents unsupported assumptions, ensures honest representation during evaluations, and guides remaining qualification before pilot or commercial GA release.
 
 ---
 

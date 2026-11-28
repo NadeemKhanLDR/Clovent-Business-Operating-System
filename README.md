@@ -113,13 +113,12 @@ powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.p
 > - It is **NOT** paid-pilot ready, **NOT** commercial GA, and **NOT** production-certified.
 > - **Release Targets vs. Achieved Readiness:** Milestone designations (e.g. `1.2.3`, `1.3.0`) represent planned engineering targets, not automatic grants of operational or commercial readiness. **No version number automatically confers pilot readiness or GA status.** Customer pilots and commercial rollouts require the hardening deliverables planned for **CBOS 1.2.3** and **CBOS 1.3.0**. Consult the [Canonical Engineering Roadmap](docs/roadmap/engineering-roadmap.md) and [Product Readiness Levels](docs/development/readiness-levels.md).
 
-- **Current Baseline:** `1.2.2` (Internal Acceptance Baseline)
-- **Next Target Milestone:** `1.2.3` (Controlled Single-Terminal Pilot Hardening Target)
+- **Current Integration Baseline:** `1.3.0-rc2` (`integration/cbos-baseline-20261128` — Internal Integration Candidate, **NOT Pilot-Certified / NOT Commercial GA**)
+- **Next Qualification Milestone:** Authenticode Signing, Non-Elevated Clean-Machine Sandbox Acceptance, and Physical Hardware Validation
 - **Automated Verification:**
-  - 1,824 automated unit/integration tests passing cleanly.
-  - Debug and Release compilation clean (0 errors).
-  - ReleaseGuard automated security scan: Clean (0 violations).
-  - Workstation test isolation verified (100% in-memory / zero host pollution).
+  - Debug and Release solution builds clean (0 errors).
+  - Automated unit and integration suites verified on `integration/cbos-baseline-20261128` (live UI and physical printer hardware remain unexecuted).
+  - QuickBooks integration remains simulated (`DefaultQuickBooksGateway`); statutory FBR/provincial/ZATCA/UAE VAT APIs and multi-terminal LAN sync remain uncertified/deferred.
 
 ---
 
