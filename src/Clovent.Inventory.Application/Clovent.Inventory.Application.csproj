@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Clovent.Inventory\Clovent.Inventory.csproj" />
+    <ProjectReference Include="..\Clovent.Catalog.Application\Clovent.Catalog.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -18,6 +18,8 @@ using Clovent.Desktop.Forms.Restaurant.MenuItems;
 using Clovent.Desktop.Forms.Restaurant.Setup;
 using Clovent.Desktop.Forms.Settings;
 using Clovent.Desktop.Inventory.Adjustments;
+using Clovent.Desktop.Inventory.Recipes;
+using Clovent.Desktop.Inventory.Reports;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
 using Clovent.Desktop.Inventory.WarehouseStocks;
@@ -291,6 +293,28 @@ public static class NavigationRegistry
             Order: 340,
             IsPrimaryAction: false,
             Description: "Chronological audit trail of all inventory movement entries"),
+
+        new(
+            Key: "recipes",
+            Caption: "Recipes & Costing",
+            RibbonPage: NavigationPage.Inventory,
+            RibbonGroup: "Recipes & Kitchen",
+            IconUri: "svgimages/business%20objects/bo_product.svg",
+            Permission: "menu.recipes",
+            Order: 350,
+            IsPrimaryAction: true,
+            Description: "Recipe bills of materials, theoretical portion costing, and margins"),
+
+        new(
+            Key: "inventoryreports",
+            Caption: "Inventory Reports",
+            RibbonPage: NavigationPage.Inventory,
+            RibbonGroup: "Reports",
+            IconUri: "svgimages/reports/report.svg",
+            Permission: "menu.inventoryreports",
+            Order: 360,
+            IsPrimaryAction: false,
+            Description: "Recipe food costs, ingredient valuations, stock variances, and kitchen wastage"),
 
         // ==========================================
         // 3. PURCHASES PAGE (Future module architecture - hidden until ready)
@@ -702,6 +726,8 @@ public static class NavigationRegistry
         navigationService.Register("stockadjustments", () => serviceProvider.GetRequiredService<StockAdjustmentManagementView>());
         navigationService.Register("stocktransfers", () => serviceProvider.GetRequiredService<StockTransferManagementView>());
         navigationService.Register("inventorytransactions", () => serviceProvider.GetRequiredService<InventoryTransactionsView>());
+        navigationService.Register("recipes", () => serviceProvider.GetRequiredService<RecipeManagementView>());
+        navigationService.Register("inventoryreports", () => serviceProvider.GetRequiredService<InventoryReportsView>());
 
         // Dining & Restaurant POS
         navigationService.Register("diningareas", () => serviceProvider.GetRequiredService<DiningAreaManagementView>());

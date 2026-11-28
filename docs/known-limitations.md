@@ -48,6 +48,20 @@ This document captures verified, factual limitations and architectural boundarie
 - **Approved Current Behavior:** Customer credit transactions post to `[Restaurant].[CustomerLedgerEntries]` as a single-entry subledger recording debits, credits, and running balance (`OutstandingBalance`).
 - **Separately Reviewed Contract Required:** Unsupported mandates for dual entries in `CustomerLedgerEntries`, automatic advance creation/consumption, and specific new fields are removed. Approved current behavior is preserved; introducing dual entries or automated advance lifecycle semantics requires a separately reviewed financial contract before adoption.
 
+### 2.5 Inventory, Recipe Costing & Theoretical vs. Verified Actual Profit (TASK-11)
+- **Current State:** **RECIPE BOM EXPLOSION, UOM CONVERSION & THEORETICAL COSTING IMPLEMENTED (CBOS 1.2.3)**.
+- **Implemented Capabilities:**
+  - **Universal Kitchen Unit Conversion Engine:** Standardized conversion across mass (KG, G, MG, LB, OZ), volume (L, ML, CL, CUP, TBSP, TSP, FL_OZ), and count units (PCS, EACH, SLICE, PORTION, DOZEN) with 4-decimal precision (`decimal(18,4)`) and `MidpointRounding.AwayFromZero`.
+  - **Recipe Aggregate & Bill of Materials (BOM):** Prepared sellable variants decompose into constituent raw ingredients with trim/prep wastage loss percentages (`GrossQuantityRequired`), optional modifier consumption rules, and immutable version snapshots.
+  - **Sales-to-Inventory Outbox Decomposition:** Order completion atomically dispatches inventory posting; items with active recipes explode into raw ingredient warehouse stock deductions; line modifiers consume modifier stock; resale items without recipes deduct finished goods directly; idempotent retry avoids double deductions.
+  - **Zero-Migration Durable Persistence:** `JsonRecipeRepository` persists recipe aggregates to `%ProgramData%\Clovent\Recipes\recipes.json` using atomic temporary file replacement, preserving zero database migrations for CBOS 1.2.3.
+- **Critical Architectural Boundary — Theoretical Food Cost vs. Verified Actual Profit:**
+  - **Theoretical Recipe Costing Scope:** Recipe cost calculations and menu engineering reports (`GetRecipeCostReportQuery`) compute theoretical food costs based on bill-of-materials ingredient formulas and active purchasing unit costs.
+  - **Audited Financial P&L Distinction:** Theoretical food cost reflects target/standard kitchen consumption under ideal execution. Actual verified business profit is strictly derived from the double-entry financial ledger and cash drawer reconciliation (actual customer money received minus verified purchase invoices, physical shrinkage, and spoilage). Theoretical margins must never be reported as audited financial profit.
+- **Operational Boundaries & Roadmap:**
+  - **Electronic Data Interchange (EDI) Supplier Integration:** CBOS does not integrate directly with supplier EDI/EDIFACT procurement protocols. Purchasing and supplier receiving remain manual operational workflows via `OpenOrReceiveStockCommand`.
+  - **Automated Cyclic Stocktake Terminals:** Stocktake adjustments are recorded via `StockAdjustment` commands. Automated mobile barcode terminal syncing for physical inventory counts is planned for CBOS 1.4.0+.
+
 ---
 
 ## 3. Resilience, Continuity & Deployment Scope

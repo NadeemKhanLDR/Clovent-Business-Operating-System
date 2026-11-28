@@ -22,6 +22,8 @@ using Clovent.Desktop.Printing;
 using Clovent.Platform.Printing;
 using Clovent.Platform.Execution;
 using Clovent.Desktop.Inventory.Adjustments;
+using Clovent.Desktop.Inventory.Recipes;
+using Clovent.Desktop.Inventory.Reports;
 using Clovent.Desktop.Inventory.Transactions;
 using Clovent.Desktop.Inventory.Transfers;
 using Clovent.Desktop.Inventory.WarehouseStocks;
@@ -189,6 +191,8 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddTransient<StockAdjustmentManagementView>();
         services.TryAddTransient<StockTransferManagementView>();
         services.TryAddTransient<InventoryTransactionsView>();
+        services.TryAddTransient<RecipeManagementView>();
+        services.TryAddTransient<InventoryReportsView>();
 
         // Milestone 15 ("Restaurant POS Core") management screens - same
         // Transient-per-navigation convention as Milestones 13/14's.

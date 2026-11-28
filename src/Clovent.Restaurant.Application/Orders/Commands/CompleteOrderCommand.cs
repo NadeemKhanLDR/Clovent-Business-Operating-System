@@ -218,7 +218,7 @@ public sealed class CompleteOrderCommandHandler(
                     variantMap.TryGetValue(l.ProductVariantId, out var vInfo);
                     var sku = !string.IsNullOrWhiteSpace(vInfo.Sku) ? vInfo.Sku : "";
                     var name = !string.IsNullOrWhiteSpace(vInfo.Name) ? vInfo.Name : $"Item {l.ProductVariantId.ToString()[..8]}";
-                    return new InventoryPostingLineItem(l.ProductVariantId, sku, name, l.Quantity);
+                    return new InventoryPostingLineItem(l.ProductVariantId, sku, name, l.Quantity, l.Notes);
                 })
                 .ToList();
 

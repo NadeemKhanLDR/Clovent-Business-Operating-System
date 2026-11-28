@@ -2,6 +2,7 @@ using System.Text.Json;
 using Clovent.Inventory.Application.Transactions.Queries;
 using Clovent.Inventory.Application.WarehouseStocks.Commands;
 using Clovent.Inventory.Application.WarehouseStocks.Queries;
+using Clovent.Inventory.Recipes;
 using Clovent.Inventory.Transactions;
 using Clovent.Restaurant.Application.Outbox.Dtos;
 using Clovent.Restaurant.Orders;
@@ -17,13 +18,15 @@ namespace Clovent.Restaurant.Application.Outbox.Handlers;
 /// or restocks returned items for completed refunds without stalling the cashier UI thread.
 /// Enforces consistent inventory policy across tracked, untracked, and insufficient-stock products,
 /// preventing inventory inflation and double-deductions.
+/// Supports recipe ingredient explosion for prepared food and beverage items.
 /// </summary>
 public sealed class InventoryPostingOutboxHandler(
     IMediator mediator,
     ILogger<InventoryPostingOutboxHandler> logger,
     IOutboxRepository? outboxRepository = null,
     IRefundRepository? refundRepository = null,
-    Clovent.Inventory.Application.IUnitOfWork? inventoryUnitOfWork = null) : IOutboxMessageHandler
+    Clovent.Inventory.Application.IUnitOfWork? inventoryUnitOfWork = null,
+    IRecipeRepository? recipeRepository = null) : IOutboxMessageHandler
 {
     private const string OrderStockReferenceType = "Order";
     private const string RefundStockReferenceType = "Refund";
@@ -79,9 +82,57 @@ public sealed class InventoryPostingOutboxHandler(
             .Select(t => t.ProductVariantId)
             .ToHashSet();
 
-        var pendingRestockItems = payload.Items
+        var explodedRestockItems = new List<ExplodedSaleItem>();
+        foreach (var item in payload.Items)
+        {
+            Recipe? recipe = null;
+            if (recipeRepository != null)
+            {
+                recipe = await recipeRepository.GetByProductVariantIdAsync(item.ProductVariantId, cancellationToken);
+            }
+
+            if (recipe != null && recipe.IsActive && recipe.Ingredients.Count > 0)
+            {
+                foreach (var ing in recipe.Ingredients)
+                {
+                    decimal restockQty = recipe.YieldQuantity > 0m
+                        ? Math.Round((ing.GrossQuantityRequired * item.Quantity) / recipe.YieldQuantity, 4, MidpointRounding.AwayFromZero)
+                        : Math.Round(ing.GrossQuantityRequired * item.Quantity, 4, MidpointRounding.AwayFromZero);
+
+                    explodedRestockItems.Add(new ExplodedSaleItem(
+                        ing.IngredientVariantId,
+                        restockQty,
+                        $"Restock from {referenceType} {payload.OrderNumber} ({recipe.RecipeName} - {ing.IngredientName})"));
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.Notes) && recipe.Modifiers.Count > 0)
+                {
+                    foreach (var mod in recipe.Modifiers)
+                    {
+                        if (item.Notes.Contains(mod.ModifierName, StringComparison.OrdinalIgnoreCase) ||
+                            item.Notes.Contains(mod.IngredientVariantId.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            decimal modQty = Math.Round(mod.GrossQuantityRequired * item.Quantity, 4, MidpointRounding.AwayFromZero);
+                            explodedRestockItems.Add(new ExplodedSaleItem(
+                                mod.IngredientVariantId,
+                                modQty,
+                                $"Restock from {referenceType} {payload.OrderNumber} ({mod.ModifierName})"));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                explodedRestockItems.Add(new ExplodedSaleItem(
+                    item.ProductVariantId,
+                    item.Quantity,
+                    $"Restock from {referenceType} {payload.OrderNumber}"));
+            }
+        }
+
+        var pendingRestockItems = explodedRestockItems
             .GroupBy(i => i.ProductVariantId)
-            .Select(g => new PendingRestockItem(g.Key, g.Sum(i => i.Quantity)))
+            .Select(g => new PendingRestockItem(g.Key, g.Sum(i => i.Quantity), string.Join("; ", g.Select(i => i.Note).Distinct())))
             .Where(i => !alreadyRestockedVariantIds.Contains(i.ProductVariantId))
             .ToList();
 
@@ -250,7 +301,7 @@ public sealed class InventoryPostingOutboxHandler(
                 payload.WarehouseId,
                 item.ProductVariantId,
                 effectiveRestockQty,
-                $"Restock from {referenceType} {payload.OrderNumber} (Order {payload.OriginalOrderNumber ?? originalOrderId.ToString()})",
+                !string.IsNullOrWhiteSpace(item.Note) ? item.Note : $"Restock from {referenceType} {payload.OrderNumber} (Order {payload.OriginalOrderNumber ?? originalOrderId.ToString()})",
                 referenceType,
                 refundId),
             cancellationToken);
@@ -270,9 +321,57 @@ public sealed class InventoryPostingOutboxHandler(
             .Select(t => t.ProductVariantId)
             .ToHashSet();
 
-        var pendingItems = payload.Items
+        var explodedSaleItems = new List<ExplodedSaleItem>();
+        foreach (var item in payload.Items)
+        {
+            Recipe? recipe = null;
+            if (recipeRepository != null)
+            {
+                recipe = await recipeRepository.GetByProductVariantIdAsync(item.ProductVariantId, cancellationToken);
+            }
+
+            if (recipe != null && recipe.IsActive && recipe.Ingredients.Count > 0)
+            {
+                foreach (var ing in recipe.Ingredients)
+                {
+                    decimal requiredQty = recipe.YieldQuantity > 0m
+                        ? Math.Round((ing.GrossQuantityRequired * item.Quantity) / recipe.YieldQuantity, 4, MidpointRounding.AwayFromZero)
+                        : Math.Round(ing.GrossQuantityRequired * item.Quantity, 4, MidpointRounding.AwayFromZero);
+
+                    explodedSaleItems.Add(new ExplodedSaleItem(
+                        ing.IngredientVariantId,
+                        requiredQty,
+                        $"Order {payload.OrderNumber} - Recipe: {recipe.RecipeName} ({ing.IngredientName})"));
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.Notes) && recipe.Modifiers.Count > 0)
+                {
+                    foreach (var mod in recipe.Modifiers)
+                    {
+                        if (item.Notes.Contains(mod.ModifierName, StringComparison.OrdinalIgnoreCase) ||
+                            item.Notes.Contains(mod.IngredientVariantId.ToString(), StringComparison.OrdinalIgnoreCase))
+                        {
+                            decimal modQty = Math.Round(mod.GrossQuantityRequired * item.Quantity, 4, MidpointRounding.AwayFromZero);
+                            explodedSaleItems.Add(new ExplodedSaleItem(
+                                mod.IngredientVariantId,
+                                modQty,
+                                $"Order {payload.OrderNumber} - Modifier: {mod.ModifierName}"));
+                        }
+                    }
+                }
+            }
+            else
+            {
+                explodedSaleItems.Add(new ExplodedSaleItem(
+                    item.ProductVariantId,
+                    item.Quantity,
+                    $"Order {payload.OrderNumber}"));
+            }
+        }
+
+        var pendingItems = explodedSaleItems
             .GroupBy(i => i.ProductVariantId)
-            .Select(g => new PendingRestockItem(g.Key, g.Sum(i => i.Quantity)))
+            .Select(g => new PendingRestockItem(g.Key, g.Sum(i => i.Quantity), string.Join("; ", g.Select(i => i.Note).Distinct())))
             .Where(i => !alreadyIssuedVariantIds.Contains(i.ProductVariantId))
             .ToList();
 
@@ -301,7 +400,7 @@ public sealed class InventoryPostingOutboxHandler(
                 new IssueStockCommand(
                     stock.WarehouseStockId,
                     item.Quantity,
-                    $"Order {payload.OrderNumber}",
+                    !string.IsNullOrWhiteSpace(item.Note) ? item.Note : $"Order {payload.OrderNumber}",
                     OrderStockReferenceType,
                     payload.OrderId),
                 cancellationToken);
@@ -310,5 +409,6 @@ public sealed class InventoryPostingOutboxHandler(
         logger.LogInformation("Successfully posted inventory for order {OrderNumber}.", payload.OrderNumber);
     }
 
-    private sealed record PendingRestockItem(Guid ProductVariantId, decimal Quantity);
+    private sealed record PendingRestockItem(Guid ProductVariantId, decimal Quantity, string Note = "");
+    private sealed record ExplodedSaleItem(Guid ProductVariantId, decimal Quantity, string Note);
 }
