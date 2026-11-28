@@ -19,6 +19,7 @@
 .PARAMETER RequireSigning
     If set (or $env:CBOS_REQUIRE_SIGNING -eq 'true'), fails with exit code 1 when signing cannot be performed.
 #>
+[CmdletBinding(PositionalBinding = $false)]
 param(
     [Parameter(Mandatory = $true)]
     [string[]]$TargetPaths,
@@ -46,6 +47,8 @@ function Find-SignTool {
     }
     return $null
 }
+
+$TargetPaths = @($TargetPaths | ForEach-Object { $_ -split ',' } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
 foreach ($p in $TargetPaths) {
     if (-not (Test-Path $p)) {
