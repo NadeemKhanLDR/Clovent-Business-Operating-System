@@ -20,12 +20,6 @@ public enum PaymentMethodButtonState
 /// </summary>
 public static class PosPaymentRules
 {
-    /// <summary>
-    /// Half-cent tolerance used whenever a balance is compared against zero, matching the
-    /// rounding slack the rest of the POS applies to money.
-    /// </summary>
-    public const decimal BalanceEpsilon = 0.005m;
-
     /// <summary>Order statuses from which an order may still be completed.</summary>
     private static readonly string[] CompletableStatuses = ["Open", "Held"];
 
@@ -35,8 +29,25 @@ public static class PosPaymentRules
         : isSelected ? PaymentMethodButtonState.Selected
         : PaymentMethodButtonState.Unselected;
 
-    /// <summary>A balance is settled once it is at or below zero within <see cref="BalanceEpsilon"/>.</summary>
-    public static bool IsSettled(decimal balance) => balance <= BalanceEpsilon;
+    /// <summary>
+    /// A balance is settled strictly when normalized outstanding balance is exactly zero (0.00m).
+    /// Negative balances (unexplained overpayment) or positive unpaid cents are not settled.
+    /// </summary>
+    public static bool IsSettled(decimal balance) => balance == 0.00m;
+
+    /// <summary>
+    /// Calculates change due for cash tender using the centralized rounding policy.
+    /// </summary>
+    public static decimal CalculateChange(decimal grossCashTender, decimal remainingBalance) =>
+        Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundChange(
+            Math.Max(0.00m, grossCashTender - Math.Max(0.00m, remainingBalance)));
+
+    /// <summary>
+    /// Calculates applied payment amount for cash tender (Gross Cash Tender - Change) using the centralized rounding policy.
+    /// </summary>
+    public static decimal CalculateAppliedCashPayment(decimal grossCashTender, decimal remainingBalance) =>
+        Clovent.Restaurant.DomainServices.MoneyRoundingPolicy.RoundTender(
+            grossCashTender - CalculateChange(grossCashTender, remainingBalance));
 
     /// <summary>
     /// Whether recording a payment should hand off to the order-completion workflow.

@@ -18,11 +18,19 @@ This document captures verified, factual limitations and architectural boundarie
 
 ## 2. Point of Sale & Financial Operations
 
-### 2.1 Refund & Return Domain
-- **Current State:** **REFUND DOMAIN NOT YET IMPLEMENTED**.
-- **Impact:** CBOS 1.2.2 does not contain a dedicated Refund aggregate. Customer return slips, credit vouchers, partial item returns against completed orders, and refund tender transactions are not modeled in the domain layer.
-- **Policy Requirement vs. Source Behavior (CBOS 1.2.3):** Voiding or pseudo-refunding already completed orders is strictly prohibited by policy during the attended single-terminal pilot to protect ledger integrity. In the 1.2.2 baseline source code, `Order.Void()` does not yet check if an order is completed; enforcing this restriction at domain and UI levels, along with BalanceEpsilon elimination, is scheduled for CBOS 1.2.3 under **TASK-04: BalanceEpsilon Elimination + Completed Void Restriction**.
-- **Roadmap Target:** A formal compensating Refund & Return domain aggregate is scheduled for CBOS 1.3.0.
+### 2.1 Refund & Return Domain (TASK-10 Verification & Gap Analysis)
+- **Current State:** **CORE REFUND AGGREGATE IMPLEMENTED; GATEWAY REVERSAL IS MANUAL/EXTERNAL**.
+- **Domain & Application Capabilities (Implemented in CBOS 1.2.3):**
+  - **Full & Partial Refunds:** Fully supported via `ProcessRefundCommand`, `Refund` aggregate, and `RefundLine`. Cashiers can refund specific quantities of order items.
+  - **Multiple Partial Refunds:** Cumulative refunded amount is tracked on `Order` (`TotalRefundedAmount`), bounded strictly by the order's gross total.
+  - **Settlement Channels:** Supports `RefundSettlementMethod.CashPayout` (deducts cash from active cashier shift drawer) and `RefundSettlementMethod.CustomerAccountCredit` (posts credit entry to `CustomerLedgerEntries`).
+  - **Inventory Restock:** Each refund line supports optional restocking (`InventoryDisposition.Restock` triggers inventory adjustment).
+  - **Idempotency & Audit Trail:** Idempotent command processing via `IdempotencyKey`, linking refund to `CashierShiftId`, `TerminalId`, and audit logs.
+  - **Day Close Reconciliation:** Cash refunds are explicitly segregated from gross collections and deducted from `ExpectedClosingCash` in `BusinessDaySummaryDto`.
+- **Known Limitations & Architectural Gaps:**
+  - **Automated Card/Digital Processor Gateway Reversals (GAP):** CBOS does not integrate with card processor payment APIs. If a customer originally paid via credit card or digital wallet, CBOS cannot automatically transmit a reversal to the acquirer gateway. The refund must be recorded either as an over-the-counter cash refund (`CashPayout`) or as a store credit (`CustomerAccountCredit`), and the physical card reversal must be processed manually on the external EFTPOS terminal.
+  - **Original Payment Method Restriction Enforcement:** While the refund dialog shows the original tender type, the system does not forcibly restrict refunds to the exact original tender due to the absence of direct payment gateway APIs.
+- **Roadmap Target:** Direct EMV / payment gateway reversal integration is scheduled for CBOS 1.4.0+.
 
 ### 2.2 Payment Processor Direct Integration & Payment Identity (TASK-05)
 - **Current State:** **MANUAL TENDER CLASSIFICATION ONLY**.

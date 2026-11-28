@@ -19,8 +19,11 @@ using MediatR;
 
 namespace Clovent.Restaurant.Application.DayClose.Queries;
 
-/// <summary>Query to retrieve the daily close summary and open shift prerequisites for a business date.</summary>
-public sealed record GetBusinessDaySummaryQuery(Guid BranchId, DateOnly BusinessDate) : IRequest<BusinessDaySummaryDto>;
+/// <summary>Query to retrieve the daily close summary, reconciliation metrics, and open shift prerequisites for a business date.</summary>
+public sealed record GetBusinessDaySummaryQuery(
+    Guid BranchId,
+    DateOnly BusinessDate,
+    Guid? ShiftId = null) : IRequest<BusinessDaySummaryDto>;
 
 /// <summary>Handles <see cref="GetBusinessDaySummaryQuery"/>.</summary>
 public sealed class GetBusinessDaySummaryQueryHandler(
@@ -53,7 +56,12 @@ public sealed class GetBusinessDaySummaryQueryHandler(
 
         var branchShifts = shifts.Where(s => s.BranchId == branchId).ToList();
 
-        // Also check if any open shift exists on this branch even if opened slightly earlier
+        // Optional cashier/shift filtering
+        if (request.ShiftId.HasValue)
+        {
+            branchShifts = branchShifts.Where(s => s.Id.Value == request.ShiftId.Value).ToList();
+        }
+
         var openShiftsList = branchShifts.Where(s => s.Status == ShiftStatus.Open).ToList();
         var closedShiftsList = branchShifts.Where(s => s.Status == ShiftStatus.Closed).ToList();
 
@@ -93,21 +101,30 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                 MoneyRoundingPolicy.RoundMoney(sCreditRefunds));
         }
 
-        // Map to ShiftDayCloseItemDto
         var openShiftDtos = openShiftsList.Select(MapShiftItem).ToList();
         var closedShiftDtos = closedShiftsList.Select(MapShiftItem).ToList();
 
-        // Payment classification
+        // 4. Payment classification & reconciliation
         var allPaymentMethods = await paymentMethodRepository.GetAllAsync(cancellationToken);
         var methodsById = allPaymentMethods.ToDictionary(m => m.Id);
 
         decimal totalCashSales = 0m;
         decimal totalCardSales = 0m;
+        decimal totalBankTransferSales = 0m;
+        decimal totalDigitalSales = 0m;
         decimal totalOtherSales = 0m;
+        decimal outstandingReceivables = 0m;
+
         decimal totalCashIn = 0m;
         decimal totalCashOut = 0m;
         decimal totalVariance = 0m;
+        decimal openingFloat = branchShifts.Sum(s => s.StartingCash);
+        decimal actualClosingCash = closedShiftsList.Sum(s => s.CountedCash);
+
         var distinctOrderIds = new HashSet<Guid>();
+        var allActivePayments = new List<Payment>();
+        var tenderMap = new Dictionary<string, (int Count, decimal Amount)>(StringComparer.OrdinalIgnoreCase);
+        var cashierSalesMap = new Dictionary<string, (int OrderCount, decimal Sales)>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var shift in branchShifts)
         {
@@ -120,36 +137,91 @@ public sealed class GetBusinessDaySummaryQueryHandler(
             }
 
             var payments = await paymentRepository.GetByShiftIdAsync(shift.Id, cancellationToken);
+            decimal shiftSales = 0m;
+            var shiftOrderIds = new HashSet<Guid>();
+
             foreach (var p in payments.Where(p => !p.IsVoided))
             {
+                allActivePayments.Add(p);
                 distinctOrderIds.Add(p.OrderId.Value);
-                if (methodsById.TryGetValue(p.PaymentMethodId, out var method))
+                shiftOrderIds.Add(p.OrderId.Value);
+                shiftSales += p.Amount;
+
+                var methodName = methodsById.TryGetValue(p.PaymentMethodId, out var method)
+                    ? method.Name.Value
+                    : "Other";
+
+                if (PaymentMethodClassifier.IsCash(methodName))
                 {
-                    var name = method.Name.Value;
-                    if (PaymentMethodClassifier.IsCash(name))
-                    {
-                        totalCashSales += p.Amount;
-                    }
-                    else if (PaymentMethodClassifier.IsCard(name))
-                    {
-                        totalCardSales += p.Amount;
-                    }
-                    else
-                    {
-                        totalOtherSales += p.Amount;
-                    }
+                    totalCashSales += p.Amount;
+                }
+                else if (PaymentMethodClassifier.IsCard(methodName))
+                {
+                    totalCardSales += p.Amount;
+                }
+                else if (PaymentMethodClassifier.IsBankTransfer(methodName))
+                {
+                    totalBankTransferSales += p.Amount;
+                }
+                else if (PaymentMethodClassifier.IsDigitalPayment(methodName))
+                {
+                    totalDigitalSales += p.Amount;
+                }
+                else if (PaymentMethodClassifier.IsOnAccountCredit(methodName))
+                {
+                    outstandingReceivables += p.Amount;
+                    totalOtherSales += p.Amount;
                 }
                 else
                 {
                     totalOtherSales += p.Amount;
                 }
+
+                if (tenderMap.TryGetValue(methodName, out var currTender))
+                {
+                    tenderMap[methodName] = (currTender.Count + 1, currTender.Amount + p.Amount);
+                }
+                else
+                {
+                    tenderMap[methodName] = (1, p.Amount);
+                }
+            }
+
+            if (cashierSalesMap.TryGetValue(shift.CashierName, out var currCashier))
+            {
+                cashierSalesMap[shift.CashierName] = (currCashier.OrderCount + shiftOrderIds.Count, currCashier.Sales + shiftSales);
+            }
+            else
+            {
+                cashierSalesMap[shift.CashierName] = (shiftOrderIds.Count, shiftSales);
             }
         }
 
-        decimal totalSales = totalCashSales + totalCardSales + totalOtherSales;
+        // Split Payments Analysis
+        var paymentsByOrder = allActivePayments
+            .GroupBy(p => p.OrderId.Value)
+            .ToDictionary(g => g.Key, g => g.ToList());
 
+        int splitPaymentsCount = paymentsByOrder.Values.Count(list => list.Count > 1);
+        decimal splitPaymentsTotal = paymentsByOrder.Values
+            .Where(list => list.Count > 1)
+            .Sum(list => list.Sum(p => p.Amount));
+
+        decimal totalSales = totalCashSales + totalCardSales + totalBankTransferSales + totalDigitalSales + totalOtherSales;
+        decimal totalCollections = totalSales;
+
+        // 5. Orders, Taxes, Discounts & Operational Breakdown
+        decimal totalGrossSales = 0m;
+        decimal totalItemDiscounts = 0m;
+        decimal totalOrderDiscounts = 0m;
         decimal totalTax = 0m;
-        decimal totalDiscounts = 0m;
+        decimal totalTaxableSales = 0m;
+        decimal totalTaxExemptSales = 0m;
+        int completedOrdersCount = 0;
+        int cancelledOrdersCount = 0;
+
+        var taxBreakdownMap = new Dictionary<(string Authority, string TaxCode, decimal Rate), (decimal TaxableBase, decimal TaxAmount)>();
+        var orderTypeSalesMap = new Dictionary<string, (int OrderCount, decimal Sales)>(StringComparer.OrdinalIgnoreCase);
 
         if (orderRepository != null)
         {
@@ -158,6 +230,30 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                 var order = await orderRepository.GetByIdAsync(new OrderId(orderId), cancellationToken);
                 if (order is null) continue;
 
+                if (order.Status == OrderStatus.Completed)
+                {
+                    completedOrdersCount++;
+                }
+                else if (order.Status == OrderStatus.Cancelled)
+                {
+                    cancelledOrdersCount++;
+                }
+
+                var orderTypeKey = order.OrderType.ToString();
+                var orderPaidAmount = paymentsByOrder.TryGetValue(order.Id.Value, out var orderPays)
+                    ? orderPays.Sum(p => p.Amount)
+                    : 0m;
+
+                if (orderTypeSalesMap.TryGetValue(orderTypeKey, out var currOt))
+                {
+                    orderTypeSalesMap[orderTypeKey] = (currOt.OrderCount + 1, currOt.Sales + orderPaidAmount);
+                }
+                else
+                {
+                    orderTypeSalesMap[orderTypeKey] = (1, orderPaidAmount);
+                }
+
+                // Financial details from ReceiptSnapshot if available
                 if (!string.IsNullOrEmpty(order.ReceiptSnapshotJson))
                 {
                     try
@@ -165,8 +261,27 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                         var snapshot = JsonSerializer.Deserialize<ReceiptSnapshot>(order.ReceiptSnapshotJson);
                         if (snapshot != null)
                         {
+                            totalGrossSales += snapshot.Subtotal;
                             totalTax += snapshot.TaxTotal;
-                            totalDiscounts += snapshot.DiscountTotal;
+                            totalOrderDiscounts += snapshot.DiscountTotal;
+                            totalTaxableSales += snapshot.TotalTaxableBase;
+                            totalTaxExemptSales += Math.Max(0m, (snapshot.Subtotal - snapshot.DiscountTotal) - snapshot.TotalTaxableBase);
+
+                            if (snapshot.TaxBreakdown != null)
+                            {
+                                foreach (var ts in snapshot.TaxBreakdown)
+                                {
+                                    var key = (ts.Authority, ts.TaxCode, ts.RatePercentage);
+                                    if (taxBreakdownMap.TryGetValue(key, out var exTax))
+                                    {
+                                        taxBreakdownMap[key] = (exTax.TaxableBase + ts.TaxableBase, exTax.TaxAmount + ts.TaxAmount);
+                                    }
+                                    else
+                                    {
+                                        taxBreakdownMap[key] = (ts.TaxableBase, ts.TaxAmount);
+                                    }
+                                }
+                            }
                             continue;
                         }
                     }
@@ -176,19 +291,66 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                     }
                 }
 
+                // Fallback to OrderLine analysis
                 if (orderLineRepository != null)
                 {
                     var lines = await orderLineRepository.GetByOrderIdAsync(order.Id, cancellationToken);
-                    totalTax += lines.Where(l => !l.IsVoided).Sum(l => l.TaxAmount ?? 0m);
-                    totalDiscounts += lines.Where(l => !l.IsVoided).Sum(l => l.AllocatedDiscount);
+                    var activeLines = lines.Where(l => !l.IsVoided).ToList();
+
+                    var lineGross = activeLines.Sum(l => MoneyRoundingPolicy.RoundMoney(l.Quantity * l.UnitPrice));
+                    totalGrossSales += lineGross;
+
+                    var orderDisc = activeLines.Sum(l => l.AllocatedDiscount);
+                    totalOrderDiscounts += orderDisc;
+
+                    var orderTax = activeLines.Sum(l => l.TaxAmount ?? 0m);
+                    totalTax += orderTax;
+
+                    foreach (var l in activeLines)
+                    {
+                        var lineNet = l.Quantity * l.UnitPrice - l.AllocatedDiscount;
+                        if (l.TaxRatePercentage > 0m && string.Equals(l.TaxClassification, "Taxable", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var baseAmount = l.TaxableBase ?? lineNet;
+                            totalTaxableSales += baseAmount;
+                            var key = (l.TaxAuthority ?? "PRA", l.TaxCode ?? $"TAX-{l.TaxRatePercentage:0.##}", l.TaxRatePercentage);
+                            if (taxBreakdownMap.TryGetValue(key, out var exTax))
+                            {
+                                taxBreakdownMap[key] = (exTax.TaxableBase + baseAmount, exTax.TaxAmount + (l.TaxAmount ?? 0m));
+                            }
+                            else
+                            {
+                                taxBreakdownMap[key] = (baseAmount, l.TaxAmount ?? 0m);
+                            }
+                        }
+                        else
+                        {
+                            totalTaxExemptSales += lineNet;
+                        }
+                    }
                 }
             }
         }
 
+        // If gross sales was not computable via lines or snapshots, derive from sales and discounts
+        decimal totalDiscounts = totalItemDiscounts + totalOrderDiscounts;
+        if (totalGrossSales == 0m && totalSales > 0m)
+        {
+            totalGrossSales = totalSales + totalDiscounts - totalTax;
+        }
+
+        decimal netSales = Math.Max(0m, totalGrossSales - totalDiscounts);
+        decimal averageOrderValue = completedOrdersCount > 0
+            ? MoneyRoundingPolicy.RoundMoney(netSales / completedOrdersCount)
+            : (distinctOrderIds.Count > 0 ? MoneyRoundingPolicy.RoundMoney(netSales / distinctOrderIds.Count) : 0m);
+
+        // 6. Refunds & Reversals
         decimal totalRefunds = 0m;
         decimal cashRefunds = 0m;
         decimal customerAccountCreditRefunds = 0m;
         decimal otherRefunds = 0m;
+        int refundedOrdersCount = 0;
+
         if (refundRepository != null)
         {
             var dayRefunds = await refundRepository.GetByDateRangeAsync(startUtc, endUtc, cancellationToken);
@@ -216,7 +378,33 @@ public sealed class GetBusinessDaySummaryQueryHandler(
                 .Where(r => r.SettlementMethod != RefundSettlementMethod.CashPayout &&
                             r.SettlementMethod != RefundSettlementMethod.CustomerAccountCredit)
                 .Sum(r => r.GrandTotalRefunded);
+
+            refundedOrdersCount = branchRefunds.Select(r => r.OrderId).Distinct().Count();
         }
+
+        // 7. Cash Drawer Expected vs Actual
+        decimal expectedClosingCash = MoneyRoundingPolicy.RoundMoney(openingFloat + totalCashSales + totalCashIn - totalCashOut - cashRefunds);
+
+        // Map breakdowns
+        var tenderBreakdown = tenderMap
+            .Select(t => new DayCloseTenderItemDto(t.Key, t.Value.Count, MoneyRoundingPolicy.RoundMoney(t.Value.Amount)))
+            .OrderByDescending(t => t.TotalAmount)
+            .ToList();
+
+        var taxBreakdown = taxBreakdownMap
+            .Select(t => new DayCloseTaxItemDto(t.Key.Authority, t.Key.TaxCode, t.Key.Rate, MoneyRoundingPolicy.RoundMoney(t.Value.TaxableBase), MoneyRoundingPolicy.RoundMoney(t.Value.TaxAmount)))
+            .OrderBy(t => t.TaxCode)
+            .ToList();
+
+        var cashierBreakdown = cashierSalesMap
+            .Select(c => new DayCloseCashierSalesDto(c.Key, c.Value.OrderCount, MoneyRoundingPolicy.RoundMoney(c.Value.Sales)))
+            .OrderByDescending(c => c.TotalSales)
+            .ToList();
+
+        var orderTypeBreakdown = orderTypeSalesMap
+            .Select(o => new DayCloseOrderTypeSalesDto(o.Key, o.Value.OrderCount, MoneyRoundingPolicy.RoundMoney(o.Value.Sales)))
+            .OrderByDescending(o => o.TotalSales)
+            .ToList();
 
         bool isAlreadyClosed = existingClose != null;
         bool canClose = !isAlreadyClosed && openShiftsList.Count == 0;
@@ -254,6 +442,34 @@ public sealed class GetBusinessDaySummaryQueryHandler(
             blockingReason,
             MoneyRoundingPolicy.RoundMoney(cashRefunds),
             MoneyRoundingPolicy.RoundMoney(customerAccountCreditRefunds),
-            MoneyRoundingPolicy.RoundMoney(otherRefunds));
+            MoneyRoundingPolicy.RoundMoney(otherRefunds),
+            // Extended Sales Breakdown
+            GrossSales: MoneyRoundingPolicy.RoundMoney(totalGrossSales),
+            ItemDiscounts: MoneyRoundingPolicy.RoundMoney(totalItemDiscounts),
+            OrderDiscounts: MoneyRoundingPolicy.RoundMoney(totalOrderDiscounts),
+            NetSales: MoneyRoundingPolicy.RoundMoney(netSales),
+            CancelledOrdersCount: cancelledOrdersCount,
+            // Extended Tax Breakdown
+            TaxableSales: MoneyRoundingPolicy.RoundMoney(totalTaxableSales),
+            TaxExemptSales: MoneyRoundingPolicy.RoundMoney(totalTaxExemptSales),
+            TaxBreakdown: taxBreakdown,
+            // Extended Payments Breakdown
+            BankTransferSales: MoneyRoundingPolicy.RoundMoney(totalBankTransferSales),
+            DigitalSales: MoneyRoundingPolicy.RoundMoney(totalDigitalSales),
+            SplitPaymentsCount: splitPaymentsCount,
+            SplitPaymentsTotal: MoneyRoundingPolicy.RoundMoney(splitPaymentsTotal),
+            TotalCollections: MoneyRoundingPolicy.RoundMoney(totalCollections),
+            OutstandingReceivables: MoneyRoundingPolicy.RoundMoney(outstandingReceivables),
+            TenderBreakdown: tenderBreakdown,
+            // Extended Cash Drawer Reconciliation
+            OpeningFloat: MoneyRoundingPolicy.RoundMoney(openingFloat),
+            ExpectedClosingCash: expectedClosingCash,
+            ActualClosingCash: MoneyRoundingPolicy.RoundMoney(actualClosingCash),
+            // Extended Operations Breakdown
+            CompletedOrdersCount: completedOrdersCount,
+            RefundedOrdersCount: refundedOrdersCount,
+            AverageOrderValue: averageOrderValue,
+            CashierBreakdown: cashierBreakdown,
+            OrderTypeBreakdown: orderTypeBreakdown);
     }
 }

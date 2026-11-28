@@ -76,7 +76,10 @@ public class BusinessDayCloseTaxRefundIntegrationTests
 
         var receiptSnapshot = new ReceiptSnapshot(
             order.Id.Value, "ORD-1", 1, "TakeAway", DateTimeOffset.UtcNow,
-            [], 1000m, 144m, 100m, 0m, 1044m, 0m, [], "Alice", "T1", null);
+            [], 1000m, 144m, 100m, 0m, 1044m, 0m, [], "Alice", "T1", null,
+            [new OrderTaxSummarySnapshot("PRA", "PK-PRA-16", 16m, "Taxable", false, 900m, 144m)],
+            "1.3.0-AwayFromZero-v1",
+            TotalTaxableBase: 900m);
         order.SetReceiptSnapshot(JsonSerializer.Serialize(receiptSnapshot));
         order.AssignDailySalesNumber(1);
         order.Complete();
@@ -113,5 +116,48 @@ public class BusinessDayCloseTaxRefundIntegrationTests
         Assert.Equal(144.00m, summary.Tax);
         Assert.Equal(100.00m, summary.Discounts);
         Assert.Equal(522.00m, summary.Refunds);
+
+        // Assert comprehensive financial breakdowns
+        Assert.Equal(1000.00m, summary.GrossSales);
+        Assert.Equal(0.00m, summary.ItemDiscounts);
+        Assert.Equal(100.00m, summary.OrderDiscounts);
+        Assert.Equal(900.00m, summary.NetSales);
+        Assert.Equal(900.00m, summary.TaxableSales);
+        Assert.Equal(0.00m, summary.TaxExemptSales);
+
+        // Tax Breakdown
+        Assert.NotEmpty(summary.TaxBreakdown!);
+        var taxEntry = Assert.Single(summary.TaxBreakdown!);
+        Assert.Equal("PK-PRA-16", taxEntry.TaxCode);
+        Assert.Equal(16.00m, taxEntry.RatePercentage);
+        Assert.Equal(900.00m, taxEntry.TaxableBase);
+        Assert.Equal(144.00m, taxEntry.TaxAmount);
+
+        // Tender Breakdown
+        Assert.NotEmpty(summary.TenderBreakdown!);
+        var tenderEntry = Assert.Single(summary.TenderBreakdown!);
+        Assert.Equal("Cash", tenderEntry.PaymentMethodName);
+        Assert.Equal(1044.00m, tenderEntry.TotalAmount);
+        Assert.Equal(1, tenderEntry.TransactionCount);
+
+        // Drawer Reconciliation
+        Assert.Equal(500.00m, summary.OpeningFloat);
+        Assert.Equal(1022.00m, summary.ExpectedClosingCash); // 500 float + 1044 cash sales - 522 cash refund
+        Assert.Equal(1500.00m, summary.ActualClosingCash);
+        Assert.Equal(0.00m, summary.TotalShiftVariance);
+
+        // Operations breakdown
+        Assert.Equal(1, summary.TotalOrders);
+        Assert.Equal(1, summary.CompletedOrdersCount);
+        Assert.Equal(0, summary.SplitPaymentsCount);
+
+        // Cashier & Order Type Sales
+        var cashierSales = Assert.Single(summary.CashierBreakdown!);
+        Assert.Equal("Alice Cashier", cashierSales.CashierName);
+        Assert.Equal(1044.00m, cashierSales.TotalSales);
+
+        var orderTypeSales = Assert.Single(summary.OrderTypeBreakdown!);
+        Assert.Equal("TakeAway", orderTypeSales.OrderType);
+        Assert.Equal(1044.00m, orderTypeSales.TotalSales);
     }
 }

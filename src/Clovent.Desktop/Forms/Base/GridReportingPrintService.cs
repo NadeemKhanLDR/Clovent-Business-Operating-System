@@ -146,6 +146,34 @@ public static class GridReportingPrintService
         }
     }
 
+    /// <summary>
+    /// Exports the report to Excel (.xlsx) with professional formatting.
+    /// </summary>
+    public static void ExportToExcel(
+        GridControl grid,
+        string reportTitle,
+        IWin32Window? owner = null)
+    {
+        if (grid.MainView is not GridView) return;
+
+        var cleanName = string.Join("_", reportTitle.Split(System.IO.Path.GetInvalidFileNameChars())) + ".xlsx";
+        using var dialog = new SaveFileDialog
+        {
+            Filter = "Excel files (*.xlsx)|*.xlsx",
+            FileName = cleanName
+        };
+
+        if (dialog.ShowDialog(owner) == DialogResult.OK)
+        {
+            var options = new DevExpress.XtraPrinting.XlsxExportOptionsEx
+            {
+                ExportType = DevExpress.Export.ExportType.WYSIWYG
+            };
+            grid.ExportToXlsx(dialog.FileName, options);
+            XtraMessageBox.Show(owner, $"{reportTitle} exported to Excel successfully.", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
     private static PrintableComponentLink CreateConfiguredLink(
         PrintingSystem ps,
         GridControl grid,

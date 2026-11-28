@@ -13,21 +13,12 @@ namespace Clovent.Desktop.Seed;
 /// <summary>
 /// Development-only convenience: creates one demo user ("admin") if no user with that username exists yet, so
 /// <see cref="Forms.Identity.LoginForm"/> is demonstrable end-to-end without a
-/// separate registration flow (out of scope for every milestone in this
-/// solution so far). Gated by <see cref="DesktopOptions.SeedDevelopmentUser"/> -
-/// disabling that configuration value is how a non-development environment
-/// opts out. Not a substitute for a real user-provisioning feature.
+/// separate registration flow. Gated by <see cref="DesktopOptions.SeedDevelopmentUser"/> and
+/// permanently disabled in non-DEBUG and Production builds.
 /// </summary>
 /// <remarks>
-/// If an "admin" user already exists, its credentials are checked against
-/// <see cref="DemoPassword"/> and repaired via the normal
-/// <see cref="UserCredentials.SetPassword"/> path if they no longer match -
-/// e.g. after <see cref="DemoPassword"/> changed, or credentials were
-/// otherwise seeded/overwritten with a different value. This never runs
-/// outside <see cref="DesktopOptions.SeedDevelopmentUser"/>, never touches
-/// any user other than the "admin" demo account, and goes through
-/// <see cref="IPasswordHasher"/> exactly like every other password write -
-/// no authentication bypass, no hardcoded verification shortcut.
+/// In all environments, existing user credentials must NEVER be reset, overwritten, or repaired by seeding.
+/// If an "admin" or existing user is found, this startup task is a strict no-op.
 /// </remarks>
 public sealed class DevelopmentUserSeedStartupTask(
     IUserRepository userRepository,
@@ -45,6 +36,9 @@ public sealed class DevelopmentUserSeedStartupTask(
     /// <inheritdoc/>
     public async Task ExecuteAsync(CancellationToken cancellationToken = default)
     {
+#if !DEBUG
+        return;
+#else
         if (!options.Value.SeedDevelopmentUser ||
             string.Equals(platformOptions?.Value?.EnvironmentName, "Production", StringComparison.OrdinalIgnoreCase))
         {
@@ -55,7 +49,7 @@ public sealed class DevelopmentUserSeedStartupTask(
             ?? await userRepository.GetByEmailAsync(Email.Create("admin@clovent.local"), cancellationToken);
         if (existing is not null)
         {
-            await RepairCredentialsIfMismatchedAsync(existing, cancellationToken);
+            // Seed protection: Existing credentials must NEVER be overwritten or repaired.
             return;
         }
 
@@ -74,31 +68,6 @@ public sealed class DevelopmentUserSeedStartupTask(
 
         await credentialsRepository.AddAsync(credentials, cancellationToken);
         await authenticationDbContext.SaveChangesAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Resets the demo admin's password hash if it doesn't verify against
-    /// <see cref="DemoPassword"/> - e.g. left over from an earlier seed run
-    /// with a different value. A no-op when the credentials already match,
-    /// so this is safe to run on every startup.
-    /// </summary>
-    private async Task RepairCredentialsIfMismatchedAsync(User user, CancellationToken cancellationToken)
-    {
-        var credentials = await credentialsRepository.GetByUserIdAsync(user.Id, cancellationToken);
-        if (credentials is null)
-        {
-            return;
-        }
-
-        if (credentials.PasswordHash is not null && passwordHasher.Verify(DemoPassword, credentials.PasswordHash.Value))
-        {
-            return;
-        }
-
-        var now = timeProvider.GetUtcNow();
-        credentials.SetPassword(PasswordHash.Create(passwordHasher.Hash(DemoPassword)), now);
-        credentials.ResetFailedAttempts();
-
-        await authenticationDbContext.SaveChangesAsync(cancellationToken);
+#endif
     }
 }

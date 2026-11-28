@@ -20,6 +20,32 @@ public sealed record ShiftDayCloseItemDto(
     decimal CashRefunds = 0m,
     decimal CustomerAccountCreditRefunds = 0m);
 
+/// <summary>Tax breakdown line item for business day close.</summary>
+public sealed record DayCloseTaxItemDto(
+    string Authority,
+    string TaxCode,
+    decimal RatePercentage,
+    decimal TaxableBase,
+    decimal TaxAmount);
+
+/// <summary>Tender/payment-method breakdown item for business day close.</summary>
+public sealed record DayCloseTenderItemDto(
+    string PaymentMethodName,
+    int TransactionCount,
+    decimal TotalAmount);
+
+/// <summary>Cashier sales performance item for business day close.</summary>
+public sealed record DayCloseCashierSalesDto(
+    string CashierName,
+    int OrderCount,
+    decimal TotalSales);
+
+/// <summary>Order type sales distribution item for business day close.</summary>
+public sealed record DayCloseOrderTypeSalesDto(
+    string OrderType,
+    int OrderCount,
+    decimal TotalSales);
+
 /// <summary>
 /// Comprehensive summary of a business day for manager review prior to or after closing.
 /// </summary>
@@ -46,4 +72,32 @@ public sealed record BusinessDaySummaryDto(
     string? BlockingReason = null,
     decimal CashRefunds = 0m,
     decimal CustomerAccountCreditRefunds = 0m,
-    decimal OtherRefunds = 0m);
+    decimal OtherRefunds = 0m,
+    // Sales Breakdown
+    decimal GrossSales = 0m,
+    decimal ItemDiscounts = 0m,
+    decimal OrderDiscounts = 0m,
+    decimal NetSales = 0m,
+    int CancelledOrdersCount = 0,
+    // Tax Breakdown
+    decimal TaxableSales = 0m,
+    decimal TaxExemptSales = 0m,
+    IReadOnlyList<DayCloseTaxItemDto>? TaxBreakdown = null,
+    // Payments Breakdown
+    decimal BankTransferSales = 0m,
+    decimal DigitalSales = 0m,
+    int SplitPaymentsCount = 0,
+    decimal SplitPaymentsTotal = 0m,
+    decimal TotalCollections = 0m,
+    decimal OutstandingReceivables = 0m,
+    IReadOnlyList<DayCloseTenderItemDto>? TenderBreakdown = null,
+    // Cash Drawer Reconciliation
+    decimal OpeningFloat = 0m,
+    decimal ExpectedClosingCash = 0m,
+    decimal ActualClosingCash = 0m,
+    // Operations Breakdown
+    int CompletedOrdersCount = 0,
+    int RefundedOrdersCount = 0,
+    decimal AverageOrderValue = 0m,
+    IReadOnlyList<DayCloseCashierSalesDto>? CashierBreakdown = null,
+    IReadOnlyList<DayCloseOrderTypeSalesDto>? OrderTypeBreakdown = null);

@@ -87,20 +87,36 @@ public class PosPaymentRulesTests
         Assert.False(PosPaymentRules.ShouldAutoComplete("Completed", 0m, paymentRecorded: true));
     }
 
-    [Theory]
-    [InlineData(0.004)]
-    [InlineData(0.0)]
-    [InlineData(-0.01)]
-    public void TreatsSubCentAndOverpaidBalancesAsSettled(decimal balance)
+    [Fact]
+    public void ExactlyZeroBalanceIsSettled()
     {
-        Assert.True(PosPaymentRules.IsSettled(balance));
+        Assert.True(PosPaymentRules.IsSettled(0.00m));
+        Assert.True(PosPaymentRules.IsSettled(0m));
     }
 
     [Theory]
+    [InlineData(0.004)]
     [InlineData(0.01)]
     [InlineData(272.50)]
-    public void TreatsRemainingBalanceAsUnsettled(decimal balance)
+    [InlineData(-0.01)]
+    [InlineData(-0.005)]
+    [InlineData(-50.00)]
+    public void NonZeroBalancesAreUnsettled(decimal balance)
     {
+        // Half-cent tolerance eliminated under TASK-04: exact zero balance is mandatory.
+        // Negative balances represent unexplained overpayment and must be rejected.
         Assert.False(PosPaymentRules.IsSettled(balance));
+    }
+
+    [Theory]
+    [InlineData(100.00, 100.00, 0.00, 100.00)]
+    [InlineData(150.00, 100.00, 50.00, 100.00)]
+    [InlineData(50.00, 100.00, 0.00, 50.00)]
+    [InlineData(0.00, 100.00, 0.00, 0.00)]
+    public void CalculateChangeAndAppliedPayment_ComputesCorrectly(
+        decimal grossTender, decimal remainingBalance, decimal expectedChange, decimal expectedApplied)
+    {
+        Assert.Equal(expectedChange, PosPaymentRules.CalculateChange(grossTender, remainingBalance));
+        Assert.Equal(expectedApplied, PosPaymentRules.CalculateAppliedCashPayment(grossTender, remainingBalance));
     }
 }

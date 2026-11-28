@@ -6250,6 +6250,23 @@ public sealed partial class RestaurantPosForm : XtraForm
 
     private async Task VoidOrderAsync()
     {
+        if (_currentOrder is null)
+        {
+            return;
+        }
+
+        if (string.Equals(_currentOrder.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            XtraMessageBox.Show(this, "Completed orders cannot be voided. Use the refund workflow instead.", "Void Prohibited", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (_currentOrder.PaymentIds.Count > 0)
+        {
+            XtraMessageBox.Show(this, "Orders with recorded payments cannot be voided. Individual payments must be voided first, or a refund processed.", "Void Prohibited", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         using var form = new TextPromptForm("Void Order", "Reason:", required: true);
         if (form.ShowDialog(this) != DialogResult.OK)
         {

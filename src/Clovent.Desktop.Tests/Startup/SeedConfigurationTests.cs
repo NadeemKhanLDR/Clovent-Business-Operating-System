@@ -108,4 +108,67 @@ public class SeedConfigurationTests
         // When environment is Production, ExecuteAsync must immediately exit without attempting any repository or DB calls
         await task.ExecuteAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task DevelopmentUserSeedStartupTask_WhenUserAlreadyExists_DoesNotOverwriteOrModifyCredentials()
+    {
+        var existingUser = Clovent.Identity.Users.User.Create(
+            Clovent.Identity.Users.ValueObjects.Email.Create("admin@clovent.local"),
+            Clovent.Identity.Users.ValueObjects.UserName.Create("admin"),
+            Clovent.Identity.Users.ValueObjects.DisplayName.Create("Admin"));
+
+        var fakeUserRepo = new FakeUserRepository(existingUser);
+        var desktopOptions = Microsoft.Extensions.Options.Options.Create(new DesktopOptions
+        {
+            DefaultSkin = "The Bezier",
+            DefaultLanguage = "en-US",
+            SeedDevelopmentUser = true,
+            SeedDevelopmentMasterData = false,
+            SeedDevelopmentCatalogData = false,
+            SeedDevelopmentRestaurantData = false
+        });
+
+        // credentialsRepository and DbContexts are null! If the task attempts to repair or overwrite credentials, it will throw NullReferenceException
+        var task = new Clovent.Desktop.Seed.DevelopmentUserSeedStartupTask(
+            userRepository: fakeUserRepo,
+            identityDbContext: null!,
+            credentialsRepository: null!,
+            authenticationDbContext: null!,
+            passwordHasher: null!,
+            timeProvider: TimeProvider.System,
+            options: desktopOptions,
+            platformOptions: null);
+
+        await task.ExecuteAsync(CancellationToken.None);
+        Assert.True(fakeUserRepo.GetByUserNameCalled);
+    }
+
+    private sealed class FakeUserRepository(Clovent.Identity.Users.User existingUser) : Clovent.Identity.Users.IUserRepository
+    {
+        public bool GetByUserNameCalled { get; private set; }
+
+        public Task<Clovent.Identity.Users.User?> GetByUserNameAsync(Clovent.Identity.Users.ValueObjects.UserName userName, CancellationToken cancellationToken = default)
+        {
+            GetByUserNameCalled = true;
+            return Task.FromResult<Clovent.Identity.Users.User?>(existingUser);
+        }
+
+        public Task<Clovent.Identity.Users.User?> GetByEmailAsync(Clovent.Identity.Users.ValueObjects.Email email, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Clovent.Identity.Users.User?>(null);
+
+        public Task<Clovent.Identity.Users.User?> GetByIdAsync(Clovent.Identity.Users.UserId id, CancellationToken cancellationToken = default) =>
+            Task.FromResult<Clovent.Identity.Users.User?>(null);
+
+        public Task<IReadOnlyList<Clovent.Identity.Users.User>> SearchAsync(
+            string? searchText = null,
+            Clovent.Identity.Companies.CompanyId? companyId = null,
+            Clovent.Identity.Branches.BranchId? branchId = null,
+            Clovent.Identity.Roles.RoleId? roleId = null,
+            Clovent.Identity.Users.UserStatus? status = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<Clovent.Identity.Users.User>>([]);
+
+        public Task AddAsync(Clovent.Identity.Users.User user, CancellationToken cancellationToken = default) =>
+            throw new NotImplementedException();
+    }
 }

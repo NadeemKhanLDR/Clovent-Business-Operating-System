@@ -32,15 +32,16 @@ The following matrix provides a complete inventory of CBOS platform capabilities
 | **Core Architecture** | Transactional Outbox Pattern | **Implemented & Verified** | Platform Foundation | `OutboxProcessor`, `ICircuitBreakerRegistry`. |
 | **Security & Auth** | PBKDF2 Password Hashing & Machine DPAPI | **Implemented & Verified** | Platform Security | `ProtectedData`, `ProtectedOperationalCacheStore`. |
 | **Security & Auth** | RBAC Fail-Closed Privileges (TASK-01) | **In Progress** | Stream Tax/Finance | Eliminates hardcoded "admin" username checks. |
-| **Security & Auth** | Terminal PIN Throttling & Lockout (TASK-02) | **In Progress** | Stream Tax/Finance | Service boundary rate limiting; zero database migrations. |
-| **Financial Integrity**| Centralized Rounding Policy (TASK-03) | **In Progress** | Stream Tax/Finance | `MidpointRounding.AwayFromZero`; Largest Remainder Method. |
-| **Financial Integrity**| Zero Balance Settlement & Void Guard (TASK-04)| **In Progress** | Stream Tax/Finance | `BalanceEpsilon` eliminated; immutable financial history. |
-| **Financial Integrity**| Payment Idempotency & Concurrency (TASK-05) | **In Progress** | Stream Tax/Finance | `IX_Payments_IdempotencyKey` unique conflict recovery. |
-| **Financial Integrity**| Day Close Tax & Discount Aggregation (TASK-06)| **In Progress** | Stream Tax/Finance | Aggregates non-zero order tax/discount totals. |
+| **Security & Auth** | Terminal PIN Throttling & Lockout (TASK-02) | **Implemented & Verified** | Stream Tax/Finance | Service boundary rate limiting; development seed protection; zero migrations. |
+| **Financial Integrity**| Centralized Rounding Policy (TASK-03) | **Implemented & Verified** | Stream Tax/Finance | `MidpointRounding.AwayFromZero`; multi-currency precision; Largest Remainder Method. |
+| **Financial Integrity**| Zero Balance Settlement & Void Guard (TASK-04)| **Implemented & Verified** | Stream Tax/Finance | `BalanceEpsilon` eliminated; immutable financial history; paid order void guard. |
+| **Financial Integrity**| Payment Idempotency & Concurrency (TASK-05) | **Implemented & Verified** | Stream Tax/Finance | `IX_Payments_IdempotencyKey` unique conflict recovery; parameter validation. |
+| **Financial Integrity**| Day Close Tax & Discount Aggregation (TASK-06)| **Implemented & Verified** | Stream Tax/Finance | Aggregates non-zero order tax/discount totals; tender breakdown; drawer reconciliation. |
+| **Financial Reporting** | Day Close UI Integration, Print & Export (TASK-10) | **Implemented & Verified** | Stream Tax/Finance | 7-tab Day Close dialog (`EndOfDayCloseDialog`), canonical Z-Report receipt print preview (`ReceiptPreviewForm`), PDF export (`GridReportingPrintService.ExportToPdf`), and Excel export (`GridReportingPrintService.ExportToExcel`) with centralized rounding policy. |
 | **Offline Resilience** | Cash-Only Continuity Mode (PDR-0001) | **Implemented & Verified** | Platform Architecture | DPAPI/HMAC local journal, operational catalog cache. |
-| **Offline Resilience** | Continuity Replay & Snapshot Capture (TASK-08)| **In Progress** | Stream Tax/Finance | `ReceiptSnapshot` persistence; typed outbox payloads. |
-| **Host Lifecycle** | Background Outbox Startup (TASK-07) | **In Progress** | Stream Tax/Finance | Hosted service startup in `Clovent.Desktop/Program.cs`. |
-| **Configuration** | Machine ProgramData Precedence (TASK-09) | **In Progress** | Stream Tax/Finance | `%ProgramData%` precedence over `%LocalAppData%`. |
+| **Offline Resilience** | Continuity Replay & Snapshot Capture (TASK-08)| **Implemented & Verified** | Stream Tax/Finance | `ReceiptSnapshot` persistence; typed outbox payloads. |
+| **Host Lifecycle** | Background Outbox Startup (TASK-07) | **Implemented & Verified** | Stream Tax/Finance | Hosted service startup in `Clovent.Desktop/Program.cs`. |
+| **Configuration** | Machine ProgramData Precedence (TASK-09) | **Implemented & Verified** | Stream Tax/Finance | `%ProgramData%` precedence over `%LocalAppData%`; atomic JSON persistence. |
 | **Configuration** | Atomic Critical File Writes (`AtomicFileWriter`)| **Implemented (This Stream)**| Platform Architecture | Write-temp-flush-replace atomic pattern. |
 | **UI & Layout** | DevExpress High-DPI PerMonitorV2 (250%) | **In Progress** | Stream UI | `DesktopDpi.Scale()`, AutoScaleMode.None enforcement. |
 | **UI & Layout** | Designer Safety & No Runtime Calls | **In Progress** | Stream UI | Parameterless constructors, `DesignModeHelper` checks. |
@@ -400,3 +401,22 @@ In strict compliance with `AGENTS.md` and Stream UI conventions:
 - **Atomic Critical Writes (`AtomicFileWriter`):** Configuration files (printers, databases, licenses) are written to `.tmp`, flushed, validated, and atomically moved via `File.Replace`, eliminating 0-byte corruption.
 - **Non-Destructive Licensing (PDR-0002):** Software license expiration never deletes, locks, or renders historical customer data inaccessible. Authorized users retain read-only export access.
 - **Least-Privilege RBAC:** Elevation requires authenticated administrative credentials; hardcoded bypasses are eliminated.
+
+---
+
+## 11. Day Close UI Integration, Print & Export Architecture (TASK-10)
+
+- **Single Source of Truth:** `EndOfDayCloseDialog` consumes canonical `BusinessDaySummaryDto` produced by `GetBusinessDaySummaryQueryHandler`. No client-side recalculation of net sales, taxes, discounts, or drawer variances is performed in the presentation layer.
+- **Seven-Section Tabbed Breakdown:**
+  1. **Cashier Shifts:** Shift details, cashier name, terminal ID, opening/closing timestamps, starting float, counted cash, and variance.
+  2. **Sales Summary:** Gross sales, item discounts, order discounts, net sales, tax total, completed/cancelled/refunded order counts, and Average Order Value (AOV).
+  3. **Tax Breakdown:** Provincial tax authorities (e.g. PRA, SRB, FBR), tax codes, rates, taxable base amounts, and computed taxes.
+  4. **Payment Tenders:** Tender method breakdown (Cash, Card, Bank Transfer, Digital Wallets, Other), transaction counts, and total amount.
+  5. **Drawer Audit:** Opening float, cash sales, pay-in, pay-out, cash refunds, expected closing cash, counted closing cash, and total cash variance.
+  6. **Cashier Performance:** Per-cashier order counts and total sales volume.
+  7. **Order Types:** Sales and volume distributed across Dine-In, Takeaway, and Delivery.
+- **Reporting & Export Integration:**
+  - **Z-Report Thermal / Roll Print:** `ReceiptPreviewForm` renders the complete structured Day Close report formatted for standard 80mm/58mm thermal rolls.
+  - **PDF Export:** Active grid tab exported directly to PDF via `GridReportingPrintService.ExportToPdf` with standard A4 landscape styling.
+  - **Excel (XLSX) Export:** Active grid tab exported directly to XLSX via `GridReportingPrintService.ExportToExcel` using DevExpress `XlsxExportOptionsEx(ExportType.WYSIWYG)`.
+- **Packaging Security Guard:** Production release builds explicitly exclude `appsettings.Development.json` via `<CopyToPublishDirectory>Never</CopyToPublishDirectory>`, verified by `tools/ReleaseGuard/ScanReleasePackage.ps1` with 0 security violations.

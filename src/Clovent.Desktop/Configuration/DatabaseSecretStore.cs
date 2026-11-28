@@ -91,23 +91,24 @@ public static class DatabaseSecretStore
 
     /// <summary>
     /// Gets the effective path to the database configuration file.
-    /// Prefers the user-level configuration if it exists, otherwise machine-level.
+    /// Commissioned %ProgramData% machine settings take strict precedence.
+    /// %LocalAppData% is checked only as a fallback for controlled development/test scenarios.
     /// </summary>
     public static string GetConfigFilePath()
     {
-        var userPath = GetUserConfigFilePath();
-        if (File.Exists(userPath))
-        {
-            return userPath;
-        }
-
         var machinePath = GetMachineConfigFilePath();
         if (File.Exists(machinePath))
         {
             return machinePath;
         }
 
-        return userPath;
+        var userPath = GetUserConfigFilePath();
+        if (File.Exists(userPath))
+        {
+            return userPath;
+        }
+
+        return machinePath;
     }
 
     /// <summary>
@@ -187,12 +188,13 @@ public static class DatabaseSecretStore
             return null;
         }
 
-        var userPath = GetUserConfigFilePath();
-        if (File.Exists(userPath))
+        // Commissioned machine config takes strict precedence over user config
+        var machinePath = GetMachineConfigFilePath();
+        if (File.Exists(machinePath))
         {
             try
             {
-                var json = File.ReadAllText(userPath);
+                var json = File.ReadAllText(machinePath);
                 var settings = JsonSerializer.Deserialize<DatabaseConnectionSettings>(json);
                 if (settings != null)
                 {
@@ -201,16 +203,16 @@ public static class DatabaseSecretStore
             }
             catch
             {
-                // Fall through to machine configuration
+                // Fall through to user configuration
             }
         }
 
-        var machinePath = GetMachineConfigFilePath();
-        if (File.Exists(machinePath))
+        var userPath = GetUserConfigFilePath();
+        if (File.Exists(userPath))
         {
             try
             {
-                var json = File.ReadAllText(machinePath);
+                var json = File.ReadAllText(userPath);
                 var settings = JsonSerializer.Deserialize<DatabaseConnectionSettings>(json);
                 if (settings != null)
                 {
@@ -279,21 +281,13 @@ public static class DatabaseSecretStore
                 Directory.CreateDirectory(dir);
             }
 
-            var json = JsonSerializer.Serialize(toSave, JsonOptions);
-            File.WriteAllText(path, json);
+            Clovent.Platform.Configuration.AtomicFileWriter.WriteJsonAtomic(path, toSave, JsonOptions);
         }
         catch (Exception ex) when (machineLevel && !scope.IsQaMode && (ex is UnauthorizedAccessException || ex is System.Security.SecurityException))
         {
             // Fallback to user-level config if machine-level access is restricted (e.g. non-elevated user or test harness)
             path = GetUserConfigFilePath();
-            dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            var json = JsonSerializer.Serialize(toSave, JsonOptions);
-            File.WriteAllText(path, json);
+            Clovent.Platform.Configuration.AtomicFileWriter.WriteJsonAtomic(path, toSave, JsonOptions);
         }
     }
 

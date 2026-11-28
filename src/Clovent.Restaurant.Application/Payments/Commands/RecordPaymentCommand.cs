@@ -40,13 +40,6 @@ public sealed class RecordPaymentCommandHandler(
     IShiftRepository? shiftRepository = null)
     : IRequestHandler<RecordPaymentCommand, PaymentDto>
 {
-    /// <summary>
-    /// Half-cent tolerance for the outstanding-balance ceiling, matching the
-    /// slack <c>CompleteOrderCommandHandler</c> and the POS screen already
-    /// apply whenever money is compared against zero.
-    /// </summary>
-    private const decimal BalanceEpsilon = 0.005m;
-
     /// <inheritdoc/>
     public async Task<PaymentDto> Handle(RecordPaymentCommand request, CancellationToken cancellationToken)
     {
@@ -103,7 +96,7 @@ public sealed class RecordPaymentCommandHandler(
             {
                 if (existingPayment.OrderId.Value != request.OrderId ||
                     existingPayment.PaymentMethodId.Value != request.PaymentMethodId ||
-                    Math.Abs(existingPayment.Amount - request.Amount) > BalanceEpsilon)
+                    existingPayment.Amount != request.Amount)
                 {
                     throw new InvalidOperationException(
                         $"Idempotency key '{request.IdempotencyKey}' was already used for a different payment (Order: {existingPayment.OrderId.Value}, PaymentMethod: {existingPayment.PaymentMethodId.Value}, Amount: {existingPayment.Amount:N2}). Reusing idempotency keys with differing payloads is prohibited.");
@@ -319,7 +312,7 @@ public sealed class RecordPaymentCommandHandler(
             serviceCharges.Select(ServiceChargeDto.FromDomain).ToList(),
             payments.Select(PaymentDto.FromDomain).ToList());
 
-        if (amount > totals.Balance + BalanceEpsilon)
+        if (amount > totals.Balance)
         {
             throw new InvalidOperationException(
                 $"This payment of {amount:N2} is more than the {Math.Max(totals.Balance, 0m):N2} still outstanding on this bill.\n\n" +

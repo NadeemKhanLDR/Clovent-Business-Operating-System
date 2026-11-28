@@ -1,17 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Clovent.Desktop.Forms.Base;
 using Clovent.Desktop.Forms.Base.Appearance;
+using Clovent.Desktop.Restaurant.Orders;
 using Clovent.Desktop.Sessions;
 using Clovent.Restaurant.Application.DayClose.Commands;
 using Clovent.Restaurant.Application.DayClose.Dtos;
 using Clovent.Restaurant.Application.DayClose.Queries;
+using DevExpress.Utils;
 using DevExpress.XtraEditors;
 using DevExpress.XtraGrid;
 using DevExpress.XtraGrid.Views.Grid;
+using DevExpress.XtraTab;
 using MediatR;
 
 namespace Clovent.Desktop.Restaurant.EndOfDay;
@@ -19,6 +25,10 @@ namespace Clovent.Desktop.Restaurant.EndOfDay;
 /// <summary>
 /// Professional manager dialog for reviewing and executing Business Day Close.
 /// Strictly enforces that all shifts on the business date must be closed prior to Day Close.
+/// Displays comprehensive financial reconciliation tabs:
+/// Sales Summary, Tax Breakdown, Tender Summary, Cash Drawer Reconciliation,
+/// Cashier Performance, and Order Type Distribution.
+/// Includes Print, PDF Export, and Excel Export backed by canonical summary figures.
 /// </summary>
 [System.ComponentModel.DesignerCategory("Code")]
 public sealed class EndOfDayCloseDialog : XtraForm
@@ -35,19 +45,51 @@ public sealed class EndOfDayCloseDialog : XtraForm
     private PanelControl _bannerPanel = null!;
     private LabelControl _lblBanner = null!;
 
-    private LabelControl _lblTotalShifts = null!;
-    private LabelControl _lblOpenShifts = null!;
-    private LabelControl _lblTotalSales = null!;
-    private LabelControl _lblCashSales = null!;
-    private LabelControl _lblCardSales = null!;
-    private LabelControl _lblVariance = null!;
-    private LabelControl _lblCashRefunds = null!;
-    private LabelControl _lblCreditRefunds = null!;
+    // Top KPI cards
+    private LabelControl _lblGrossSales = null!;
+    private LabelControl _lblDiscounts = null!;
+    private LabelControl _lblNetSales = null!;
+    private LabelControl _lblTax = null!;
+    private LabelControl _lblExpectedCash = null!;
+    private LabelControl _lblActualCash = null!;
+    private LabelControl _lblCashVariance = null!;
+    private LabelControl _lblRefunds = null!;
 
+    // Multi-tab container
+    private XtraTabControl _tabControl = null!;
+
+    // Tab 1: Shifts Grid
     private GridControl _gridShifts = null!;
     private GridView _viewShifts = null!;
 
+    // Tab 2: Sales Summary Detail Grid
+    private GridControl _gridSalesMetrics = null!;
+    private GridView _viewSalesMetrics = null!;
+
+    // Tab 3: Tax Breakdown Grid
+    private GridControl _gridTaxBreakdown = null!;
+    private GridView _viewTaxBreakdown = null!;
+
+    // Tab 4: Tender Breakdown Grid
+    private GridControl _gridTenders = null!;
+    private GridView _viewTenders = null!;
+
+    // Tab 5: Cash Drawer Reconciliation Grid
+    private GridControl _gridCashDrawer = null!;
+    private GridView _viewCashDrawer = null!;
+
+    // Tab 6: Cashier Performance Grid
+    private GridControl _gridCashiers = null!;
+    private GridView _viewCashiers = null!;
+
+    // Tab 7: Order Type Analysis Grid
+    private GridControl _gridOrderTypes = null!;
+    private GridView _viewOrderTypes = null!;
+
     private MemoEdit _txtNotes = null!;
+    private SimpleButton _btnPrintReport = null!;
+    private SimpleButton _btnExportPdf = null!;
+    private SimpleButton _btnExportExcel = null!;
     private SimpleButton _btnCloseDay = null!;
     private SimpleButton _btnCancel = null!;
 
@@ -87,12 +129,12 @@ public sealed class EndOfDayCloseDialog : XtraForm
 
     private void BuildUi()
     {
-        Text = $"End of Day (Day Close) - {DateTimeDisplay.FormatDate(_businessDate)}";
+        Text = $"End of Day (Day Close & Financial Reconciliation) - {DateTimeDisplay.FormatDate(_businessDate)}";
         AutoScaleMode = AutoScaleMode.None;
-        DesktopDialogSizing.Apply(this, 820, 640, 700, 540, null, false);
+        DesktopDialogSizing.Apply(this, 1020, 740, 880, 600, null, false);
         StartPosition = FormStartPosition.CenterParent;
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
         MinimizeBox = false;
 
         var mainPanel = new TableLayoutPanel
@@ -100,14 +142,14 @@ public sealed class EndOfDayCloseDialog : XtraForm
             Dock = DockStyle.Fill,
             ColumnCount = 1,
             RowCount = 6,
-            Padding = new Padding(Clovent.Desktop.Forms.Base.DesktopDpi.Scale(16, this))
+            Padding = new Padding(DesktopDpi.Scale(16, this))
         };
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // Header
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // Alert/Status Banner
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 95));  // Metrics Summary Cards
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Shifts Grid
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));  // Notes
-        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // Buttons
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));  // 0: Header
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // 1: Alert/Status Banner
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 95));  // 2: Metrics Summary Cards
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // 3: Tabbed Grids & Reconciliation
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 55));  // 4: Notes
+        mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 45));  // 5: Action Buttons
 
         // 1. Header
         var pnlHeader = new Panel { Dock = DockStyle.Fill };
@@ -119,7 +161,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
         };
         var lblSubheader = new LabelControl
         {
-            Text = "Review all shift registers and financial totals before finalizing and locking this business date.",
+            Text = "Authoritative financial reconciliation, statutory tax breakdown, and drawer audit prior to locking business date.",
             Appearance = { Font = new Font("Segoe UI", 9F, FontStyle.Regular), ForeColor = Color.FromArgb(100, 116, 139) },
             Dock = DockStyle.Bottom
         };
@@ -136,7 +178,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
         _lblBanner = new LabelControl
         {
             Dock = DockStyle.Fill,
-            Appearance = { Font = new Font("Segoe UI", 9F, FontStyle.Bold), TextOptions = { HAlignment = DevExpress.Utils.HorzAlignment.Center, VAlignment = DevExpress.Utils.VertAlignment.Center } },
+            Appearance = { Font = new Font("Segoe UI", 9F, FontStyle.Bold), TextOptions = { HAlignment = HorzAlignment.Center, VAlignment = VertAlignment.Center } },
             Text = "Loading business day data..."
         };
         _bannerPanel.Controls.Add(_lblBanner);
@@ -157,27 +199,83 @@ public sealed class EndOfDayCloseDialog : XtraForm
         tlpMetrics.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
         tlpMetrics.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
 
-        _lblTotalShifts = CreateMetricCard("Total Shifts", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 0);
-        _lblOpenShifts = CreateMetricCard("Open Shifts", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 1, 0);
-        _lblTotalSales = CreateMetricCard("Total Net Sales", "-", Color.FromArgb(13, 148, 136), tlpMetrics, 2, 0);
-        _lblCashRefunds = CreateMetricCard("Cash Refunds (-)", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 3, 0);
+        _lblGrossSales = CreateMetricCard("Gross Sales", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 0);
+        _lblDiscounts = CreateMetricCard("Discounts", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 1, 0);
+        _lblNetSales = CreateMetricCard("Net Sales", "-", Color.FromArgb(13, 148, 136), tlpMetrics, 2, 0);
+        _lblTax = CreateMetricCard("Tax (Sales / VAT)", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 3, 0);
 
-        _lblCashSales = CreateMetricCard("Cash Sales", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 1);
-        _lblCardSales = CreateMetricCard("Card/Other Sales", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 1, 1);
-        _lblVariance = CreateMetricCard("Shift Cash Variance", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 2, 1);
-        _lblCreditRefunds = CreateMetricCard("Account Credit Refunds", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 3, 1);
+        _lblExpectedCash = CreateMetricCard("Expected Drawer Cash", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 0, 1);
+        _lblActualCash = CreateMetricCard("Counted Drawer Cash", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 1, 1);
+        _lblCashVariance = CreateMetricCard("Drawer Over / Short", "-", Color.FromArgb(30, 41, 59), tlpMetrics, 2, 1);
+        _lblRefunds = CreateMetricCard("Refunds & Reversals", "-", Color.FromArgb(220, 38, 38), tlpMetrics, 3, 1);
 
         mainPanel.Controls.Add(tlpMetrics, 0, 2);
 
-        // 4. Shifts Grid
+        // 4. Tabbed Detail Grids
+        _tabControl = new XtraTabControl
+        {
+            Dock = DockStyle.Fill,
+            HeaderAutoFill = DefaultBoolean.False
+        };
+        _tabControl.AppearancePage.Header.Font = new Font("Segoe UI", 9F);
+
+        // Tab A: Shifts
+        var pageShifts = new XtraTabPage { Text = "Cashier Shifts" };
         _gridShifts = new GridControl { Dock = DockStyle.Fill };
         _viewShifts = new GridView(_gridShifts);
-        _gridShifts.MainView = _viewShifts;
-        _viewShifts.OptionsBehavior.Editable = false;
-        _viewShifts.OptionsView.ShowGroupPanel = false;
-        _viewShifts.OptionsView.ShowIndicator = false;
-        _viewShifts.RowHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(26, this);
-        mainPanel.Controls.Add(_gridShifts, 0, 3);
+        SetupStandardGridView(_gridShifts, _viewShifts);
+        pageShifts.Controls.Add(_gridShifts);
+        _tabControl.TabPages.Add(pageShifts);
+
+        // Tab B: Sales Summary Breakdown
+        var pageSales = new XtraTabPage { Text = "Sales Summary" };
+        _gridSalesMetrics = new GridControl { Dock = DockStyle.Fill };
+        _viewSalesMetrics = new GridView(_gridSalesMetrics);
+        SetupStandardGridView(_gridSalesMetrics, _viewSalesMetrics);
+        pageSales.Controls.Add(_gridSalesMetrics);
+        _tabControl.TabPages.Add(pageSales);
+
+        // Tab C: Tax Breakdown
+        var pageTax = new XtraTabPage { Text = "Tax Breakdown" };
+        _gridTaxBreakdown = new GridControl { Dock = DockStyle.Fill };
+        _viewTaxBreakdown = new GridView(_gridTaxBreakdown);
+        SetupStandardGridView(_gridTaxBreakdown, _viewTaxBreakdown);
+        pageTax.Controls.Add(_gridTaxBreakdown);
+        _tabControl.TabPages.Add(pageTax);
+
+        // Tab D: Tender Summary
+        var pageTenders = new XtraTabPage { Text = "Payment Tenders" };
+        _gridTenders = new GridControl { Dock = DockStyle.Fill };
+        _viewTenders = new GridView(_gridTenders);
+        SetupStandardGridView(_gridTenders, _viewTenders);
+        pageTenders.Controls.Add(_gridTenders);
+        _tabControl.TabPages.Add(pageTenders);
+
+        // Tab E: Cash Drawer Reconciliation
+        var pageDrawer = new XtraTabPage { Text = "Drawer Audit" };
+        _gridCashDrawer = new GridControl { Dock = DockStyle.Fill };
+        _viewCashDrawer = new GridView(_gridCashDrawer);
+        SetupStandardGridView(_gridCashDrawer, _viewCashDrawer);
+        pageDrawer.Controls.Add(_gridCashDrawer);
+        _tabControl.TabPages.Add(pageDrawer);
+
+        // Tab F: Cashier Performance
+        var pageCashiers = new XtraTabPage { Text = "Cashier Breakdown" };
+        _gridCashiers = new GridControl { Dock = DockStyle.Fill };
+        _viewCashiers = new GridView(_gridCashiers);
+        SetupStandardGridView(_gridCashiers, _viewCashiers);
+        pageCashiers.Controls.Add(_gridCashiers);
+        _tabControl.TabPages.Add(pageCashiers);
+
+        // Tab G: Order Type Distribution
+        var pageOrderTypes = new XtraTabPage { Text = "Order Types" };
+        _gridOrderTypes = new GridControl { Dock = DockStyle.Fill };
+        _viewOrderTypes = new GridView(_gridOrderTypes);
+        SetupStandardGridView(_gridOrderTypes, _viewOrderTypes);
+        pageOrderTypes.Controls.Add(_gridOrderTypes);
+        _tabControl.TabPages.Add(pageOrderTypes);
+
+        mainPanel.Controls.Add(_tabControl, 0, 3);
 
         // 5. Notes
         var pnlNotes = new Panel { Dock = DockStyle.Fill };
@@ -198,8 +296,8 @@ public sealed class EndOfDayCloseDialog : XtraForm
         _btnCloseDay = new SimpleButton
         {
             Text = "Close Business Day",
-            Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this),
-            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(160, this),
+            Height = DesktopDpi.Scale(34, this),
+            Width = DesktopDpi.Scale(160, this),
             Appearance = { Font = new Font("Segoe UI", 9F, FontStyle.Bold), BackColor = Color.FromArgb(13, 148, 136), ForeColor = Color.White },
             Cursor = Cursors.Hand,
             Enabled = false
@@ -209,17 +307,60 @@ public sealed class EndOfDayCloseDialog : XtraForm
         _btnCancel = new SimpleButton
         {
             Text = "Cancel",
-            Height = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(34, this),
-            Width = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(90, this),
+            Height = DesktopDpi.Scale(34, this),
+            Width = DesktopDpi.Scale(90, this),
             DialogResult = DialogResult.Cancel,
             Cursor = Cursors.Hand
         };
 
+        _btnPrintReport = new SimpleButton
+        {
+            Text = "Print Report",
+            Height = DesktopDpi.Scale(34, this),
+            Width = DesktopDpi.Scale(110, this),
+            Cursor = Cursors.Hand,
+            Enabled = false
+        };
+        _btnPrintReport.Click += (s, e) => PrintDayCloseReport();
+
+        _btnExportPdf = new SimpleButton
+        {
+            Text = "Export PDF",
+            Height = DesktopDpi.Scale(34, this),
+            Width = DesktopDpi.Scale(100, this),
+            Cursor = Cursors.Hand,
+            Enabled = false
+        };
+        _btnExportPdf.Click += (s, e) => ExportCurrentTabPdf();
+
+        _btnExportExcel = new SimpleButton
+        {
+            Text = "Export Excel",
+            Height = DesktopDpi.Scale(34, this),
+            Width = DesktopDpi.Scale(105, this),
+            Cursor = Cursors.Hand,
+            Enabled = false
+        };
+        _btnExportExcel.Click += (s, e) => ExportCurrentTabExcel();
+
         pnlButtons.Controls.Add(_btnCloseDay);
         pnlButtons.Controls.Add(_btnCancel);
+        pnlButtons.Controls.Add(_btnExportExcel);
+        pnlButtons.Controls.Add(_btnExportPdf);
+        pnlButtons.Controls.Add(_btnPrintReport);
         mainPanel.Controls.Add(pnlButtons, 0, 5);
 
         Controls.Add(mainPanel);
+    }
+
+    private void SetupStandardGridView(GridControl grid, GridView view)
+    {
+        grid.MainView = view;
+        view.OptionsBehavior.Editable = false;
+        view.OptionsView.ShowGroupPanel = false;
+        view.OptionsView.ShowIndicator = false;
+        view.OptionsView.EnableAppearanceEvenRow = true;
+        view.RowHeight = DesktopDpi.Scale(26, this);
     }
 
     private LabelControl CreateMetricCard(string label, string initVal, Color valColor, TableLayoutPanel parent, int col, int row)
@@ -252,8 +393,8 @@ public sealed class EndOfDayCloseDialog : XtraForm
     {
         try
         {
-            _summary = await _mediator.Send(new GetBusinessDaySummaryQuery(_branchId, _businessDate));
-            if (_summary == null)
+            var summary = await _mediator.Send(new GetBusinessDaySummaryQuery(_branchId, _businessDate));
+            if (summary == null)
             {
                 _lblBanner.Text = "Failed to load business day summary.";
                 _bannerPanel.Appearance.BackColor = Color.FromArgb(254, 242, 242);
@@ -261,68 +402,7 @@ public sealed class EndOfDayCloseDialog : XtraForm
                 return;
             }
 
-            // Populate cards
-            _lblTotalShifts.Text = _summary.TotalShifts.ToString();
-            _lblOpenShifts.Text = _summary.OpenShifts.Count.ToString();
-            _lblTotalSales.Text = CurrencyDisplay.Format(_summary.TotalSales);
-            _lblCashSales.Text = CurrencyDisplay.Format(_summary.CashSales);
-            _lblCardSales.Text = CurrencyDisplay.Format(_summary.CardSales + _summary.OtherSales);
-            _lblCashRefunds.Text = CurrencyDisplay.Format(_summary.CashRefunds);
-            _lblCreditRefunds.Text = CurrencyDisplay.Format(_summary.CustomerAccountCreditRefunds);
-
-            var varText = CurrencyDisplay.Format(_summary.TotalShiftVariance);
-            _lblVariance.Text = varText;
-            _lblVariance.Appearance.ForeColor = _summary.TotalShiftVariance < 0
-                ? Color.FromArgb(220, 38, 38)
-                : (_summary.TotalShiftVariance > 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(30, 41, 59));
-
-            // Populate grid with all shifts (open + closed)
-            var allShifts = _summary.OpenShifts.Concat(_summary.ClosedShifts).OrderBy(s => s.ShiftNumber).ToList();
-            _gridShifts.DataSource = allShifts;
-
-            // Configure columns
-            if (_viewShifts.Columns.Count > 0)
-            {
-                if (_viewShifts.Columns["ShiftId"] != null) _viewShifts.Columns["ShiftId"].Visible = false;
-                if (_viewShifts.Columns["TerminalId"] != null) _viewShifts.Columns["TerminalId"].Visible = false;
-                if (_viewShifts.Columns["StartingCash"] != null) _viewShifts.Columns["StartingCash"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["StartingCash"] != null) _viewShifts.Columns["StartingCash"].DisplayFormat.FormatString = "n2";
-                if (_viewShifts.Columns["ExpectedCash"] != null) _viewShifts.Columns["ExpectedCash"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["ExpectedCash"] != null) _viewShifts.Columns["ExpectedCash"].DisplayFormat.FormatString = "n2";
-                if (_viewShifts.Columns["CountedCash"] != null) _viewShifts.Columns["CountedCash"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["CountedCash"] != null) _viewShifts.Columns["CountedCash"].DisplayFormat.FormatString = "n2";
-                if (_viewShifts.Columns["CashVariance"] != null) _viewShifts.Columns["CashVariance"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["CashVariance"] != null) _viewShifts.Columns["CashVariance"].DisplayFormat.FormatString = "n2";
-                if (_viewShifts.Columns["CashRefunds"] != null) _viewShifts.Columns["CashRefunds"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["CashRefunds"] != null) _viewShifts.Columns["CashRefunds"].DisplayFormat.FormatString = "n2";
-                if (_viewShifts.Columns["CustomerAccountCreditRefunds"] != null) _viewShifts.Columns["CustomerAccountCreditRefunds"].DisplayFormat.FormatType = DevExpress.Utils.FormatType.Numeric;
-                if (_viewShifts.Columns["CustomerAccountCreditRefunds"] != null) _viewShifts.Columns["CustomerAccountCreditRefunds"].DisplayFormat.FormatString = "n2";
-            }
-
-            // Set Banner State & Close button readiness
-            if (_summary.IsAlreadyClosed)
-            {
-                _bannerPanel.Appearance.BackColor = Color.FromArgb(240, 253, 244);
-                _lblBanner.Appearance.ForeColor = Color.FromArgb(22, 163, 74);
-                var closedTime = _summary.ExistingClose != null ? DateTimeDisplay.FormatDateTime(_summary.ExistingClose.ClosedAtUtc) : "-";
-                _lblBanner.Text = $"Business day is ALREADY CLOSED (Closed at {closedTime} by {UserDisplayNameHelper.FormatCashierName(_summary.ExistingClose?.ClosedByUserName)}).";
-                _btnCloseDay.Enabled = false;
-                _btnCloseDay.Text = "Day Already Closed";
-            }
-            else if (!_summary.CanClose)
-            {
-                _bannerPanel.Appearance.BackColor = Color.FromArgb(254, 242, 242);
-                _lblBanner.Appearance.ForeColor = Color.FromArgb(220, 38, 38);
-                _lblBanner.Text = _summary.BlockingReason ?? "Cannot close business day: open shifts exist.";
-                _btnCloseDay.Enabled = false;
-            }
-            else
-            {
-                _bannerPanel.Appearance.BackColor = Color.FromArgb(240, 249, 255);
-                _lblBanner.Appearance.ForeColor = Color.FromArgb(2, 132, 199);
-                _lblBanner.Text = "All shifts closed. Ready to perform Day Close.";
-                _btnCloseDay.Enabled = true;
-            }
+            BindSummary(summary);
         }
         catch (Exception ex)
         {
@@ -331,6 +411,321 @@ public sealed class EndOfDayCloseDialog : XtraForm
             _lblBanner.Text = $"Error loading business day summary: {ex.Message}";
             _btnCloseDay.Enabled = false;
         }
+    }
+
+    internal void BindSummary(BusinessDaySummaryDto summary)
+    {
+        _summary = summary ?? throw new ArgumentNullException(nameof(summary));
+
+        // Populate top KPI cards
+        _lblGrossSales.Text = CurrencyDisplay.Format(_summary.GrossSales > 0 ? _summary.GrossSales : _summary.TotalSales + _summary.Discounts - _summary.Tax);
+        _lblDiscounts.Text = CurrencyDisplay.Format(_summary.Discounts);
+        _lblNetSales.Text = CurrencyDisplay.Format(_summary.NetSales > 0 ? _summary.NetSales : _summary.TotalSales);
+        _lblTax.Text = CurrencyDisplay.Format(_summary.Tax);
+
+        _lblExpectedCash.Text = CurrencyDisplay.Format(_summary.ExpectedClosingCash > 0 ? _summary.ExpectedClosingCash : _summary.OpeningFloat + _summary.CashSales - _summary.CashRefunds);
+        _lblActualCash.Text = CurrencyDisplay.Format(_summary.ActualClosingCash);
+
+        var variance = _summary.TotalShiftVariance;
+        _lblCashVariance.Text = CurrencyDisplay.Format(variance);
+        _lblCashVariance.Appearance.ForeColor = variance < 0
+            ? Color.FromArgb(220, 38, 38)
+            : (variance > 0 ? Color.FromArgb(22, 163, 74) : Color.FromArgb(30, 41, 59));
+
+        _lblRefunds.Text = CurrencyDisplay.Format(_summary.Refunds);
+
+        // Tab 1: Shifts
+        var allShifts = _summary.OpenShifts.Concat(_summary.ClosedShifts).OrderBy(s => s.ShiftNumber).ToList();
+        _gridShifts.DataSource = allShifts;
+        FormatShiftsGridColumns();
+
+        // Tab 2: Sales Summary Detail
+        _gridSalesMetrics.DataSource = BuildSalesSummaryItems(_summary);
+        FormatKeyValueGrid(_viewSalesMetrics);
+
+        // Tab 3: Tax Breakdown
+        var taxItems = _summary.TaxBreakdown ?? [];
+        _gridTaxBreakdown.DataSource = taxItems.ToList();
+        FormatTaxGridColumns();
+
+        // Tab 4: Tender Breakdown
+        var tenderItems = _summary.TenderBreakdown ?? [];
+        _gridTenders.DataSource = tenderItems.ToList();
+        FormatTenderGridColumns();
+
+        // Tab 5: Cash Drawer Audit
+        _gridCashDrawer.DataSource = BuildCashDrawerAuditItems(_summary);
+        FormatKeyValueGrid(_viewCashDrawer);
+
+        // Tab 6: Cashier Performance
+        var cashierItems = _summary.CashierBreakdown ?? [];
+        _gridCashiers.DataSource = cashierItems.ToList();
+        FormatCashierGridColumns();
+
+        // Tab 7: Order Types
+        var orderTypeItems = _summary.OrderTypeBreakdown ?? [];
+        _gridOrderTypes.DataSource = orderTypeItems.ToList();
+        FormatOrderTypeGridColumns();
+
+        _btnPrintReport.Enabled = true;
+        _btnExportPdf.Enabled = true;
+        _btnExportExcel.Enabled = true;
+
+        // Set Banner State & Close button readiness
+        if (_summary.IsAlreadyClosed)
+        {
+            _bannerPanel.Appearance.BackColor = Color.FromArgb(240, 253, 244);
+            _lblBanner.Appearance.ForeColor = Color.FromArgb(22, 163, 74);
+            var closedTime = _summary.ExistingClose != null ? DateTimeDisplay.FormatDateTime(_summary.ExistingClose.ClosedAtUtc) : "-";
+            _lblBanner.Text = $"Business day is ALREADY CLOSED (Closed at {closedTime} by {UserDisplayNameHelper.FormatCashierName(_summary.ExistingClose?.ClosedByUserName)}).";
+            _btnCloseDay.Enabled = false;
+            _btnCloseDay.Text = "Day Already Closed";
+        }
+        else if (!_summary.CanClose)
+        {
+            _bannerPanel.Appearance.BackColor = Color.FromArgb(254, 242, 242);
+            _lblBanner.Appearance.ForeColor = Color.FromArgb(220, 38, 38);
+            _lblBanner.Text = _summary.BlockingReason ?? "Cannot close business day: open shifts exist.";
+            _btnCloseDay.Enabled = false;
+        }
+        else
+        {
+            _bannerPanel.Appearance.BackColor = Color.FromArgb(240, 249, 255);
+            _lblBanner.Appearance.ForeColor = Color.FromArgb(2, 132, 199);
+            _lblBanner.Text = "All shifts closed. Ready to perform Day Close.";
+            _btnCloseDay.Enabled = true;
+        }
+    }
+
+    private sealed record FinancialMetricRow(string Metric, string Value, string Category);
+
+    private static List<FinancialMetricRow> BuildSalesSummaryItems(BusinessDaySummaryDto s)
+    {
+        var gross = s.GrossSales > 0 ? s.GrossSales : s.TotalSales + s.Discounts - s.Tax;
+        var net = s.NetSales > 0 ? s.NetSales : s.TotalSales;
+        var aov = s.AverageOrderValue > 0 ? s.AverageOrderValue : (s.CompletedOrdersCount > 0 ? net / s.CompletedOrdersCount : (s.TotalOrders > 0 ? net / s.TotalOrders : 0m));
+
+        return
+        [
+            new("Gross Sales", CurrencyDisplay.Format(gross), "Revenue"),
+            new("Item-Level Discounts", CurrencyDisplay.Format(s.ItemDiscounts), "Discounts"),
+            new("Order-Level Discounts", CurrencyDisplay.Format(s.OrderDiscounts), "Discounts"),
+            new("Total Discounts", CurrencyDisplay.Format(s.Discounts), "Discounts"),
+            new("Net Sales (Tax Exclusive Revenue)", CurrencyDisplay.Format(net), "Revenue"),
+            new("Total Statutory Sales Tax", CurrencyDisplay.Format(s.Tax), "Taxes"),
+            new("Total Compensating Refunds", CurrencyDisplay.Format(s.Refunds), "Refunds"),
+            new("Total Orders Created", s.TotalOrders.ToString(), "Operations"),
+            new("Completed Orders", s.CompletedOrdersCount > 0 ? s.CompletedOrdersCount.ToString() : s.TotalOrders.ToString(), "Operations"),
+            new("Cancelled / Voided Orders", s.CancelledOrdersCount.ToString(), "Operations"),
+            new("Average Order Value (AOV)", CurrencyDisplay.Format(aov), "Performance")
+        ];
+    }
+
+    private static List<FinancialMetricRow> BuildCashDrawerAuditItems(BusinessDaySummaryDto s)
+    {
+        var expected = s.ExpectedClosingCash > 0 ? s.ExpectedClosingCash : s.OpeningFloat + s.CashSales - s.CashRefunds;
+        var variance = s.TotalShiftVariance;
+        return
+        [
+            new("Opening Float (Starting Cash)", CurrencyDisplay.Format(s.OpeningFloat), "Cash Drawer"),
+            new("Cash Sales Tendered", CurrencyDisplay.Format(s.CashSales), "Cash Drawer"),
+            new("Cash Pay-Ins", CurrencyDisplay.Format(s.CashIn), "Cash Drawer"),
+            new("Cash Pay-Outs (-)", CurrencyDisplay.Format(s.CashOut), "Cash Drawer"),
+            new("Cash Refunds Disbursed (-)", CurrencyDisplay.Format(s.CashRefunds), "Cash Drawer"),
+            new("Expected Closing Cash in Drawer", CurrencyDisplay.Format(expected), "Reconciliation"),
+            new("Actual Counted Cash in Drawer", CurrencyDisplay.Format(s.ActualClosingCash), "Reconciliation"),
+            new("Cash Drawer Variance (Over / Short)", CurrencyDisplay.Format(variance), "Reconciliation")
+        ];
+    }
+
+    private void FormatKeyValueGrid(GridView view)
+    {
+        if (view.Columns.Count >= 3)
+        {
+            view.Columns[0].Width = 260;
+            view.Columns[1].Width = 160;
+            view.Columns[2].Width = 140;
+            view.Columns[1].AppearanceCell.TextOptions.HAlignment = HorzAlignment.Far;
+            view.Columns[1].AppearanceCell.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        }
+    }
+
+    private void FormatShiftsGridColumns()
+    {
+        if (_viewShifts.Columns.Count == 0) return;
+        if (_viewShifts.Columns["ShiftId"] != null) _viewShifts.Columns["ShiftId"].Visible = false;
+        if (_viewShifts.Columns["TerminalId"] != null) _viewShifts.Columns["TerminalId"].Visible = false;
+        SetNumericColumnFormat(_viewShifts, "StartingCash");
+        SetNumericColumnFormat(_viewShifts, "ExpectedCash");
+        SetNumericColumnFormat(_viewShifts, "CountedCash");
+        SetNumericColumnFormat(_viewShifts, "CashVariance");
+        SetNumericColumnFormat(_viewShifts, "CashRefunds");
+        SetNumericColumnFormat(_viewShifts, "CustomerAccountCreditRefunds");
+    }
+
+    private void FormatTaxGridColumns()
+    {
+        if (_viewTaxBreakdown.Columns.Count == 0) return;
+        SetNumericColumnFormat(_viewTaxBreakdown, "RatePercentage");
+        SetNumericColumnFormat(_viewTaxBreakdown, "TaxableBase");
+        SetNumericColumnFormat(_viewTaxBreakdown, "TaxAmount");
+    }
+
+    private void FormatTenderGridColumns()
+    {
+        if (_viewTenders.Columns.Count == 0) return;
+        SetNumericColumnFormat(_viewTenders, "TotalAmount");
+    }
+
+    private void FormatCashierGridColumns()
+    {
+        if (_viewCashiers.Columns.Count == 0) return;
+        SetNumericColumnFormat(_viewCashiers, "TotalSales");
+    }
+
+    private void FormatOrderTypeGridColumns()
+    {
+        if (_viewOrderTypes.Columns.Count == 0) return;
+        SetNumericColumnFormat(_viewOrderTypes, "TotalSales");
+    }
+
+    private static void SetNumericColumnFormat(GridView view, string fieldName)
+    {
+        if (view.Columns[fieldName] != null)
+        {
+            view.Columns[fieldName].DisplayFormat.FormatType = FormatType.Numeric;
+            view.Columns[fieldName].DisplayFormat.FormatString = "n2";
+            view.Columns[fieldName].AppearanceCell.TextOptions.HAlignment = HorzAlignment.Far;
+        }
+    }
+
+    private GridControl? GetActiveGrid() => _tabControl.SelectedTabPageIndex switch
+    {
+        0 => _gridShifts,
+        1 => _gridSalesMetrics,
+        2 => _gridTaxBreakdown,
+        3 => _gridTenders,
+        4 => _gridCashDrawer,
+        5 => _gridCashiers,
+        6 => _gridOrderTypes,
+        _ => _gridShifts
+    };
+
+    private string GetActiveGridTitle() => _tabControl.SelectedTabPageIndex switch
+    {
+        0 => "Cashier Shifts",
+        1 => "Sales Summary Breakdown",
+        2 => "Tax Breakdown",
+        3 => "Payment Tenders",
+        4 => "Cash Drawer Audit",
+        5 => "Cashier Breakdown",
+        6 => "Order Types",
+        _ => "Day Close Report"
+    };
+
+    private void ExportCurrentTabPdf()
+    {
+        var grid = GetActiveGrid();
+        if (grid == null) return;
+        var title = $"{GetActiveGridTitle()} - {_branchName}";
+        var subtitle = $"Business Date: {DateTimeDisplay.FormatDate(_businessDate)}";
+        GridReportingPrintService.ExportToPdf(grid, title, subtitle, this, landscape: true);
+    }
+
+    private void ExportCurrentTabExcel()
+    {
+        var grid = GetActiveGrid();
+        if (grid == null) return;
+        var title = $"{GetActiveGridTitle()} - {_branchName}";
+        GridReportingPrintService.ExportToExcel(grid, title, this);
+    }
+
+    private void PrintDayCloseReport()
+    {
+        if (_summary == null) return;
+
+        var sb = new StringBuilder();
+        var dateStr = DateTimeDisplay.FormatDate(_businessDate);
+        sb.AppendLine("========================================");
+        sb.AppendLine("    CLOVENT BUSINESS OPERATING SYSTEM   ");
+        sb.AppendLine("       BUSINESS DAY CLOSING REPORT      ");
+        sb.AppendLine("========================================");
+        sb.AppendLine($"Branch:        {_branchName}");
+        sb.AppendLine($"Business Date: {dateStr}");
+        sb.AppendLine($"Generated:     {DateTimeDisplay.FormatDateTime(DateTimeOffset.UtcNow)}");
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("1. SALES SUMMARY");
+        var gross = _summary.GrossSales > 0 ? _summary.GrossSales : _summary.TotalSales + _summary.Discounts - _summary.Tax;
+        var net = _summary.NetSales > 0 ? _summary.NetSales : _summary.TotalSales;
+        sb.AppendLine($"  Gross Sales:        {CurrencyDisplay.Format(gross)}");
+        sb.AppendLine($"  Item Discounts:     {CurrencyDisplay.Format(_summary.ItemDiscounts)}");
+        sb.AppendLine($"  Order Discounts:    {CurrencyDisplay.Format(_summary.OrderDiscounts)}");
+        sb.AppendLine($"  Total Discounts:    {CurrencyDisplay.Format(_summary.Discounts)}");
+        sb.AppendLine($"  Net Sales:          {CurrencyDisplay.Format(net)}");
+        sb.AppendLine($"  Completed Orders:   {_summary.CompletedOrdersCount}");
+        sb.AppendLine($"  Cancelled Orders:   {_summary.CancelledOrdersCount}");
+        sb.AppendLine($"  Refunded Orders:    {_summary.RefundedOrdersCount}");
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("2. TAX BREAKDOWN");
+        sb.AppendLine($"  Taxable Sales:      {CurrencyDisplay.Format(_summary.TaxableSales)}");
+        sb.AppendLine($"  Tax-Exempt Sales:   {CurrencyDisplay.Format(_summary.TaxExemptSales)}");
+        sb.AppendLine($"  Total Tax:          {CurrencyDisplay.Format(_summary.Tax)}");
+        if (_summary.TaxBreakdown != null && _summary.TaxBreakdown.Count > 0)
+        {
+            foreach (var t in _summary.TaxBreakdown)
+            {
+                sb.AppendLine($"  [{t.TaxCode}] @ {t.RatePercentage:0.##}%: Base={CurrencyDisplay.Format(t.TaxableBase)} Tax={CurrencyDisplay.Format(t.TaxAmount)}");
+            }
+        }
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("3. PAYMENT SUMMARY");
+        sb.AppendLine($"  Cash Sales:         {CurrencyDisplay.Format(_summary.CashSales)}");
+        sb.AppendLine($"  Card Sales:         {CurrencyDisplay.Format(_summary.CardSales)}");
+        sb.AppendLine($"  Bank Transfers:     {CurrencyDisplay.Format(_summary.BankTransferSales)}");
+        sb.AppendLine($"  Digital Wallets:    {CurrencyDisplay.Format(_summary.DigitalSales)}");
+        sb.AppendLine($"  Other Tender:       {CurrencyDisplay.Format(_summary.OtherSales)}");
+        sb.AppendLine($"  Split Payments:     {_summary.SplitPaymentsCount} ({CurrencyDisplay.Format(_summary.SplitPaymentsTotal)})");
+        sb.AppendLine($"  Collections:        {CurrencyDisplay.Format(_summary.TotalSales)}");
+        sb.AppendLine($"  Refunds (Total):    {CurrencyDisplay.Format(_summary.Refunds)}");
+        sb.AppendLine($"  Receivables AR:     {CurrencyDisplay.Format(_summary.OutstandingReceivables)}");
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("4. CASH DRAWER RECONCILIATION");
+        var expected = _summary.ExpectedClosingCash > 0 ? _summary.ExpectedClosingCash : _summary.OpeningFloat + _summary.CashSales - _summary.CashRefunds;
+        sb.AppendLine($"  Opening Float:      {CurrencyDisplay.Format(_summary.OpeningFloat)}");
+        sb.AppendLine($"  Cash In:            {CurrencyDisplay.Format(_summary.CashIn)}");
+        sb.AppendLine($"  Cash Out:           {CurrencyDisplay.Format(_summary.CashOut)}");
+        sb.AppendLine($"  Cash Refunds:       {CurrencyDisplay.Format(_summary.CashRefunds)}");
+        sb.AppendLine($"  Expected Cash:      {CurrencyDisplay.Format(expected)}");
+        sb.AppendLine($"  Counted Cash:       {CurrencyDisplay.Format(_summary.ActualClosingCash)}");
+        sb.AppendLine($"  Variance:           {CurrencyDisplay.Format(_summary.TotalShiftVariance)}");
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("5. CASHIER PERFORMANCE");
+        if (_summary.CashierBreakdown != null && _summary.CashierBreakdown.Count > 0)
+        {
+            foreach (var c in _summary.CashierBreakdown)
+            {
+                sb.AppendLine($"  {c.CashierName}: {c.OrderCount} orders, Sales: {CurrencyDisplay.Format(c.TotalSales)}");
+            }
+        }
+        sb.AppendLine(new string('-', 40));
+
+        sb.AppendLine("6. ORDER TYPE DISTRIBUTION");
+        if (_summary.OrderTypeBreakdown != null && _summary.OrderTypeBreakdown.Count > 0)
+        {
+            foreach (var ot in _summary.OrderTypeBreakdown)
+            {
+                sb.AppendLine($"  {ot.OrderType}: {ot.OrderCount} orders, Sales: {CurrencyDisplay.Format(ot.TotalSales)}");
+            }
+        }
+        sb.AppendLine("========================================");
+
+        using var preview = new ReceiptPreviewForm(sb.ToString());
+        preview.ShowDialog(this);
     }
 
     private async Task CloseDayAsync()

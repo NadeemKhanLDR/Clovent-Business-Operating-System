@@ -102,6 +102,10 @@ public sealed class RestaurantDomainException : DomainException
     public static RestaurantDomainException OrderCannotBeVoided(OrderId orderId, OrderStatus status) =>
         new($"Order '{orderId}' cannot be voided while {status}.");
 
+    /// <summary>Order.Void() was attempted while an order has recorded payments or financial effects.</summary>
+    public static RestaurantDomainException OrderWithFinancialEffectsCannotBeVoided(OrderId orderId) =>
+        new($"Order '{orderId}' has recorded payments and cannot be voided. Completed or paid orders are immutable and must use compensating entries.");
+
     /// <summary>Order.Cancel() was attempted while not Open/Held.</summary>
     public static RestaurantDomainException OrderCannotBeCancelled(OrderId orderId, OrderStatus status) =>
         new($"Order '{orderId}' cannot be cancelled while {status}.");

@@ -57,4 +57,41 @@ public static class PaymentMethodClassifier
                string.Equals(normalized, "MasterCard", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(normalized, "Visa Card", StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// Determines whether the payment method represents a direct bank transfer, wire, or electronic funds transfer.
+    /// </summary>
+    public static bool IsBankTransfer(string? paymentMethodName)
+    {
+        var normalized = paymentMethodName?.Trim();
+        if (string.IsNullOrEmpty(normalized)) return false;
+
+        return string.Equals(normalized, "Bank Transfer", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Bank", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Wire Transfer", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Direct Deposit", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "IBFT", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "EFT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Determines whether the payment method represents a digital or mobile wallet payment (e.g. JazzCash, EasyPaisa, SadaPay, QR).
+    /// </summary>
+    public static bool IsDigitalPayment(string? paymentMethodName)
+    {
+        var normalized = paymentMethodName?.Trim();
+        if (string.IsNullOrEmpty(normalized)) return false;
+
+        return string.Equals(normalized, "Digital Payment", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Digital Wallet", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Mobile Wallet", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "JazzCash", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "EasyPaisa", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "SadaPay", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "NayaPay", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Raast", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "QR Payment", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "UPI", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(normalized, "Online", StringComparison.OrdinalIgnoreCase);
+    }
 }

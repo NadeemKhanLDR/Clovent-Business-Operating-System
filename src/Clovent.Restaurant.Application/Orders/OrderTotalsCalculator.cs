@@ -43,7 +43,7 @@ public static class OrderTotalsCalculator
         // Excess requested discount rejection:
         // A requested discount exceeding the subtotal must be rejected before posting
         // rather than returning internally inconsistent totals.
-        if (orderDiscountTotal > subtotal + 0.005m)
+        if (orderDiscountTotal > subtotal)
         {
             throw RestaurantDomainException.DiscountExceedsSubtotal(orderDiscountTotal, subtotal);
         }

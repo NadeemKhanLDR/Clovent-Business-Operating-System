@@ -107,4 +107,89 @@ public sealed class DatabaseConnectionSettingsTests
 
         Assert.Contains("Database=Clovent_CustomTenant_Branch01;", connStr);
     }
+
+    [Fact]
+    public void DatabaseSecretStore_Precedence_MachineConfigOverridesUserConfig()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "cbos_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var userPath = Path.Combine(tempDir, "user_db.json");
+            var machinePath = Path.Combine(tempDir, "machine_db.json");
+
+            var userSettings = new DatabaseConnectionSettings
+            {
+                Server = "user-server",
+                Database = "UserDb",
+                UseWindowsAuthentication = true
+            };
+
+            var machineSettings = new DatabaseConnectionSettings
+            {
+                Server = "machine-server",
+                Database = "MachineDb",
+                UseWindowsAuthentication = true
+            };
+
+            File.WriteAllText(userPath, System.Text.Json.JsonSerializer.Serialize(userSettings));
+            File.WriteAllText(machinePath, System.Text.Json.JsonSerializer.Serialize(machineSettings));
+
+            DatabaseSecretStore.SetTestingOverrides(customUserConfigPath: userPath, customMachineConfigPath: machinePath);
+
+            var effectivePath = DatabaseSecretStore.GetConfigFilePath();
+            Assert.Equal(machinePath, effectivePath);
+
+            var loaded = DatabaseSecretStore.Load();
+            Assert.NotNull(loaded);
+            Assert.Equal("machine-server", loaded.Server);
+            Assert.Equal("MachineDb", loaded.Database);
+        }
+        finally
+        {
+            DatabaseSecretStore.ResetTestingOverrides();
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
+
+    [Fact]
+    public void DatabaseSecretStore_AtomicSave_WritesValidJsonWithoutTempFiles()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "cbos_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var machinePath = Path.Combine(tempDir, "machine_db.json");
+            DatabaseSecretStore.SetTestingOverrides(customMachineConfigPath: machinePath);
+
+            var settings = new DatabaseConnectionSettings
+            {
+                Server = "prod-sql-cluster",
+                Database = "Clovent_Production",
+                UseWindowsAuthentication = true
+            };
+
+            DatabaseSecretStore.Save(settings, machineLevel: true);
+
+            Assert.True(File.Exists(machinePath));
+            var tmpFiles = Directory.GetFiles(tempDir, "*.tmp");
+            Assert.Empty(tmpFiles);
+
+            var loaded = DatabaseSecretStore.Load();
+            Assert.NotNull(loaded);
+            Assert.Equal("prod-sql-cluster", loaded.Server);
+            Assert.Equal("Clovent_Production", loaded.Database);
+        }
+        finally
+        {
+            DatabaseSecretStore.ResetTestingOverrides();
+            if (Directory.Exists(tempDir))
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+    }
 }
