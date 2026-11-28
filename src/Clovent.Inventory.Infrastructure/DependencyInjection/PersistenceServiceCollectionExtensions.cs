@@ -41,6 +41,7 @@ public static class PersistenceServiceCollectionExtensions
         services.TryAddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
         services.TryAddScoped<IStockAdjustmentRepository, StockAdjustmentRepository>();
         services.TryAddScoped<IStockTransferRepository, StockTransferRepository>();
+        services.TryAddSingleton<Clovent.Inventory.Recipes.IRecipeRepository, Recipes.JsonRecipeRepository>();
 
         services.TryAddScoped<IUnitOfWork, UnitOfWork>();
 

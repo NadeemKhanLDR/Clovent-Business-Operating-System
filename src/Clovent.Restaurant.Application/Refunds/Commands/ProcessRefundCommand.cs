@@ -436,7 +436,8 @@ public sealed class ProcessRefundCommandHandler : IRequestHandler<ProcessRefundC
                     line.ProductVariantId.Value,
                     sku,
                     itemName,
-                    reqItem.Quantity));
+                    reqItem.Quantity,
+                    line.Notes));
             }
 
             printItems.Add(new RefundItemPrintLine(

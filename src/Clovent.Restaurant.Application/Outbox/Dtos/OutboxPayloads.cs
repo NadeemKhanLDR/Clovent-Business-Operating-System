@@ -1,7 +1,7 @@
 namespace Clovent.Restaurant.Application.Outbox.Dtos;
 
 /// <summary>Payload for asynchronous inventory stock deduction.</summary>
-public sealed record InventoryPostingLineItem(Guid ProductVariantId, string Sku, string Name, decimal Quantity);
+public sealed record InventoryPostingLineItem(Guid ProductVariantId, string Sku, string Name, decimal Quantity, string? Notes = null);
 
 /// <summary>Payload for <see cref="Clovent.Restaurant.Outbox.OutboxMessageType.InventoryPosting"/>.</summary>
 public sealed record InventoryPostingPayload(

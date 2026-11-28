@@ -61,7 +61,8 @@ The following matrix provides a complete inventory of CBOS platform capabilities
 | **Reporting** | Summary-to-Document Drill-Through | **Deferred** | Platform Architecture | Requires general ledger and immutable audit trails. |
 | **Integrations** | Pakistan Fiscal E-Invoicing (FBR POS Integration)| **Designed (This Stream)** | Platform Architecture | Cryptographic fiscal signature, offline buffering, sync. |
 | **Integrations** | Integrated Payment Terminals (EMV/Card) | **Deferred** | Platform Architecture | PCI-PTS terminal adapters, acquirer API onboarding. |
-| **Inventory** | Retail Stock Movements & Branch Transfers | **Deferred** | Platform Architecture | In-transit stock state, goods receipt matching. |
+| **Inventory & Costing**| Recipe BOM Management & Sales Explosion (TASK-11) | **Implemented & Verified** | Restaurant POS Domain Specialist | Universal kitchen UOM conversion (mass/vol/count); recipe BOM explosion on sale completion; modifier ingredient deduction; resale variant bypass; zero-migration durable persistence (`JsonRecipeRepository`); theoretical vs actual variance & valuation reporting. |
+| **Inventory** | Retail Stock Movements & Branch Transfers | **Implemented & Verified** | Architecture Baseline | Warehouse stock balances, adjustments, transfers, and immutable transaction ledger. |
 | **International** | Multi-Currency Decimal Precision Engine | **Designed (This Stream)** | Platform Architecture | PDR-0004 compliance; ISO 4217 non-inferential currencies. |
 
 ---
@@ -420,3 +421,48 @@ In strict compliance with `AGENTS.md` and Stream UI conventions:
   - **PDF Export:** Active grid tab exported directly to PDF via `GridReportingPrintService.ExportToPdf` with standard A4 landscape styling.
   - **Excel (XLSX) Export:** Active grid tab exported directly to XLSX via `GridReportingPrintService.ExportToExcel` using DevExpress `XlsxExportOptionsEx(ExportType.WYSIWYG)`.
 - **Packaging Security Guard:** Production release builds explicitly exclude `appsettings.Development.json` via `<CopyToPublishDirectory>Never</CopyToPublishDirectory>`, verified by `tools/ReleaseGuard/ScanReleasePackage.ps1` with 0 security violations.
+
+---
+
+## 12. Inventory, Recipe Costing & Restaurant Stock Integrity Architecture (TASK-11)
+
+### 12.1 Universal Kitchen Unit Conversion Engine (`UnitConverter`)
+- **Unit Families:**
+  - **Mass / Weight:** G (Base), KG, MG, LB, OZ.
+  - **Volume:** ML (Base), L, CL, CUP, TBSP, TSP, FL_OZ.
+  - **Discrete Count:** PCS (Base), EACH, SLICE, PORTION, DOZEN.
+- **Precision & Rounding:**
+  - All unit conversions and ingredient quantities operate at 4 decimal places (`decimal(18,4)`).
+  - Arithmetic operations strictly adhere to `MidpointRounding.AwayFromZero` in accordance with the centralized financial rounding policy.
+  - Incompatible cross-family conversions (e.g. converting mass to volume without specific density) throw `InvalidOperationException` to protect stock integrity.
+
+### 12.2 Recipe Bill of Materials (BOM) & Aggregate Architecture
+- **Aggregate Root (`Recipe`):**
+  - Associates a prepared menu item (`ProductVariantId`) with an ordered collection of constituent ingredients (`RecipeIngredient`), optional modifiers (`RecipeModifier`), portion yield (`YieldQuantity`), and yield unit (`YieldUnit`).
+  - **Trim & Prep Wastage:** `RecipeIngredient.GrossQuantityRequired = Math.Round(Quantity * (1m + (WastagePercentage / 100m)), 4, MidpointRounding.AwayFromZero)`.
+  - **Auditability & Versioning:** `CreateNewVersionSnapshot()` archives historical ingredient compositions into an immutable version snapshot history, preventing retrospective repricing when recipe formulations change.
+- **Zero-Migration Persistence (`JsonRecipeRepository`):**
+  - Thread-safe repository storing recipe definitions at `%ProgramData%\Clovent\Recipes\recipes.json`.
+  - Utilizes write-temp-flush-replace atomic file operations to eliminate file corruption without requiring schema migrations in CBOS 1.2.3.
+
+### 12.3 Sales-to-Inventory Outbox Decomposition (`InventoryPostingOutboxHandler`)
+- **Decoupled Asynchronous Processing:** Order completion queues an `InventoryPosting` payload in the transactional outbox, decoupling cashier POS UI latency from warehouse stock updates.
+- **Recipe Explosion Rules:**
+  - When an order line variant has an active recipe:
+    - Calculates proportional ingredient consumption: `(GrossQuantityRequired * OrderQuantity) / YieldQuantity`.
+    - Examines order line notes for customer modifiers (e.g. "+ Extra Cheese Slice"); matching `RecipeModifier` rules deduct the corresponding ingredient variant stock.
+    - Issues deductions against constituent ingredient warehouse stocks via `IssueStockCommand`.
+  - When an order line variant has no recipe (e.g. purchased resale beverage or snack):
+    - Deducts the finished goods product variant directly.
+- **Idempotency & Refund Restock Protection:**
+  - `ListInventoryTransactionsByReferenceQuery` ensures outbox redeliveries do not duplicate stock deductions.
+  - Refunds with `InventoryDisposition.Restock` verify original sale depletion evidence; restocks are strictly capped at original sale quantities to prevent inventory fabrication.
+
+### 12.4 Food Costing & Reporting Suite
+- **Theoretical Food Costing:** `RecipeCostCalculator` evaluates active ingredient purchasing costs against standard BOM yields, computing Cost Per Portion, Selling Price, Food Cost %, and Gross Margin %.
+- **Reporting Queries:**
+  - `GetRecipeCostReportQuery`: Comprehensive menu engineering report highlighting high-food-cost alerts (>35%).
+  - `GetIngredientCostReportQuery`: Active ingredient costs, on-hand balances, and recipe usage frequency.
+  - `GetInventoryValuationReportQuery`: Total asset valuation (`QuantityOnHand * UnitCost`), low-stock warnings, and negative stock detection.
+  - `GetStockVarianceReportQuery`: Identifies shrinkage/waste by contrasting theoretical sales consumption against physical ledger movements and adjustments.
+  - `GetWastageReportQuery`: Summarizes kitchen spoilage, prep trim, and damaged stock incidents.
