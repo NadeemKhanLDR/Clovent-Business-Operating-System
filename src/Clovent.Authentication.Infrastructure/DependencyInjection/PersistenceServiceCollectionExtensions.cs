@@ -43,7 +43,11 @@ public static class PersistenceServiceCollectionExtensions
                 $"Missing required connection string 'ConnectionStrings:Default' or 'ConnectionStrings:{ConnectionStringName}'.");
 
         services.AddDbContext<AuthenticationDbContext>(options =>
-            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Authentication"))
+            options.UseSqlServer(connectionString, sql =>
+                {
+                    sql.MigrationsHistoryTable("__EFMigrationsHistory", "Authentication");
+                    sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+                })
                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<ISessionRepository, SessionRepository>();

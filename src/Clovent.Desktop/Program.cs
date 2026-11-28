@@ -80,8 +80,8 @@ internal static class Program
         ProgramDataAclManager.ConfigureDirectorySecurity();
 
         // First-Run Commissioning Check (Requirements 1 & 2):
-        // If not yet commissioned on this machine, launch First-Run Wizard
-        if (!CommissioningStateService.MarkerExists())
+        // If not yet commissioned on this machine (or marker is corrupted/invalid), launch First-Run Wizard
+        if (!CommissioningStateService.MarkerExists() || CommissioningStateService.LoadMarker() == null)
         {
             using var wizard = new FirstRunWizardForm();
             var wizardResult = wizard.ShowDialog();
@@ -112,12 +112,56 @@ internal static class Program
                 splash.Close();
                 if (schemaResult.Status == SchemaCompatibilityStatus.DatabaseTooOld)
                 {
-                    MessageBox.Show(
-                        $"Database Schema Update Required:\n\n{schemaResult.Message}\n\nPlease run the database upgrade utility or contact your system administrator.",
+                    var upgradeChoice = MessageBox.Show(
+                        $"Database Schema Update Required:\n\n{schemaResult.Message}\n\nWould you like CBOS to create a verified backup of your database and apply the required schema upgrade now?",
                         "Database Update Required",
-                        MessageBoxButtons.OK,
+                        MessageBoxButtons.YesNo,
                         MessageBoxIcon.Warning);
-                    return;
+
+                    if (upgradeChoice != DialogResult.Yes)
+                    {
+                        return;
+                    }
+
+                    splash.Show("Clovent Business Operating System", "Creating pre-upgrade database backup...");
+                    var backupService = new DatabaseBackupService();
+                    var backupResult = Task.Run(() => backupService.CreateBackupAsync(effectiveConnectionString)).GetAwaiter().GetResult();
+                    if (!backupResult.Success)
+                    {
+                        splash.Close();
+                        MessageBox.Show(
+                            $"Pre-upgrade database backup failed. No schema changes were made.\n\n{backupResult.Message}",
+                            "Backup Failed - Upgrade Aborted",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    splash.SetDescription("Applying database schema upgrade...");
+                    var provService = new DatabaseProvisioningService();
+                    var migrateResult = Task.Run(() => provService.ApplyMigrationsAsync(effectiveConnectionString)).GetAwaiter().GetResult();
+                    if (!migrateResult.Success)
+                    {
+                        splash.Close();
+                        MessageBox.Show(
+                            $"Database schema upgrade failed:\n\n{migrateResult.Message}\n\nA verified pre-upgrade backup was saved at:\n{backupResult.BackupPath}",
+                            "Database Upgrade Failed",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var recheck = Task.Run(() => schemaValidator.ValidateCompatibilityAsync(effectiveConnectionString)).GetAwaiter().GetResult();
+                    if (recheck.Status != SchemaCompatibilityStatus.Compatible)
+                    {
+                        splash.Close();
+                        MessageBox.Show(
+                            $"Database schema validation still failed after upgrade ({recheck.Status}):\n\n{recheck.Message}",
+                            "Database Validation Failed",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                        return;
+                    }
                 }
                 else if (schemaResult.Status == SchemaCompatibilityStatus.DatabaseNewer)
                 {

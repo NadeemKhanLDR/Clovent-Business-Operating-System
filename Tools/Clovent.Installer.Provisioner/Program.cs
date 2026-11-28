@@ -30,7 +30,8 @@ public static class Program
         string? Password,
         string? LogFilePath,
         bool VerifyOnly,
-        bool Provision);
+        bool Provision,
+        bool Upgrade = false);
 
     public static bool TryParseArguments(
         string[]? args,
@@ -45,7 +46,8 @@ public static class Program
             null,
             null,
             false,
-            true);
+            true,
+            false);
         errorMessage = null;
 
         if (args is null)
@@ -62,6 +64,7 @@ public static class Program
         string? logFilePath = null;
         bool verifyOnly = false;
         bool provision = false;
+        bool upgrade = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -157,6 +160,11 @@ public static class Program
             {
                 provision = true;
             }
+            else if (string.Equals(arg, "--upgrade", StringComparison.OrdinalIgnoreCase))
+            {
+                upgrade = true;
+                provision = true;
+            }
             else
             {
                 errorMessage = $"Unrecognized command-line argument '{arg}'.";
@@ -166,7 +174,7 @@ public static class Program
 
         if (provision && verifyOnly)
         {
-            errorMessage = "Cannot specify both --provision and --verify-only.";
+            errorMessage = "Cannot specify both --provision/--upgrade and --verify-only.";
             return false;
         }
 
@@ -195,7 +203,8 @@ public static class Program
             password,
             logFilePath,
             verifyOnly,
-            provision);
+            provision,
+            upgrade);
         return true;
     }
 
@@ -215,6 +224,7 @@ public static class Program
         string? logFilePath = parsedArgs.LogFilePath;
         bool verifyOnly = parsedArgs.VerifyOnly;
         bool provision = parsedArgs.Provision;
+        bool upgrade = parsedArgs.Upgrade;
 
         // Initialize logging
         if (string.IsNullOrWhiteSpace(logFilePath))
@@ -257,7 +267,7 @@ public static class Program
 
         Log("================================================================================");
         Log("CLOVENT BUSINESS OPERATING SYSTEM - INSTALLER DATABASE PROVISIONER");
-        Log($"Mode: {(verifyOnly ? "Verify Only" : "Full Provisioning")}");
+        Log($"Mode: {(verifyOnly ? "Verify Only" : (upgrade ? "Upgrade (Preserve Existing Config + Pre-Upgrade Backup)" : "Full Provisioning"))}");
         Log($"Target Server: {server}");
         Log($"Target Database: {database}");
         Log($"Auth Mode: {(useWindowsAuth ? "Windows Authentication (Integrated)" : $"SQL Server Authentication (User: {userId})")}");
@@ -276,17 +286,49 @@ public static class Program
                 Log($"Warning: Could not configure directory ACLs: {aclError}");
             }
 
-            // 2. Build Connection Settings
-            var settings = new DatabaseConnectionSettings
+            // 2. Build or Preserve Connection Settings
+            bool preservedExistingConfig = false;
+            DatabaseConnectionSettings settings;
+            if (upgrade)
             {
-                Server = server,
-                Database = database,
-                UseWindowsAuthentication = useWindowsAuth,
-                UserId = useWindowsAuth ? null : userId,
-                PlainTextPassword = useWindowsAuth ? null : password,
-                TrustServerCertificate = true,
-                ConnectionTimeout = 15
-            };
+                var existing = DatabaseSecretStore.Load();
+                if (existing != null && !string.IsNullOrWhiteSpace(existing.Server))
+                {
+                    settings = existing;
+                    preservedExistingConfig = true;
+                    server = existing.Server;
+                    database = existing.Database;
+                    useWindowsAuth = existing.UseWindowsAuthentication;
+                    userId = existing.UserId;
+                    Log($"Upgrade mode: Preserving existing database configuration (Server: {server}, Database: {database}, WindowsAuth: {useWindowsAuth}).");
+                }
+                else
+                {
+                    settings = new DatabaseConnectionSettings
+                    {
+                        Server = server,
+                        Database = database,
+                        UseWindowsAuthentication = useWindowsAuth,
+                        UserId = useWindowsAuth ? null : userId,
+                        PlainTextPassword = useWindowsAuth ? null : password,
+                        TrustServerCertificate = true,
+                        ConnectionTimeout = 15
+                    };
+                }
+            }
+            else
+            {
+                settings = new DatabaseConnectionSettings
+                {
+                    Server = server,
+                    Database = database,
+                    UseWindowsAuthentication = useWindowsAuth,
+                    UserId = useWindowsAuth ? null : userId,
+                    PlainTextPassword = useWindowsAuth ? null : password,
+                    TrustServerCertificate = true,
+                    ConnectionTimeout = 15
+                };
+            }
 
             var connectionString = settings.BuildConnectionString();
             using var loggerFactory = LoggerFactory.Create(builder =>
@@ -332,8 +374,23 @@ public static class Program
                 return result.Status == SchemaCompatibilityStatus.Compatible ? 0 : 4;
             }
 
-            // 4. Create Database if missing
+            // 4. Create Database if missing (or create pre-upgrade backup if database already exists during upgrade)
             Log($"Ensuring physical database '{database}' exists...");
+            bool dbAlreadyExists = await provisioningService.DatabaseExistsAsync(settings).ConfigureAwait(false);
+            if (upgrade && dbAlreadyExists)
+            {
+                Log($"Upgrade mode: Creating verified pre-upgrade backup of '{database}'...");
+                var backupLogger = loggerFactory.CreateLogger<DatabaseBackupService>();
+                var backupService = new DatabaseBackupService(backupLogger);
+                var (backupOk, backupPath, backupMsg) = await backupService.CreateBackupAsync(connectionString).ConfigureAwait(false);
+                if (!backupOk)
+                {
+                    Log($"ERROR: Pre-upgrade backup failed; aborting upgrade without modifying schema: {backupMsg}");
+                    return 5;
+                }
+                Log($"Pre-upgrade backup verified: {backupPath}");
+            }
+
             var (dbCreated, createDbMsg) = await provisioningService.CreateDatabaseAsync(
                 settings,
                 adminUserId: useWindowsAuth ? null : userId,
@@ -403,16 +460,24 @@ public static class Program
             }
             catch (Exception pmEx)
             {
-                Log($"Warning during payment methods verification: {pmEx.Message}");
+                Log($"ERROR: Core payment methods verification failed: {DatabaseErrorMasker.Mask(pmEx.Message, password)}");
+                return 3;
             }
 
-            // 7. Persist Machine-Level Connection Configuration (DPAPI encrypted)
-            Log("Persisting machine-level database configuration in %ProgramData%...");
-            DatabaseSecretStore.Save(settings, machineLevel: true);
-            var effectiveConfigPath = File.Exists(DatabaseSecretStore.GetMachineConfigFilePath())
-                ? DatabaseSecretStore.GetMachineConfigFilePath()
-                : DatabaseSecretStore.GetUserConfigFilePath();
-            Log($"Database configuration saved successfully to {effectiveConfigPath}.");
+            // 7. Persist Machine-Level Connection Configuration (DPAPI encrypted) unless preserved in upgrade mode
+            if (preservedExistingConfig)
+            {
+                Log("Upgrade mode: Existing database configuration preserved in %ProgramData%.");
+            }
+            else
+            {
+                Log("Persisting machine-level database configuration in %ProgramData%...");
+                DatabaseSecretStore.Save(settings, machineLevel: true);
+                var effectiveConfigPath = File.Exists(DatabaseSecretStore.GetMachineConfigFilePath())
+                    ? DatabaseSecretStore.GetMachineConfigFilePath()
+                    : DatabaseSecretStore.GetUserConfigFilePath();
+                Log($"Database configuration saved successfully to {effectiveConfigPath}.");
+            }
 
             // 8. Validate Schema Compatibility Final Gate
             Log("Executing final database compatibility validation...");

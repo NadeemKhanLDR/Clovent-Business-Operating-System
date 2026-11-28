@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Area** | Workstation & Database Maintenance |
 | **Audience** | Systems Engineers, Database Administrators, Field Support |
-| **Last Reviewed Version** | CBOS 1.2.2 |
+| **Last Reviewed Version** | CBOS 1.3.0 |
 | **Status** | **PROCEDURAL STANDARD** |
 | **Classification** | **PUBLIC-SAFE** |
 
@@ -40,7 +40,7 @@ flowchart TD
 
 > [!CAUTION]
 > **MANDATORY PRE-UPGRADE BACKUP:**
-> Always produce a verified full database backup before running installers or applying schema migrations. In CBOS 1.2.2, automated pre-upgrade backup snapshotting is **PLANNED**; therefore, administrators **must execute a manual SQL Server backup** prior to upgrading.
+> Always produce a verified full database backup before running installers or applying schema migrations. In CBOS 1.3.0, both `Tools/installer/cbos-setup.iss` (via `Clovent.Installer.Provisioner.exe --upgrade`) and `Clovent.Desktop` (`Program.cs` interactive upgrade prompt) automatically create a verified `COPY_ONLY` backup before applying migrations and abort safely if the backup fails. Administrators can also run an on-demand backup beforehand via **Settings -> Backup & Restore** or `sqlcmd`.
 
 ### Manual SQL Server Backup Command
 Run in PowerShell (or SQL Server Management Studio):
@@ -68,16 +68,16 @@ If migrations are pending, the application presents:
 `"Database Schema Update Required: Database schema is older than the application..."`
 
 ### Executing Migrations with `Clovent.Installer.Provisioner.exe`
-Run the provisioner tool bundled in the installation directory as Administrator:
+`Clovent.Installer.Provisioner.exe` is executed automatically by the Inno Setup installer (`Tools/installer/cbos-setup.iss`) during `ssPostInstall` (passing `--upgrade` when an existing CBOS installation is detected, which preserves existing `database.config.json` settings and creates a verified pre-upgrade backup). To run it manually from the build/release tools directory as Administrator:
 
 ```powershell
-cd "C:\Program Files\Clovent\Business Operating System"
-.\Clovent.Installer.Provisioner.exe --migrate
+.\Clovent.Installer.Provisioner.exe --upgrade
 ```
 
 The provisioner:
-- Connects using elevated setup credentials or Windows Authentication.
-- Identifies unapplied migrations across all six bounded contexts.
+- Preserves existing DPAPI-encrypted `database.config.json` settings (including remote SQL servers and SQL authentication).
+- Creates a verified `COPY_ONLY` pre-upgrade backup before modifying schema (exiting with code `5` if backup fails).
+- Identifies and applies unapplied migrations across all six bounded contexts (`Authentication`, `Identity`, `MasterData`, `Catalog`, `Inventory`, `Restaurant`).
 - Executes pending migrations within an isolated transaction.
 - Verifies migration history parity and exits with code `0`.
 

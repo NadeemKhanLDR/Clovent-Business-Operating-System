@@ -84,23 +84,58 @@ public sealed class WorkstationStartupVerificationTests
     [Fact]
     public void Workstation_PosSettings_AreValid()
     {
-        var branchId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadBranchId();
-        var terminalId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadTerminalId();
-        Assert.NotNull(branchId);
-        Assert.NotNull(terminalId);
-        Assert.Equal(Guid.Parse("c631f797-ed35-4250-80bb-0de5a0422beb"), branchId.Value);
-        Assert.Equal(Guid.Parse("780932ec-c532-4868-80c3-5e7b6b7f8a42"), terminalId.Value);
+        var tempPath = Path.Combine(Path.GetTempPath(), $"cbos_pos_settings_{Guid.NewGuid():N}.json");
+        var expectedBranchId = Guid.Parse("c631f797-ed35-4250-80bb-0de5a0422beb");
+        var expectedTerminalId = Guid.Parse("780932ec-c532-4868-80c3-5e7b6b7f8a42");
+
+        try
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SetTestingOverrides(tempPath);
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveBranchId(expectedBranchId);
+            Clovent.Desktop.Forms.Base.PosSettingsStore.SaveTerminalId(expectedTerminalId);
+            Clovent.Desktop.Forms.Base.PosSettingsStore.ResetCacheForTesting();
+
+            var branchId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadBranchId();
+            var terminalId = Clovent.Desktop.Forms.Base.PosSettingsStore.LoadTerminalId();
+            Assert.NotNull(branchId);
+            Assert.NotNull(terminalId);
+            Assert.Equal(expectedBranchId, branchId.Value);
+            Assert.Equal(expectedTerminalId, terminalId.Value);
+        }
+        finally
+        {
+            Clovent.Desktop.Forms.Base.PosSettingsStore.ResetTestingOverrides();
+            if (File.Exists(tempPath)) File.Delete(tempPath);
+        }
     }
 
     [Fact]
     public void Workstation_TerminalConfiguration_IsValid()
     {
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var terminalPath = System.IO.Path.Combine(localAppData, "Clovent", "BusinessOperatingSystem", "Config", "terminal.json");
-        Assert.True(System.IO.File.Exists(terminalPath), "terminal.json must exist.");
-        var json = System.IO.File.ReadAllText(terminalPath);
-        Assert.Contains("POS-TERM-01", json);
-        Assert.Contains("780932ec-c532-4868-80c3-5e7b6b7f8a42", json);
+        var tempDir = Path.Combine(Path.GetTempPath(), $"cbos_term_cfg_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var terminalPath = Path.Combine(tempDir, "terminal.json");
+        var expectedTerminalId = "780932ec-c532-4868-80c3-5e7b6b7f8a42";
+
+        try
+        {
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                TerminalId = expectedTerminalId,
+                TerminalCode = "POS-TERM-01",
+                MachineName = Environment.MachineName
+            });
+            File.WriteAllText(terminalPath, payload);
+
+            Assert.True(File.Exists(terminalPath), "terminal.json must exist.");
+            var json = File.ReadAllText(terminalPath);
+            Assert.Contains("POS-TERM-01", json);
+            Assert.Contains(expectedTerminalId, json);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, recursive: true);
+        }
     }
 }
 

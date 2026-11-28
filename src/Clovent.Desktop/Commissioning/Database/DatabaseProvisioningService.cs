@@ -347,6 +347,8 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
 
             var machineName = Environment.MachineName;
             var designatedPrincipal = ResolveDesignatedWindowsPrincipal(machineName);
+            var escapedPrincipal = designatedPrincipal.Replace("]", "]]");
+            var literalPrincipal = designatedPrincipal.Replace("'", "''");
 
             // 1. Server-level login on master
             var masterBuilder = new SqlConnectionStringBuilder(connectionString)
@@ -358,9 +360,9 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
                 await masterConn.OpenAsync(ct).ConfigureAwait(false);
                 await using var loginCmd = masterConn.CreateCommand();
                 loginCmd.CommandText = $"""
-                    IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{designatedPrincipal}')
+                    IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'{literalPrincipal}')
                     BEGIN
-                        CREATE LOGIN [{designatedPrincipal}] FROM WINDOWS;
+                        CREATE LOGIN [{escapedPrincipal}] FROM WINDOWS;
                     END;
                     """;
                 loginCmd.CommandTimeout = 30;
@@ -373,14 +375,14 @@ public sealed class DatabaseProvisioningService(ILogger<DatabaseProvisioningServ
                 await conn.OpenAsync(ct).ConfigureAwait(false);
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandText = $"""
-                    IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'{designatedPrincipal}')
+                    IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'{literalPrincipal}')
                     BEGIN
-                        CREATE USER [{designatedPrincipal}] FOR LOGIN [{designatedPrincipal}];
+                        CREATE USER [{escapedPrincipal}] FOR LOGIN [{escapedPrincipal}];
                     END;
-                    ALTER ROLE [db_datareader] ADD MEMBER [{designatedPrincipal}];
-                    ALTER ROLE [db_datawriter] ADD MEMBER [{designatedPrincipal}];
-                    GRANT EXECUTE TO [{designatedPrincipal}];
-                    GRANT VIEW DEFINITION TO [{designatedPrincipal}];
+                    ALTER ROLE [db_datareader] ADD MEMBER [{escapedPrincipal}];
+                    ALTER ROLE [db_datawriter] ADD MEMBER [{escapedPrincipal}];
+                    GRANT EXECUTE TO [{escapedPrincipal}];
+                    GRANT VIEW DEFINITION TO [{escapedPrincipal}];
                     """;
                 cmd.CommandTimeout = 30;
                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);

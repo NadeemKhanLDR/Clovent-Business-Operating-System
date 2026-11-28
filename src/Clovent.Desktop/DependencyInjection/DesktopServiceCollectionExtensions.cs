@@ -98,6 +98,7 @@ public static class DesktopServiceCollectionExtensions
         services.TryAddSingleton<IDatabaseSchemaCompatibilityValidator, DatabaseSchemaCompatibilityValidator>();
         services.TryAddSingleton<IDatabaseProvisioningService, DatabaseProvisioningService>();
         services.TryAddSingleton<IDatabaseBackupService, DatabaseBackupService>();
+        services.AddHostedService<ScheduledBackupHostedService>();
         services.TryAddSingleton<IFirstAdminProvisioningService, FirstAdminProvisioningService>();
         services.TryAddTransient<FirstAdminProvisioningService>();
         services.TryAddSingleton<IInitialMasterDataProvisioningService, InitialMasterDataProvisioningService>();

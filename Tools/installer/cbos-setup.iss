@@ -9,6 +9,8 @@
 #define MyAppPublisher "Clovent"
 #define MyAppExeName "Clovent.Desktop.exe"
 #define MyAppId "{{C107E47D-CB05-47F1-9BD7-A107CB052026}}"
+#define SqlExpressVersion "16.0.1000.6"
+#define SqlExpressExpectedSha256 "2e61c8bbde6021f9026c54ad9db4bbb1227e68761d4c00a6a50a2c70fe7afe05"
 
 #ifndef PublishDir
   #define PublishDir "..\..\artifacts\release\Clovent.BusinessOperatingSystem-win-x64"
@@ -284,7 +286,7 @@ function InstallSqlServerExpress(): Boolean;
 var
   SqlSetupPath, SqlParams: String;
   ResultCode: Integer;
-  DownloadUrl, TempSqlExe: String;
+  DownloadUrl, TempSqlExe, ActualSha256: String;
 begin
   LogInstallerMessage('Initiating automatic SQL Server Express installation...');
 
@@ -298,7 +300,7 @@ begin
     // 2. Download from official Microsoft CDN
     DownloadUrl := 'https://download.microsoft.com/download/3/8/d/38de7036-2433-4207-8eae-06e247e17b25/SQLEXPR_x64_ENU.exe';
     TempSqlExe := ExpandConstant('{tmp}\SQLEXPR_x64_ENU.exe');
-    LogInstallerMessage('Downloading Microsoft SQL Server 2022 Express from official CDN: ' + DownloadUrl);
+    LogInstallerMessage('Downloading Microsoft SQL Server 2022 Express ({#SqlExpressVersion}) from official CDN: ' + DownloadUrl);
 
     WizardForm.StatusLabel.Caption := 'Downloading Microsoft SQL Server 2022 Express...';
     try
@@ -318,6 +320,27 @@ begin
   begin
     LogInstallerMessage('Using local offline SQL Server Express installer: ' + SqlSetupPath);
   end;
+
+  // 2b. Verify pinned SHA-256 checksum before executing prerequisite installer
+  WizardForm.StatusLabel.Caption := 'Verifying SQL Server Express installer integrity (SHA-256)...';
+  ActualSha256 := Lowercase(GetSHA256OfFile(SqlSetupPath));
+  LogInstallerMessage('SQL Server Express SHA-256: ' + ActualSha256 + ' (Expected: {#SqlExpressExpectedSha256})');
+  if CompareText(ActualSha256, '{#SqlExpressExpectedSha256}') <> 0 then
+  begin
+    LogInstallerMessage('ERROR: SQL Server Express SHA-256 mismatch! Expected {#SqlExpressExpectedSha256}, got ' + ActualSha256);
+    if CompareText(SqlSetupPath, ExpandConstant('{tmp}\SQLEXPR_x64_ENU.exe')) = 0 then
+    begin
+      DeleteFile(SqlSetupPath);
+    end;
+    MsgBox('SQL Server Express installer integrity verification failed (SHA-256 checksum mismatch).' + #13#10 +
+           'Expected: {#SqlExpressExpectedSha256}' + #13#10 +
+           'Actual:   ' + ActualSha256 + #13#10 +
+           'Installation has been aborted for security.',
+           mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+  LogInstallerMessage('SQL Server Express SHA-256 checksum verified successfully.');
 
   // 3. Execute silent installation
   WizardForm.StatusLabel.Caption := 'Installing Microsoft SQL Server Express (Instance: CLOVENT)...';
@@ -387,7 +410,14 @@ begin
     Exit;
   end;
 
-  ProvParams := Format('--server "%s" --database "Clovent_BusinessOperatingSystem" --auth windows --provision --log-file "%s"', [DetectedSqlServer, ProvLog]);
+  if IsUpgradeMode then
+  begin
+    ProvParams := Format('--server "%s" --database "Clovent_BusinessOperatingSystem" --auth windows --upgrade --log-file "%s"', [DetectedSqlServer, ProvLog]);
+  end
+  else
+  begin
+    ProvParams := Format('--server "%s" --database "Clovent_BusinessOperatingSystem" --auth windows --provision --log-file "%s"', [DetectedSqlServer, ProvLog]);
+  end;
 
   LogInstallerMessage('Running: ' + ProvExe + ' ' + ProvParams);
   ResultCode := -1;
@@ -417,6 +447,8 @@ begin
         FailureReason := 'Database schema migrations or payment method seeding failed (Exit code: 3).';
       4:
         FailureReason := 'Database schema compatibility validation failed (Exit code: 4).';
+      5:
+        FailureReason := 'Pre-upgrade database backup failed; upgrade was aborted safely without modifying schema (Exit code: 5).';
       99:
         FailureReason := 'Fatal unhandled exception occurred during database provisioning (Exit code: 99).';
     else

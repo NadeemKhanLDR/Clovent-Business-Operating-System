@@ -51,9 +51,11 @@ public class PrinterSettingsFormTests
     {
         using var form = new PrinterSettingsForm();
 
-        // Verify height does not exceed 450px unscaled to prevent overflowing MDI tab viewport
-        Assert.True(form.Height <= 450, $"PrinterSettingsForm height {form.Height} should be <= 450px");
-        Assert.True(form.MinimumSize.Height <= 400, $"PrinterSettingsForm minimum height {form.MinimumSize.Height} should be <= 400px");
+        // Verify height does not exceed 450px (scaled proportionally when running on High-DPI displays)
+        var maxAllowedHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(450, form);
+        var maxAllowedMinHeight = Clovent.Desktop.Forms.Base.DesktopDpi.Scale(400, form);
+        Assert.True(form.Height <= maxAllowedHeight, $"PrinterSettingsForm height {form.Height} should be <= {maxAllowedHeight}px");
+        Assert.True(form.MinimumSize.Height <= maxAllowedMinHeight, $"PrinterSettingsForm minimum height {form.MinimumSize.Height} should be <= {maxAllowedMinHeight}px");
     }
 
     [Fact]

@@ -4,7 +4,7 @@
 | :--- | :--- |
 | **Area** | Workstation & Server Deployment |
 | **Audience** | Field Service Engineers, System Administrators, DevOps |
-| **Last Reviewed Version** | CBOS 1.2.2 |
+| **Last Reviewed Version** | CBOS 1.3.0 |
 | **Status** | **PROCEDURAL STANDARD** |
 | **Classification** | **PUBLIC-SAFE** |
 
@@ -69,13 +69,12 @@ Upon first launch after installation:
 
 ---
 
-## 4. Current Installer (1.2.2) vs. Planned Optimizations
+## 4. SQL Server Express Prerequisite & Integrity Verification
 
-| Aspect | Current Release (CBOS 1.2.2) | Planned Future Release |
-| :--- | :--- | :--- |
-| **Prerequisite Chaining** | Requires pre-installed SQL Server (or manual SQL Express installation). | Bundled offline SQL Server Express bootstrapper. |
-| **Topology Profiles** | Single universal client package for all workstation types. | Installer selection profiles: "Database Server", "POS Terminal", "Back Office Only". |
-| **Silent Seed Injection** | Configuration configured interactively post-install. | Unattended XML/JSON response file for zero-touch mass provisioning. |
+`Tools\installer\cbos-setup.iss` automatically detects existing local SQL Server instances (`CLOVENT`, `MSSQLSERVER`, `SQLEXPRESS`). If none is found, it:
+1. Checks `{src}\SQLEXPR_x64_ENU.exe` or `{src}\prerequisites\SQLEXPR_x64_ENU.exe` for a pre-staged offline installer, or downloads Microsoft SQL Server 2022 Express (`16.0.1000.6`) from the official Microsoft CDN.
+2. Verifies the file against the pinned SHA-256 checksum (`SqlExpressExpectedSha256 = 2e61c8bbde6021f9026c54ad9db4bbb1227e68761d4c00a6a50a2c70fe7afe05`) via `GetSHA256OfFile` before execution, aborting safely on mismatch.
+3. **Maintaining Prerequisite Hashes:** When upgrading the SQL Server Express prerequisite package, verify the Microsoft Authenticode signature (`Get-AuthenticodeSignature`), compute `(Get-FileHash SQLEXPR_x64_ENU.exe -Algorithm SHA256).Hash.ToLowerInvariant()`, and update `SqlExpressVersion` and `SqlExpressExpectedSha256` in `Tools\installer\cbos-setup.iss`.
 
 ---
 

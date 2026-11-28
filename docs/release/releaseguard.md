@@ -33,11 +33,11 @@ By default, the script scans `artifacts\release\Clovent.BusinessOperatingSystem-
 powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.ps1
 ```
 
-### 2.2 Explicit Directory Parameter
-To scan an arbitrary target folder or custom staging directory:
+### 2.2 Explicit Directory & Additional Paths
+To scan an arbitrary target folder and additional staging directories (such as `Provisioner` or `templates`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\ReleaseGuard\ScanReleasePackage.ps1 -ReleaseDir "artifacts\release\Clovent.BusinessOperatingSystem-win-x64"
+powershell -ExecutionPolicy Bypass -File Tools\ReleaseGuard\ScanReleasePackage.ps1 -ReleaseDir "artifacts\release\Clovent.BusinessOperatingSystem-win-x64" -AdditionalPaths @("Tools\installer\templates")
 ```
 
 ### 2.3 Exit Code Semantics
@@ -52,8 +52,8 @@ ReleaseGuard recursively inspects every file in the target directory across 8 di
 
 | Rule Category | Pattern / Heuristic | Rationale & Risk |
 | :--- | :--- | :--- |
-| **1. Private Signing Keys** | `*.privatekey`, `*.pfx`, `*.pem`, `*.key`, `*private_key*.xml`, `*vendor_private_key*` *(Excludes `System.Private.*`)* | Vendor private RSA keys must never leave the build server. Leaking a private key compromises license signature integrity. |
-| **2. Development Settings** | `*Development*.json` | Prevents shipping relaxed local developer configurations or insecure local debug endpoints. |
+| **1. Private Signing Keys** | `*.privatekey`, `*.pfx`, `*.pem`, `*.key`, `*.snk`, `*private_key*.xml`, `*vendor_private_key*` *(Excludes `System.Private.*`)* | Vendor private RSA keys must never leave the build server. Leaking a private key compromises license signature integrity. |
+| **2. Development Settings** | `*Development*.json`, `appsettings.Local.json`, `appsettings.Staging.json` | Prevents shipping relaxed local developer or staging configurations. |
 | **3. Development / Test Licenses** | `*development*.lic`, `*test*.lic` | Internal bypass or developer licenses must not be included in production distributions. |
 | **4. Shipped Generic Licenses** | `clovent.lic` | Generic production releases must ship **without** an active license. Terminals must be commissioned and licensed independently on-site. |
 | **5. Source Code Leakage** | `*.cs`, `*.csproj`, `*.sln`, `*.slnx`, `*.vb`, `*.fs` | Protects intellectual property and prevents accidental inclusion of uncompiled code in published client trees. |

@@ -31,12 +31,17 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.15" />
   </ItemGroup>
 
   <!-- Compile shared provisioning and configuration source files directly from src/Clovent.Desktop -->
   <ItemGroup>
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseProvisioningService.cs" Link="Shared\DatabaseProvisioningService.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseProvisioningService.cs" Link="Shared\IDatabaseProvisioningService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseBackupService.cs" Link="Shared\DatabaseBackupService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseBackupService.cs" Link="Shared\IDatabaseBackupService.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\BackupHistoryStore.cs" Link="Shared\BackupHistoryStore.cs" />
+    <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\BackupConfigurationStore.cs" Link="Shared\BackupConfigurationStore.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseErrorMasker.cs" Link="Shared\DatabaseErrorMasker.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\DatabaseSchemaCompatibilityValidator.cs" Link="Shared\DatabaseSchemaCompatibilityValidator.cs" />
     <Compile Include="..\..\src\Clovent.Desktop\Commissioning\Database\IDatabaseSchemaCompatibilityValidator.cs" Link="Shared\IDatabaseSchemaCompatibilityValidator.cs" />

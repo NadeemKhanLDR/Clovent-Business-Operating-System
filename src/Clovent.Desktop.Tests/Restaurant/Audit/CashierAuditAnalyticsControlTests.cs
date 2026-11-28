@@ -88,7 +88,10 @@ public sealed class CashierAuditAnalyticsControlTests
                 var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
                 var session = new FakeCurrentSession();
 
-                var outDir = @"C:\Users\NexGen\.gemini\antigravity\brain\3c7e0d7f-7594-4af6-94cd-6cddb9366839";
+                var outDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"cbos-audit-ui-{Guid.NewGuid():N}");
+                System.IO.Directory.CreateDirectory(outDir);
+                try
+                {
 
                 foreach (var size in new[] { new System.Drawing.Size(1024, 768), new System.Drawing.Size(1366, 768), new System.Drawing.Size(1920, 1080) })
                 {
@@ -120,6 +123,14 @@ public sealed class CashierAuditAnalyticsControlTests
                     var fRight = forecastBtn.PointToScreen(new System.Drawing.Point(forecastBtn.Width, 0)).X;
                     var frmRight = form.PointToScreen(new System.Drawing.Point(form.ClientSize.Width, 0)).X;
                     Assert.True(fRight <= frmRight);
+                }
+                }
+                finally
+                {
+                    if (System.IO.Directory.Exists(outDir))
+                    {
+                        System.IO.Directory.Delete(outDir, recursive: true);
+                    }
                 }
             }
             catch (Exception ex)

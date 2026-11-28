@@ -270,6 +270,27 @@ public sealed partial class MainForm : RibbonForm, IWorkspaceHost
         dlg.ShowDialog(this);
     }
 
+    private async void BackupRestoreButton_ItemClick(object? sender, ItemClickEventArgs e)
+    {
+        if (_currentSession.IsAuthenticated && _currentSession.UserId.HasValue)
+        {
+            var hasPrivileges = await Clovent.Desktop.Authorization.AdministrativePrivilegeChecker.HasAdministrativePrivilegesAsync();
+            if (!hasPrivileges)
+            {
+                DevExpress.XtraEditors.XtraMessageBox.Show(
+                    this,
+                    "Access Denied: Administrative privileges are required to manage database backups and restores.",
+                    "Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+        }
+
+        using var dlg = new Clovent.Desktop.Commissioning.UI.DatabaseBackupRestoreForm();
+        dlg.ShowDialog(this);
+    }
+
     private async void ChangePasswordItem_ItemClick(object? sender, ItemClickEventArgs e) => await ChangePasswordAsync();
 
     private async void SignOutItem_ItemClick(object? sender, ItemClickEventArgs e) => await SignOutAsync();

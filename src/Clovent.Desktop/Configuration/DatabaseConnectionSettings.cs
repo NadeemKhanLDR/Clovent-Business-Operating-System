@@ -51,7 +51,7 @@ public sealed class DatabaseConnectionSettings
 
         if (UseWindowsAuthentication)
         {
-            return $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate={TrustServerCertificate};Connection Timeout={ConnectionTimeout};";
+            return $"Server={server};Database={database};Trusted_Connection=True;TrustServerCertificate={TrustServerCertificate};Connection Timeout={ConnectionTimeout};Pooling=True;ConnectRetryCount=3;ConnectRetryInterval=5;Application Name=CBOS;";
         }
 
         var password = PlainTextPassword;
@@ -61,7 +61,7 @@ public sealed class DatabaseConnectionSettings
         }
 
         var userId = UserId?.Trim() ?? string.Empty;
-        return $"Server={server};Database={database};User Id={userId};Password={password};TrustServerCertificate={TrustServerCertificate};Connection Timeout={ConnectionTimeout};";
+        return $"Server={server};Database={database};User Id={userId};Password={password};TrustServerCertificate={TrustServerCertificate};Connection Timeout={ConnectionTimeout};Pooling=True;ConnectRetryCount=3;ConnectRetryInterval=5;Application Name=CBOS;";
     }
 
     /// <summary>

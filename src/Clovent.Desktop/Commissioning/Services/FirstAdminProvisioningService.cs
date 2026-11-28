@@ -308,18 +308,34 @@ public sealed class FirstAdminProvisioningService(ILogger<FirstAdminProvisioning
         await identityDbContext.Users.AddAsync(user, ct).ConfigureAwait(false);
         await identityDbContext.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        // 8. Create UserCredentials aggregate in AuthenticationDbContext
-        var authDbContext = scope.ServiceProvider.GetRequiredService<AuthenticationDbContext>();
-        var passwordHasher = scope.ServiceProvider.GetService<IPasswordHasher>() ?? new Pbkdf2PasswordHasher();
-        var timeProvider = scope.ServiceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
+        // 8. Create UserCredentials aggregate in AuthenticationDbContext (with compensation if second context fails)
+        try
+        {
+            var authDbContext = scope.ServiceProvider.GetRequiredService<AuthenticationDbContext>();
+            var passwordHasher = scope.ServiceProvider.GetService<IPasswordHasher>() ?? new Pbkdf2PasswordHasher();
+            var timeProvider = scope.ServiceProvider.GetService<TimeProvider>() ?? TimeProvider.System;
 
-        var now = timeProvider.GetUtcNow();
-        var credentials = UserCredentials.Create(user.Id, now);
-        var hashedPassword = passwordHasher.Hash(request.Password);
-        credentials.SetPassword(PasswordHash.Create(hashedPassword), now);
+            var now = timeProvider.GetUtcNow();
+            var credentials = UserCredentials.Create(user.Id, now);
+            var hashedPassword = passwordHasher.Hash(request.Password);
+            credentials.SetPassword(PasswordHash.Create(hashedPassword), now);
 
-        await authDbContext.UserCredentials.AddAsync(credentials, ct).ConfigureAwait(false);
-        await authDbContext.SaveChangesAsync(ct).ConfigureAwait(false);
+            await authDbContext.UserCredentials.AddAsync(credentials, ct).ConfigureAwait(false);
+            await authDbContext.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            try
+            {
+                identityDbContext.Users.Remove(user);
+                await identityDbContext.SaveChangesAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception compEx)
+            {
+                logger?.LogWarning(compEx, "Failed to compensate orphaned admin user '{UserId}' after credential persistence failure.", user.Id.Value);
+            }
+            throw;
+        }
 
         // Security requirement: Never log passwords
         logger?.LogInformation(

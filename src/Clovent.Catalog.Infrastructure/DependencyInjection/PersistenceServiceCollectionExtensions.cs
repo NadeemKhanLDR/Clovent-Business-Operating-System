@@ -38,7 +38,11 @@ public static class PersistenceServiceCollectionExtensions
                 $"Missing required connection string 'ConnectionStrings:Default' or 'ConnectionStrings:{ConnectionStringName}'.");
 
         services.AddDbContext<CatalogDbContext>(options =>
-            options.UseSqlServer(connectionString, sql => sql.MigrationsHistoryTable("__EFMigrationsHistory", "Catalog"))
+            options.UseSqlServer(connectionString, sql =>
+                {
+                    sql.MigrationsHistoryTable("__EFMigrationsHistory", "Catalog");
+                    sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+                })
                    .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
         services.TryAddScoped<IProductCategoryRepository, ProductCategoryRepository>();
