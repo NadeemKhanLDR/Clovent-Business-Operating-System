@@ -178,6 +178,7 @@ public sealed class EndToEndPosWorkflowAcceptanceTests : IDisposable
 
         // Services & Providers
         services.AddSingleton<IBusinessDateProvider, BusinessDateProvider>();
+        services.AddScoped<Clovent.Restaurant.Application.Security.IFinancialCompanyScope, TestFinancialCompanyScope>();
 
         // Units of Work
         services.AddScoped<Clovent.Restaurant.Application.IUnitOfWork>(_ => new Clovent.Restaurant.Infrastructure.Persistence.UnitOfWork(restaurantDb));
@@ -1763,5 +1764,12 @@ public sealed class EndToEndPosWorkflowAcceptanceTests : IDisposable
         public Task Publish<TNotification>(TNotification notification, CancellationToken cancellationToken = default)
             where TNotification : INotification =>
             inner.Publish(notification, cancellationToken);
+    }
+
+    private sealed class TestFinancialCompanyScope : Clovent.Restaurant.Application.Security.IFinancialCompanyScope
+    {
+        public Task<Guid> AuthorizeOrderAsync(Guid order, Guid? branch, CancellationToken ct, Guid? shiftId = null, Guid? organizationId = null) => Task.FromResult(branch ?? Guid.Empty);
+        public Task AuthorizeCollectionAsync(Guid customer, Guid? shift, CancellationToken ct) => Task.CompletedTask;
+        public Task AuthorizeWarehouseAsync(Guid warehouse, CancellationToken ct) => Task.CompletedTask;
     }
 }

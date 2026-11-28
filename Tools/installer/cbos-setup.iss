@@ -940,7 +940,7 @@ begin
       4:
         FailureReason := 'Database schema compatibility validation failed or incompatible downgrade detected (Exit code: 4).';
       5:
-        FailureReason := 'Pre-upgrade or pre-migration database backup failed; schema was not modified (Exit code: 5).';
+        FailureReason := 'Verified pre-migration database backup failed; upgrade was aborted safely without modifying schema (Exit code: 5).';
       64:
         FailureReason := 'Invalid provisioner command-line arguments (Exit code: 64).';
       99:

@@ -310,7 +310,7 @@ public static class NavigationRegistry
             Caption: "Inventory Reports",
             RibbonPage: NavigationPage.Inventory,
             RibbonGroup: "Reports",
-            IconUri: "svgimages/reports/report.svg",
+            IconUri: "svgimages/business%20objects/bo_report.svg",
             Permission: "menu.inventoryreports",
             Order: 360,
             IsPrimaryAction: false,

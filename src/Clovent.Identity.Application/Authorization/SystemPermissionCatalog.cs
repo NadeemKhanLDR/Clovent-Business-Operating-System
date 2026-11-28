@@ -36,6 +36,8 @@ public static class SystemPermissionCatalog
         "stockadjustments",
         "stocktransfers",
         "inventorytransactions",
+        "recipes",
+        "inventoryreports",
         "diningareas",
         "tables",
         "pos",
