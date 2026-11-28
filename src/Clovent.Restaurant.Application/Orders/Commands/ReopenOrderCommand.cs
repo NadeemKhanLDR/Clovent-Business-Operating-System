@@ -22,6 +22,12 @@ public sealed class ReopenOrderCommandHandler(IOrderRepository orderRepository, 
 
         if (order.TableId is { } tableId)
         {
+            var existingAtTable = await orderRepository.GetOpenOrHeldByTableIdAsync(tableId, cancellationToken);
+            if (existingAtTable.FirstOrDefault(o => o.Id != order.Id) is { } occupying)
+            {
+                throw RestaurantDomainException.TableAlreadyHasOpenOrder(tableId, occupying.OrderNumber);
+            }
+
             var table = await tableRepository.GetByIdAsync(tableId, cancellationToken);
             if (table is not null && table.OccupancyStatus != TableOccupancyStatus.Occupied)
             {

@@ -3,7 +3,9 @@ using Clovent.Desktop.Sessions;
 using Clovent.Identity.Application.Authorization;
 using Clovent.Restaurant.Application.KitchenTickets.Dtos;
 using Clovent.Restaurant.Application.KitchenTickets.Queries;
+using Clovent.Restaurant.Application.OrderLines.Queries;
 using Clovent.Restaurant.Application.Orders.Queries;
+using Clovent.Restaurant.Application.Tables.Queries;
 using Clovent.Restaurant.Application;
 using DevExpress.XtraEditors;
 using MediatR;
@@ -96,35 +98,92 @@ public sealed partial class KitchenTicketViewerView : XtraUserControl
         IReadOnlyCollection<KitchenTicketDto> tickets,
         CancellationToken cancellationToken)
     {
+        Dictionary<Guid, string> tableCodes = [];
+        try
+        {
+            var tables = await mediator.Send(new ListAllTablesQuery(), cancellationToken);
+            tableCodes = tables.ToDictionary(t => t.TableId, t => t.Code);
+        }
+        catch (NotSupportedException)
+        {
+            // Minimal test mediator fakes may not handle ListAllTablesQuery
+        }
+
         var rows = new List<KitchenTicketRow>();
 
         foreach (var ticket in tickets)
         {
             string orderNumber;
+            string orderType = "-";
+            string tableCode = "-";
+            string notesSummary = "-";
             try
             {
                 var order = await mediator.Send(new GetOrderByIdQuery(ticket.OrderId), cancellationToken);
                 orderNumber = order.OrderNumber;
+                orderType = order.OrderType;
+                tableCode = order.TableId is { } tid ? tableCodes.GetValueOrDefault(tid, "-") : "-";
+
+                var noteParts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(order.Notes))
+                {
+                    noteParts.Add(order.Notes.Trim());
+                }
+
+                try
+                {
+                    var lines = await mediator.Send(new ListOrderLinesByOrderQuery(ticket.OrderId), cancellationToken);
+                    var ticketLineSet = ticket.OrderLineIds.ToHashSet();
+                    var lineNotes = lines
+                        .Where(l => ticketLineSet.Contains(l.OrderLineId) && !l.IsVoided && !string.IsNullOrWhiteSpace(l.Notes))
+                        .Select(l => l.Notes!.Trim())
+                        .Distinct();
+                    noteParts.AddRange(lineNotes);
+                }
+                catch (NotSupportedException)
+                {
+                    // Minimal test mediator fakes may not handle ListOrderLinesByOrderQuery
+                }
+
+                if (noteParts.Count > 0)
+                {
+                    notesSummary = string.Join(" | ", noteParts);
+                }
             }
             catch (NotFoundException)
             {
                 orderNumber = "(order unavailable)";
             }
 
-            rows.Add(ToRow(ticket, orderNumber));
+            rows.Add(ToRow(ticket, orderNumber, orderType, tableCode, notesSummary));
         }
 
         return rows;
     }
 
-    private static KitchenTicketRow ToRow(KitchenTicketDto ticket, string orderNumber) => new(
-        ticket.KitchenTicketId,
-        orderNumber,
-        ticket.OrderLineIds.Count,
-        ticket.Status,
-        ticket.CreatedAtUtc,
-        ticket.StartedAtUtc,
-        ticket.ReadyAtUtc);
+    private static KitchenTicketRow ToRow(
+        KitchenTicketDto ticket,
+        string orderNumber,
+        string orderType,
+        string tableCode,
+        string notesSummary)
+    {
+        var elapsedMinutes = (int)Math.Max(0, (DateTimeOffset.UtcNow - ticket.CreatedAtUtc).TotalMinutes);
+        var waitDisplay = elapsedMinutes >= 20 ? $"{elapsedMinutes}m (DELAYED)" : $"{elapsedMinutes}m";
+
+        return new KitchenTicketRow(
+            ticket.KitchenTicketId,
+            orderNumber,
+            orderType,
+            tableCode,
+            ticket.OrderLineIds.Count,
+            notesSummary,
+            ticket.Status,
+            waitDisplay,
+            ticket.CreatedAtUtc,
+            ticket.StartedAtUtc,
+            ticket.ReadyAtUtc);
+    }
 
     private Task<bool> CanUseFeatureAsync(string operation) =>
         _currentSession.UserId is { } userId
@@ -134,8 +193,12 @@ public sealed partial class KitchenTicketViewerView : XtraUserControl
     internal sealed record KitchenTicketRow(
         Guid KitchenTicketId,
         string OrderNumber,
+        string OrderType,
+        string TableCode,
         int LineCount,
+        string NotesSummary,
         string Status,
+        string WaitDisplay,
         DateTimeOffset CreatedAtUtc,
         DateTimeOffset? StartedAtUtc,
         DateTimeOffset? ReadyAtUtc);

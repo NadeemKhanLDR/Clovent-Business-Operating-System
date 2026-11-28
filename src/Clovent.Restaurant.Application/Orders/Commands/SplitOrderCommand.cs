@@ -1,6 +1,7 @@
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Orders.ValueObjects;
 using Clovent.Restaurant.Tables;
 using MediatR;
 
@@ -16,12 +17,19 @@ namespace Clovent.Restaurant.Application.Orders.Commands;
 public sealed record SplitOrderCommand(Guid SourceOrderId, IReadOnlyList<Guid> OrderLineIds, Guid TargetTableId) : IRequest<OrderDto>;
 
 /// <summary>Handles <see cref="SplitOrderCommand"/>.</summary>
-public sealed class SplitOrderCommandHandler(IOrderRepository orderRepository, IOrderLineRepository orderLineRepository, ITableRepository tableRepository)
+public sealed class SplitOrderCommandHandler(
+    IOrderRepository orderRepository,
+    IOrderLineRepository orderLineRepository,
+    ITableRepository tableRepository,
+    IOrderNumberSequenceRepository? orderNumberSequenceRepository = null)
     : IRequestHandler<SplitOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
     public async Task<OrderDto> Handle(SplitOrderCommand request, CancellationToken cancellationToken)
     {
+        if (request.OrderLineIds is null || request.OrderLineIds.Count == 0)
+            throw RestaurantDomainException.EmptySplitOrderSelection();
+
         var sourceOrderId = new OrderId(request.SourceOrderId);
         var sourceOrder = await orderRepository.GetByIdAsync(sourceOrderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.SourceOrderId);
@@ -30,7 +38,27 @@ public sealed class SplitOrderCommandHandler(IOrderRepository orderRepository, I
         var targetTable = await tableRepository.GetByIdAsync(targetTableId, cancellationToken)
             ?? throw new NotFoundException(nameof(Table), request.TargetTableId);
 
-        var newOrder = Order.Create(OrderType.DineIn, sourceOrder.WarehouseId, targetTableId);
+        var existingAtTarget = await orderRepository.GetOpenOrHeldByTableIdAsync(targetTableId, cancellationToken);
+        if (existingAtTarget.FirstOrDefault() is { } occupying)
+            throw RestaurantDomainException.TableAlreadyHasOpenOrder(targetTableId, occupying.OrderNumber);
+
+        OrderNumber orderNumber;
+        if (orderNumberSequenceRepository is not null)
+        {
+            var sequence = await orderNumberSequenceRepository.GetSingletonAsync(cancellationToken);
+            if (sequence is null)
+            {
+                sequence = OrderNumberSequence.CreateDefault();
+                await orderNumberSequenceRepository.AddAsync(sequence, cancellationToken);
+            }
+            orderNumber = sequence.Next();
+        }
+        else
+        {
+            orderNumber = OrderNumber.Generate(DateTimeOffset.UtcNow);
+        }
+
+        var newOrder = Order.Create(OrderType.DineIn, sourceOrder.WarehouseId, targetTableId, orderNumber);
         targetTable.Occupy();
 
         foreach (var rawLineId in request.OrderLineIds)

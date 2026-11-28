@@ -240,6 +240,8 @@ public sealed partial class RestaurantPosForm : XtraForm
     private bool _methodsLoaded;
     private bool _amountEntryIsPreset = true;
     private bool _isRecordingPayment;
+    private string? _pendingPaymentAttemptId;
+    private string? _pendingPaymentSignature;
 
     // ==========================================
     // SMART POS FEATURES (suggestions, quick
@@ -7679,10 +7681,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _recallButton.Enabled = Permit("resume");
         _clearButton.Enabled = hasOrder || _currentOrderLines.Count > 0;
         _voidOrderButton.Enabled = canEdit && Permit("void");
-        _cancelOrderButton.Enabled = canEdit && Permit("cancel");
+        _cancelOrderButton.Enabled = canEdit && (_currentOrder?.PaymentIds.Count ?? 0) == 0 && Permit("cancel");
         _cancelOrderButton.Visible = canEdit && hasOrder;
         _reopenButton.Enabled = canReopen && Permit("reopen");
-        _sendToKitchenButton.Enabled = canEdit && Permit("sendtokitchen");
+        _sendToKitchenButton.Enabled = canEdit && _currentOrderLines.Any(l => !l.IsVoided) && Permit("sendtokitchen");
         _completeButton.Enabled = canEdit && Permit("complete");
 
         // Enable or disable the payment entry controls (excluding payment methods):
@@ -8338,7 +8340,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         finally
         {
             _isRecordingPayment = false;
-            _recordButton.Enabled = true;
+            UpdateButtonStates();
         }
     }
 
@@ -8558,12 +8560,22 @@ public sealed partial class RestaurantPosForm : XtraForm
         _recordButton.Enabled = false;
         try
         {
-            var idempotencyKey = $"pay:{orderId}:{paymentMethodId}:{tendered:F2}:{DateTimeOffset.UtcNow.Ticks}";
+            var attemptSignature = $"{orderId}:{paymentMethodId}:{applied:F2}";
+            if (_pendingPaymentSignature != attemptSignature || string.IsNullOrEmpty(_pendingPaymentAttemptId))
+            {
+                _pendingPaymentSignature = attemptSignature;
+                _pendingPaymentAttemptId = $"pay:{orderId}:{paymentMethodId}:{applied:F2}:{Guid.NewGuid():N}";
+            }
+
+            var idempotencyKey = _pendingPaymentAttemptId;
             await PosPerformanceTracker.TrackAsync("PaymentCommit", async () =>
             {
                 await _mediator.Send(new RecordPaymentCommand(orderId, paymentMethodId, applied, exceedCreditLimitApproved, _activeShift?.ShiftId, idempotencyKey));
                 return true;
             });
+
+            _pendingPaymentAttemptId = null;
+            _pendingPaymentSignature = null;
         }
         catch (Exception ex) when (IsDatabaseConnectivityException(ex))
         {
@@ -8587,7 +8599,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         }
         finally
         {
-            _recordButton.Enabled = true;
+            UpdateButtonStates();
         }
 
         await RefreshOrderAsync();

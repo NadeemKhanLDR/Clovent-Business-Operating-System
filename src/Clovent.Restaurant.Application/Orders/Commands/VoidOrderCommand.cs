@@ -1,4 +1,5 @@
 using Clovent.Restaurant.Application.Orders.Dtos;
+using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.Orders;
 using Clovent.Restaurant.Tables;
 using Clovent.Restaurant.Payments;
@@ -19,7 +20,8 @@ public sealed class VoidOrderCommandHandler(
     ICustomerRepository customerRepository,
     ICustomerLedgerEntryRepository ledgerRepository,
     IPaymentMethodRepository paymentMethodRepository,
-    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null)
+    Clovent.Restaurant.Customers.ICustomerPaymentAllocationRepository? allocationRepository = null,
+    IKitchenTicketRepository? kitchenTicketRepository = null)
     : IRequestHandler<VoidOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -29,6 +31,15 @@ public sealed class VoidOrderCommandHandler(
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
 
         order.Void(request.Reason);
+
+        if (kitchenTicketRepository is not null)
+        {
+            var tickets = await kitchenTicketRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+            foreach (var ticket in tickets.Where(t => t.Status is not (KitchenTicketStatus.Served or KitchenTicketStatus.Cancelled)))
+            {
+                ticket.Cancel();
+            }
+        }
 
         var payments = await paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
         foreach (var payment in payments.Where(p => !p.IsVoided))

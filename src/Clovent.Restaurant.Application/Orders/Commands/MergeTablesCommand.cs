@@ -1,6 +1,7 @@
 using Clovent.Restaurant.Application.Orders.Dtos;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
+using Clovent.Restaurant.Orders.ValueObjects;
 using Clovent.Restaurant.Tables;
 using MediatR;
 
@@ -16,7 +17,11 @@ namespace Clovent.Restaurant.Application.Orders.Commands;
 public sealed record MergeTablesCommand(Guid SourceTableId, Guid TargetTableId) : IRequest<OrderDto>;
 
 /// <summary>Handles <see cref="MergeTablesCommand"/>.</summary>
-public sealed class MergeTablesCommandHandler(IOrderRepository orderRepository, IOrderLineRepository orderLineRepository, ITableRepository tableRepository)
+public sealed class MergeTablesCommandHandler(
+    IOrderRepository orderRepository,
+    IOrderLineRepository orderLineRepository,
+    ITableRepository tableRepository,
+    IOrderNumberSequenceRepository? orderNumberSequenceRepository = null)
     : IRequestHandler<MergeTablesCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -32,6 +37,9 @@ public sealed class MergeTablesCommandHandler(IOrderRepository orderRepository, 
         var sourceOrder = sourceOrders.FirstOrDefault()
             ?? throw RestaurantDomainException.TableHasNoOpenOrder(sourceTableId);
 
+        if (sourceOrder.PaymentIds.Count > 0)
+            throw RestaurantDomainException.OrderHasPayments(sourceOrder.Id);
+
         var targetTable = await tableRepository.GetByIdAsync(targetTableId, cancellationToken)
             ?? throw new NotFoundException(nameof(Table), request.TargetTableId);
 
@@ -39,9 +47,34 @@ public sealed class MergeTablesCommandHandler(IOrderRepository orderRepository, 
         var targetOrder = targetOrders.FirstOrDefault();
         if (targetOrder is null)
         {
-            targetOrder = Order.Create(OrderType.DineIn, sourceOrder.WarehouseId, targetTableId);
+            OrderNumber orderNumber;
+            if (orderNumberSequenceRepository is not null)
+            {
+                var sequence = await orderNumberSequenceRepository.GetSingletonAsync(cancellationToken);
+                if (sequence is null)
+                {
+                    sequence = OrderNumberSequence.CreateDefault();
+                    await orderNumberSequenceRepository.AddAsync(sequence, cancellationToken);
+                }
+                orderNumber = sequence.Next();
+            }
+            else
+            {
+                orderNumber = OrderNumber.Generate(DateTimeOffset.UtcNow);
+            }
+
+            targetOrder = Order.Create(OrderType.DineIn, sourceOrder.WarehouseId, targetTableId, orderNumber);
             await orderRepository.AddAsync(targetOrder, cancellationToken);
             targetTable.Occupy();
+        }
+        else if (targetOrder.Status == OrderStatus.Held)
+        {
+            targetOrder.Resume();
+        }
+
+        if (sourceOrder.Status == OrderStatus.Held)
+        {
+            sourceOrder.Resume();
         }
 
         foreach (var lineId in sourceOrder.OrderLineIds.ToList())

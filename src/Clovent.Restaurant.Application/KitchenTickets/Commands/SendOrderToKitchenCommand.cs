@@ -22,11 +22,26 @@ public sealed class SendOrderToKitchenCommandHandler(IOrderRepository orderRepos
     public async Task<KitchenTicketDto> Handle(SendOrderToKitchenCommand request, CancellationToken cancellationToken)
     {
         var orderId = new OrderId(request.OrderId);
-        _ = await orderRepository.GetByIdAsync(orderId, cancellationToken)
+        var order = await orderRepository.GetByIdAsync(orderId, cancellationToken)
             ?? throw new NotFoundException(nameof(Order), request.OrderId);
 
+        if (order.Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderNotOpen(order.Id, order.Status);
+
         var lines = await orderLineRepository.GetByOrderIdAsync(orderId, cancellationToken);
-        var activeLineIds = lines.Where(l => !l.IsVoided).Select(l => l.Id).ToList();
+        var existingTickets = await kitchenTicketRepository.GetByOrderIdAsync(orderId, cancellationToken);
+        var alreadySentLineIds = existingTickets
+            .Where(t => t.Status != KitchenTicketStatus.Cancelled)
+            .SelectMany(t => t.OrderLineIds)
+            .ToHashSet();
+
+        var activeLineIds = lines
+            .Where(l => !l.IsVoided && !alreadySentLineIds.Contains(l.Id))
+            .Select(l => l.Id)
+            .ToList();
+
+        if (activeLineIds.Count == 0)
+            throw RestaurantDomainException.NoUnsentKitchenLines(orderId);
 
         var ticket = KitchenTicket.Create(orderId, activeLineIds);
         await kitchenTicketRepository.AddAsync(ticket, cancellationToken);

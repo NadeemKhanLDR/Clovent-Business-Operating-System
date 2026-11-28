@@ -94,4 +94,56 @@ public class KitchenTicketHandlerTests
 
         Assert.Single(result);
     }
+
+    [Fact]
+    public async Task SendOrderToKitchenCommandHandler_ExcludesPreviouslySentLines_AndRejectsDuplicateSend()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var kitchenTicketRepository = new FakeKitchenTicketRepository();
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line1 = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 5m, 0, false);
+        order.AddOrderLine(line1.Id);
+        orderRepository.Add(order);
+        orderLineRepository.Add(line1);
+
+        var handler = new SendOrderToKitchenCommandHandler(orderRepository, orderLineRepository, kitchenTicketRepository);
+        var firstTicket = await handler.Handle(new SendOrderToKitchenCommand(order.Id.Value), CancellationToken.None);
+        Assert.Single(firstTicket.OrderLineIds);
+        Assert.Contains(line1.Id.Value, firstTicket.OrderLineIds);
+
+        // Sending again with no new lines must be rejected
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new SendOrderToKitchenCommand(order.Id.Value), CancellationToken.None));
+
+        // Adding a second line creates a ticket ONLY for the new line
+        var line2 = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 2, 8m, 0, false);
+        order.AddOrderLine(line2.Id);
+        orderLineRepository.Add(line2);
+
+        var secondTicket = await handler.Handle(new SendOrderToKitchenCommand(order.Id.Value), CancellationToken.None);
+        Assert.Single(secondTicket.OrderLineIds);
+        Assert.Contains(line2.Id.Value, secondTicket.OrderLineIds);
+        Assert.DoesNotContain(line1.Id.Value, secondTicket.OrderLineIds);
+    }
+
+    [Fact]
+    public async Task SendOrderToKitchenCommandHandler_RejectsCancelledOrCompletedOrder()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var kitchenTicketRepository = new FakeKitchenTicketRepository();
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 5m, 0, false);
+        order.AddOrderLine(line.Id);
+        order.Cancel("Customer left");
+        orderRepository.Add(order);
+        orderLineRepository.Add(line);
+
+        var handler = new SendOrderToKitchenCommandHandler(orderRepository, orderLineRepository, kitchenTicketRepository);
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new SendOrderToKitchenCommand(order.Id.Value), CancellationToken.None));
+    }
 }

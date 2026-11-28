@@ -154,86 +154,73 @@ public sealed partial class RunningOrdersView : XtraUserControl
             order.OrderSource);
     }
 
-    private async Task SetPreparingAsync(OrderRow row)
+    private async Task UpdateDeliveryStatusAsync(OrderRow row, DeliveryStatus newStatus, string? riderNameOverride = null)
     {
-        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
+        var order = await _mediator.Send(new GetOrderByIdQuery(row.OrderId));
+        var source = Enum.TryParse<OrderSource>(order.OrderSource, out var s) ? s : OrderSource.Phone;
+        var riderName = riderNameOverride ?? order.RiderName;
+
         await _mediator.Send(new UpdateDeliveryDetailsCommand(
             row.OrderId,
             source,
-            null,
-            null,
-            null,
-            null,
-            0m,
-            row.RiderName == "-" ? null : row.RiderName,
-            RiderPhone: null,
-            DeliveryStatus: DeliveryStatus.Preparing));
+            order.DeliveryCustomerName,
+            order.DeliveryPhone,
+            order.DeliveryAddress,
+            order.DeliveryNotes,
+            order.DeliveryFee,
+            riderName,
+            order.RiderPhone,
+            DeliveryStatus: newStatus));
         await _listView.RefreshAsync();
     }
 
-    private async Task SetReadyAsync(OrderRow row)
-    {
-        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
-        await _mediator.Send(new UpdateDeliveryDetailsCommand(
-            row.OrderId,
-            source,
-            null,
-            null,
-            null,
-            null,
-            0m,
-            row.RiderName == "-" ? null : row.RiderName,
-            RiderPhone: null,
-            DeliveryStatus: DeliveryStatus.Ready));
-        await _listView.RefreshAsync();
-    }
+    private Task SetPreparingAsync(OrderRow row) =>
+        UpdateDeliveryStatusAsync(row, DeliveryStatus.Preparing);
+
+    private Task SetReadyAsync(OrderRow row) =>
+        UpdateDeliveryStatusAsync(row, DeliveryStatus.Ready);
 
     private async Task AssignRiderAsync(OrderRow row)
     {
         using var form = new TextPromptForm("Assign Rider", "Enter Rider / Courier Name:", initialText: row.RiderName == "-" ? string.Empty : row.RiderName, required: true);
         if (form.ShowDialog(this) == DialogResult.OK && !string.IsNullOrWhiteSpace(form.Value))
         {
-            var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
-            await _mediator.Send(new UpdateDeliveryDetailsCommand(
-                row.OrderId,
-                source,
-                null,
-                null,
-                null,
-                null,
-                0m,
-                form.Value.Trim(),
-                RiderPhone: null,
-                DeliveryStatus: DeliveryStatus.OutForDelivery));
-            await _listView.RefreshAsync();
+            await UpdateDeliveryStatusAsync(row, DeliveryStatus.OutForDelivery, form.Value.Trim());
         }
     }
 
-    private async Task SetDeliveredAsync(OrderRow row)
-    {
-        var source = Enum.TryParse<OrderSource>(row.OrderSource, out var s) ? s : OrderSource.Phone;
-        await _mediator.Send(new UpdateDeliveryDetailsCommand(
-            row.OrderId,
-            source,
-            null,
-            null,
-            null,
-            null,
-            0m,
-            row.RiderName == "-" ? null : row.RiderName,
-            RiderPhone: null,
-            DeliveryStatus: DeliveryStatus.Delivered));
-        await _listView.RefreshAsync();
-    }
+    private Task SetDeliveredAsync(OrderRow row) =>
+        UpdateDeliveryStatusAsync(row, DeliveryStatus.Delivered);
 
     private async Task VoidAsync(OrderRow row)
     {
         using var form = new TextPromptForm("Void Order", "Reason:", required: true);
-        if (form.ShowDialog(this) == DialogResult.OK)
+        if (form.ShowDialog(this) != DialogResult.OK)
         {
-            await _mediator.Send(new VoidOrderCommand(row.OrderId, form.Value!));
-            await _listView.RefreshAsync();
+            return;
         }
+
+        var managerAuthService = _scope.ServiceProvider.GetService<Clovent.Desktop.Authorization.IManagerAuthorizationService>();
+        string? prefilledUsername = null;
+        if (_currentSession.UserId is { } uid && await _featurePolicy.CanUseFeatureAsync(uid, "pos.void"))
+        {
+            prefilledUsername = _currentSession.UserName;
+        }
+
+        using var authDialog = new ManagerAuthorizationForm(
+            "Manager Authorization - Void Order",
+            $"Order {row.OrderNumber} ({row.OrderType}) will be voided.\n\nReason: {form.Value}\n\nA manager must authorize voiding an order.",
+            managerAuthService,
+            "pos.void",
+            prefilledUsername);
+
+        if (authDialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        await _mediator.Send(new VoidOrderCommand(row.OrderId, form.Value!));
+        await _listView.RefreshAsync();
     }
 
     private async Task CancelAsync(OrderRow row)

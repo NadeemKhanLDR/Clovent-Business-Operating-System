@@ -332,4 +332,42 @@ public class OrderTests
 
         Assert.Throws<RestaurantDomainException>(() => order.Complete());
     }
+
+    [Fact]
+    public void SetNotes_And_SetCustomerNotes_WhenCompleted_Throws()
+    {
+        var order = CreateTakeAwayOrder();
+        order.Complete();
+
+        Assert.Throws<RestaurantDomainException>(() => order.SetNotes("Late edit"));
+        Assert.Throws<RestaurantDomainException>(() => order.SetCustomerNotes("Late edit"));
+    }
+
+    [Fact]
+    public void SetReceiptSnapshot_WhenCompletedAndAlreadyFrozen_Throws()
+    {
+        var order = CreateTakeAwayOrder();
+        order.SetReceiptSnapshot("{\"total\":10.00}");
+        order.Complete();
+
+        Assert.Throws<RestaurantDomainException>(() => order.SetReceiptSnapshot("{\"total\":99.00}"));
+    }
+
+    [Fact]
+    public void DeliveryStatus_And_Rider_AllowedWhenCompleted_RejectedWhenVoided()
+    {
+        var delivery = Order.Create(OrderType.Delivery, WarehouseId.New());
+        delivery.Complete();
+
+        delivery.AssignRider("Ali", "0300-1112223");
+        delivery.UpdateDeliveryStatus(DeliveryStatus.Delivered);
+        Assert.Equal(DeliveryStatus.Delivered, delivery.DeliveryStatus);
+        Assert.Equal("Ali", delivery.RiderName);
+
+        var voided = Order.Create(OrderType.Delivery, WarehouseId.New());
+        voided.Void("Cancelled before dispatch");
+
+        Assert.Throws<RestaurantDomainException>(() => voided.UpdateDeliveryStatus(DeliveryStatus.OutForDelivery));
+        Assert.Throws<RestaurantDomainException>(() => voided.AssignRider("Ali"));
+    }
 }

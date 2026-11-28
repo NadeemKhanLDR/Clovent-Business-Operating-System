@@ -486,4 +486,45 @@ public class OrderHandlerTests
 
         await Assert.ThrowsAsync<NotFoundException>(() => handler.Handle(new GetOrderByIdQuery(Guid.NewGuid()), CancellationToken.None));
     }
+
+    [Fact]
+    public async Task CancelOrderCommandHandler_CancelsActiveKitchenTickets()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var ticketRepository = new Clovent.Restaurant.Application.Tests.TestSupport.FakeKitchenTicketRepository();
+
+        var order = Order.Create(OrderType.TakeAway, WarehouseId.New());
+        var lineId = OrderLineId.New();
+        order.AddOrderLine(lineId);
+        orderRepository.Add(order);
+
+        var ticket = Clovent.Restaurant.KitchenTickets.KitchenTicket.Create(order.Id, [lineId]);
+        ticketRepository.Add(ticket);
+
+        await new CancelOrderCommandHandler(orderRepository, tableRepository, ticketRepository)
+            .Handle(new CancelOrderCommand(order.Id.Value, "Customer left"), CancellationToken.None);
+
+        Assert.Equal(Clovent.Restaurant.KitchenTickets.KitchenTicketStatus.Cancelled, ticket.Status);
+    }
+
+    [Fact]
+    public async Task ReopenOrderCommandHandler_WhenTableAlreadyHasLiveOrder_Throws()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var tableRepository = new FakeTableRepository();
+        var table = Table.Create(DiningAreaId.New(), EntityCode.Create("T-09"), 4);
+        table.Occupy();
+        tableRepository.Add(table);
+
+        var cancelledOrder = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        cancelledOrder.Cancel("Mistake");
+        var activeOrder = Order.Create(OrderType.DineIn, WarehouseId.New(), table.Id);
+        orderRepository.Add(cancelledOrder);
+        orderRepository.Add(activeOrder);
+
+        var handler = new ReopenOrderCommandHandler(orderRepository, tableRepository);
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            handler.Handle(new ReopenOrderCommand(cancelledOrder.Id.Value), CancellationToken.None));
+    }
 }
