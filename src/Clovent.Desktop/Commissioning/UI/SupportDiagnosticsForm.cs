@@ -1,12 +1,5 @@
-using System.Drawing;
-using System.Reflection;
-using System.Text;
 using System.Windows.Forms;
-using Clovent.Desktop.Commissioning.Database;
-using Clovent.Desktop.Commissioning.Security;
-using Clovent.Desktop.Commissioning.Services;
-using Clovent.Desktop.Configuration;
-using Clovent.Desktop.Licensing;
+using Clovent.Platform.Configuration;
 using DevExpress.XtraEditors;
 
 namespace Clovent.Desktop.Commissioning.UI;
@@ -17,6 +10,8 @@ namespace Clovent.Desktop.Commissioning.UI;
 /// </summary>
 public partial class SupportDiagnosticsForm : XtraForm
 {
+    private readonly SystemDiagnosticsService _diagnosticsService = new();
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SupportDiagnosticsForm"/> class.
     /// </summary>
@@ -31,17 +26,56 @@ public partial class SupportDiagnosticsForm : XtraForm
 
         Load += SupportDiagnosticsForm_Load;
         btnCopy.Click += BtnCopy_Click;
+        btnSave.Click += BtnSave_Click;
         btnRefresh.Click += BtnRefresh_Click;
     }
 
-    private void SupportDiagnosticsForm_Load(object? sender, EventArgs e)
+    private async void SupportDiagnosticsForm_Load(object? sender, EventArgs e)
     {
-        RefreshDiagnostics();
+        await RefreshDiagnosticsAsync();
     }
 
-    private void BtnRefresh_Click(object? sender, EventArgs e)
+    private async void BtnRefresh_Click(object? sender, EventArgs e)
     {
-        RefreshDiagnostics();
+        await RefreshDiagnosticsAsync();
+    }
+
+    private void BtnSave_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(memoDiagnostics.Text))
+            {
+                return;
+            }
+
+            using var sfd = new SaveFileDialog
+            {
+                Title = "Export System Support Diagnostics",
+                Filter = "Text Files (*.txt)|*.txt|All Files (*.*)|*.*",
+                FileName = $"cbos-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.txt"
+            };
+
+            if (sfd.ShowDialog(this) == DialogResult.OK)
+            {
+                AtomicFileWriter.WriteStringAtomic(sfd.FileName, memoDiagnostics.Text);
+                XtraMessageBox.Show(
+                    this,
+                    $"Diagnostics report exported to:\n{sfd.FileName}",
+                    "Export Complete",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            XtraMessageBox.Show(
+                this,
+                $"Unable to export diagnostics report: {ex.Message}",
+                "Export Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+        }
     }
 
     private void BtnCopy_Click(object? sender, EventArgs e)
@@ -80,108 +114,25 @@ public partial class SupportDiagnosticsForm : XtraForm
     /// </summary>
     public void RefreshDiagnostics()
     {
-        var sb = new StringBuilder();
-        var nowUtc = DateTimeOffset.UtcNow;
+        _ = RefreshDiagnosticsAsync();
+    }
 
-        var entryAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
-        var appVersion = entryAssembly.GetName().Version?.ToString(3) ?? "1.0.1";
-        var infoVersion = entryAssembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? appVersion;
-
-        var instanceScope = Clovent.Platform.Configuration.CbosInstanceScope.Current;
-        var dbSettings = DatabaseSecretStore.Load();
-        var serverName = dbSettings?.Server ?? instanceScope.DataSource ?? "Not Configured";
-        var dbName = dbSettings?.Database
-            ?? (instanceScope.IsQaMode ? (instanceScope.DatabaseName ?? "Not Configured") : DatabaseConnectionSettings.DefaultDatabaseName);
-        var isWindowsAuth = dbSettings?.UseWindowsAuthentication ?? true;
-        var authMode = isWindowsAuth
-            ? "Windows Authentication (Integrated Security)"
-            : "SQL Server Authentication (Credentials encrypted via DPAPI)";
-
-        string connectionStatus;
-        if (dbSettings != null)
+    /// <summary>
+    /// Asynchronously compiles and displays all non-sensitive system diagnostics.
+    /// </summary>
+    public async Task RefreshDiagnosticsAsync()
+    {
+        btnRefresh.Enabled = false;
+        try
         {
-            var testConnStr = dbSettings.BuildConnectionString();
-            bool connected = DatabaseSecretStore.TestConnection(testConnStr, out var connError);
-            connectionStatus = connected
-                ? "Connected (Verified)"
-                : $"Connection Failed: {DatabaseErrorMasker.Mask(connError)}";
+            var report = await _diagnosticsService.BuildDiagnosticsReportAsync(DeviceDpi);
+            memoDiagnostics.Text = report;
+            memoDiagnostics.SelectionStart = 0;
+            memoDiagnostics.SelectionLength = 0;
         }
-        else
+        finally
         {
-            connectionStatus = "No Saved Configuration";
+            btnRefresh.Enabled = true;
         }
-
-        var licenseResult = LicenseService.CurrentResult;
-        var lic = licenseResult.License;
-        var hardwareId = MachineFingerprint.GetCurrentMachineId();
-
-        var marker = CommissioningStateService.LoadMarker();
-        var orgName = marker?.OrganizationName ?? "Default Organization";
-        var compName = marker?.CompanyName ?? "Default Company";
-        var branchName = marker?.BranchName ?? "Main Branch";
-        var terminalName = marker?.TerminalName ?? Environment.MachineName;
-
-        var dpiScalePercent = (int)Math.Round(DeviceDpi / 96.0 * 100);
-
-        sb.AppendLine("================================================================================");
-        sb.AppendLine("CLOVENT BUSINESS OPERATING SYSTEM - SYSTEM SUPPORT DIAGNOSTICS");
-        sb.AppendLine($"Timestamp: {nowUtc:yyyy-MM-dd HH:mm:ss} UTC");
-        sb.AppendLine("================================================================================");
-        sb.AppendLine("Application:");
-        sb.AppendLine("  Product Name:         Clovent Business Operating System");
-        sb.AppendLine($"  Version:              {appVersion} ({infoVersion})");
-        sb.AppendLine($"  Target Platform:      win-x64 (.NET {Environment.Version})");
-        sb.AppendLine($"  High-DPI Mode:        PerMonitorV2 (Current: {dpiScalePercent}% / {DeviceDpi} DPI)");
-        sb.AppendLine($"  Instance Isolation:   {(instanceScope.IsQaMode ? $"QA Isolated ({instanceScope.QaInstanceRoot})" : "Production (Standard)")}");
-#if DEBUG
-        sb.AppendLine("  Build Configuration:  Debug");
-#else
-        sb.AppendLine("  Build Configuration:  Release");
-#endif
-
-        sb.AppendLine();
-        sb.AppendLine("Operating System:");
-        sb.AppendLine($"  OS Version:           {Environment.OSVersion.VersionString}");
-        sb.AppendLine($"  Host Name:            {Environment.MachineName}");
-        sb.AppendLine($"  Current User:         {Environment.UserName}");
-        sb.AppendLine($"  Administrator Rights: {(WindowsCommissioningSecurity.IsRunningAsAdministrator() ? "Yes (Elevated)" : "Standard User")}");
-
-        sb.AppendLine();
-        sb.AppendLine("Database:");
-        sb.AppendLine($"  Server:               {serverName}");
-        sb.AppendLine($"  Database Name:        {dbName}");
-        sb.AppendLine($"  Auth Mode:            {authMode}");
-        sb.AppendLine($"  Connection Status:    {connectionStatus}");
-        sb.AppendLine("  Schema Status:        Compatible (6 Contexts: Auth, Identity, MasterData, Catalog, Inventory, Restaurant)");
-
-        sb.AppendLine();
-        sb.AppendLine("Store & Workstation:");
-        sb.AppendLine($"  Organization:         {orgName}");
-        sb.AppendLine($"  Company:              {compName}");
-        sb.AppendLine($"  Branch:               {branchName}");
-        sb.AppendLine($"  Terminal:             {terminalName}");
-
-        sb.AppendLine();
-        sb.AppendLine("Licensing:");
-        sb.AppendLine($"  Status:               {licenseResult.Status}");
-        sb.AppendLine($"  License ID:           {(lic != null ? lic.LicenseId.ToString() : "N/A")}");
-        sb.AppendLine($"  Licensee:             {(lic != null ? lic.CustomerName : "Unregistered")}");
-        sb.AppendLine($"  License Type:         {(lic != null ? lic.LicenseType : "Evaluation / Trial")}");
-        sb.AppendLine($"  Expires:              {(lic != null ? lic.ExpiryDate.ToString("yyyy-MM-dd") : "N/A")}");
-        sb.AppendLine($"  Hardware ID:          {hardwareId}");
-        sb.AppendLine($"  Allowed Terminals:    {(lic != null ? lic.MaxTerminals.ToString() : "N/A")}");
-
-        sb.AppendLine();
-        sb.AppendLine("Storage & Log Paths:");
-        sb.AppendLine($"  ProgramData Directory: {ProgramDataAclManager.BaseDirectory}");
-        sb.AppendLine($"  Config Directory:      {ProgramDataAclManager.ConfigDirectory}");
-        sb.AppendLine($"  License Directory:     {ProgramDataAclManager.LicenseDirectory}");
-        sb.AppendLine($"  Logs Directory:        {ProgramDataAclManager.LogsDirectory}");
-        sb.AppendLine($"  User Config Path:      {DatabaseSecretStore.GetUserConfigFilePath()}");
-        sb.AppendLine("================================================================================");
-
-        memoDiagnostics.Text = sb.ToString();
-        memoDiagnostics.SelectionStart = 0;
-        memoDiagnostics.SelectionLength = 0;
     }
 }

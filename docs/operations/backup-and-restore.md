@@ -4,26 +4,22 @@
 | :--- | :--- |
 | **Area** | Database Administration & Disaster Preparedness |
 | **Audience** | Database Administrators, Systems Engineers, Store Operators |
-| **Last Reviewed Version** | CBOS 1.2.2 |
+| **Last Reviewed Version** | CBOS 1.3.0 |
 | **Status** | **PROCEDURAL STANDARD** |
 | **Classification** | **PUBLIC-SAFE** |
 
 ---
 
-## 1. Backup Architecture: Current Capability vs. Planned Evolution
+## 1. Backup & Restore Architecture
 
 > [!IMPORTANT]
-> **SEPARATION OF CURRENT VS. PLANNED CAPABILITIES:**
-> - **CURRENT CAPABILITY (CBOS 1.2.2):**
->   1. **Pre-Upgrade On-Demand Backup:** CBOS Desktop includes `DatabaseBackupService` (`src/Clovent.Desktop/Commissioning/Database/DatabaseBackupService.cs`), which executes an on-demand full database backup (`BACKUP DATABASE ... WITH COPY_ONLY, FORMAT, INIT`) prior to commissioning and schema upgrades.
->   2. **Manual & Scripted Backups:** Routine operational backups rely on external PowerShell scripts, `sqlcmd`, or SQL Server Management Studio (SSMS).
-> - **KNOWN LIMITATION (CBOS 1.2.2):**
->   - `CloventMaintenanceService` is **NOT** implemented in the codebase.
->   - Automatic background scheduled backups do **NOT** exist in the product.
->   - Automatic restore workflows and automated restore drills do **NOT** exist in the product.
->   - Cloud backup replication does **NOT** exist.
-> - **PLANNED ARCHITECTURE (CBOS 1.3.1+):**
->   - An automated background maintenance service providing scheduled verified backups, retention policy purging, automated restore verification drills, and optional encrypted offsite archival.
+> **IMPLEMENTED CAPABILITIES (CBOS 1.3.0):**
+> - **Manual & Pre-Upgrade Verified Backups:** `DatabaseBackupService` (`src/Clovent.Desktop/Commissioning/Database/DatabaseBackupService.cs`) executes `BACKUP DATABASE ... WITH COPY_ONLY, FORMAT, INIT, CHECKSUM` and automatically validates the resulting `.bak` file with `RESTORE VERIFYONLY` and `RESTORE HEADERONLY`.
+> - **Backup & Restore UI:** Administrators can open **Settings -> Backup & Restore** (`DatabaseBackupRestoreForm`) to configure the backup destination, run manual backups, verify `.bak` files, view backup/restore history (`backup_history.json`), and restore into the configured database or an isolated target database.
+> - **Restore Safeguards:** Restores require typing the target database name to confirm, verify the `.bak` file before touching any database, create a pre-restore safety backup when overwriting an existing database, use `SINGLE_USER WITH ROLLBACK IMMEDIATE` (restoring `MULTI_USER` in `finally`), and generate `WITH MOVE` clauses when restoring into an isolated database.
+> - **Scheduled Backups:** `ScheduledBackupHostedService` (`IHostedService`) runs periodic verified `COPY_ONLY` backups when enabled in `backup_settings.json` (`BackupConfigurationStore`).
+> - **Upgrade Integration:** Both `Clovent.Desktop` (`Program.cs` on `DatabaseTooOld`) and `Clovent.Installer.Provisioner.exe --upgrade` create a verified pre-upgrade backup before applying EF Core migrations, aborting safely if backup fails.
+> - **Known Limitations:** Cloud/off-site backup replication is not included; administrators should copy verified `.bak` files to off-machine storage for disaster recovery.
 
 ---
 

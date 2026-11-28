@@ -276,12 +276,24 @@ public sealed partial class MainForm
         if (diagSvg != null) diagnosticsButton.ImageOptions.SvgImage = diagSvg;
         diagnosticsButton.ItemClick += DiagnosticsButton_ItemClick;
 
+        var backupRestoreButton = new BarButtonItem
+        {
+            Caption = "Backup & Restore",
+            RibbonStyle = RibbonItemStyles.SmallWithText
+        };
+        var backupSvg = DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/icon%20builder/actions_database.svg")
+            ?? DevExpress.Images.ImageResourceCache.Default.GetSvgImage("svgimages/setup/properties.svg");
+        if (backupSvg != null) backupRestoreButton.ImageOptions.SvgImage = backupSvg;
+        backupRestoreButton.ItemClick += BackupRestoreButton_ItemClick;
+
         _ribbon.Items.Add(dbSettingsButton);
         _ribbon.Items.Add(licenseButton);
         _ribbon.Items.Add(diagnosticsButton);
+        _ribbon.Items.Add(backupRestoreButton);
         systemGroup.ItemLinks.Add(dbSettingsButton);
         systemGroup.ItemLinks.Add(licenseButton);
         systemGroup.ItemLinks.Add(diagnosticsButton);
+        systemGroup.ItemLinks.Add(backupRestoreButton);
         _settingsRibbonPage.Groups.Add(systemGroup);
     }
 

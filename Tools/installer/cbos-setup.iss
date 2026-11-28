@@ -908,7 +908,10 @@ begin
   else
     AuthCreds := '';
 
-  ProvParams := Format('--server "%s" --database "%s" --auth %s %s --backup-before-migration --log-file "%s" --provision', [SelectedSqlServer, SelectedDatabase, SelectedAuthMode, AuthCreds, ProvLog]);
+  if IsUpgradeMode then
+    ProvParams := Format('--server "%s" --database "%s" --auth %s %s --backup-before-migration --log-file "%s" --upgrade', [SelectedSqlServer, SelectedDatabase, SelectedAuthMode, AuthCreds, ProvLog])
+  else
+    ProvParams := Format('--server "%s" --database "%s" --auth %s %s --backup-before-migration --log-file "%s" --provision', [SelectedSqlServer, SelectedDatabase, SelectedAuthMode, AuthCreds, ProvLog]);
 
   LogInstallerMessage('Running database provisioner with verified pre-migration backup enabled.');
   ResultCode := -1;
@@ -937,7 +940,7 @@ begin
       4:
         FailureReason := 'Database schema compatibility validation failed or incompatible downgrade detected (Exit code: 4).';
       5:
-        FailureReason := 'Verified pre-migration database backup failed (Exit code: 5).';
+        FailureReason := 'Pre-upgrade or pre-migration database backup failed; schema was not modified (Exit code: 5).';
       64:
         FailureReason := 'Invalid provisioner command-line arguments (Exit code: 64).';
       99:

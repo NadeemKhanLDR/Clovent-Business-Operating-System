@@ -35,7 +35,8 @@ public static class Program
         string? QaRoot,
         bool QaMode,
         bool BackupBeforeMigration = false,
-        string? BackupDirectory = null);
+        string? BackupDirectory = null,
+        bool Upgrade = false);
 
     public static bool TryParseArguments(
         string[]? args,
@@ -73,6 +74,7 @@ public static class Program
         bool qaMode = false;
         bool backupBeforeMigration = false;
         string? backupDirectory = null;
+        bool upgrade = false;
 
         for (int i = 0; i < args.Length; i++)
         {
@@ -196,6 +198,11 @@ public static class Program
                 backupDirectory = args[++i];
                 backupBeforeMigration = true;
             }
+            else if (string.Equals(arg, "--upgrade", StringComparison.OrdinalIgnoreCase))
+            {
+                upgrade = true;
+                provision = true;
+            }
             else
             {
                 errorMessage = $"Unrecognized command-line argument '{arg}'.";
@@ -223,7 +230,7 @@ public static class Program
 
         if (provision && verifyOnly)
         {
-            errorMessage = "Cannot specify both --provision and --verify-only.";
+            errorMessage = "Cannot specify both --provision/--upgrade and --verify-only.";
             return false;
         }
 
@@ -256,7 +263,8 @@ public static class Program
             qaRoot,
             qaMode,
             backupBeforeMigration,
-            backupDirectory);
+            backupDirectory,
+            upgrade);
         return true;
     }
 
@@ -280,6 +288,7 @@ public static class Program
         bool qaMode = parsedArgs.QaMode;
         bool backupBeforeMigration = parsedArgs.BackupBeforeMigration;
         string? backupDirectory = parsedArgs.BackupDirectory;
+        bool upgrade = parsedArgs.Upgrade;
 
         // Initialize QA instance scope if qaRoot is specified
         if (!string.IsNullOrWhiteSpace(qaRoot))
@@ -345,7 +354,7 @@ public static class Program
 
         Log("================================================================================");
         Log("CLOVENT BUSINESS OPERATING SYSTEM - INSTALLER DATABASE PROVISIONER");
-        Log($"Mode: {(verifyOnly ? "Verify Only" : "Full Provisioning")}");
+        Log($"Mode: {(verifyOnly ? "Verify Only" : (upgrade ? "Upgrade (Preserve Existing Config + Pre-Upgrade Backup)" : "Full Provisioning"))}");
         Log($"QA Mode: {(qaMode ? $"Enabled (QA Root: {qaRoot ?? "N/A"})" : "Disabled (Production/Shared)")}");
         Log($"Target Server: {server}");
         Log($"Target Database: {database}");
@@ -378,17 +387,49 @@ public static class Program
                 }
             }
 
-            // 2. Build Connection Settings
-            var settings = new DatabaseConnectionSettings
+            // 2. Build or Preserve Connection Settings
+            bool preservedExistingConfig = false;
+            DatabaseConnectionSettings settings;
+            if (upgrade)
             {
-                Server = server,
-                Database = database,
-                UseWindowsAuthentication = useWindowsAuth,
-                UserId = useWindowsAuth ? null : userId,
-                PlainTextPassword = useWindowsAuth ? null : password,
-                TrustServerCertificate = true,
-                ConnectionTimeout = 15
-            };
+                var existing = DatabaseSecretStore.Load();
+                if (existing != null && !string.IsNullOrWhiteSpace(existing.Server))
+                {
+                    settings = existing;
+                    preservedExistingConfig = true;
+                    server = existing.Server;
+                    database = existing.Database;
+                    useWindowsAuth = existing.UseWindowsAuthentication;
+                    userId = existing.UserId;
+                    Log($"Upgrade mode: Preserving existing database configuration (Server: {server}, Database: {database}, WindowsAuth: {useWindowsAuth}).");
+                }
+                else
+                {
+                    settings = new DatabaseConnectionSettings
+                    {
+                        Server = server,
+                        Database = database,
+                        UseWindowsAuthentication = useWindowsAuth,
+                        UserId = useWindowsAuth ? null : userId,
+                        PlainTextPassword = useWindowsAuth ? null : password,
+                        TrustServerCertificate = true,
+                        ConnectionTimeout = 15
+                    };
+                }
+            }
+            else
+            {
+                settings = new DatabaseConnectionSettings
+                {
+                    Server = server,
+                    Database = database,
+                    UseWindowsAuthentication = useWindowsAuth,
+                    UserId = useWindowsAuth ? null : userId,
+                    PlainTextPassword = useWindowsAuth ? null : password,
+                    TrustServerCertificate = true,
+                    ConnectionTimeout = 15
+                };
+            }
 
             var connectionString = settings.BuildConnectionString();
             using var loggerFactory = LoggerFactory.Create(builder =>
@@ -495,8 +536,23 @@ public static class Program
                 }
             }
 
-            // Ensure physical database exists
+            // Ensure physical database exists (or create pre-upgrade backup if not already created above)
             Log($"Ensuring physical database '{database}' exists...");
+            bool dbAlreadyExists = await provisioningService.DatabaseExistsAsync(settings).ConfigureAwait(false);
+            if (upgrade && dbAlreadyExists)
+            {
+                Log($"Upgrade mode: Creating verified pre-upgrade backup of '{database}'...");
+                var backupLogger = loggerFactory.CreateLogger<DatabaseBackupService>();
+                var backupService = new DatabaseBackupService(backupLogger);
+                var (backupOk, backupPath, backupMsg) = await backupService.CreateBackupAsync(connectionString).ConfigureAwait(false);
+                if (!backupOk)
+                {
+                    Log($"ERROR: Pre-upgrade backup failed; aborting upgrade without modifying schema: {backupMsg}");
+                    return 5;
+                }
+                Log($"Pre-upgrade backup verified: {backupPath}");
+            }
+
             var (dbCreated, createDbMsg) = await provisioningService.CreateDatabaseAsync(
                 settings,
                 adminUserId: useWindowsAuth ? null : userId,
@@ -566,10 +622,11 @@ public static class Program
             }
             catch (Exception pmEx)
             {
-                Log($"Warning during payment methods verification: {pmEx.Message}");
+                Log($"ERROR: Core payment methods verification failed: {DatabaseErrorMasker.Mask(pmEx.Message, password)}");
+                return 3;
             }
 
-            // 7. Persist Connection Configuration (DPAPI encrypted)
+            // 7. Persist Connection Configuration (DPAPI encrypted) unless preserved in upgrade mode
             if (!string.IsNullOrWhiteSpace(qaRoot))
             {
                 Log($"Persisting QA database configuration inside QA root: {qaRoot}...");
@@ -581,6 +638,10 @@ public static class Program
                 var approvedData = new { Server = server, Database = database };
                 File.WriteAllText(approvedTargetFile, System.Text.Json.JsonSerializer.Serialize(approvedData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
                 Log($"Approved QA target pin written to {approvedTargetFile}.");
+            }
+            else if (preservedExistingConfig)
+            {
+                Log("Upgrade mode: Existing database configuration preserved in %ProgramData%.");
             }
             else
             {

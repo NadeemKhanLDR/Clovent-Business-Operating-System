@@ -22,6 +22,7 @@ partial class SupportDiagnosticsForm
         this.panelBottom = new System.Windows.Forms.Panel();
         this.lblCopiedNotice = new DevExpress.XtraEditors.LabelControl();
         this.btnCopy = new DevExpress.XtraEditors.SimpleButton();
+        this.btnSave = new DevExpress.XtraEditors.SimpleButton();
         this.btnRefresh = new DevExpress.XtraEditors.SimpleButton();
         this.btnClose = new DevExpress.XtraEditors.SimpleButton();
         this.panelContent = new System.Windows.Forms.Panel();
@@ -72,6 +73,7 @@ partial class SupportDiagnosticsForm
         // 
         this.panelBottom.Controls.Add(this.lblCopiedNotice);
         this.panelBottom.Controls.Add(this.btnCopy);
+        this.panelBottom.Controls.Add(this.btnSave);
         this.panelBottom.Controls.Add(this.btnRefresh);
         this.panelBottom.Controls.Add(this.btnClose);
         this.panelBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -87,10 +89,10 @@ partial class SupportDiagnosticsForm
         this.lblCopiedNotice.Appearance.ForeColor = System.Drawing.Color.ForestGreen;
         this.lblCopiedNotice.Appearance.Options.UseFont = true;
         this.lblCopiedNotice.Appearance.Options.UseForeColor = true;
-        this.lblCopiedNotice.Location = new System.Drawing.Point(260, 20);
+        this.lblCopiedNotice.Location = new System.Drawing.Point(378, 20);
         this.lblCopiedNotice.Name = "lblCopiedNotice";
         this.lblCopiedNotice.Size = new System.Drawing.Size(183, 15);
-        this.lblCopiedNotice.TabIndex = 2;
+        this.lblCopiedNotice.TabIndex = 3;
         this.lblCopiedNotice.Text = "Diagnostics copied to clipboard!";
         this.lblCopiedNotice.Visible = false;
         // 
@@ -104,14 +106,24 @@ partial class SupportDiagnosticsForm
         this.btnCopy.TabIndex = 0;
         this.btnCopy.Text = "Copy Diagnostics";
         // 
+        // btnSave
+        // 
+        this.btnSave.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+        this.btnSave.Appearance.Options.UseFont = true;
+        this.btnSave.Location = new System.Drawing.Point(160, 12);
+        this.btnSave.Name = "btnSave";
+        this.btnSave.Size = new System.Drawing.Size(112, 30);
+        this.btnSave.TabIndex = 1;
+        this.btnSave.Text = "Export Report...";
+        // 
         // btnRefresh
         // 
         this.btnRefresh.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
         this.btnRefresh.Appearance.Options.UseFont = true;
-        this.btnRefresh.Location = new System.Drawing.Point(160, 12);
+        this.btnRefresh.Location = new System.Drawing.Point(279, 12);
         this.btnRefresh.Name = "btnRefresh";
         this.btnRefresh.Size = new System.Drawing.Size(88, 30);
-        this.btnRefresh.TabIndex = 1;
+        this.btnRefresh.TabIndex = 2;
         this.btnRefresh.Text = "Refresh";
         // 
         // btnClose
@@ -175,6 +187,7 @@ partial class SupportDiagnosticsForm
     private System.Windows.Forms.Panel panelBottom;
     private DevExpress.XtraEditors.LabelControl lblCopiedNotice;
     private DevExpress.XtraEditors.SimpleButton btnCopy;
+    private DevExpress.XtraEditors.SimpleButton btnSave;
     private DevExpress.XtraEditors.SimpleButton btnRefresh;
     private DevExpress.XtraEditors.SimpleButton btnClose;
     private System.Windows.Forms.Panel panelContent;
