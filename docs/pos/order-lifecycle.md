@@ -74,7 +74,7 @@ stateDiagram-v2
 ### 2.3 `Completed`
 - **Definition:** Fully settled and finalized check.
 - **Completion Trigger:** Achieved when $\text{Applied Payments} + \text{On Account Applied} = \text{Total Amount}$. (In the 1.2.2 baseline, half-cent tolerance `BalanceEpsilon = 0.005m` is utilized; complete elimination of `BalanceEpsilon` in favor of exact 2-decimal zero-balance settlement is scheduled under **TASK-04: BalanceEpsilon Elimination + Completed Void Restriction**).
-- **Post-Completion Invariants:** Completed financial facts and `ReceiptSnapshotJson` are strictly immutable. Allowed operational metadata updates are distinguished from financial facts; financial corrections through metadata exceptions are strictly prohibited. No new order lines or payment adjustments can be added.
+- **Post-Completion Invariants:** Completed financial facts, order lines (quantity, notes, price overrides, void/unvoid), order/customer notes, and `ReceiptSnapshotJson` are strictly immutable and enforced at both domain and application handler boundaries. Operational delivery fulfillment metadata (`DeliveryStatus`, `RiderName`, `RiderPhone`) remains updatable on `Completed` delivery orders (and rejected on `Voided`/`Cancelled` orders). No new order lines or payment adjustments can be added.
 - **Outbox Side Effects:** Triggers generation of `QuickBooksSync`, `ReceiptPrint`, and `InventoryPosting` messages in the Transactional Outbox (governed under **TASK-07: Outbox Processor Startup**).
 
 ### 2.4 `Voided`
@@ -102,11 +102,11 @@ stateDiagram-v2
 
 ## 4. Kitchen Ticket Dispatching
 
-When an order in the `Open` state has new prepared items added, the cashier executes `Send to Kitchen`:
-1. Collects unprinted order lines belonging to kitchen-routed categories.
-2. Creates an immutable `KitchenTicket` record.
-3. Formats course tickets (Appetizer, Main, Dessert) with line-level chef notes.
-4. Kitchen tickets are dispatched to the kitchen display / ticket printer via the Transactional Outbox.
+When an order in the `Open` or `Held` state has new prepared items added, the cashier executes `Send to Kitchen`:
+1. Verifies the order is `Open` or `Held` (rejects `Completed`, `Voided`, or `Cancelled` orders).
+2. Collects unvoided order lines not already present on an existing non-cancelled `KitchenTicket` for that order (preventing duplicate tickets on repeat clicks; rejects if no unsent active lines exist).
+3. Creates an immutable `KitchenTicket` record (`New` → `InProgress` → `Ready` → `Served`, with `CreatedAtUtc`, `StartedAtUtc`, `ReadyAtUtc`, `ServedAtUtc`).
+4. Cancelling or voiding an order, or voiding/removing all remaining lines of an active ticket, automatically cancels the affected active `KitchenTicket`s so the kitchen display (`KitchenTicketViewerView`) stays synchronized.
 
 ---
 

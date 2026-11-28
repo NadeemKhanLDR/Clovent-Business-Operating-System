@@ -7,6 +7,7 @@ using Clovent.Catalog.Application.Variants.Queries;
 using Clovent.Restaurant.Application.OrderLines.Commands;
 using Clovent.Restaurant.Application.OrderLines.Queries;
 using Clovent.Restaurant.Application.Tests.TestSupport;
+using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using Xunit;
@@ -106,5 +107,56 @@ public class OrderLineHandlerTests
         var result = await new ListOrderLinesByOrderQueryHandler(repository).Handle(new ListOrderLinesByOrderQuery(orderId.Value), CancellationToken.None);
 
         Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task OrderLineMutations_WhenOrderCompleted_AreRejected()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var order = Order.Create(OrderType.TakeAway, MasterData.Warehouses.WarehouseId.New());
+        var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 10m, 0, false);
+        order.AddOrderLine(line.Id);
+        order.Complete();
+        orderRepository.Add(order);
+        orderLineRepository.Add(line);
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new SetOrderLineQuantityCommandHandler(orderLineRepository, orderRepository)
+                .Handle(new SetOrderLineQuantityCommand(line.Id.Value, 5), CancellationToken.None));
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new SetOrderLineNotesCommandHandler(orderLineRepository, orderRepository)
+                .Handle(new SetOrderLineNotesCommand(line.Id.Value, "Tamper"), CancellationToken.None));
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new OverrideOrderLinePriceCommandHandler(orderLineRepository, orderRepository)
+                .Handle(new OverrideOrderLinePriceCommand(line.Id.Value, 1m, "Tamper", "cashier"), CancellationToken.None));
+
+        await Assert.ThrowsAsync<RestaurantDomainException>(() =>
+            new VoidOrderLineCommandHandler(orderLineRepository, orderRepository)
+                .Handle(new VoidOrderLineCommand(line.Id.Value), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task VoidOrderLineCommandHandler_CancelsKitchenTicketWhenAllTicketLinesVoided()
+    {
+        var orderRepository = new FakeOrderRepository();
+        var orderLineRepository = new FakeOrderLineRepository();
+        var ticketRepository = new FakeKitchenTicketRepository();
+
+        var order = Order.Create(OrderType.TakeAway, MasterData.Warehouses.WarehouseId.New());
+        var line = OrderLine.Create(order.Id, Clovent.Catalog.Variants.ProductVariantId.New(), 1, 10m, 0, false);
+        order.AddOrderLine(line.Id);
+        orderRepository.Add(order);
+        orderLineRepository.Add(line);
+
+        var ticket = KitchenTicket.Create(order.Id, [line.Id]);
+        ticketRepository.Add(ticket);
+
+        await new VoidOrderLineCommandHandler(orderLineRepository, orderRepository, ticketRepository)
+            .Handle(new VoidOrderLineCommand(line.Id.Value), CancellationToken.None);
+
+        Assert.Equal(KitchenTicketStatus.Cancelled, ticket.Status);
     }
 }

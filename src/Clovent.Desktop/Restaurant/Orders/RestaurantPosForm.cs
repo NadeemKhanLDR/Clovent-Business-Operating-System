@@ -8164,10 +8164,10 @@ public sealed partial class RestaurantPosForm : XtraForm
         _recallButton.Enabled = Permit("resume");
         _clearButton.Enabled = hasOrder || _currentOrderLines.Count > 0;
         _voidOrderButton.Enabled = canEdit && Permit("void");
-        _cancelOrderButton.Enabled = canEdit && Permit("cancel");
+        _cancelOrderButton.Enabled = canEdit && (_currentOrder?.PaymentIds.Count ?? 0) == 0 && Permit("cancel");
         _cancelOrderButton.Visible = canEdit && hasOrder;
         _reopenButton.Enabled = canReopen && Permit("reopen");
-        _sendToKitchenButton.Enabled = canEdit && Permit("sendtokitchen");
+        _sendToKitchenButton.Enabled = canEdit && _currentOrderLines.Any(l => !l.IsVoided) && Permit("sendtokitchen");
         _completeButton.Enabled = canEdit && Permit("complete");
 
         // Enable or disable the payment entry controls (excluding payment methods):

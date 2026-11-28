@@ -170,6 +170,9 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>Stores the frozen receipt snapshot when the order completes.</summary>
     public void SetReceiptSnapshot(string snapshotJson)
     {
+        if (Status == OrderStatus.Completed && ReceiptSnapshotJson is not null)
+            throw RestaurantDomainException.ReceiptSnapshotAlreadyFrozen(Id);
+
         ReceiptSnapshotJson = snapshotJson;
         Touch();
     }
@@ -235,6 +238,9 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>Updates delivery status.</summary>
     public void UpdateDeliveryStatus(DeliveryStatus status)
     {
+        if (Status is OrderStatus.Voided or OrderStatus.Cancelled)
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
         DeliveryStatus = status;
         Touch();
     }
@@ -242,6 +248,9 @@ public sealed class Order : AggregateRoot<OrderId>
     /// <summary>Assigns a delivery rider.</summary>
     public void AssignRider(string? riderName, string? riderPhone = null)
     {
+        if (Status is OrderStatus.Voided or OrderStatus.Cancelled)
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
         RiderName = riderName?.Trim();
         RiderPhone = riderPhone?.Trim();
         Touch();
@@ -342,9 +351,12 @@ public sealed class Order : AggregateRoot<OrderId>
         AddDomainEvent(new OrderPaymentRecorded(Id, paymentId, DateTimeOffset.UtcNow));
     }
 
-    /// <summary>Sets the order's internal notes. A no-op (no event raised) if unchanged.</summary>
+    /// <summary>Sets the order's internal notes. Only while <see cref="OrderStatus.Open"/> or <see cref="OrderStatus.Held"/>. A no-op (no event raised) if unchanged.</summary>
     public void SetNotes(string? notes)
     {
+        if (Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
         if (Notes == notes) return;
 
         Notes = notes;
@@ -352,9 +364,12 @@ public sealed class Order : AggregateRoot<OrderId>
         AddDomainEvent(new OrderNotesChanged(Id, notes, DateTimeOffset.UtcNow));
     }
 
-    /// <summary>Sets the order's customer-facing notes. A no-op (no event raised) if unchanged.</summary>
+    /// <summary>Sets the order's customer-facing notes. Only while <see cref="OrderStatus.Open"/> or <see cref="OrderStatus.Held"/>. A no-op (no event raised) if unchanged.</summary>
     public void SetCustomerNotes(string? customerNotes)
     {
+        if (Status is not (OrderStatus.Open or OrderStatus.Held))
+            throw RestaurantDomainException.OrderNotOpen(Id, Status);
+
         if (CustomerNotes == customerNotes) return;
 
         CustomerNotes = customerNotes;

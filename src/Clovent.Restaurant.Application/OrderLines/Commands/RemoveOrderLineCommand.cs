@@ -1,4 +1,5 @@
 using Clovent.Restaurant.Application.OrderLines.Dtos;
+using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.OrderLines;
 using Clovent.Restaurant.Orders;
 using MediatR;
@@ -15,7 +16,10 @@ namespace Clovent.Restaurant.Application.OrderLines.Commands;
 public sealed record RemoveOrderLineCommand(Guid OrderId, Guid OrderLineId) : IRequest<OrderLineDto>;
 
 /// <summary>Handles <see cref="RemoveOrderLineCommand"/>.</summary>
-public sealed class RemoveOrderLineCommandHandler(IOrderRepository orderRepository, IOrderLineRepository orderLineRepository)
+public sealed class RemoveOrderLineCommandHandler(
+    IOrderRepository orderRepository,
+    IOrderLineRepository orderLineRepository,
+    IKitchenTicketRepository? kitchenTicketRepository = null)
     : IRequestHandler<RemoveOrderLineCommand, OrderLineDto>
 {
     /// <inheritdoc/>
@@ -32,6 +36,23 @@ public sealed class RemoveOrderLineCommandHandler(IOrderRepository orderReposito
         if (!line.IsVoided)
         {
             line.Void();
+        }
+
+        if (kitchenTicketRepository is not null)
+        {
+            var tickets = await kitchenTicketRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+            var activeLineIds = (await orderLineRepository.GetByOrderIdAsync(order.Id, cancellationToken))
+                .Where(l => !l.IsVoided && l.Id != line.Id)
+                .Select(l => l.Id)
+                .ToHashSet();
+
+            foreach (var ticket in tickets.Where(t =>
+                         t.Status is not (KitchenTicketStatus.Served or KitchenTicketStatus.Cancelled) &&
+                         t.OrderLineIds.Contains(line.Id) &&
+                         !t.OrderLineIds.Any(activeLineIds.Contains)))
+            {
+                ticket.Cancel();
+            }
         }
 
         return OrderLineDto.FromDomain(line);

@@ -23,12 +23,16 @@ partial class KitchenTicketViewerView
 
         _listView = new MasterDataListView<KitchenTicketRow>(
         [
-            new MasterDataColumn("OrderNumber", "Order #", 140),
-            new MasterDataColumn("LineCount", "Lines", 60),
+            new MasterDataColumn("OrderNumber", "Order #", 120),
+            new MasterDataColumn("OrderType", "Type", 85),
+            new MasterDataColumn("TableCode", "Table", 70),
+            new MasterDataColumn("LineCount", "Lines", 55),
+            new MasterDataColumn("NotesSummary", "Kitchen Notes", 180),
             new MasterDataColumn("Status", "Status", 90),
-            new MasterDataColumn("CreatedAtUtc", "Sent (UTC)", 160),
-            new MasterDataColumn("StartedAtUtc", "Started (UTC)", 160),
-            new MasterDataColumn("ReadyAtUtc", "Ready (UTC)", 160),
+            new MasterDataColumn("WaitDisplay", "Wait", 100),
+            new MasterDataColumn("CreatedAtUtc", "Sent (UTC)", 145),
+            new MasterDataColumn("StartedAtUtc", "Started (UTC)", 145),
+            new MasterDataColumn("ReadyAtUtc", "Ready (UTC)", 145),
         ],
         [
             new MasterDataListAction<KitchenTicketRow>("Start", row => _mediator.Send(new StartKitchenTicketCommand(row.KitchenTicketId)),

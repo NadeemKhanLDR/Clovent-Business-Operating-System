@@ -278,4 +278,16 @@ public sealed class RestaurantDomainException : DomainException
     /// <summary>External card refund validation failed closed because payment-method metadata is unavailable.</summary>
     public static RestaurantDomainException CardRefundPaymentMethodValidationUnavailable(string details) =>
         new($"External card refund validation failed closed: {details}");
+
+    /// <summary>SendOrderToKitchen was attempted when no unsent active lines exist on the order.</summary>
+    public static RestaurantDomainException NoUnsentKitchenLines(OrderId orderId) =>
+        new($"Order '{orderId}' has no new active items to send to the kitchen.");
+
+    /// <summary>SplitOrderCommand was attempted with an empty line selection.</summary>
+    public static RestaurantDomainException EmptySplitOrderSelection() =>
+        new("Select at least one order line to split.");
+
+    /// <summary>Order.SetReceiptSnapshot was attempted on a completed order that already has a frozen receipt snapshot.</summary>
+    public static RestaurantDomainException ReceiptSnapshotAlreadyFrozen(OrderId orderId) =>
+        new($"Order '{orderId}' is completed and already has an immutable receipt snapshot.");
 }

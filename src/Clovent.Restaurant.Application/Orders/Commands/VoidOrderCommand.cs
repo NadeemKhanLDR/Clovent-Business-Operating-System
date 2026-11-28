@@ -1,6 +1,7 @@
 using Clovent.Platform.Execution;
 using Clovent.Restaurant.Application.Concurrency;
 using Clovent.Restaurant.Application.Orders.Dtos;
+using Clovent.Restaurant.KitchenTickets;
 using Clovent.Restaurant.Customers;
 using Clovent.Restaurant.DomainServices;
 using Clovent.Restaurant.Orders;
@@ -23,7 +24,8 @@ public sealed class VoidOrderCommandHandler(
     ICustomerLedgerEntryRepository ledgerRepository,
     IPaymentMethodRepository paymentMethodRepository,
     ICustomerPaymentAllocationRepository allocationRepository,
-    Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null)
+    Clovent.Restaurant.Application.Security.IOrderScopeValidator? orderScopeValidator = null,
+    IKitchenTicketRepository? kitchenTicketRepository = null)
     : IRequestHandler<VoidOrderCommand, OrderDto>
 {
     /// <inheritdoc/>
@@ -69,6 +71,15 @@ public sealed class VoidOrderCommandHandler(
         }
 
         order.Void(request.Reason);
+
+        if (kitchenTicketRepository is not null)
+        {
+            var tickets = await kitchenTicketRepository.GetByOrderIdAsync(order.Id, cancellationToken);
+            foreach (var ticket in tickets.Where(t => t.Status is not (KitchenTicketStatus.Served or KitchenTicketStatus.Cancelled)))
+            {
+                ticket.Cancel();
+            }
+        }
 
         var payments = await paymentRepository.GetByOrderIdAsync(order.Id, cancellationToken);
         foreach (var listedPayment in payments.Where(p => !p.IsVoided))
