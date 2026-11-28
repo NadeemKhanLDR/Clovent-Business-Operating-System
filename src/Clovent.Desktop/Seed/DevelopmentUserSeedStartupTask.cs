@@ -20,6 +20,9 @@ namespace Clovent.Desktop.Seed;
 /// In all environments, existing user credentials must NEVER be reset, overwritten, or repaired by seeding.
 /// If an "admin" or existing user is found, this startup task is a strict no-op.
 /// </remarks>
+#if !DEBUG
+#pragma warning disable CS9113 // Primary constructor parameters are intentionally unused in Release builds where development seeding is disabled.
+#endif
 public sealed class DevelopmentUserSeedStartupTask(
     IUserRepository userRepository,
     IdentityDbContext identityDbContext,
@@ -71,3 +74,6 @@ public sealed class DevelopmentUserSeedStartupTask(
 #endif
     }
 }
+#if !DEBUG
+#pragma warning restore CS9113
+#endif

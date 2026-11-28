@@ -325,7 +325,7 @@ CloseButton Bounds: {_closeButton.Bounds}
         var phone = customer?.MobileNumber is { Length: > 0 } mobile ? mobile : "-";
         var invoiceDisplay = order.DailySalesNumber is { } n ? $"INV-{n:D6}" : "-";
 
-        var paymentDisplay = summary.Balance <= 0.005m
+        var paymentDisplay = summary.Balance <= 0.00m
             ? (summary.PaidTotal > 0 ? "Paid" : "Unpaid")
             : summary.PaidTotal > 0 ? "Partial" : "Unpaid";
 

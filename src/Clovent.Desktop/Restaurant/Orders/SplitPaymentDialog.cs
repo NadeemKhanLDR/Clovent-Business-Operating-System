@@ -196,7 +196,7 @@ public sealed class SplitPaymentDialog : XtraForm
             return false;
         }
 
-        if (allocated < _balance - 0.005m)
+        if (allocated < _balance)
         {
             XtraMessageBox.Show(
                 this,
@@ -215,7 +215,7 @@ public sealed class SplitPaymentDialog : XtraForm
             var isCash = string.Equals(name, "Cash", StringComparison.OrdinalIgnoreCase);
             var isLast = i == entries.Count - 1;
 
-            if ((!isCash || !isLast) && amount > remaining + 0.005m)
+            if ((!isCash || !isLast) && amount > remaining)
             {
                 XtraMessageBox.Show(
                     this,

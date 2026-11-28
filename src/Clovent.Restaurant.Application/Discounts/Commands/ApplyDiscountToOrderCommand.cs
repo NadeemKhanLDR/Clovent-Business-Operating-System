@@ -20,8 +20,8 @@ public sealed class ApplyDiscountToOrderCommandHandler(
     IOrderLineRepository orderLineRepository)
     : IRequestHandler<ApplyDiscountToOrderCommand, DiscountDto>
 {
-    /// <summary>Half-cent tolerance, matching the slack every other money comparison in this module applies.</summary>
-    private const decimal MoneyEpsilon = 0.005m;
+    /// <summary>Exact 2-decimal zero tolerance for discount-vs-subtotal checks (TASK-04).</summary>
+    private const decimal MoneyEpsilon = 0.00m;
 
     /// <inheritdoc/>
     public Task<DiscountDto> Handle(ApplyDiscountToOrderCommand request, CancellationToken cancellationToken) =>

@@ -88,6 +88,7 @@ public static class DesktopServiceCollectionExtensions
 
         services.AddScopeEnforcement();
         services.TryAddSingleton<Clovent.Platform.Execution.IInteractiveScopeProvider, Clovent.Desktop.Security.DesktopInteractiveScopeProvider>();
+        services.AddTransient(typeof(MediatR.IPipelineBehavior<,>), typeof(Clovent.Desktop.Licensing.LicenseReadOnlyEnforcementBehavior<,>));
         services.TryAddScoped<Clovent.Platform.Execution.ITenancyHierarchyProvider, Clovent.Desktop.Security.TenancyHierarchyProviderAdapter>();
 
         services.TryAddSingleton<IThemeService, ThemeService>();

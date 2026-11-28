@@ -90,10 +90,10 @@ public sealed class CompleteOrderCommandHandler(
             serviceCharges.Select(ServiceChargeDto.FromDomain).ToList(),
             payments.Select(PaymentDto.FromDomain).ToList());
 
-        if (totals.Balance > 0.005m)
+        if (totals.Balance > 0.00m)
             throw RestaurantDomainException.OrderNotFullyPaid(orderId, totals.Balance);
 
-        if (totals.Balance < -0.005m)
+        if (totals.Balance < 0.00m)
             throw RestaurantDomainException.OrderOverPaid(orderId, -totals.Balance);
 
         if (!order.DailySalesNumber.HasValue)

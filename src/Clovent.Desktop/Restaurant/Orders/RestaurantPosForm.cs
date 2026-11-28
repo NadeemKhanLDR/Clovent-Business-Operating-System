@@ -1808,7 +1808,7 @@ public sealed partial class RestaurantPosForm : XtraForm
             if (_currentOrder is null) return;
             await EnsureOrderResumedIfHeldAsync();
             var totals = await _mediator.Send(new GetOrderSummaryQuery(_currentOrder.OrderId));
-            if (totals.Balance > 0.005m)
+            if (totals.Balance > 0.00m)
             {
                 ShowPaymentDialog();
             }
@@ -8915,7 +8915,7 @@ public sealed partial class RestaurantPosForm : XtraForm
         var methodName = _paymentMethods.FirstOrDefault(m => m.PaymentMethodId == paymentMethodId).Name ?? "(unknown)";
 
         var isCash = string.Equals(methodName, "Cash", StringComparison.OrdinalIgnoreCase);
-        if (!isCash && tendered > _balance + 0.005m)
+        if (!isCash && tendered > _balance)
         {
             XtraMessageBox.Show(
                 this,
